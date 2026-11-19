@@ -125,6 +125,7 @@ var ROUTES = {
   'dossiers.modifier':     { fn: modifierDossier_, droit: 'dossiers' },
   'dossiers.piece':        { fn: deposerPieceDossier_, droit: 'dossiers' },
   'dossiers.archiver':     { fn: archiverDocumentDossier_, droit: 'dossiers' },
+  'dossiers.supprimer':    { fn: supprimerDossier_, droit: 'dossiers' },
   'extraits.liste':        { fn: listerExtraits_, droit: 'dossiers' },
   'extraits.lire':         { fn: lireExtrait_, droit: 'dossiers' },
   'extraits.enregistrer':  { fn: enregistrerExtrait_, droit: 'dossiers' },

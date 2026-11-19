@@ -197,6 +197,26 @@ function modifierDossier_(p, s) {
   return dossierComplet_(d);
 }
 
+/** Suppression complète : ligne, événement de l'agenda public, pièces du Drive (corbeille), liens avec les mails et extraits. */
+function supprimerDossier_(p, s) {
+  if (s.role !== 'admin' && s.role !== 'secretaire') throw erreur_('INTERDIT', 'Seuls les administrateurs et les secrétaires peuvent supprimer un dossier.');
+  var d = verrou_(function () {
+    var d = trouverDossier_(p.id);
+    var don = json2_(d.donnees, {});
+    if (d.evenement_id) { try { var ev = calendrier_().getEventById(d.evenement_id); if (ev) ev.deleteEvent(); } catch (e) {} }
+    (don.pieces || []).forEach(function (x) { try { DriveApp.getFileById(x.id).setTrashed(true); } catch (e) {} });
+    lignes_('SuiviMails').forEach(function (x) { if (x.dossier_id === d.id) { x.dossier_id = ''; ecrireLigne_('SuiviMails', x); } });
+    try {
+      var fx = db_().getSheetByName('Extraits');
+      if (fx) lignes_('Extraits').forEach(function (x) { if (x.dossier_id === d.id) { x.dossier_id = ''; ecrireLigne_('Extraits', x); } });
+    } catch (e) {}
+    feuille_('Dossiers').deleteRow(d._ligne);
+    return d;
+  });
+  journaliser_(s, 'Dossier supprimé', TYPES_DOSSIER[d.type].nom + ' – ' + d.nom);
+  return true;
+}
+
 function majDateDossierDepuisAgenda_(id, iso, lieu, s) {
   verrou_(function () {
     var d = trouverDossier_(id);

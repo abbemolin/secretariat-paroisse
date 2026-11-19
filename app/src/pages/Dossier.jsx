@@ -17,6 +17,7 @@ const champsEditables = (d) => ({
 
 export default function Dossier() {
   const { id } = useParams()
+  const navDossier = useNavigate()
   const notifier = useNotif()
   const app = useApp()
   const [d, setD] = useState(null)
@@ -45,6 +46,10 @@ export default function Dossier() {
   const t = TYPES[d.type]
   const dossierCourant = { ...d, ...b, nom: d.nom }
 
+  async function supprimerDossier() {
+    if (!confirm(`Supprimer définitivement le dossier « ${d.nom} » ?\n\nIl sera retiré de la liste, son événement retiré de l'agenda public et ses pièces mises à la corbeille du Drive. Les mails restent dans la boîte.`)) return
+    try { await api('dossiers.supprimer', { id: d.id }); notifier('Dossier supprimé'); navDossier('/dossiers') } catch (e) { notifier(e.message, 'erreur') }
+  }
   async function enregistrer() {
     setSauvegarde(true)
     try { const x = await api('dossiers.modifier', { id: d.id, ...b }); setD(x); setB(champsEditables(x)); notifier('Dossier enregistré'); return x }
@@ -118,6 +123,7 @@ export default function Dossier() {
           <select className="champ w-auto" value={b.etat} onChange={(e) => setB({ ...b, etat: e.target.value })}>
             {Object.entries(ETATS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
+          {['admin', 'secretaire'].includes(app.utilisateur.role) && <button className="btn-danger" title="Supprimer le dossier" onClick={supprimerDossier}><Trash2 className="h-4 w-4" /><span className="hidden sm:inline">Supprimer</span></button>}
         </div>
       </div>
 
