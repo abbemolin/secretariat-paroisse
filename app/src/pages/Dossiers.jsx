@@ -4,7 +4,7 @@ import { Plus, Search, FolderHeart, Loader2, Globe, Printer, CalendarCheck, Scro
 import { api } from '../api.js'
 import { useApp } from '../App.jsx'
 import { TYPES, ORDRE_TYPES, ETATS, prochaineEtape, documentsManquants, PAR_ANNEE, anneeSacrements, etapesDe, libelleAnnee, TITRES_COLLECTIFS, lieuPreparation } from '../types.js'
-import { Chargement, Erreur, Modale, Vide, useCharger, useNotif, dateCourte, initiales, versLocal, jourLong, heure, COULEURS_STATUT } from '../ui.jsx'
+import { Chargement, Erreur, Modale, Vide, useCharger, useNotif, imprimerHtml, dateCourte, initiales, versLocal, jourLong, heure, COULEURS_STATUT } from '../ui.jsx'
 
 export default function Dossiers() {
   const nav = useNavigate()
@@ -168,10 +168,8 @@ function Promotion({ type, annee, dossiers }) {
       td{border-bottom:1px solid #ddd;padding:2.2mm 2mm} td:first-child{color:#888;width:8mm} .total{margin-top:6mm;color:#666;font-size:10pt}</style></head><body>
       <h1>${TITRES_COLLECTIFS[type]} – ${annee}</h1><p class="sous">${e(reglages.paroisse)}${quand ? '<br>Célébration : ' + e(quand) : ''}</p>
       <table><thead><tr><th>N°</th><th>Nom</th><th>Prénom</th><th>Lieu de préparation</th></tr></thead><tbody>${lignes}</tbody></table>
-      <p class="total">${tries.length} enfant${tries.length > 1 ? 's' : ''}</p><script>window.onload=()=>window.print()</script></body></html>`
-    const w = window.open('', '_blank')
-    if (!w) { notifier('Autorisez les fenêtres pour imprimer', 'erreur'); return }
-    w.document.write(html); w.document.close()
+      <p class="total">${tries.length} enfant${tries.length > 1 ? 's' : ''}</p></body></html>`
+    imprimerHtml(html)
   }
   return (
     <div className="carte mb-4 flex flex-wrap items-end gap-3 border-or/40 bg-or-50/40 p-4">

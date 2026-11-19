@@ -98,11 +98,41 @@ export function EnTete({ titre, sousTitre, actions }) {
   )
 }
 
-// ─── Notifications ───
+// ─── Notifications et confirmations (jamais de fenêtre native du navigateur) ───
 const CtxNotif = createContext(() => {})
 export const useNotif = () => useContext(CtxNotif)
+const CtxConfirmer = createContext(async () => false)
+/** const confirmer = useConfirmer(); if (await confirmer({ titre, texte, bouton, danger })) … */
+export const useConfirmer = () => useContext(CtxConfirmer)
+
+/** Imprime un document HTML via un cadre caché (pas de nouvel onglet). */
+export function imprimerHtml(html) {
+  const cadre = document.createElement('iframe')
+  Object.assign(cadre.style, { position: 'fixed', right: '0', bottom: '0', width: '0', height: '0', border: '0' })
+  document.body.appendChild(cadre)
+  cadre.onload = () => { cadre.contentWindow.focus(); cadre.contentWindow.print(); setTimeout(() => cadre.remove(), 60000) }
+  cadre.srcdoc = html
+}
 
 export function FournisseurNotif({ children }) {
+  const [demande, setDemande] = useState(null)
+  const confirmer = useCallback((opts) => new Promise((resoudre) => setDemande({ ...opts, resoudre })), [])
+  const repondre = (ok) => { demande?.resoudre(ok); setDemande(null) }
+  return (
+    <CtxConfirmer.Provider value={confirmer}>
+      <FournisseurToasts>{children}</FournisseurToasts>
+      {demande && (
+        <Modale titre={demande.titre || 'Confirmer'} onFermer={() => repondre(false)}
+          pied={<><button className="btn-clair" onClick={() => repondre(false)}>Annuler</button>
+            <button className={demande.danger ? 'btn bg-red-700 text-white hover:bg-red-800' : 'btn-principal'} onClick={() => repondre(true)} autoFocus>{demande.bouton || 'Confirmer'}</button></>}>
+          <p className="whitespace-pre-line text-sm text-nuit-600">{demande.texte}</p>
+        </Modale>
+      )}
+    </CtxConfirmer.Provider>
+  )
+}
+
+function FournisseurToasts({ children }) {
   const [liste, setListe] = useState([])
   const notifier = useCallback((texte, type = 'ok') => {
     const id = Math.random()

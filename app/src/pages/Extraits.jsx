@@ -5,7 +5,7 @@ import { api } from '../api.js'
 import { useApp } from '../App.jsx'
 import { B14 } from '../imprimables.js'
 import { htmlVersPdf, telechargerBlob } from '../pdf.js'
-import { Chargement, Erreur, Modale, Vide, useCharger, useNotif, dateHeure, dateCourte } from '../ui.jsx'
+import { Chargement, Erreur, Modale, Vide, useCharger, useNotif, useConfirmer, dateHeure, dateCourte } from '../ui.jsx'
 import { Redaction } from './Courrier.jsx'
 
 const dateLongue = (d) => new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }).format(d ? new Date(d) : new Date())
@@ -82,6 +82,7 @@ function Registre() {
 
 function Extrait({ id }) {
   const nav = useNavigate()
+  const confirmer = useConfirmer()
   const notifier = useNotif()
   const { utilisateur, reglages } = useApp()
   const [x, setX] = useState(null)
@@ -130,7 +131,7 @@ function Extrait({ id }) {
     } catch (e) { notifier(e.message, 'erreur') } finally { setOccupe('') }
   }
   async function supprimer() {
-    if (!confirm(`Supprimer définitivement l'extrait de ${x.nom} ?\n\nIl sera retiré du registre, et le PDF signé mis à la corbeille du Drive.`)) return
+    if (!(await confirmer({ titre: "Supprimer l'extrait", texte: `L'extrait de ${x.nom} sera retiré du registre, et le PDF signé mis à la corbeille du Drive.`, bouton: 'Supprimer définitivement', danger: true }))) return
     setOccupe('suppr')
     try { await api('extraits.supprimer', { id }); notifier('Extrait supprimé'); nav('/extraits') } catch (e) { notifier(e.message, 'erreur'); setOccupe('') }
   }

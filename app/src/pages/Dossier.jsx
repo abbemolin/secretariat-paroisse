@@ -5,7 +5,7 @@ import { api, fichierEnBase64, telechargerBase64 } from '../api.js'
 import { useApp } from '../App.jsx'
 import { TYPES, ETATS, documentsManquants, PAR_ANNEE, anneeSacrements, choixAnnees, etapesDe, documentsDe, TITRES_COLLECTIFS, choixAnneesScolaires, lieuPreparation, libelleAnnee } from '../types.js'
 import { IMPRIMABLES } from '../imprimables.js'
-import { Chargement, Erreur, Modale, useNotif, dateHeure, dateRelative, dateCourte, versLocal, jourLong, heure } from '../ui.jsx'
+import { Chargement, Erreur, Modale, useNotif, useConfirmer, dateHeure, dateRelative, dateCourte, versLocal, jourLong, heure } from '../ui.jsx'
 import { Redaction } from './Courrier.jsx'
 import { htmlVersPdf } from '../pdf.js'
 import { creerExtrait } from './Extraits.jsx'
@@ -18,6 +18,7 @@ const champsEditables = (d) => ({
 export default function Dossier() {
   const { id } = useParams()
   const navDossier = useNavigate()
+  const confirmer = useConfirmer()
   const notifier = useNotif()
   const app = useApp()
   const [d, setD] = useState(null)
@@ -35,11 +36,6 @@ export default function Dossier() {
   useEffect(() => { api('promotions.liste').then(setPromotions).catch(() => {}) }, [])
   const modifie = useMemo(() => d && b && JSON.stringify(champsEditables(d)) !== JSON.stringify(b), [d, b])
 
-  useEffect(() => {
-    const f = (e) => { if (modifie) { e.preventDefault(); e.returnValue = '' } }
-    window.addEventListener('beforeunload', f)
-    return () => window.removeEventListener('beforeunload', f)
-  }, [modifie])
 
   if (erreur) return <Erreur erreur={erreur} />
   if (!d || !b) return <Chargement />
@@ -47,7 +43,7 @@ export default function Dossier() {
   const dossierCourant = { ...d, ...b, nom: d.nom }
 
   async function supprimerDossier() {
-    if (!confirm(`Supprimer définitivement le dossier « ${d.nom} » ?\n\nIl sera retiré de la liste, son événement retiré de l'agenda public et ses pièces mises à la corbeille du Drive. Les mails restent dans la boîte.`)) return
+    if (!(await confirmer({ titre: 'Supprimer le dossier', texte: `Le dossier « ${d.nom} » sera retiré de la liste, son événement retiré de l'agenda public et ses pièces mises à la corbeille du Drive.\nLes mails restent dans la boîte.`, bouton: 'Supprimer définitivement', danger: true }))) return
     try { await api('dossiers.supprimer', { id: d.id }); notifier('Dossier supprimé'); navDossier('/dossiers') } catch (e) { notifier(e.message, 'erreur') }
   }
   async function enregistrer() {

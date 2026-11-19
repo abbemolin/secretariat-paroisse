@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Plus, MapPin, Repeat, Loader2, FolderHeart, Globe } from 'lucide-react'
 import { api } from '../api.js'
-import { Chargement, Erreur, Modale, useCharger, useNotif, heure, jourLong, versLocal } from '../ui.jsx'
+import { Chargement, Erreur, Modale, useCharger, useNotif, useConfirmer, heure, jourLong, versLocal } from '../ui.jsx'
 
 const lundi = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x }
 const ajouterJours = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x }
@@ -124,6 +124,7 @@ export default function Agenda() {
 }
 
 export function EditionEvenement({ evenement, onFermer, onFait }) {
+  const confirmer = useConfirmer()
   const nouveau = !evenement.id
   const lectureSeule = evenement.recurrent
   const [f, setF] = useState(() => ({
@@ -146,7 +147,7 @@ export function EditionEvenement({ evenement, onFermer, onFait }) {
     } catch (e) { setErreur(e) } finally { setEnvoi(false) }
   }
   async function supprimer() {
-    if (!confirm(f.dossier ? "Supprimer l'événement ? La date sera retirée du dossier." : 'Supprimer cet événement ?')) return
+    if (!(await confirmer({ titre: "Supprimer l'événement", texte: f.dossier ? "L'événement sera retiré de l'agenda public et la date retirée du dossier." : "L'événement sera retiré de l'agenda public.", bouton: 'Supprimer', danger: true }))) return
     setEnvoi(true)
     try { await api('agenda.supprimer', { id: f.id }); onFait('Événement supprimé') } catch (e) { setErreur(e); setEnvoi(false) }
   }
