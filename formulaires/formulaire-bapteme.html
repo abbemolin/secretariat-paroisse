@@ -1,0 +1,69 @@
+<meta charset="utf-8">
+<!-- Formulaire « Demande de baptême » – Paroisse La Croix glorieuse. Les réponses arrivent dans l'appli du secrétariat. -->
+<div class="cg-form" id="cg-bapteme">
+<style>
+#cg-bapteme{font-family:inherit;max-width:640px;margin:0 auto;color:#222}
+#cg-bapteme h2{margin:0 0 .4em;font-size:1.6em}
+#cg-bapteme p.cg-intro{margin:0 0 1.4em;color:#555;line-height:1.5}
+#cg-bapteme fieldset{border:0;padding:0;margin:0 0 1.2em}
+#cg-bapteme legend{font-weight:bold;font-size:1.05em;margin-bottom:.6em;color:#1f2a44}
+#cg-bapteme .cg-grille{display:grid;grid-template-columns:1fr 1fr;gap:.8em}
+#cg-bapteme .cg-large{grid-column:1/-1}
+#cg-bapteme label{display:block;font-size:.9em;margin-bottom:.25em;color:#444}
+#cg-bapteme input,#cg-bapteme textarea{width:100%;box-sizing:border-box;padding:.65em .75em;border:1px solid #ccc;border-radius:6px;font:inherit;background:#fff}
+#cg-bapteme input:focus,#cg-bapteme textarea:focus{outline:2px solid #b08a3e55;border-color:#b08a3e}
+#cg-bapteme textarea{min-height:110px}
+#cg-bapteme .cg-req{color:#b33}
+#cg-bapteme .cg-consent{display:flex;gap:.6em;align-items:flex-start;font-size:.9em;color:#444;margin:.4em 0 1.2em}
+#cg-bapteme .cg-consent input{width:auto;margin-top:.2em}
+#cg-bapteme button{background:#1f2a44;color:#fff;border:0;border-radius:6px;padding:.8em 1.6em;font:inherit;font-weight:bold;cursor:pointer}
+#cg-bapteme button[disabled]{opacity:.6;cursor:wait}
+#cg-bapteme .cg-msg{margin-top:1em;padding:.9em 1em;border-radius:6px;display:none;line-height:1.4}
+#cg-bapteme .cg-ok{background:#e8f5ec;color:#1d5e33}
+#cg-bapteme .cg-ko{background:#fdeceb;color:#8a1f17}
+#cg-bapteme .cg-piege{position:absolute;left:-9999px;height:0;overflow:hidden}
+@media(max-width:560px){#cg-bapteme .cg-grille{grid-template-columns:1fr}}
+</style>
+<h2>Demande de baptême</h2>
+<p class="cg-intro">Vous souhaitez faire baptiser votre enfant ? Remplissez ce formulaire : le secrétariat vous recontactera pour la suite de la préparation.</p>
+<form novalidate>
+<fieldset><legend>L'enfant</legend><div class="cg-grille"><div class=""><label>Prénoms <span class="cg-req">*</span></label><input type="text" name="enfant_prenoms" required></div><div class=""><label>Nom <span class="cg-req">*</span></label><input type="text" name="enfant_nom" required></div><div class=""><label>Date de naissance <span class="cg-req">*</span></label><input type="date" name="enfant_naissance_date" required></div><div class=""><label>Lieu de naissance</label><input type="text" name="enfant_naissance_lieu"></div></div></fieldset>
+<fieldset><legend>Les parents</legend><div class="cg-grille"><div class=""><label>Noms des parents <span class="cg-req">*</span></label><input type="text" name="parents_noms" required></div><div class=""><label>Adresse</label><input type="text" name="adresse"></div><div class=""><label>Téléphone <span class="cg-req">*</span></label><input type="tel" name="telephone" required autocomplete="tel"></div><div class=""><label>E-mail <span class="cg-req">*</span></label><input type="email" name="email" required autocomplete="email"></div></div></fieldset>
+<fieldset><legend>Parrain et marraine</legend><div class="cg-grille"><div class=""><label>Parrain (prénom et nom)</label><input type="text" name="parrain_nom"></div><div class=""><label>Marraine (prénom et nom)</label><input type="text" name="marraine_nom"></div></div></fieldset>
+<fieldset><legend>Le baptême</legend><div class="cg-grille"><div class=""><label>Date souhaitée</label><input type="date" name="date_souhaitee"></div><div class="cg-large"><label>Message (facultatif)</label><textarea name="message"></textarea></div></div></fieldset>
+<div class="cg-piege" aria-hidden="true"><label>Site web<input name="site_web" tabindex="-1" autocomplete="off"></label></div>
+<label class="cg-consent"><input type="checkbox" name="consentement" required> <span>J'accepte que la paroisse La Croix glorieuse utilise ces informations uniquement pour traiter ma demande. <span class="cg-req">*</span></span></label>
+<button type="submit">Envoyer ma demande</button>
+<div class="cg-msg"></div>
+</form>
+<script>
+(function(){
+  var URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzSjwHZONGGz0xfWXo_u4MJRYBon8eZZzyTvWNrgo6418zkoOXpzVDx3Q8nthP5rLAleg/exec";
+  var racine = document.getElementById('cg-bapteme');
+  var form = racine.querySelector('form'), msg = racine.querySelector('.cg-msg'), bouton = form.querySelector('button');
+  function afficher(texte, ok){ msg.textContent = texte; msg.className = 'cg-msg ' + (ok ? 'cg-ok' : 'cg-ko'); msg.style.display = 'block'; }
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    var manque = Array.prototype.filter.call(form.querySelectorAll('[required]'), function(x){ return x.type === 'checkbox' ? !x.checked : !x.value.trim(); });
+    if (manque.length) { afficher('Merci de remplir les champs marqués d\'une étoile et d\'accepter l\'utilisation de vos données.', false); manque[0].focus(); return; }
+    var email = form.querySelector('[name=email]');
+    if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.value.trim())) { afficher('Adresse e-mail invalide.', false); email.focus(); return; }
+    var champs = {};
+    Array.prototype.forEach.call(form.querySelectorAll('input[name],textarea[name]'), function(x){ if (x.name !== 'consentement' && x.name !== 'site_web') champs[x.name] = x.value.trim(); });
+    bouton.disabled = true; bouton.textContent = 'Envoi…';
+    fetch(URL_SCRIPT, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'public.demande', payload: { type: 'bapteme', champs: champs, consentement: true, site_web: form.site_web.value } }) })
+      .then(function(r){ return r.json(); })
+      .then(function(r){
+        if (!r.ok) throw new Error(r.message);
+        form.querySelectorAll('fieldset,.cg-consent,button').forEach(function(x){ x.style.display = 'none'; });
+        afficher('Merci ! Votre demande a bien été transmise au secrétariat de la paroisse. Nous vous recontacterons prochainement.', true);
+      })
+      .catch(function(err){
+        bouton.disabled = false; bouton.textContent = 'Envoyer ma demande';
+        afficher((err && err.message && err.message.length < 200 ? err.message : 'L\'envoi n\'a pas fonctionné.') + ' Vous pouvez aussi écrire à secretariat@croix-glorieuse.org.', false);
+      });
+  });
+})();
+</script>
+</div>
