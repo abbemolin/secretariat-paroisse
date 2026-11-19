@@ -158,7 +158,6 @@ function ecrireSceau_(p, s) {
 
 /** Suppression complète : ligne du registre, PDF signé et image de signature (corbeille du Drive). */
 function supprimerExtrait_(p, s) {
-  if (!peutSigner_(s) && s.role !== 'admin') throw erreur_('INTERDIT', "Vous n'êtes pas habilité(e) à supprimer les extraits.");
   var nom = verrou_(function () {
     var e = trouverExtrait_(p.id);
     [e.pdf_id, e.signature_id].forEach(function (id) { if (id) { try { DriveApp.getFileById(id).setTrashed(true); } catch (err) {} } });

@@ -199,7 +199,6 @@ function modifierDossier_(p, s) {
 
 /** Suppression complète : ligne, événement de l'agenda public, pièces du Drive (corbeille), liens avec les mails et extraits. */
 function supprimerDossier_(p, s) {
-  if (s.role !== 'admin' && s.role !== 'secretaire') throw erreur_('INTERDIT', 'Seuls les administrateurs et les secrétaires peuvent supprimer un dossier.');
   var d = verrou_(function () {
     var d = trouverDossier_(p.id);
     var don = json2_(d.donnees, {});

@@ -123,7 +123,7 @@ export default function Dossier() {
           <select className="champ w-auto" value={b.etat} onChange={(e) => setB({ ...b, etat: e.target.value })}>
             {Object.entries(ETATS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
-          {['admin', 'secretaire'].includes(app.utilisateur.role) && <button className="btn-danger" title="Supprimer le dossier" onClick={supprimerDossier}><Trash2 className="h-4 w-4" /><span className="hidden sm:inline">Supprimer</span></button>}
+          <button className="btn-danger" title="Supprimer le dossier" onClick={supprimerDossier}><Trash2 className="h-4 w-4" /><span className="hidden sm:inline">Supprimer</span></button>
         </div>
       </div>
 
