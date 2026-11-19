@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { LogOut, Loader2, Smartphone, Bell, BellOff } from 'lucide-react'
+import { LogOut, Loader2, Smartphone, Bell, BellOff, Users, Settings } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { api, activerPush, desactiverPush, abonnementActuel, pushPossible, estDemo } from '../api.js'
 import { useApp } from '../App.jsx'
 import { Erreur, useNotif, ROLES } from '../ui.jsx'
 
 export default function Compte() {
-  const { utilisateur, deconnecter } = useApp()
+  const { utilisateur, deconnecter, peut } = useApp()
   const notifier = useNotif()
   const [ancien, setAncien] = useState('')
   const [nouveau, setNouveau] = useState('')
@@ -43,6 +44,13 @@ export default function Compte() {
             <p><strong>Android</strong> : dans Chrome, menu ⋮ → « Installer l'application ».</p>
             <p><strong>Ordinateur</strong> : dans Chrome ou Edge, icône d'installation à droite de la barre d'adresse.</p>
           </div>
+          {(peut('utilisateurs') || peut('reglages')) && (
+            <div className="carte space-y-2 p-5">
+              <h2 className="text-xl font-semibold">Administration</h2>
+              {peut('utilisateurs') && <Link to="/utilisateurs" className="btn-clair w-full justify-start"><Users className="h-4 w-4" />Utilisateurs</Link>}
+              {peut('reglages') && <Link to="/reglages" className="btn-clair w-full justify-start"><Settings className="h-4 w-4" />Réglages (signatures, réponses types, journal)</Link>}
+            </div>
+          )}
           <button className="btn-danger w-full" onClick={deconnecter}><LogOut className="h-4 w-4" />Se déconnecter</button>
         </div>
       </div>
