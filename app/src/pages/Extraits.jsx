@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Plus, Search, ScrollText, PenLine, Printer, Download, Send, Loader2, Save, Eraser, CheckCircle2, FolderHeart, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Plus, Search, ScrollText, PenLine, Printer, Download, Send, Loader2, Save, Eraser, CheckCircle2, FolderHeart, AlertCircle, Trash2 } from 'lucide-react'
 import { api } from '../api.js'
 import { useApp } from '../App.jsx'
 import { B14 } from '../imprimables.js'
@@ -81,6 +81,7 @@ function Registre() {
 }
 
 function Extrait({ id }) {
+  const nav = useNavigate()
   const notifier = useNotif()
   const { utilisateur, reglages } = useApp()
   const [x, setX] = useState(null)
@@ -128,6 +129,11 @@ function Extrait({ id }) {
       notifier('Extrait signé et archivé dans le Drive')
     } catch (e) { notifier(e.message, 'erreur') } finally { setOccupe('') }
   }
+  async function supprimer() {
+    if (!confirm(`Supprimer définitivement l'extrait de ${x.nom} ?\n\nIl sera retiré du registre, et le PDF signé mis à la corbeille du Drive.`)) return
+    setOccupe('suppr')
+    try { await api('extraits.supprimer', { id }); notifier('Extrait supprimé'); nav('/extraits') } catch (e) { notifier(e.message, 'erreur'); setOccupe('') }
+  }
   async function telecharger() {
     setOccupe('pdf')
     try { const { blob } = await htmlVersPdf(html); telechargerBlob(blob, `Extrait de baptême – ${x.nom}.pdf`) } catch (e) { notifier(e.message, 'erreur') } finally { setOccupe('') }
@@ -173,10 +179,11 @@ function Extrait({ id }) {
           <div className="carte flex flex-wrap gap-2 p-3">
             {x.peutSigner
               ? <button className="btn-or" onClick={() => setPad(true)} disabled={!!occupe}>{occupe === 'sign' ? <Loader2 className="h-4 w-4 animate-spin" /> : <PenLine className="h-4 w-4" />}{signe ? 'Signer à nouveau' : 'Signer'}</button>
-              : <span className="self-center text-xs text-nuit-600/70">Vous n'êtes pas habilité(e) à signer les extraits.</span>}
+              : <span className="self-center rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">Votre compte n'est pas autorisé à signer. Un administrateur peut l'ajouter dans Réglages → Paroisse → « Peuvent signer les extraits ».</span>}
             <button className="btn-clair" onClick={() => cadre.current.contentWindow.print()}><Printer className="h-4 w-4" />Imprimer</button>
             <button className="btn-clair" onClick={telecharger} disabled={!!occupe}>{occupe === 'pdf' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}PDF</button>
             <button className="btn-clair" onClick={() => setMail(true)} disabled={!signe} title={signe ? '' : "Signez d'abord l'extrait"}><Send className="h-4 w-4" />Envoyer par e-mail</button>
+            <button className="btn-danger ml-auto" onClick={supprimer} disabled={!!occupe}>{occupe === 'suppr' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}Supprimer</button>
           </div>
           {!sceau && <p className="rounded-lg bg-or-50 p-2.5 text-xs text-or-600">Le sceau paroissial n'est pas encore enregistré : ajoutez-le dans Réglages → Paroisse.</p>}
           <div className="overflow-hidden rounded-xl border border-nuit-100 bg-[#e9e6df]">

@@ -190,6 +190,7 @@ export async function demoApi(action, p) {
     case 'extraits.signer': { const x = etat.extraits.find((e) => e.id === p.id); Object.assign(x, { statut: 'signe', signe_par: moi.nom, signe_le: new Date().toISOString(), sig: p.signature }); return { ...x, peutSigner: true } }
     case 'extraits.signature': return etat.extraits.find((e) => e.id === p.id)?.sig || ''
     case 'extraits.envoyer': { const x = etat.extraits.find((e) => e.id === p.id); x.envois = [...x.envois, { a: p.a, date: new Date().toISOString(), par: moi.nom }]; return { ...x, peutSigner: true } }
+    case 'extraits.supprimer': etat.extraits = etat.extraits.filter((e) => e.id !== p.id); return true
     case 'sceau.lire': return etat.sceau || ''
     case 'sceau.ecrire': etat.sceau = 'data:' + p.type + ';base64,' + p.base64; return etat.sceau
     case 'documents.chercher': return Object.values(dossiersDrive).flatMap((d) => d.fichiers).filter((f) => f.nom.toLowerCase().includes(String(p.texte).toLowerCase()))

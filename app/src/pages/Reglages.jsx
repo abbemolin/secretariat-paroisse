@@ -66,7 +66,7 @@ function Sceau() {
 function Signataires() {
   const { reglages, utilisateurs, majDonnees } = useApp()
   const notifier = useNotif()
-  const defaut = utilisateurs.filter((u) => u.role === 'admin' || u.role === 'secretaire').map((u) => u.id)
+  const defaut = utilisateurs.filter((u) => u.role === 'admin' || u.role === 'secretaire' || u.signature === 'cure').map((u) => u.id)
   const [ids, setIds] = useState(() => (reglages.signataires ? reglages.signataires.split(',').filter(Boolean) : defaut))
   async function enregistrer(liste) {
     setIds(liste)

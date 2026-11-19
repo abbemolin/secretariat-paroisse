@@ -23,10 +23,11 @@ function dossierExtraits_(annee) {
   return sousDossier_(sousDossier_(racine_(), 'Extraits de baptême'), String(annee || new Date().getFullYear()));
 }
 
+/** Par défaut : le curé (administrateur ou signature « Curé ») et les secrétaires. Modifiable dans Réglages. */
 function peutSigner_(s) {
   var liste = String(reglages_().signataires || '').split(',').filter(String);
   if (liste.length) return liste.indexOf(s.uid) > -1;
-  return s.role === 'admin' || s.role === 'secretaire';
+  return s.role === 'admin' || s.role === 'secretaire' || s.signature === 'cure';
 }
 
 function extraitPublic_(x) {
@@ -153,4 +154,27 @@ function ecrireSceau_(p, s) {
   props_().setProperty('SCEAU_ID', f.getId());
   journaliser_(s, 'Sceau paroissial modifié', '');
   return lireSceau_();
+}
+
+/** Suppression complète : ligne du registre, PDF signé et image de signature (corbeille du Drive). */
+function supprimerExtrait_(p, s) {
+  if (!peutSigner_(s) && s.role !== 'admin') throw erreur_('INTERDIT', "Vous n'êtes pas habilité(e) à supprimer les extraits.");
+  var nom = verrou_(function () {
+    var e = trouverExtrait_(p.id);
+    [e.pdf_id, e.signature_id].forEach(function (id) { if (id) { try { DriveApp.getFileById(id).setTrashed(true); } catch (err) {} } });
+    if (e.dossier_id && e.pdf_id) {
+      try {
+        var d = trouverDossier_(e.dossier_id);
+        var don = json2_(d.donnees, {});
+        don.pieces = (don.pieces || []).filter(function (x) { return x.id !== e.pdf_id; });
+        d.donnees = JSON.stringify(don);
+        ajouterHistorique_(d, s.nom, 'Extrait de baptême supprimé');
+        ecrireLigne_('Dossiers', d);
+      } catch (err) {}
+    }
+    feuilleExtraits_().deleteRow(e._ligne);
+    return e.nom;
+  });
+  journaliser_(s, 'Extrait supprimé', nom);
+  return true;
 }

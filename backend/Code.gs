@@ -131,6 +131,7 @@ var ROUTES = {
   'extraits.signer':       { fn: signerExtrait_, droit: 'dossiers' },
   'extraits.signature':    { fn: signatureExtrait_, droit: 'dossiers' },
   'extraits.envoyer':      { fn: envoyerExtrait_, droit: 'dossiers' },
+  'extraits.supprimer':    { fn: supprimerExtrait_, droit: 'dossiers' },
   'sceau.lire':            { fn: function () { return lireSceau_(); } },
   'sceau.ecrire':          { fn: ecrireSceau_, droit: 'reglages' },
   'promotions.liste':      { fn: listerPromotions_, droit: 'dossiers' },
@@ -411,7 +412,7 @@ function initApp_(p, s) {
   return {
     utilisateur: utilisateurPublic_(trouverUtilisateur_(s.uid)),
     utilisateurs: listerUtilisateurs_().filter(function (u) { return u.actif; })
-      .map(function (u) { return { id: u.id, nom: u.nom, role: u.role }; }),
+      .map(function (u) { return { id: u.id, nom: u.nom, role: u.role, signature: u.signature }; }),
     reglages: reglages_(),
     signatures: listerSignatures_(),
     reponses: listerReponses_(),
