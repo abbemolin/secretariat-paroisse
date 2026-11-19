@@ -19,8 +19,9 @@ FORMULAIRES = {
         groupes=[
             ("L'enfant", [c("enfant_prenoms", "Prénoms", requis=True), c("enfant_nom", "Nom", requis=True),
                           c("enfant_naissance_date", "Date de naissance", "date", True), c("enfant_naissance_lieu", "Lieu de naissance")]),
-            ("Les parents", [c("parents_noms", "Noms des parents", requis=True), c("adresse", "Adresse"),
-                             c("telephone", "Téléphone", "tel", True), c("email", "E-mail", "email", True)]),
+            ("Les parents", [c("pere_prenom", "Prénom du père"), c("pere_nom", "Nom du père"),
+                             c("mere_prenom", "Prénom de la mère"), c("mere_nom_jeune_fille", "Nom de jeune fille de la mère"),
+                             c("adresse", "Adresse"), c("telephone", "Téléphone", "tel", True), c("email", "E-mail", "email", True)]),
             ("Parrain et marraine", [c("parrain_nom", "Parrain (prénom et nom)"), c("marraine_nom", "Marraine (prénom et nom)")]),
             ("Le baptême", [c("date_souhaitee", "Date souhaitée", "date"), c("message", "Message (facultatif)", "textarea")]),
         ]),
@@ -92,6 +93,7 @@ MODELE = """<meta charset="utf-8">
     e.preventDefault();
     var manque = Array.prototype.filter.call(form.querySelectorAll('[required]'), function(x){{ return x.type === 'checkbox' ? !x.checked : !x.value.trim(); }});
     if (manque.length) {{ afficher('Merci de remplir les champs marqués d\\'une étoile et d\\'accepter l\\'utilisation de vos données.', false); manque[0].focus(); return; }}
+    if (form.pere_nom && !form.pere_nom.value.trim() && !form.mere_nom_jeune_fille.value.trim()) {{ afficher('Merci d\\'indiquer au moins un des parents.', false); form.pere_prenom.focus(); return; }}
     var email = form.querySelector('[name=email]');
     if (email && !/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(email.value.trim())) {{ afficher('Adresse e-mail invalide.', false); email.focus(); return; }}
     var champs = {{}};

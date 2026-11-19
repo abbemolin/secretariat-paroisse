@@ -22,7 +22,8 @@ export const TYPES = {
     ],
     sections: [
       { titre: 'Enfant', champs: [T('enfant_prenoms', 'Prénoms'), T('enfant_nom', 'Nom'), T('enfant_naissance_date', 'Né(e) le', 'date'), T('enfant_naissance_lieu', 'À')] },
-      { titre: 'Parents', champs: [T('parents_noms', 'Noms des parents'), T('adresse', 'Adresse'), T('telephone', 'Téléphone', 'tel'), T('email', 'E-mail', 'email')] },
+      { titre: 'Parents', champs: [T('pere_prenom', 'Prénom du père'), T('pere_nom', 'Nom du père'), T('mere_prenom', 'Prénom de la mère'), T('mere_nom_jeune_fille', 'Nom de jeune fille de la mère'),
+        T('adresse', 'Adresse'), T('telephone', 'Téléphone', 'tel'), T('email', 'E-mail', 'email'), T('parents_noms', 'Autres informations sur les parents')] },
       { titre: 'Parrain et marraine', champs: [T('parrain_nom', 'Parrain'), T('parrain_bapteme', 'Baptême / confirmation du parrain (paroisse, date)'), T('marraine_nom', 'Marraine'), T('marraine_bapteme', 'Baptême / confirmation de la marraine (paroisse, date)')] },
       { titre: 'Célébration', champs: [T('date_souhaitee', 'Date souhaitée', 'date'), ...CELEBRATION()] },
       REGISTRE,

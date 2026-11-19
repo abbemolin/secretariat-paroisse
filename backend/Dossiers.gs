@@ -16,9 +16,10 @@ var TYPES_DOSSIER = {
 
 // Champs acceptés depuis les formulaires du site (et champs obligatoires)
 var CHAMPS_PUBLICS = {
-  bapteme: { tous: ['enfant_nom', 'enfant_prenoms', 'enfant_naissance_date', 'enfant_naissance_lieu', 'parents_noms', 'adresse',
+  bapteme: { tous: ['enfant_nom', 'enfant_prenoms', 'enfant_naissance_date', 'enfant_naissance_lieu',
+                    'pere_prenom', 'pere_nom', 'mere_prenom', 'mere_nom_jeune_fille', 'adresse',
                     'telephone', 'email', 'parrain_nom', 'marraine_nom', 'date_souhaitee', 'message'],
-             requis: ['enfant_nom', 'enfant_prenoms', 'enfant_naissance_date', 'parents_noms', 'telephone', 'email'] },
+             requis: ['enfant_nom', 'enfant_prenoms', 'enfant_naissance_date', 'telephone', 'email'] },
   mariage: { tous: ['fiancee_nom', 'fiancee_prenoms', 'fiance_nom', 'fiance_prenoms', 'telephone', 'email', 'date_souhaitee', 'message'],
              requis: ['fiancee_nom', 'fiancee_prenoms', 'fiance_nom', 'fiance_prenoms', 'telephone', 'email'] },
   catechumene: { tous: ['nom', 'prenoms', 'telephone', 'email', 'message'], requis: ['nom', 'prenoms', 'telephone', 'email'] },
@@ -266,6 +267,7 @@ function recevoirDemandePublique_(p) {
     if (v !== undefined && v !== null) infos[k] = String(v).slice(0, k === 'message' ? 3000 : 300).trim();
   });
   conf.requis.forEach(function (k) { if (!infos[k]) throw erreur_('INVALIDE', 'Champ obligatoire manquant.'); });
+  if (p.type === 'bapteme' && !(infos.pere_nom || infos.mere_nom_jeune_fille)) throw erreur_('INVALIDE', 'Merci d\'indiquer au moins un des parents.');
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(infos.email || '')) throw erreur_('INVALIDE', 'Adresse e-mail invalide.');
 
   var d = verrou_(function () {
