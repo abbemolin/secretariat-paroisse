@@ -1,12 +1,32 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Inbox, Star, Send, MailOpen, Tag, Search, ArrowLeft, Reply, ReplyAll, Archive, Trash2, Paperclip, PenSquare, Download, Loader2, X, FolderOpen, Mail, UserCheck, ListTodo, Users, MessageSquare, FolderPlus, CalendarPlus, FolderHeart } from 'lucide-react'
+import { Inbox, Star, AlertTriangle, CheckCircle2, ScrollText, ExternalLink, Wand2, Send, MailOpen, Tag, Search, ArrowLeft, Reply, ReplyAll, Archive, Trash2, Paperclip, PenSquare, Download, Loader2, X, FolderOpen, Mail, UserCheck, ListTodo, Users, MessageSquare, FolderPlus, CalendarPlus, FolderHeart } from 'lucide-react'
 import { api, fichierEnBase64, telechargerBase64 } from '../api.js'
 import { useApp } from '../App.jsx'
 import { TYPES, ORDRE_TYPES, remplirModele } from '../types.js'
 import { Chargement, Erreur, Vide, Modale, useNotif, dateRelative, dateHeure, nomExpediteur, taille, COULEURS_STATUT, initiales } from '../ui.jsx'
 import { ChoisirDocument } from './Documents.jsx'
 import { EditionEvenement } from './Agenda.jsx'
+import { creerExtrait } from './Extraits.jsx'
+import { B14 } from '../imprimables.js'
+import { LIEN_APPMESSE } from '../appmesse.js'
+
+/** Tri automatique : mêmes noms que les étiquettes Gmail « Tri/… » créées par le serveur (Tri.gs). */
+export const TRI = [
+  { cle: 'extrait', nom: 'Extrait de baptême', action: 'extrait' },
+  { cle: 'intention', nom: 'Intention de messe', action: 'appmesse' },
+  { cle: 'obseques', nom: 'Obsèques', action: 'dossier', type: 'obseques' },
+  { cle: 'premiere_communion', nom: 'Première communion', action: 'dossier', type: 'premiere_communion' },
+  { cle: 'profession_foi', nom: 'Profession de foi', action: 'dossier', type: 'profession_foi' },
+  { cle: 'confirmand', nom: 'Confirmation', action: 'dossier', type: 'confirmand' },
+  { cle: 'catechumene', nom: 'Catéchuménat', action: 'dossier', type: 'catechumene' },
+  { cle: 'mariage', nom: 'Mariage', action: 'dossier', type: 'mariage', reponse: 'accuse_mariage' },
+  { cle: 'bapteme', nom: 'Baptême', action: 'dossier', type: 'bapteme', reponse: 'accuse_bapteme' },
+  { cle: 'rendezvous', nom: 'Rendez-vous', action: 'rendezvous' },
+  { cle: 'horaires', nom: 'Horaires', action: 'horaires', reponse: 'horaires' }
+]
+const TRI_SPECIAUX = [{ cle: 'prioritaire', nom: 'Prioritaire' }, { cle: 'auto', nom: 'Réponse auto envoyée' }]
+const nomTri = (cle) => TRI.find((c) => c.cle === cle)?.nom || cle
 
 const FILTRES = [
   { cle: 'boite', nom: 'Boîte de réception', icone: Inbox },
@@ -76,11 +96,17 @@ export default function Courrier() {
               <button key={cle} onClick={() => changer({ filtre: cle, libelle: '', fil: '' })} className={`pastille shrink-0 gap-1 border py-1 ${filtre === cle && !libelle ? 'border-nuit bg-nuit text-white' : 'border-nuit-100 bg-white text-nuit-600'}`}><I className="h-3 w-3" />{nom}</button>
             ))}
           </div>
-          {libelles.length > 0 && (
-            <select className="champ mb-3 py-1.5 text-xs" value={libelle} onChange={(e) => changer({ libelle: e.target.value, fil: '' })}>
-              <option value="">Libellés…</option>{libelles.map((l) => <option key={l}>{l}</option>)}
+          <div className="mb-3 flex gap-2">
+            <select className={`champ py-1.5 text-xs ${libelle.startsWith('Tri/') ? 'border-or bg-or-50' : ''}`} value={libelle.startsWith('Tri/') ? libelle : ''} onChange={(e) => changer({ libelle: e.target.value, fil: '' })}>
+              <option value="">Tri automatique…</option>
+              {[...TRI_SPECIAUX, ...TRI].map((c) => <option key={c.cle} value={'Tri/' + c.nom}>{c.nom}</option>)}
             </select>
-          )}
+            {libelles.length > 0 && (
+              <select className={`champ py-1.5 text-xs ${libelle && !libelle.startsWith('Tri/') ? 'border-or bg-or-50' : ''}`} value={libelle.startsWith('Tri/') ? '' : libelle} onChange={(e) => changer({ libelle: e.target.value, fil: '' })}>
+                <option value="">Libellés…</option>{libelles.map((l) => <option key={l}>{l}</option>)}
+              </select>
+            )}
+          </div>
           <Erreur erreur={erreur} reessayer={() => charger(0)} />
           <div className="carte divide-y divide-nuit-50 overflow-hidden">
             {chargement && !fils.length ? <Chargement /> : !fils.length ? <Vide icone={Mail} texte="Aucun message." /> : fils.map((f) => (
@@ -92,6 +118,7 @@ export default function Courrier() {
                   <span className="shrink-0 text-xs text-nuit-600/60">{dateRelative(f.date)}</span>
                 </div>
                 <div className={`truncate text-sm ${f.nonLu ? 'font-medium' : 'text-nuit-700'}`}>{f.sujet}</div>
+                <EtiquettesTri tri={f.tri} />
                 <div className="flex items-center gap-1.5">
                   <span className="min-w-0 flex-1 truncate text-xs text-nuit-600/60">{f.extrait}</span>
                   {f.suivi?.dossier_id && <FolderHeart className="h-3.5 w-3.5 text-or" />}
@@ -105,7 +132,7 @@ export default function Courrier() {
         </div>
         {ouvert ? (
           <Fil id={ouvert} onRetour={() => changer({ fil: '' })} onAgir={agir} onSuivi={majSuivi}
-            onRepondre={(fil, tous) => setRedaction({ mode: tous ? 'tous' : 'repondre', fil })} />
+            onRepondre={(fil, tous, reponse) => setRedaction({ mode: tous ? 'tous' : 'repondre', fil, reponse })} />
         ) : <div className="carte hidden flex-1 lg:block"><Vide icone={MailOpen} texte="Sélectionnez un message." /></div>}
       </div>
       {redaction && <Redaction {...redaction} onFermer={() => setRedaction(null)} onEnvoye={() => { setRedaction(null); notifier('Message envoyé') }} />}
@@ -124,7 +151,7 @@ function Fil({ id, onRetour, onAgir, onRepondre, onSuivi }) {
   const [commentaire, setCommentaire] = useState('')
   const [creation, setCreation] = useState(false)
   const [rdv, setRdv] = useState(null)
-  useEffect(() => { setFil(null); setErreur(null); api('mail.fil', { id }).then(setFil).catch(setErreur) }, [id])
+  useEffect(() => { setFil(null); setCreation(false); setErreur(null); api('mail.fil', { id }).then(setFil).catch(setErreur) }, [id])
 
   async function telechargerPj(m, p) {
     setPj(m.id + p.index)
@@ -158,6 +185,7 @@ function Fil({ id, onRetour, onAgir, onRepondre, onSuivi }) {
       <Erreur erreur={erreur} />
       {!fil ? !erreur && <div className="carte"><Chargement /></div> : (
         <div className="space-y-4">
+          <SuggestionsTri fil={fil} premier={premier} onRepondre={(cle) => onRepondre(fil, false, cle)} onDossier={(type) => setCreation(type)} onRdv={() => setRdv(fil)} onSuivi={suivi} />
           {/* Suivi interne */}
           <div className="carte grid gap-3 p-4 sm:grid-cols-3">
             <div><label className="etiquette">Statut</label>
@@ -213,15 +241,74 @@ function Fil({ id, onRetour, onAgir, onRepondre, onSuivi }) {
           </div>
         </div>
       )}
-      {creation && <DossierDepuisMail fil={fil} premier={premier} onFermer={() => setCreation(false)} onCree={(d) => { notifier('Dossier créé'); nav(`/dossiers/${d.id}`) }} />}
+      {creation && <DossierDepuisMail fil={fil} premier={premier} typeInitial={typeof creation === 'string' ? creation : 'bapteme'} onFermer={() => setCreation(false)} onCree={(d) => { notifier('Dossier créé'); nav(`/dossiers/${d.id}`) }} />}
       {rdv && <EditionEvenement evenement={{ titre: rdv.sujet, lieu: '', description: '', journee: false, debut: new Date(Date.now() + 86400000).toISOString().slice(0, 11) + '10:00:00', fin: new Date(Date.now() + 86400000).toISOString().slice(0, 11) + '11:00:00' }}
         onFermer={() => setRdv(null)} onFait={(m) => { setRdv(null); notifier(m) }} />}
     </div>
   )
 }
 
-function DossierDepuisMail({ fil, premier, onFermer, onCree }) {
-  const [type, setType] = useState('bapteme')
+function EtiquettesTri({ tri }) {
+  if (!tri || (!tri.categories?.length && !tri.prioritaire && !tri.auto)) return null
+  return (
+    <div className="mt-1 flex flex-wrap gap-1">
+      {tri.prioritaire && <span className="pastille gap-0.5 bg-red-50 py-0 text-[10px] text-red-700"><AlertTriangle className="h-2.5 w-2.5" />Prioritaire</span>}
+      {tri.categories.map((c) => <span key={c} className="pastille bg-or-50 py-0 text-[10px] text-or-600">{nomTri(c)}</span>)}
+      {tri.auto && <span className="pastille gap-0.5 bg-emerald-50 py-0 text-[10px] text-emerald-700"><CheckCircle2 className="h-2.5 w-2.5" />Réponse auto</span>}
+    </div>
+  )
+}
+
+/** Bandeau « Tri automatique » : ce qui a été reconnu dans le mail et les actions proposées. */
+function SuggestionsTri({ fil, premier, onRepondre, onDossier, onRdv, onSuivi }) {
+  const nav = useNavigate()
+  const notifier = useNotif()
+  const { reglages, reponses } = useApp()
+  const [occupe, setOccupe] = useState(false)
+  const tri = fil.tri
+  if (!tri || (!tri.categories?.length && !tri.prioritaire && !tri.auto)) return null
+  const email = premier?.de.match(/<(.+)>/)?.[1] || premier?.de || ''
+  const aDossier = !!fil.suivi?.dossier_id
+  const existe = (cle) => reponses.some((r) => r.cle === cle)
+
+  async function extrait() {
+    setOccupe(true)
+    try {
+      const v = Object.fromEntries(B14.champs.map(([k]) => [k, '']))
+      Object.assign(v, { paroisse: reglages.paroisse, diocese: reglages.diocese, fait_a: reglages.commune, fait_le: new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }), _demandeur: email })
+      const x = await creerExtrait(v)
+      if (!fil.suivi?.statut) await onSuivi({ statut: 'En cours' })
+      nav(`/extraits/${x.id}`)
+    } catch (e) { notifier(e.message, 'erreur'); setOccupe(false) }
+  }
+
+  const boutons = []
+  tri.categories.forEach((cle) => {
+    const c = TRI.find((x) => x.cle === cle)
+    if (!c) return
+    if (c.action === 'horaires' && !tri.auto) boutons.push(<button key={cle} className="btn-clair py-1.5 text-xs" onClick={() => onRepondre('horaires')}><Reply className="h-3.5 w-3.5" />Répondre : horaires</button>)
+    if (c.action === 'extrait') boutons.push(<button key={cle} className="btn-or py-1.5 text-xs" disabled={occupe} onClick={extrait}>{occupe ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ScrollText className="h-3.5 w-3.5" />}Créer l'extrait de baptême</button>)
+    if (c.action === 'dossier' && !aDossier) boutons.push(<button key={cle} className="btn-or py-1.5 text-xs" onClick={() => onDossier(c.type)}><FolderPlus className="h-3.5 w-3.5" />Créer le dossier : {TYPES[c.type].nom.toLowerCase()}</button>)
+    if (c.action === 'dossier' && c.reponse && existe(c.reponse)) boutons.push(<button key={cle + 'r'} className="btn-clair py-1.5 text-xs" onClick={() => onRepondre(c.reponse)}><Reply className="h-3.5 w-3.5" />Répondre : accusé de réception</button>)
+    if (c.action === 'rendezvous') boutons.push(<button key={cle} className="btn-clair py-1.5 text-xs" onClick={onRdv}><CalendarPlus className="h-3.5 w-3.5" />Proposer un rendez-vous</button>)
+    if (c.action === 'appmesse') boutons.push(<a key={cle} className="btn-clair py-1.5 text-xs" href={LIEN_APPMESSE} target="_blank" rel="noreferrer"><ExternalLink className="h-3.5 w-3.5" />Ouvrir AppMESSE (intentions)</a>)
+  })
+
+  return (
+    <div className={`carte space-y-2 border-l-4 p-4 ${tri.prioritaire ? 'border-l-red-600' : 'border-l-or'}`}>
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <Wand2 className="h-4 w-4 text-or" /><span className="font-semibold">Tri automatique</span>
+        {tri.categories.length > 0 && <span className="text-nuit-600">· {tri.categories.map(nomTri).join(', ')}</span>}
+      </div>
+      {tri.prioritaire && <p className="flex items-start gap-1.5 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-800"><AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />Mail sensible (décès, maladie, urgence…) : aucune réponse automatique, à traiter en priorité.</p>}
+      {tri.auto && <p className="flex items-start gap-1.5 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-800"><CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />La réponse type « Horaires » a été envoyée automatiquement ({reglages.url_horaires}). Elle apparaît dans le fil ci-dessous.</p>}
+      {boutons.length > 0 && <div className="flex flex-wrap gap-2">{boutons}</div>}
+    </div>
+  )
+}
+
+function DossierDepuisMail({ fil, premier, typeInitial = 'bapteme', onFermer, onCree }) {
+  const [type, setType] = useState(typeInitial)
   const [envoi, setEnvoi] = useState(false)
   const [erreur, setErreur] = useState(null)
   const email = premier?.de.match(/<(.+)>/)?.[1] || premier?.de || ''

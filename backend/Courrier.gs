@@ -31,12 +31,14 @@ function suiviPublic_(x) {
 function resumeFil_(t, suivis) {
   var msgs = t.getMessages();
   var dernier = msgs[msgs.length - 1];
+  var libelles = t.getLabels().map(function (l) { return l.getName(); });
   return {
     id: t.getId(), sujet: t.getFirstMessageSubject() || '(sans objet)', de: dernier.getFrom(), a: dernier.getTo(),
     date: t.getLastMessageDate().toISOString(),
     extrait: dernier.getPlainBody().replace(/\s+/g, ' ').slice(0, 140),
     nonLu: t.isUnread(), nb: t.getMessageCount(), important: t.hasStarredMessages(),
-    libelles: t.getLabels().map(function (l) { return l.getName(); }),
+    libelles: libelles.filter(function (l) { return l.indexOf(TRI_RACINE + '/') !== 0; }),
+    tri: triDuFil_(libelles),
     suivi: suiviPublic_(suivis[t.getId()])
   };
 }
@@ -141,7 +143,8 @@ function envoyerMail_(p, s) {
 }
 
 function listerLibelles_() {
-  return GmailApp.getUserLabels().map(function (l) { return l.getName(); }).sort();
+  return GmailApp.getUserLabels().map(function (l) { return l.getName(); })
+    .filter(function (n) { return n !== TRI_RACINE && n.indexOf(TRI_RACINE + '/') !== 0; }).sort();
 }
 
 function modifierFil_(p) {

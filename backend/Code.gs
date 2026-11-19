@@ -10,6 +10,7 @@
  *   Documents.gs  Drive du secrétariat
  *   Push.gs       notifications sur téléphone (Web Push, VAPID)
  *   Extraits.gs   extraits de baptême signés (registre, PDF, envoi)
+ *   Tri.gs        tri automatique des mails entrants (mots-clés, réponse auto horaires)
  *   Installation.gs  installer() à lancer une fois
  */
 
@@ -111,6 +112,9 @@ var ROUTES = {
   'mail.commenter':        { fn: commenterMail_, droit: 'mail' },
   'mail.groupes':          { fn: listerGroupesContacts_, droit: 'mail' },
   'mail.envoiGroupe':      { fn: envoyerAuGroupe_, droit: 'mail' },
+  'tri.lire':              { fn: lireTri_, droit: 'mail' },
+  'tri.ecrire':            { fn: ecrireTri_, droit: 'reglages' },
+  'tri.tester':            { fn: testerTri_, droit: 'mail' },
   'mail.quota':            { fn: function () { return MailApp.getRemainingDailyQuota(); }, droit: 'mail' },
 
   'agenda.evenements':     { fn: listerEvenements_, droit: 'agenda' },

@@ -165,3 +165,13 @@ export function useCharger(fn, deps = []) {
   useEffect(() => { recharger() }, [recharger])
   return { ...etat, recharger, setData: (d) => setEtat((e) => ({ ...e, data: typeof d === 'function' ? d(e.data) : d })) }
 }
+
+/** Interrupteur on/off (bouton, pas de case native). */
+export function Interrupteur({ actif, onChange, disabled }) {
+  return (
+    <button type="button" role="switch" aria-checked={actif} disabled={disabled} onClick={() => onChange(!actif)}
+      className={`relative h-7 w-12 shrink-0 rounded-full transition ${actif ? 'bg-or' : 'bg-nuit-100'} disabled:opacity-50`}>
+      <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-all ${actif ? 'left-[22px]' : 'left-0.5'}`} />
+    </button>
+  )
+}
