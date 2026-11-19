@@ -49,7 +49,8 @@ function dossierResume_(d) {
     date_celebration: d.date_celebration, responsable: d.responsable, cree_le: d.cree_le, maj_le: d.maj_le, source: d.source,
     etapes: Object.keys(etapes).filter(function (k) { return etapes[k] && etapes[k].fait; }),
     documents: Object.keys(docs).filter(function (k) { return docs[k] && docs[k].recu; }),
-    date_souhaitee: (don.infos || {}).date_souhaitee || ''
+    date_souhaitee: (don.infos || {}).date_souhaitee || '',
+    annee: (don.infos || {}).annee_sacrements || ''
   };
 }
 

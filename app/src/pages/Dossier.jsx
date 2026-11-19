@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Check, Upload, Loader2, Mail, Printer, FileText, Download, ExternalLink, Globe, Plus, Trash2, Save, History, Send, Church, AlertCircle } from 'lucide-react'
 import { api, fichierEnBase64, telechargerBase64 } from '../api.js'
 import { useApp } from '../App.jsx'
-import { TYPES, ETATS, documentsManquants } from '../types.js'
+import { TYPES, ETATS, documentsManquants, PAR_ANNEE, anneeSacrements, choixAnnees } from '../types.js'
 import { IMPRIMABLES } from '../imprimables.js'
 import { Chargement, Erreur, Modale, useNotif, dateHeure, dateRelative, dateCourte, versLocal, jourLong, heure } from '../ui.jsx'
 import { Redaction } from './Courrier.jsx'
@@ -100,7 +100,8 @@ export default function Dossier() {
       <Link to="/dossiers" className="mb-3 inline-flex items-center gap-1 text-sm text-nuit-600 hover:text-or-600"><ArrowLeft className="h-4 w-4" />Dossiers</Link>
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <span className="pastille mb-1 text-white" style={{ background: t.couleur }}>{t.nom}</span>
+          <span className="mb-1 flex flex-wrap gap-1.5"><span className="pastille text-white" style={{ background: t.couleur }}>{t.nom}</span>
+            {PAR_ANNEE.includes(d.type) && <span className="pastille border border-or bg-or-50 text-or-600">{anneeSacrements({ ...d, ...b }) ? (d.type === 'confirmand' ? 'Confirmation ' : 'Sacrements ') + anneeSacrements({ ...d, ...b }) : 'Année non fixée'}</span>}</span>
           <h1 className="text-3xl font-semibold leading-tight">{d.nom || 'Sans nom'}</h1>
           <p className="text-xs text-nuit-600/70">Créé le {dateCourte(d.cree_le)} · {d.source}</p>
         </div>
@@ -143,6 +144,16 @@ export default function Dossier() {
 
           <section className="carte p-4">
             <h2 className="mb-2 text-xl font-semibold">{d.type === 'catechumene' ? 'Date du baptême' : d.type === 'confirmand' ? 'Date de confirmation' : 'Date de célébration'}</h2>
+            {PAR_ANNEE.includes(d.type) && (
+              <div className="mb-3">
+                <label className="etiquette">{d.type === 'confirmand' ? 'Année de la confirmation' : 'Année des sacrements (Pâques)'}</label>
+                <select className="champ" value={b.infos.annee_sacrements || ''} onChange={(e) => majInfo('annee_sacrements', e.target.value)}>
+                  <option value="">{b.date_celebration ? `D'après la date : ${new Date(b.date_celebration).getFullYear()}` : 'Non fixée'}</option>
+                  {choixAnnees().map((o) => <option key={o} value={o}>{o}</option>)}
+                </select>
+                <label className="etiquette mt-3">Date exacte</label>
+              </div>
+            )}
             <input className="champ" type="datetime-local" value={b.date_celebration ? versLocal(b.date_celebration) : ''} onChange={(e) => changerDate(e.target.value)} />
             <p className="mt-2 flex gap-1.5 text-xs text-nuit-600/70"><Globe className="mt-0.5 h-3.5 w-3.5 shrink-0 text-or" />Publiée dans l'agenda public comme « {({ bapteme: 'Baptême', mariage: 'Mariage', obseques: 'Obsèques', catechumene: "Baptême d'adulte", confirmand: 'Confirmation' })[d.type]} », sans nom{b.infos.lieu_celebration ? `, lieu : ${b.infos.lieu_celebration}` : ''}.</p>
             {b.date_celebration && <p className="mt-1 text-sm font-medium capitalize">{jourLong(b.date_celebration)} à {heure(b.date_celebration)}</p>}
@@ -200,6 +211,7 @@ export default function Dossier() {
                       <div key={c.cle} className={c.type === 'paragraphe' ? 'sm:col-span-2' : ''}>
                         <label className="etiquette">{c.label}</label>
                         {c.type === 'paragraphe' ? <textarea className="champ min-h-[70px]" value={b.infos[c.cle] || ''} onChange={(e) => majInfo(c.cle, e.target.value)} />
+                          : c.type === 'annee' ? <select className="champ" value={b.infos[c.cle] || ''} onChange={(e) => majInfo(c.cle, e.target.value)}><option value="">{b.date_celebration ? `— (d'après la date : ${new Date(b.date_celebration).getFullYear()})` : 'Non fixée'}</option>{choixAnnees().map((o) => <option key={o} value={o}>{o}</option>)}</select>
                           : c.type === 'choix' ? <select className="champ" value={b.infos[c.cle] || ''} onChange={(e) => majInfo(c.cle, e.target.value)}>{c.choix.map((o) => <option key={o} value={o}>{o || '—'}</option>)}</select>
                           : <input className="champ" type={c.type === 'date' ? 'date' : c.type === 'email' ? 'email' : c.type === 'tel' ? 'tel' : 'text'} value={b.infos[c.cle] || ''} onChange={(e) => majInfo(c.cle, e.target.value)} />}
                       </div>

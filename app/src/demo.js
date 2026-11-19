@@ -45,7 +45,7 @@ const etat = {
       etapes: { recue: { fait: true, date: jour(0, 10, 13), par: 'Formulaire', libelle: 'Demande reçue' } }, documents: {}, rencontres: [], pieces: [], fils: ['t1'],
       historique: [{ date: jour(0, 10, 13), par: 'Formulaire du site', texte: 'Demande reçue' }] },
     { id: 'd2', type: 'catechumene', etat: 'ouvert', cree_le: jour(-60), source: 'Formulaire du site', email: 'sarah.k@example.fr', telephone: '06 55 44 33 22', date_celebration: '', evenement_id: '', responsable: 'u1', maj_le: jour(-3),
-      infos: { prenoms: 'Sarah', nom: 'Kessler', naissance_date: '1994-03-12', naissance_lieu: 'Mulhouse', adresse: 'Strasbourg', telephone: '06 55 44 33 22', email: 'sarah.k@example.fr', situation: 'Célibataire', accompagnateurs: 'Marie et Paul Hirsch', entree_date: '2026-10-11', entree_ministre: 'abbé Florent Molin', b6_annee: '2026' },
+      infos: { prenoms: 'Sarah', nom: 'Kessler', naissance_date: '1994-03-12', naissance_lieu: 'Mulhouse', adresse: 'Strasbourg', telephone: '06 55 44 33 22', email: 'sarah.k@example.fr', situation: 'Célibataire', accompagnateurs: 'Marie et Paul Hirsch', entree_date: '2026-10-11', entree_ministre: 'abbé Florent Molin', b6_annee: '2026', annee_sacrements: '2027' },
       etapes: { accueil: { fait: true, date: jour(-60), par: 'abbé Florent Molin' }, accompagnateur: { fait: true, date: jour(-45), par: 'abbé Florent Molin' }, entree: { fait: true, date: jour(-39), par: 'abbé Florent Molin' } },
       documents: { acte_naissance: { recu: true, date: jour(-40) } },
       rencontres: [{ id: 'r1', date: '2026-09-20', titre: 'Qui est Jésus ?', present: true }, { id: 'r2', date: '2026-10-04', titre: 'La prière', present: true }, { id: 'r3', date: '2026-10-18', titre: "L'Église", present: false }, { id: 'r4', date: '2026-11-08', titre: 'Les sacrements', present: true }],
@@ -53,6 +53,12 @@ const etat = {
     { id: 'd3', type: 'obseques', etat: 'ouvert', cree_le: jour(-1, 16), source: 'Saisie : Bertille Bauer', email: '', telephone: '03 88 00 00 00', date_celebration: jour(2, 10), evenement_id: 'e5', responsable: 'u2', maj_le: jour(-1, 17),
       infos: { defunt_prenoms: 'Joseph', defunt_nom: 'Schmitt', defunt_naissance_date: '1938-05-01', defunt_deces_date: '2026-11-17', famille_contact: 'Mme Roth (fille)', telephone: '03 88 00 00 00', pompes_funebres: 'PF Klein', celebrant: 'abbé Guillaume Le Gall', lieu_celebration: 'Église', sepulture: 'Inhumation', cimetiere: 'Cimetière Nord' },
       etapes: { appel: { fait: true, date: jour(-1, 16), par: 'Bertille Bauer' }, date: { fait: true, date: jour(-1, 16), par: 'Bertille Bauer' } }, documents: {}, rencontres: [], pieces: [], fils: ['t3'], historique: [] },
+    { id: 'd5', type: 'catechumene', etat: 'ouvert', cree_le: jour(-300), source: 'Saisie : abbé Florent Molin', email: 'k.ndiaye@example.fr', telephone: '', date_celebration: '', evenement_id: '', responsable: 'u2', maj_le: jour(-20),
+      infos: { prenoms: 'Khadija', nom: 'Ndiaye', annee_sacrements: '2026' }, etapes: { accueil: { fait: true }, accompagnateur: { fait: true }, entree: { fait: true }, lettre: { fait: true }, appel: { fait: true }, scrutins: { fait: true } }, documents: {}, rencontres: [], pieces: [], fils: [], historique: [] },
+    { id: 'd6', type: 'catechumene', etat: 'ouvert', cree_le: jour(-10), source: 'Formulaire du site', email: 'tom.b@example.fr', telephone: '', date_celebration: '', evenement_id: '', responsable: '', maj_le: jour(-10),
+      infos: { prenoms: 'Tom', nom: 'Becker' }, etapes: { accueil: { fait: true } }, documents: {}, rencontres: [], pieces: [], fils: [], historique: [] },
+    { id: 'd7', type: 'confirmand', etat: 'ouvert', cree_le: jour(-90), source: 'Formulaire du site', email: 'lea.f@example.fr', telephone: '', date_celebration: '', evenement_id: '', responsable: 'u1', maj_le: jour(-30),
+      infos: { prenoms: 'Léa', nom: 'Fischer', annee_sacrements: '2027' }, etapes: { accueil: { fait: true }, parcours: { fait: true } }, documents: {}, rencontres: [], pieces: [], fils: [], historique: [] },
     { id: 'd4', type: 'mariage', etat: 'ouvert', cree_le: jour(-200), source: 'Formulaire du site', email: 'sophie.klein@example.fr', telephone: '06 98 76 54 32', date_celebration: jour(23, 15), evenement_id: 'e7', responsable: 'u1', maj_le: jour(-5),
       infos: { fiancee_prenoms: 'Sophie', fiancee_nom: 'Klein', fiance_prenoms: 'Antoine', fiance_nom: 'Muller', email: 'sophie.klein@example.fr', telephone: '06 98 76 54 32', lieu_celebration: 'Église' },
       etapes: { recue: { fait: true, date: jour(-200), par: 'Formulaire' }, rdv: { fait: true, date: jour(-180), par: 'abbé Florent Molin' }, preparation: { fait: true, date: jour(-60), par: 'abbé Florent Molin' } },
@@ -61,7 +67,7 @@ const etat = {
 }
 
 const pub = (u) => ({ ...u, droits: DROITS[u.role] })
-const resume = (d) => ({ ...d, nom: nomDe(d), etapes: Object.keys(d.etapes).filter((k) => d.etapes[k]?.fait), documents: Object.keys(d.documents).filter((k) => d.documents[k]?.recu), date_souhaitee: d.infos.date_souhaitee || '' })
+const resume = (d) => ({ ...d, nom: nomDe(d), etapes: Object.keys(d.etapes).filter((k) => d.etapes[k]?.fait), documents: Object.keys(d.documents).filter((k) => d.documents[k]?.recu), date_souhaitee: d.infos.date_souhaitee || '', annee: d.infos.annee_sacrements || '' })
 const complet = (d) => ({ ...d, nom: nomDe(d), historique: [...d.historique].reverse(), fils: d.fils.map((id) => etat.fils.find((f) => f.id === id)).filter(Boolean).map((f) => ({ id: f.id, sujet: f.sujet, date: f.date })) })
 function nomDe(d) {
   const i = d.infos, np = (p, n) => [p, String(n || '').toUpperCase()].filter(Boolean).join(' ')

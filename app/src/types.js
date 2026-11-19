@@ -139,6 +139,11 @@ export const TYPES = {
 
 export const ORDRE_TYPES = ['bapteme', 'mariage', 'obseques', 'catechumene', 'confirmand']
 
+/** Types suivis par « promotion » (année de réception des sacrements). */
+export const PAR_ANNEE = ['catechumene', 'confirmand']
+export const anneeSacrements = (d) => String(d.annee || d.infos?.annee_sacrements || (d.date_celebration ? new Date(d.date_celebration).getFullYear() : ''))
+export const choixAnnees = () => { const a = new Date().getFullYear(); return Array.from({ length: 7 }, (_, i) => String(a - 2 + i)) }
+
 export const ETATS = { ouvert: 'En cours', clos: 'Clos', annule: 'Annulé' }
 
 /** Prochaine étape non franchie (hors étapes optionnelles). */
