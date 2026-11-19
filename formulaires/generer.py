@@ -12,18 +12,20 @@ URL = sys.argv[1] if len(sys.argv) > 1 else "COLLER_ICI_L_ADRESSE_DU_SCRIPT"
 def c(cle, label, type="text", requis=False, aide="", choix=None):
     return dict(cle=cle, label=label, type=type, requis=requis, aide=aide, choix=choix or [])
 
-GROUPES_ENFANT = [
+def groupes_enfant(lieux, classe="Classe (ex. CE2)", aide_classe=False):
+    return [
     ("L'enfant", [c("enfant_prenoms", "Prénoms", requis=True), c("enfant_nom", "Nom", requis=True),
                   c("enfant_naissance_date", "Date de naissance", "date", True), c("enfant_naissance_lieu", "Lieu de naissance"),
-                  c("classe", "Classe (ex. CE2)")]),
-    ("La préparation", [c("preparation", "Lieu de préparation", "select", True, choix=["Paroisse", "Herrade de Landsberg", "Saints Louis et Zélie Martin", "Autre école"]),
+                  c("classe", classe)]),
+    ("La préparation", [c("preparation", "Lieu de préparation", "select", True, choix=lieux),
                         c("ecole_autre", "Si autre école : laquelle ?")]),
     ("Les parents", [c("pere_prenom", "Prénom du père"), c("pere_nom", "Nom du père"),
                      c("mere_prenom", "Prénom de la mère"), c("mere_nom_jeune_fille", "Nom de jeune fille de la mère"),
                      c("adresse", "Adresse"), c("telephone", "Téléphone", "tel", True), c("email", "E-mail", "email", True)]),
     ("Le baptême de l'enfant", [c("bapteme_paroisse", "Paroisse du baptême"), c("bapteme_date", "Date du baptême", "date"),
                                 c("message", "Message (facultatif)", "textarea")]),
-]
+    ]
+
 
 FORMULAIRES = {
     "bapteme": dict(
@@ -41,11 +43,11 @@ FORMULAIRES = {
     "premiere_communion": dict(
         titre="Inscription à la première communion",
         intro="Votre enfant se prépare à recevoir la première communion ? Inscrivez-le ici, que la préparation ait lieu à la paroisse ou dans son école.",
-        groupes=GROUPES_ENFANT),
+        groupes=groupes_enfant(["Paroisse", "Herrade de Landsberg", "Saints Louis et Zélie Martin", "Autre école"])),
     "profession_foi": dict(
         titre="Inscription à la profession de foi",
-        intro="Votre enfant se prépare à la profession de foi ? Inscrivez-le ici, que la préparation ait lieu à la paroisse ou dans son école.",
-        groupes=GROUPES_ENFANT),
+        intro="La profession de foi se fait en classe de 3e. Inscrivez votre enfant ici, que la préparation ait lieu à la paroisse ou dans son école.",
+        groupes=groupes_enfant(["Paroisse", "Saints Louis et Zélie Martin", "Autre école"], "Classe (3e)")),
     "mariage": dict(
         titre="Demande de mariage",
         intro="Vous souhaitez vous marier à l'église ? Merci de prendre contact le plus tôt possible, idéalement un an avant la date envisagée.",

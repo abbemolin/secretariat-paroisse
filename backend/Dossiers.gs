@@ -290,6 +290,7 @@ function recevoirDemandePublique_(p) {
   conf.requis.forEach(function (k) { if (!infos[k]) throw erreur_('INVALIDE', 'Champ obligatoire manquant.'); });
   if (['bapteme', 'premiere_communion', 'profession_foi'].indexOf(p.type) > -1 && !(infos.pere_nom || infos.mere_nom_jeune_fille)) throw erreur_('INVALIDE', 'Merci d\'indiquer au moins un des parents.');
   if (infos.preparation && PREPARATIONS.indexOf(infos.preparation) === -1) throw erreur_('INVALIDE', 'Lieu de préparation inconnu.');
+  if (p.type === 'profession_foi' && infos.preparation === 'Herrade de Landsberg') throw erreur_('INVALIDE', 'La profession de foi se prépare en 3e : Herrade de Landsberg n\'est pas proposée.');
   if (infos.preparation === 'Autre école' && !infos.ecole_autre) throw erreur_('INVALIDE', 'Merci de préciser le nom de l\'école.');
   if (TYPES_DOSSIER[p.type].collectif) infos.annee_scolaire = anneeScolaire_();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(infos.email || '')) throw erreur_('INVALIDE', 'Adresse e-mail invalide.');

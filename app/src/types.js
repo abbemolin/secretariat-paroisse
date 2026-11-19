@@ -16,9 +16,10 @@ const MESSAGE = { titre: 'Message de la demande', champs: [T('message', 'Message
 
 const HORS_PAROISSE = (i) => !!i?.preparation && i.preparation !== 'Paroisse'
 const PREPARATION = ['', 'Paroisse', 'Herrade de Landsberg', 'Saints Louis et Zélie Martin', 'Autre école']
-const SECTIONS_ENFANT = [
-  { titre: 'Enfant', champs: [T('enfant_prenoms', 'Prénoms'), T('enfant_nom', 'Nom'), T('enfant_naissance_date', 'Né(e) le', 'date'), T('enfant_naissance_lieu', 'À'), T('classe', 'Classe')] },
-  { titre: 'Préparation', champs: [T('preparation', 'Lieu de préparation', 'choix', { choix: PREPARATION }), T('ecole_autre', 'Nom de l\'école (si autre école)'), T('annee_scolaire', 'Année scolaire de la célébration', 'anneeScolaire')] },
+const PREPARATION_PF = ['', 'Paroisse', 'Saints Louis et Zélie Martin', 'Autre école']
+const sectionsEnfant = (choixPrep, classe) => [
+  { titre: 'Enfant', champs: [T('enfant_prenoms', 'Prénoms'), T('enfant_nom', 'Nom'), T('enfant_naissance_date', 'Né(e) le', 'date'), T('enfant_naissance_lieu', 'À'), T('classe', classe)] },
+  { titre: 'Préparation', champs: [T('preparation', 'Lieu de préparation', 'choix', { choix: choixPrep }), T('ecole_autre', 'Nom de l\'école (si autre école)'), T('annee_scolaire', 'Année scolaire de la célébration', 'anneeScolaire')] },
   { titre: 'Parents', champs: [T('pere_prenom', 'Prénom du père'), T('pere_nom', 'Nom du père'), T('mere_prenom', 'Prénom de la mère'), T('mere_nom_jeune_fille', 'Nom de jeune fille de la mère'),
     T('adresse', 'Adresse'), T('telephone', 'Téléphone', 'tel'), T('email', 'E-mail', 'email')] },
   { titre: 'Baptême de l\'enfant', champs: [T('bapteme_paroisse', 'Paroisse du baptême'), T('bapteme_date', 'Date du baptême', 'date')] },
@@ -60,7 +61,7 @@ export const TYPES = {
       T('rdv_cure', 'Rendez-vous avec le curé'),
       T('confession', 'Première confession'), T('retraite', 'Retraite'), T('celebration', 'Célébration'), T('registre', 'Inscription au registre')
     ],
-    sections: SECTIONS_ENFANT,
+    sections: sectionsEnfant(PREPARATION, 'Classe'),
     documents: [T('cert_bapteme', 'Certificat de baptême'), T('autorisation_image', 'Autorisation parentale / droit à l\'image'),
       T('participation', 'Participation financière'), T('attestation_ecole', 'Attestation de l\'école', 'texte', { si: HORS_PAROISSE })],
     generer: [],
@@ -74,7 +75,8 @@ export const TYPES = {
       T('validation', 'Validation du curé (préparation hors paroisse)', 'texte', { si: HORS_PAROISSE }),
       T('retraite', 'Retraite'), T('celebration', 'Célébration'), T('registre', 'Inscription au registre')
     ],
-    sections: SECTIONS_ENFANT,
+    note: 'La profession de foi se fait en 3e.',
+    sections: sectionsEnfant(PREPARATION_PF, 'Classe (la profession de foi se fait en 3e)'),
     documents: [T('cert_bapteme', 'Certificat de baptême'), T('participation', 'Participation financière'),
       T('attestation_ecole', 'Attestation de l\'école', 'texte', { si: HORS_PAROISSE })],
     generer: [],
