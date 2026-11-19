@@ -8,7 +8,8 @@ import { IMPRIMABLES } from '../imprimables.js'
 import { Chargement, Erreur, Modale, useNotif, useConfirmer, dateHeure, dateRelative, dateCourte, versLocal, jourLong, heure } from '../ui.jsx'
 import { Redaction } from './Courrier.jsx'
 import { htmlVersPdf } from '../pdf.js'
-import { creerExtrait } from './Extraits.jsx'
+import { creerExtrait, PadSignature, chargerSceau } from './Extraits.jsx'
+import { PenLine } from 'lucide-react'
 
 const champsEditables = (d) => ({
   infos: d.infos, etapes: d.etapes, documents: d.documents, rencontres: d.rencontres,
@@ -290,7 +291,7 @@ export default function Dossier() {
 
       {mail && <Redaction {...mail} onFermer={() => setMail(null)} onEnvoye={async () => { setMail(null); notifier('Message envoyé et rattaché au dossier'); const x = await api('dossiers.lire', { id: d.id }); setD(x); setB(champsEditables(x)) }} />}
       {imprimer && <Imprimer modele={IMPRIMABLES[imprimer]} dossier={{ ...d, ...b }} reglages={app.reglages}
-        onFermer={() => setImprimer(null)} onArchive={(x) => { setD(x); setB(champsEditables(x)); notifier('Document archivé dans le dossier') }} />}
+        onFermer={() => setImprimer(null)} onArchive={(x, msg) => { setD(x); setB(champsEditables(x)); notifier(msg || 'Document archivé dans le dossier') }} />}
     </>
   )
 }
@@ -334,14 +335,30 @@ function Imprimer({ modele, dossier, reglages, onFermer, onArchive }) {
     try { const { base64 } = await htmlVersPdf(html); onArchive(await api('dossiers.archiver', { dossierId: dossier.id, libelle: modele.titre, pdf: base64 })) } catch (e) { notifier(e.message, 'erreur') } finally { setArchivage(false) }
   }
   const nav = useNavigate()
+  const { utilisateur } = useApp()
+  const [etapeSig, setEtapeSig] = useState(0)   // 0 : rien, 1 : prêtre, 2 : catéchumène
+  const [sigPretre, setSigPretre] = useState('')
+  async function signatureCatechumene(png) {
+    setEtapeSig(0); setArchivage(true)
+    try {
+      const le = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date())
+      const sceau = await chargerSceau()
+      const vals = { ...v, ministre: v.ministre || utilisateur.nom }
+      const { base64 } = await htmlVersPdf(modele.html(vals, { pretre: sigPretre, catechumene: png, sceau, le }))
+      onArchive(await api('dossiers.signerB6', { dossierId: dossier.id, pdf: base64, ministre: vals.ministre }), 'B6 signé, archivé dans le dossier ; étape « Entrée en catéchuménat » cochée')
+      onFermer()
+    } catch (e) { notifier(e.message, 'erreur'); setArchivage(false) }
+  }
   async function delivrer() {
     setArchivage(true)
     try { const x = await creerExtrait(v, dossier.id); nav(`/extraits/${x.id}`) } catch (e) { notifier(e.message, 'erreur'); setArchivage(false) }
   }
   return (
+    <>
     <Modale large titre={modele.titre} onFermer={onFermer}
       pied={<><button className="btn-clair mr-auto" onClick={onFermer}>Fermer</button>
         {modele === IMPRIMABLES.B14 && <button className="btn-or" onClick={delivrer} disabled={archivage}><FileText className="h-4 w-4" />Délivrer un extrait signé</button>}
+        {modele === IMPRIMABLES.B6 && <button className="btn-or" onClick={() => setEtapeSig(1)} disabled={archivage}>{archivage ? <Loader2 className="h-4 w-4 animate-spin" /> : <PenLine className="h-4 w-4" />}Faire signer</button>}
         <button className="btn-clair" onClick={archiver} disabled={archivage}>{archivage ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}Archiver (PDF)</button>
         <button className="btn-principal" onClick={() => cadre.current.contentWindow.print()}><Printer className="h-4 w-4" />Imprimer</button></>}>
       <div className="grid gap-4 md:grid-cols-[260px_1fr]">
@@ -361,6 +378,15 @@ function Imprimer({ modele, dossier, reglages, onFermer, onArchive }) {
         </div>
       </div>
     </Modale>
+    {etapeSig === 1 && <PadSignature titre="B6 – signature 1/2 : prêtre ou diacre" nom={v.ministre || utilisateur.nom}
+      consigne={<>Signature de <strong>{v.ministre || utilisateur.nom}</strong>, qui accueille le catéchumène.</>}
+      note="Ensuite, passez l'appareil au catéchumène pour sa signature."
+      onFermer={() => setEtapeSig(0)} onValider={(png) => { setSigPretre(png); setEtapeSig(2) }} />}
+    {etapeSig === 2 && <PadSignature titre="B6 – signature 2/2 : catéchumène" nom={[v.prenoms, v.nom].filter(Boolean).join(' ')}
+      consigne={<>Signature de <strong>{[v.prenoms, v.nom].filter(Boolean).join(' ')}</strong>, catéchumène.</>}
+      note="Le B6 signé (avec le sceau) est archivé dans le dossier, et l'étape « Entrée en catéchuménat » est cochée."
+      onFermer={() => setEtapeSig(0)} onValider={signatureCatechumene} />}
+    </>
   )
 }
 

@@ -190,6 +190,13 @@ export async function demoApi(action, p) {
     case 'extraits.signer': { const x = etat.extraits.find((e) => e.id === p.id); Object.assign(x, { statut: 'signe', signe_par: moi.nom, signe_le: new Date().toISOString(), sig: p.signature }); return { ...x, peutSigner: true } }
     case 'extraits.signature': return etat.extraits.find((e) => e.id === p.id)?.sig || ''
     case 'extraits.envoyer': { const x = etat.extraits.find((e) => e.id === p.id); x.envois = [...x.envois, { a: p.a, date: new Date().toISOString(), par: moi.nom }]; return { ...x, peutSigner: true } }
+    case 'dossiers.signerB6': {
+      const d = etat.dossiers.find((x) => x.id === p.dossierId)
+      d.pieces.push({ id: 'b6' + Date.now(), libelle: 'B6 – entrée en catéchuménat (signé)', date: new Date().toISOString(), par: moi.nom, genere: true })
+      d.etapes.entree = { fait: true, date: new Date().toISOString(), par: moi.nom, libelle: 'Entrée en catéchuménat' }
+      d.infos.b6_signe_le = new Date().toISOString(); etat.dernierB6 = p.pdf
+      return complet(d)
+    }
     case 'dossiers.supprimer': etat.dossiers = etat.dossiers.filter((d) => d.id !== p.id); etat.evenements = etat.evenements.filter((e) => e.dossier !== p.id); return true
     case 'extraits.supprimer': etat.extraits = etat.extraits.filter((e) => e.id !== p.id); return true
     case 'sceau.lire': return etat.sceau || ''

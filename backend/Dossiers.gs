@@ -216,6 +216,35 @@ function supprimerDossier_(p, s) {
   return true;
 }
 
+/** B6 signé (prêtre/diacre + catéchumène) : PDF archivé dans le dossier, étape « Entrée en catéchuménat » cochée. */
+function signerB6_(p, s) {
+  if (!p.pdf) throw erreur_('INVALIDE', 'Document manquant.');
+  var d = verrou_(function () {
+    var d = trouverDossier_(p.dossierId);
+    if (d.type !== 'catechumene') throw erreur_('INVALIDE', 'Le B6 ne concerne que les catéchumènes.');
+    var f = dossierDriveDe_(d).createFile(Utilities.newBlob(Utilities.base64Decode(p.pdf), 'application/pdf', nomFichierDossier_(d, 'B6 – entrée en catéchuménat (signé)', 'pdf')));
+    enregistrerPiece_(d, f, 'B6 – entrée en catéchuménat (signé)', '', s, true);
+    d = trouverDossier_(p.dossierId);
+    var don = json2_(d.donnees, {});
+    don.infos = don.infos || {};
+    don.infos.b6_signe_le = maintenant_();
+    don.infos.b6_signe_par = s.nom;
+    don.infos.b6_pdf_id = f.getId();
+    if (!don.infos.entree_ministre) don.infos.entree_ministre = p.ministre || s.nom;
+    if (!don.infos.entree_date) don.infos.entree_date = maintenant_().slice(0, 10);
+    don.etapes = don.etapes || {};
+    if (!(don.etapes.entree && don.etapes.entree.fait)) {
+      don.etapes.entree = { fait: true, date: maintenant_(), par: s.nom, libelle: 'Entrée en catéchuménat' };
+      don.historique = (don.historique || []).concat([{ date: maintenant_(), par: s.nom, texte: 'Étape : Entrée en catéchuménat (B6 signé)' }]);
+    }
+    d.donnees = JSON.stringify(don);
+    d.maj_le = maintenant_(); d.maj_par = s.nom;
+    return ecrireLigne_('Dossiers', d);
+  });
+  journaliser_(s, 'B6 signé', d.nom);
+  return dossierComplet_(d);
+}
+
 function majDateDossierDepuisAgenda_(id, iso, lieu, s) {
   verrou_(function () {
     var d = trouverDossier_(id);

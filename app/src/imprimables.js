@@ -109,7 +109,9 @@ export const B6 = {
       domicile: i.adresse || '', service: i.service_diocesain || '', accompagnateurs: i.accompagnateurs || ''
     }
   },
-  html(v) {
+  /** sign (facultatif) : { pretre, catechumene, sceau : dataURL, le } */
+  html(v, sign = {}) {
+    const img = (src, h = 20) => (src ? `<img src="${src}" style="max-width:52mm;max-height:${h}mm;display:block;margin:2mm auto 0">` : '')
     const lignesMulti = (t, n) => {
       const l = String(t || '').split('\n')
       return Array.from({ length: Math.max(n, l.length) }, (_, k) => `<div class="l"><span class="v" style="border-bottom-style:dotted;border-color:#333">${e(l[k] || '')}</span></div>`).join('')
@@ -135,8 +137,17 @@ export const B6 = {
       <div class="l"><span>Ses accompagnateurs sont</span>${pt(String(v.accompagnateurs || '').split('\n')[0])}</div>
       ${lignesMulti(String(v.accompagnateurs || '').split('\n').slice(1).join('\n'), 2)}
       <p style="text-align:center;font-size:12.5pt;margin:8mm 0">Dans la foi et la joie du Christ, nous signons ensemble.</p>
-      <div style="display:flex;justify-content:space-between;font-size:12pt"><span>Le prêtre ou le diacre</span><span>Le catéchumène</span><span>Le membre du service diocésain<br>du catéchuménat</span></div>
-      <div style="text-align:center;font-size:12pt;margin-top:22mm">Les accompagnateurs</div>
+      <div style="display:flex;justify-content:space-between;font-size:12pt;text-align:center">
+        <div style="width:58mm">Le prêtre ou le diacre${img(sign.pretre)}${sign.pretre && v.ministre ? `<div style="font-size:8.5pt;color:#555">${e(v.ministre)}</div>` : ''}</div>
+        <div style="width:52mm">Le catéchumène${img(sign.catechumene)}</div>
+        <div style="width:58mm">Le membre du service diocésain<br>du catéchuménat</div>
+      </div>
+      ${sign.le ? `<div style="text-align:center;font-size:8.5pt;color:#555;margin-top:2mm">Signé le ${e(sign.le)}</div>` : ''}
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-top:10mm;font-size:12pt">
+        <div style="width:58mm;text-align:center">${sign.sceau ? `<img src="${sign.sceau}" style="max-width:34mm;max-height:34mm;opacity:.92">` : ''}</div>
+        <div style="width:52mm;text-align:center">Les accompagnateurs</div>
+        <div style="width:58mm"></div>
+      </div>
     `)
   }
 }

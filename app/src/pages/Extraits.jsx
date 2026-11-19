@@ -207,7 +207,7 @@ function Extrait({ id }) {
 }
 
 /** Signature au doigt, au stylet ou à la souris. */
-function PadSignature({ nom, onFermer, onValider }) {
+export function PadSignature({ nom, titre = "Signer l'extrait", consigne, note, onFermer, onValider }) {
   const canvas = useRef()
   const [vide, setVide] = useState(true)
   useEffect(() => {
@@ -247,12 +247,12 @@ function PadSignature({ nom, onFermer, onValider }) {
     onValider(sortie.toDataURL('image/png'))
   }
   return (
-    <Modale titre="Signer l'extrait" onFermer={onFermer}
+    <Modale titre={titre} onFermer={onFermer}
       pied={<><button className="btn-clair mr-auto" onClick={effacer}><Eraser className="h-4 w-4" />Effacer</button><button className="btn-clair" onClick={onFermer}>Annuler</button>
         <button className="btn-principal" onClick={valider} disabled={vide}><PenLine className="h-4 w-4" />Valider la signature</button></>}>
-      <p className="mb-2 text-sm text-nuit-600">Signez dans le cadre, au doigt, au stylet ou à la souris. Signature de <strong>{nom}</strong>.</p>
+      <p className="mb-2 text-sm text-nuit-600">{consigne || <>Signez dans le cadre, au doigt, au stylet ou à la souris. Signature de <strong>{nom}</strong>.</>}</p>
       <canvas ref={canvas} className="w-full touch-none rounded-lg border-2 border-dashed border-nuit-100 bg-white" style={{ aspectRatio: '5 / 2' }} />
-      <p className="mt-2 text-xs text-nuit-600/60">La signature est apposée avec le sceau sur l'extrait, puis le PDF signé est archivé dans le Drive.</p>
+      <p className="mt-2 text-xs text-nuit-600/60">{note || "La signature est apposée avec le sceau sur l'extrait, puis le PDF signé est archivé dans le Drive."}</p>
     </Modale>
   )
 }
