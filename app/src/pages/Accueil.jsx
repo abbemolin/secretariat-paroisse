@@ -83,7 +83,7 @@ function ListeDossiers({ liste, vide }) {
         <li key={d.id}><Link to={`/dossiers/${d.id}`} className="flex items-center gap-3 py-2.5 text-sm hover:text-or-600">
           <span className="pastille text-white" style={{ background: TYPES[d.type].couleur }}>{TYPES[d.type].nom}</span>
           <span className="min-w-0 flex-1 truncate font-medium">{d.nom}</span>
-          <span className="hidden truncate text-xs text-nuit-600/60 sm:block">{prochaineEtape(d.type, d.etapes)?.label}</span>
+          <span className="hidden truncate text-xs text-nuit-600/60 sm:block">{prochaineEtape(d.type, d.etapes, d)?.label}</span>
           <ChevronRight className="h-4 w-4 text-nuit-600/40" />
         </Link></li>
       ))}

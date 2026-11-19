@@ -59,6 +59,15 @@ const etat = {
       infos: { prenoms: 'Tom', nom: 'Becker' }, etapes: { accueil: { fait: true } }, documents: {}, rencontres: [], pieces: [], fils: [], historique: [] },
     { id: 'd7', type: 'confirmand', etat: 'ouvert', cree_le: jour(-90), source: 'Formulaire du site', email: 'lea.f@example.fr', telephone: '', date_celebration: '', evenement_id: '', responsable: 'u1', maj_le: jour(-30),
       infos: { prenoms: 'Léa', nom: 'Fischer', annee_sacrements: '2027' }, etapes: { accueil: { fait: true }, parcours: { fait: true } }, documents: {}, rencontres: [], pieces: [], fils: [], historique: [] },
+    { id: 'd8', type: 'premiere_communion', etat: 'ouvert', cree_le: jour(-40), source: 'Formulaire du site', email: 'julie.weber@example.fr', telephone: '06 12 34 56 78', date_celebration: '', evenement_id: '', responsable: '', maj_le: jour(-2),
+      infos: { enfant_prenoms: 'Hugo', enfant_nom: 'Weber', enfant_naissance_date: '2018-03-04', classe: 'CE2', preparation: 'Herrade de Landsberg', annee_scolaire: '2026-2027', pere_prenom: 'Marc', pere_nom: 'Weber', mere_prenom: 'Julie', mere_nom_jeune_fille: 'Lang', email: 'julie.weber@example.fr', bapteme_paroisse: 'Saint-Pierre-le-Jeune', bapteme_date: '2018-06-10' },
+      etapes: { inscription: { fait: true, date: jour(-40), par: 'Formulaire' } }, documents: {}, rencontres: [], pieces: [], fils: [], historique: [] },
+    { id: 'd9', type: 'premiere_communion', etat: 'ouvert', cree_le: jour(-35), source: 'Saisie : Bertille Bauer', email: 'm.dupont@example.fr', telephone: '', date_celebration: '', evenement_id: '', responsable: '', maj_le: jour(-5),
+      infos: { enfant_prenoms: 'Chloé', enfant_nom: 'Dupont', preparation: 'Paroisse', annee_scolaire: '2026-2027', mere_nom_jeune_fille: 'Martin', email: 'm.dupont@example.fr', rdv_cure_date: jour(3, 17), rdv_cure_lieu: 'Presbytère' },
+      etapes: { inscription: { fait: true }, certificat: { fait: true }, rdv_cure: { fait: true } }, documents: { cert_bapteme: { recu: true } }, rencontres: [], pieces: [], fils: [], historique: [] },
+    { id: 'd10', type: 'profession_foi', etat: 'ouvert', cree_le: jour(-20), source: 'Formulaire du site', email: 'n.roth@example.fr', telephone: '', date_celebration: '', evenement_id: '', responsable: '', maj_le: jour(-20),
+      infos: { enfant_prenoms: 'Nathan', enfant_nom: 'Roth', preparation: 'Saints Louis et Zélie Martin', annee_scolaire: '2026-2027', pere_nom: 'Roth', email: 'n.roth@example.fr' },
+      etapes: { inscription: { fait: true }, validation: { fait: true } }, documents: {}, rencontres: [], pieces: [], fils: [], historique: [] },
     { id: 'd4', type: 'mariage', etat: 'ouvert', cree_le: jour(-200), source: 'Formulaire du site', email: 'sophie.klein@example.fr', telephone: '06 98 76 54 32', date_celebration: jour(23, 15), evenement_id: 'e7', responsable: 'u1', maj_le: jour(-5),
       infos: { fiancee_prenoms: 'Sophie', fiancee_nom: 'Klein', fiance_prenoms: 'Antoine', fiance_nom: 'Muller', email: 'sophie.klein@example.fr', telephone: '06 98 76 54 32', lieu_celebration: 'Église' },
       etapes: { recue: { fait: true, date: jour(-200), par: 'Formulaire' }, rdv: { fait: true, date: jour(-180), par: 'abbé Florent Molin' }, preparation: { fait: true, date: jour(-60), par: 'abbé Florent Molin' } },
@@ -67,11 +76,11 @@ const etat = {
 }
 
 const pub = (u) => ({ ...u, droits: DROITS[u.role] })
-const resume = (d) => ({ ...d, nom: nomDe(d), etapes: Object.keys(d.etapes).filter((k) => d.etapes[k]?.fait), documents: Object.keys(d.documents).filter((k) => d.documents[k]?.recu), date_souhaitee: d.infos.date_souhaitee || '', annee: d.infos.annee_sacrements || '' })
+const resume = (d) => ({ ...d, nom: nomDe(d), preparation: d.infos.preparation === 'Autre école' ? d.infos.ecole_autre : d.infos.preparation || '', etapes: Object.keys(d.etapes).filter((k) => d.etapes[k]?.fait), documents: Object.keys(d.documents).filter((k) => d.documents[k]?.recu), date_souhaitee: d.infos.date_souhaitee || '', annee: d.infos.annee_sacrements || d.infos.annee_scolaire || '' })
 const complet = (d) => ({ ...d, nom: nomDe(d), historique: [...d.historique].reverse(), fils: d.fils.map((id) => etat.fils.find((f) => f.id === id)).filter(Boolean).map((f) => ({ id: f.id, sujet: f.sujet, date: f.date })) })
 function nomDe(d) {
   const i = d.infos, np = (p, n) => [p, String(n || '').toUpperCase()].filter(Boolean).join(' ')
-  if (d.type === 'bapteme') return np(i.enfant_prenoms, i.enfant_nom)
+  if (['bapteme', 'premiere_communion', 'profession_foi'].includes(d.type)) return np(i.enfant_prenoms, i.enfant_nom)
   if (d.type === 'mariage') return [np(i.fiancee_prenoms, i.fiancee_nom), np(i.fiance_prenoms, i.fiance_nom)].filter(Boolean).join(' & ')
   if (d.type === 'obseques') return np(i.defunt_prenoms, i.defunt_nom)
   return np(i.prenoms, i.nom) || d.nom || '(sans nom)'
@@ -162,6 +171,12 @@ export async function demoApi(action, p) {
       const ariane = cle === '' ? [{ id: '', nom: 'Secrétariat' }] : cle === 'a-ranger' ? [{ id: '', nom: 'Secrétariat' }, { id: 'a-ranger', nom: 'À ranger (Mon Drive)' }] : [{ id: '', nom: 'Secrétariat' }, { id: cle, nom: d.nom }]
       return { id: cle || 'root', nom: d.nom, aRanger: cle === 'a-ranger', ariane, dossiers: d.dossiers.map((n) => ({ id: n, nom: n, aRanger: cle === 'a-ranger' })), fichiers: d.fichiers.map((f) => ({ ...f, aRanger: cle === 'a-ranger' })) }
     }
+    case 'promotions.liste': return etat.promotions ||= { 'premiere_communion|2026-2027': { date: jour(178, 10, 30), lieu: 'Église', evenement_id: 'ep' } }
+    case 'promotions.fixer': { etat.promotions ||= {}; etat.promotions[p.type + '|' + p.annee] = { date: p.date, lieu: p.lieu, evenement_id: 'ep' }; return etat.promotions }
+    case 'agenda.rendezvous': return [
+      { id: 'r1', titre: 'Rendez-vous M. le curé – Julie Weber', lieu: 'Presbytère', debut: jour(5, 17, 30), fin: jour(5, 18), invites: ['julie.weber@example.fr'], correspond: p.email === 'julie.weber@example.fr' },
+      { id: 'r2', titre: 'Rendez-vous M. le curé', lieu: 'Presbytère', debut: jour(6, 18), fin: jour(6, 18, 30), invites: ['autre@example.fr'], correspond: false }
+    ].sort((a, b) => b.correspond - a.correspond)
     case 'documents.chercher': return Object.values(dossiersDrive).flatMap((d) => d.fichiers).filter((f) => f.nom.toLowerCase().includes(String(p.texte).toLowerCase()))
     case 'documents.envoyer': case 'documents.dossier': case 'documents.renommer': case 'documents.deplacer': return true
     default: throw new Error('Démo : action non simulée ' + action)

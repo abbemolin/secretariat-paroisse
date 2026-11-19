@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Check, Upload, Loader2, Mail, Printer, FileText, Download, ExternalLink, Globe, Plus, Trash2, Save, History, Send, Church, AlertCircle } from 'lucide-react'
 import { api, fichierEnBase64, telechargerBase64 } from '../api.js'
 import { useApp } from '../App.jsx'
-import { TYPES, ETATS, documentsManquants, PAR_ANNEE, anneeSacrements, choixAnnees } from '../types.js'
+import { TYPES, ETATS, documentsManquants, PAR_ANNEE, anneeSacrements, choixAnnees, etapesDe, documentsDe, TITRES_COLLECTIFS, choixAnneesScolaires, lieuPreparation, libelleAnnee } from '../types.js'
 import { IMPRIMABLES } from '../imprimables.js'
 import { Chargement, Erreur, Modale, useNotif, dateHeure, dateRelative, dateCourte, versLocal, jourLong, heure } from '../ui.jsx'
 import { Redaction } from './Courrier.jsx'
@@ -28,6 +28,8 @@ export default function Dossier() {
   const docCible = useRef(null)
 
   useEffect(() => { setD(null); api('dossiers.lire', { id }).then((x) => { setD(x); setB(champsEditables(x)) }).catch(setErreur) }, [id])
+  const [promotions, setPromotions] = useState({})
+  useEffect(() => { api('promotions.liste').then(setPromotions).catch(() => {}) }, [])
   const modifie = useMemo(() => d && b && JSON.stringify(champsEditables(d)) !== JSON.stringify(b), [d, b])
 
   useEffect(() => {
@@ -82,7 +84,7 @@ export default function Dossier() {
     try { await avantAction() } catch { return }
     setMail({ mode: 'nouveau', a: d.email, dossier: dossierCourant, ...opts })
   }
-  const manquants = documentsManquants(d.type, Object.keys(b.documents).filter((k) => b.documents[k]?.recu))
+  const manquants = documentsManquants(d.type, Object.keys(b.documents).filter((k) => b.documents[k]?.recu), b.infos)
   const contexteMail = { documents_manquants: manquants.map((m) => '- ' + m.label).join('\n') }
 
   function mailNotificationParoisse() {
@@ -101,7 +103,9 @@ export default function Dossier() {
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
           <span className="mb-1 flex flex-wrap gap-1.5"><span className="pastille text-white" style={{ background: t.couleur }}>{t.nom}</span>
-            {PAR_ANNEE.includes(d.type) && <span className="pastille border border-or bg-or-50 text-or-600">{anneeSacrements({ ...d, ...b }) ? (d.type === 'confirmand' ? 'Confirmation ' : 'Sacrements ') + anneeSacrements({ ...d, ...b }) : 'Année non fixée'}</span>}</span>
+            {PAR_ANNEE.includes(d.type) && <span className="pastille border border-or bg-or-50 text-or-600">{anneeSacrements({ ...d, ...b, annee: '' }) ? libelleAnnee(d.type) + anneeSacrements({ ...d, ...b, annee: '' }) : 'Année non fixée'}</span>}
+            {t.collectif && b.infos.preparation && <span className="pastille border border-nuit-100 bg-white text-nuit-600">Préparation : {lieuPreparation(b.infos)}</span>}
+            {t.collectif && b.infos.preparation && b.infos.preparation !== 'Paroisse' && !b.etapes.validation?.fait && <span className="pastille bg-amber-100 text-amber-900">En attente de validation du curé</span>}</span>
           <h1 className="text-3xl font-semibold leading-tight">{d.nom || 'Sans nom'}</h1>
           <p className="text-xs text-nuit-600/70">Créé le {dateCourte(d.cree_le)} · {d.source}</p>
         </div>
@@ -129,7 +133,7 @@ export default function Dossier() {
           <section className="carte p-4">
             <h2 className="mb-2 text-xl font-semibold">Étapes</h2>
             <ol className="space-y-1">
-              {t.etapes.map((e, i) => {
+              {etapesDe(d.type, b.infos).map((e, i) => {
                 const fait = b.etapes[e.cle]?.fait
                 return (
                   <li key={e.cle}><button onClick={() => basculerEtape(e)} className="flex w-full items-start gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-nuit-50">
@@ -142,9 +146,22 @@ export default function Dossier() {
             </ol>
           </section>
 
+          {t.collectif ? (
+            <section className="carte p-4">
+              <h2 className="mb-2 text-xl font-semibold">Célébration</h2>
+              <p className="text-xs text-nuit-600/70">Célébration commune à toute l'année scolaire {b.infos.annee_scolaire || '(à choisir dans « Préparation »)'}.</p>
+              {(() => {
+                const pr = promotions[`${d.type}|${b.infos.annee_scolaire}`]
+                return pr?.date
+                  ? <p className="mt-2 text-sm font-medium first-letter:uppercase">{jourLong(pr.date)} à {heure(pr.date)}{pr.lieu ? ` — ${pr.lieu}` : ''}</p>
+                  : <p className="mt-2 text-sm text-nuit-600/70">Date pas encore fixée.</p>
+              })()}
+              <Link to={`/dossiers?type=${d.type}&annee=${b.infos.annee_scolaire || ''}`} className="mt-2 inline-block text-xs text-or-600 hover:underline">Fixer la date et voir la liste de l'année →</Link>
+            </section>
+          ) : (
           <section className="carte p-4">
             <h2 className="mb-2 text-xl font-semibold">{d.type === 'catechumene' ? 'Date du baptême' : d.type === 'confirmand' ? 'Date de confirmation' : 'Date de célébration'}</h2>
-            {PAR_ANNEE.includes(d.type) && (
+            {['catechumene', 'confirmand'].includes(d.type) && (
               <div className="mb-3">
                 <label className="etiquette">{d.type === 'confirmand' ? 'Année de la confirmation' : 'Année des sacrements (Pâques)'}</label>
                 <select className="champ" value={b.infos.annee_sacrements || ''} onChange={(e) => majInfo('annee_sacrements', e.target.value)}>
@@ -158,12 +175,21 @@ export default function Dossier() {
             <p className="mt-2 flex gap-1.5 text-xs text-nuit-600/70"><Globe className="mt-0.5 h-3.5 w-3.5 shrink-0 text-or" />Publiée dans l'agenda public comme « {({ bapteme: 'Baptême', mariage: 'Mariage', obseques: 'Obsèques', catechumene: "Baptême d'adulte", confirmand: 'Confirmation' })[d.type]} », sans nom{b.infos.lieu_celebration ? `, lieu : ${b.infos.lieu_celebration}` : ''}.</p>
             {b.date_celebration && <p className="mt-1 text-sm font-medium capitalize">{jourLong(b.date_celebration)} à {heure(b.date_celebration)}</p>}
           </section>
+          )}
 
-          {t.documents.length > 0 && (
+          {t.rdvCure && <RendezVousCure infos={b.infos} email={d.email}
+            onChoix={(ev) => setB({ ...b, infos: { ...b.infos, rdv_cure_date: ev?.debut || '', rdv_cure_lieu: ev?.lieu || '', rdv_cure_evenement: ev?.id || '' },
+              etapes: ev && !b.etapes.rdv_cure?.fait ? { ...b.etapes, rdv_cure: { fait: true, date: new Date().toISOString(), par: app.utilisateur.nom, libelle: 'Rendez-vous avec le curé' } } : b.etapes })}
+            onRappel={() => ouvrirMail({
+              sujet: `Rappel : rendez-vous avec M. le curé – première communion de ${b.infos.enfant_prenoms || d.nom}`,
+              corps: `Bonjour,\n\nNous vous rappelons votre rendez-vous avec M. le curé, dans le cadre de la préparation à la première communion de ${b.infos.enfant_prenoms || d.nom} :\n\n${jourLong(b.infos.rdv_cure_date).replace(/^./, (c) => c.toUpperCase())} à ${heure(b.infos.rdv_cure_date)}${b.infos.rdv_cure_lieu ? '\n' + b.infos.rdv_cure_lieu : ''}\n\nEn cas d'empêchement, merci de nous prévenir en répondant à ce message.\n\nBien fraternellement,`
+            })} />}
+
+          {documentsDe(d.type, b.infos).length > 0 && (
             <section className="carte p-4">
               <h2 className="mb-2 text-xl font-semibold">Documents</h2>
               <ul className="space-y-1">
-                {t.documents.map((doc) => {
+                {documentsDe(d.type, b.infos).map((doc) => {
                   const recu = b.documents[doc.cle]?.recu
                   return (
                     <li key={doc.cle} className="flex items-center gap-2 rounded-lg px-1 py-1 text-sm hover:bg-nuit-50/50">
@@ -211,6 +237,7 @@ export default function Dossier() {
                       <div key={c.cle} className={c.type === 'paragraphe' ? 'sm:col-span-2' : ''}>
                         <label className="etiquette">{c.label}</label>
                         {c.type === 'paragraphe' ? <textarea className="champ min-h-[70px]" value={b.infos[c.cle] || ''} onChange={(e) => majInfo(c.cle, e.target.value)} />
+                          : c.type === 'anneeScolaire' ? <select className="champ" value={b.infos[c.cle] || ''} onChange={(e) => majInfo(c.cle, e.target.value)}><option value="">Non fixée</option>{choixAnneesScolaires().map((o) => <option key={o} value={o}>{o}</option>)}</select>
                           : c.type === 'annee' ? <select className="champ" value={b.infos[c.cle] || ''} onChange={(e) => majInfo(c.cle, e.target.value)}><option value="">{b.date_celebration ? `— (d'après la date : ${new Date(b.date_celebration).getFullYear()})` : 'Non fixée'}</option>{choixAnnees().map((o) => <option key={o} value={o}>{o}</option>)}</select>
                           : c.type === 'choix' ? <select className="champ" value={b.infos[c.cle] || ''} onChange={(e) => majInfo(c.cle, e.target.value)}>{c.choix.map((o) => <option key={o} value={o}>{o || '—'}</option>)}</select>
                           : <input className="champ" type={c.type === 'date' ? 'date' : c.type === 'email' ? 'email' : c.type === 'tel' ? 'tel' : 'text'} value={b.infos[c.cle] || ''} onChange={(e) => majInfo(c.cle, e.target.value)} />}
@@ -323,5 +350,63 @@ function Imprimer({ modele, dossier, reglages, onFermer, onArchive }) {
         </div>
       </div>
     </Modale>
+  )
+}
+
+function RendezVousCure({ infos, email, onChoix, onRappel }) {
+  const [liste, setListe] = useState(null)
+  const [ouvert, setOuvert] = useState(false)
+  const [erreur, setErreur] = useState(null)
+  useEffect(() => {
+    if (infos.rdv_cure_date) return
+    api('agenda.rendezvous', { email }).then(setListe).catch(setErreur)
+  }, [email, infos.rdv_cure_date])
+  const trouves = (liste || []).filter((e) => e.correspond)
+  const passe = infos.rdv_cure_date && new Date(infos.rdv_cure_date) < new Date()
+  return (
+    <section className="carte p-4">
+      <h2 className="mb-2 text-xl font-semibold">Rendez-vous avec le curé</h2>
+      {infos.rdv_cure_date ? (
+        <>
+          <p className="text-sm font-medium first-letter:uppercase">{jourLong(infos.rdv_cure_date)} à {heure(infos.rdv_cure_date)}</p>
+          {infos.rdv_cure_lieu && <p className="text-xs text-nuit-600/70">{infos.rdv_cure_lieu}</p>}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {!passe && <button className="btn-or py-1.5 text-xs" disabled={!email} onClick={onRappel}><Mail className="h-4 w-4" />Envoyer le rappel aux parents</button>}
+            <button className="btn-clair py-1.5 text-xs" onClick={() => { setOuvert(true); if (!liste) api('agenda.rendezvous', { email }).then(setListe).catch(setErreur) }}>Changer</button>
+            <button className="btn-clair py-1.5 text-xs" onClick={() => onChoix(null)}>Retirer</button>
+          </div>
+        </>
+      ) : (
+        <>
+          {!liste && !erreur ? <p className="text-xs text-nuit-600/60">Recherche dans l'agenda…</p>
+            : trouves.length ? (
+              <div className="space-y-1.5">
+                <p className="text-xs text-emerald-800">Trouvé dans l'agenda (réservé avec l'e-mail des parents) :</p>
+                {trouves.slice(0, 3).map((e) => (
+                  <button key={e.id} onClick={() => onChoix(e)} className="flex w-full items-center justify-between gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-left text-sm hover:bg-emerald-100">
+                    <span><span className="block font-medium first-letter:uppercase">{jourLong(e.debut)} à {heure(e.debut)}</span><span className="text-xs text-nuit-600/70">{e.titre}</span></span><span className="text-xs font-medium text-emerald-800">Associer</span>
+                  </button>
+                ))}
+              </div>
+            ) : <p className="text-xs text-nuit-600/60">Aucun rendez-vous trouvé avec l'e-mail des parents.</p>}
+          <button className="btn-clair mt-2 w-full py-1.5 text-xs" onClick={() => setOuvert(true)}>Choisir dans l'agenda</button>
+        </>
+      )}
+      <Erreur erreur={erreur} />
+      {ouvert && (
+        <Modale titre="Choisir le rendez-vous" onFermer={() => setOuvert(false)}>
+          {!liste ? <Chargement /> : !liste.length ? <p className="text-sm text-nuit-600/70">Aucun rendez-vous dans les six prochains mois.</p> : (
+            <ul className="max-h-[60vh] divide-y divide-nuit-50 overflow-y-auto">
+              {liste.map((e) => (
+                <li key={e.id}><button onClick={() => { onChoix(e); setOuvert(false) }} className={`flex w-full items-start gap-3 px-2 py-2 text-left text-sm hover:bg-nuit-50 ${e.correspond ? 'bg-emerald-50' : ''}`}>
+                  <span className="w-36 shrink-0 text-xs text-nuit-600/80 first-letter:uppercase">{jourLong(e.debut)}<br /><b>{heure(e.debut)}</b></span>
+                  <span className="min-w-0"><span className="block font-medium">{e.titre}</span><span className="block truncate text-xs text-nuit-600/60">{e.invites?.join(', ')}</span>{e.correspond && <span className="text-xs text-emerald-800">correspond à l'e-mail des parents</span>}</span>
+                </button></li>
+              ))}
+            </ul>
+          )}
+        </Modale>
+      )}
+    </section>
   )
 }

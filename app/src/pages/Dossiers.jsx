@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Plus, Search, FolderHeart, Loader2, Globe } from 'lucide-react'
+import { Plus, Search, FolderHeart, Loader2, Globe, Printer, CalendarCheck } from 'lucide-react'
 import { api } from '../api.js'
 import { useApp } from '../App.jsx'
-import { TYPES, ORDRE_TYPES, ETATS, prochaineEtape, documentsManquants, PAR_ANNEE, anneeSacrements } from '../types.js'
-import { Chargement, Erreur, Modale, Vide, useCharger, dateCourte, initiales, COULEURS_STATUT } from '../ui.jsx'
+import { TYPES, ORDRE_TYPES, ETATS, prochaineEtape, documentsManquants, PAR_ANNEE, anneeSacrements, etapesDe, libelleAnnee, TITRES_COLLECTIFS, lieuPreparation } from '../types.js'
+import { Chargement, Erreur, Modale, Vide, useCharger, useNotif, dateCourte, initiales, versLocal, jourLong, heure, COULEURS_STATUT } from '../ui.jsx'
 
 export default function Dossiers() {
   const nav = useNavigate()
@@ -28,7 +28,7 @@ export default function Dossiers() {
   return (
     <>
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-        <div><h1 className="text-3xl font-semibold">Dossiers</h1><p className="text-sm text-nuit-600/80">Baptêmes, mariages, obsèques, catéchumènes, confirmands</p></div>
+        <div><h1 className="text-3xl font-semibold">Dossiers</h1><p className="text-sm text-nuit-600/80">Sacrements et célébrations</p></div>
         <button className="btn-or" onClick={() => setNouveau(true)}><Plus className="h-4 w-4" />Nouveau dossier</button>
       </div>
 
@@ -46,13 +46,14 @@ export default function Dossiers() {
         const sans = base.filter((d) => !anneeSacrements(d)).length
         return (
           <div className="mb-3 flex flex-wrap items-center gap-1.5">
-            <span className="mr-1 text-xs font-medium text-nuit-600">{type === 'confirmand' ? 'Année de confirmation :' : 'Année des sacrements :'}</span>
+            <span className="mr-1 text-xs font-medium text-nuit-600">{type === 'confirmand' ? 'Année de confirmation :' : TYPES[type].collectif ? 'Année scolaire :' : 'Année des sacrements :'}</span>
             <button onClick={() => changer({ annee: '' })} className={`pastille border py-1 ${!annee ? 'border-or bg-or text-white' : 'border-or/40 bg-white text-or-600'}`}>Toutes</button>
             {annees.map((a) => <button key={a} onClick={() => changer({ annee: a })} className={`pastille border py-1 ${annee === a ? 'border-or bg-or text-white' : 'border-or/40 bg-white text-or-600'}`}>{a} <span className="ml-1 opacity-70">{base.filter((d) => anneeSacrements(d) === a).length}</span></button>)}
             {sans > 0 && <button onClick={() => changer({ annee: 'aucune' })} className={`pastille border py-1 ${annee === 'aucune' ? 'border-nuit bg-nuit text-white' : 'border-nuit-100 bg-white text-nuit-600'}`}>Non fixée <span className="ml-1 opacity-70">{sans}</span></button>}
           </div>
         )
       })()}
+      {TYPES[type]?.collectif && annee && annee !== 'aucune' && <Promotion type={type} annee={annee} dossiers={liste} />}
       <div className="mb-4 grid gap-2 sm:grid-cols-[1fr_auto]">
         <div className="relative"><Search className="absolute left-3 top-2.5 h-4 w-4 text-nuit-600/50" />
           <input className="champ pl-9" placeholder="Nom, e-mail, téléphone…" value={texte} onChange={(e) => setTexte(e.target.value)} /></div>
@@ -68,16 +69,17 @@ export default function Dossiers() {
             <div className="divide-y divide-nuit-50">
               {(parAnnee && !annee ? [...liste].sort((x, y) => (anneeSacrements(x) || '9999').localeCompare(anneeSacrements(y) || '9999')) : liste).map((d, i, arr) => {
                 const entete = parAnnee && !annee && (i === 0 || anneeSacrements(arr[i - 1]) !== anneeSacrements(d))
-                const t = TYPES[d.type], prochaine = prochaineEtape(d.type, d.etapes), manquants = documentsManquants(d.type, d.documents).length
-                const total = t.etapes.filter((e) => !e.optionnel).length, faites = t.etapes.filter((e) => !e.optionnel && d.etapes.includes(e.cle)).length
+                const t = TYPES[d.type], prochaine = prochaineEtape(d.type, d.etapes, d), manquants = documentsManquants(d.type, d.documents, d).length
+                const et = etapesDe(d.type, d), total = et.filter((e) => !e.optionnel).length, faites = et.filter((e) => !e.optionnel && d.etapes.includes(e.cle)).length
                 return (
                   <div key={d.id}>
-                  {entete && <div className="bg-or-50 px-4 py-1.5 font-titre text-lg font-semibold text-or-600">{anneeSacrements(d) ? (type === 'confirmand' ? 'Confirmations ' : 'Sacrements ') + anneeSacrements(d) : 'Année non fixée'}</div>}
+                  {entete && <div className="bg-or-50 px-4 py-1.5 font-titre text-lg font-semibold text-or-600">{anneeSacrements(d) ? libelleAnnee(type) + anneeSacrements(d) : 'Année non fixée'}</div>}
                   <button onClick={() => nav(`/dossiers/${d.id}`)} className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-1 px-4 py-3 text-left text-sm hover:bg-nuit-50/50 md:grid-cols-[150px_1fr_200px_120px_40px]">
                     <span className="flex flex-col gap-0.5"><span className="pastille w-fit text-white" style={{ background: t.couleur }}>{t.nom}</span>
                       {PAR_ANNEE.includes(d.type) && !parAnnee && anneeSacrements(d) && <span className="pastille w-fit border border-or/40 py-0 text-[10px] text-or-600">{anneeSacrements(d)}</span>}</span>
                     <span className="min-w-0"><span className="block truncate font-medium">{d.nom}</span>
-                      <span className="block truncate text-xs text-nuit-600/60">{d.etat !== 'ouvert' ? <span className={`pastille py-0 ${COULEURS_STATUT[d.etat]}`}>{ETATS[d.etat]}</span> : prochaine ? '→ ' + prochaine.label : 'Toutes les étapes faites'}{manquants > 0 && d.etat === 'ouvert' && ` · ${manquants} document${manquants > 1 ? 's' : ''} manquant${manquants > 1 ? 's' : ''}`}</span></span>
+                      <span className="block truncate text-xs text-nuit-600/60">{d.etat !== 'ouvert' ? <span className={`pastille py-0 ${COULEURS_STATUT[d.etat]}`}>{ETATS[d.etat]}</span> : prochaine ? '→ ' + prochaine.label : 'Toutes les étapes faites'}{manquants > 0 && d.etat === 'ouvert' && ` · ${manquants} document${manquants > 1 ? 's' : ''} manquant${manquants > 1 ? 's' : ''}`}</span>
+                      {t.collectif && d.preparation && <span className="mt-0.5 flex flex-wrap gap-1"><span className="pastille py-0 text-[10px] border border-nuit-100 text-nuit-600">{d.preparation}</span>{d.preparation !== 'Paroisse' && !d.etapes.includes('validation') && <span className="pastille bg-amber-100 py-0 text-[10px] text-amber-900">à valider par le curé</span>}</span>}</span>
                     <span className="hidden md:block"><span className="block h-1.5 overflow-hidden rounded-full bg-nuit-50"><span className="block h-full rounded-full" style={{ width: `${(faites / total) * 100}%`, background: t.couleur }} /></span><span className="text-[11px] text-nuit-600/60">{faites}/{total} étapes</span></span>
                     <span className="text-right text-xs text-nuit-600/70 md:text-left">{d.date_celebration ? <span className="inline-flex items-center gap-1 font-medium text-nuit"><Globe className="h-3 w-3 text-or" />{dateCourte(d.date_celebration)}</span> : d.date_souhaitee ? 'souhaité ' + dateCourte(d.date_souhaitee) : '—'}</span>
                     <span className="hidden justify-end md:flex">{d.responsable && <span title={nomUtilisateur(d.responsable)} className="flex h-7 w-7 items-center justify-center rounded-full bg-nuit text-[10px] font-semibold text-white">{initiales(nomUtilisateur(d.responsable))}</span>}</span>
@@ -129,5 +131,57 @@ function NouveauDossier({ typeInitial, onFermer, onCree }) {
         <Erreur erreur={erreur} />
       </div>
     </Modale>
+  )
+}
+
+/** Célébration commune d'une année scolaire (premières communions, professions de foi) + liste imprimable. */
+function Promotion({ type, annee, dossiers }) {
+  const notifier = useNotif()
+  const { reglages } = useApp()
+  const [promo, setPromo] = useState(null)
+  const [date, setDate] = useState('')
+  const [lieu, setLieu] = useState('')
+  const [envoi, setEnvoi] = useState(false)
+  useEffect(() => {
+    api('promotions.liste').then((p) => { const x = p[`${type}|${annee}`] || {}; setPromo(x); setDate(x.date ? versLocal(x.date) : ''); setLieu(x.lieu || '') }).catch(() => setPromo({}))
+  }, [type, annee])
+  async function enregistrer() {
+    setEnvoi(true)
+    try { const p = await api('promotions.fixer', { type, annee, date: date ? new Date(date).toISOString() : '', lieu }); setPromo(p[`${type}|${annee}`]); notifier(date ? 'Date publiée dans l\'agenda public' : 'Date retirée') }
+    catch (e) { notifier(e.message, 'erreur') } finally { setEnvoi(false) }
+  }
+  function imprimer() {
+    const e = (t) => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    const tries = dossiers.filter((d) => d.etat !== 'annule').slice().sort((a, b) => a.nom.localeCompare(b.nom, 'fr'))
+    const lignes = tries.map((d, i) => {
+      const prenoms = d.nom.split(' ').filter((m) => m !== m.toUpperCase()).join(' ')
+      const nom = d.nom.split(' ').filter((m) => m === m.toUpperCase()).join(' ')
+      return `<tr><td>${i + 1}</td><td><b>${e(nom)}</b></td><td>${e(prenoms)}</td><td>${e(d.preparation)}</td></tr>`
+    }).join('')
+    const quand = promo?.date ? `${jourLong(promo.date)} à ${heure(promo.date)}${promo.lieu ? ' – ' + promo.lieu : ''}` : ''
+    const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${TITRES_COLLECTIFS[type]} ${annee}</title><style>
+      @page{size:A4;margin:16mm} body{font-family:Arial,sans-serif;color:#222} h1{color:#521a22;font-size:20pt;margin:0 0 2mm}
+      .sous{color:#666;margin:0 0 8mm} table{width:100%;border-collapse:collapse;font-size:11pt} th{text-align:left;border-bottom:2px solid #521a22;padding:2mm}
+      td{border-bottom:1px solid #ddd;padding:2.2mm 2mm} td:first-child{color:#888;width:8mm} .total{margin-top:6mm;color:#666;font-size:10pt}</style></head><body>
+      <h1>${TITRES_COLLECTIFS[type]} – ${annee}</h1><p class="sous">${e(reglages.paroisse)}${quand ? '<br>Célébration : ' + e(quand) : ''}</p>
+      <table><thead><tr><th>N°</th><th>Nom</th><th>Prénom</th><th>Lieu de préparation</th></tr></thead><tbody>${lignes}</tbody></table>
+      <p class="total">${tries.length} enfant${tries.length > 1 ? 's' : ''}</p><script>window.onload=()=>window.print()</script></body></html>`
+    const w = window.open('', '_blank')
+    if (!w) { notifier('Autorisez les fenêtres pour imprimer', 'erreur'); return }
+    w.document.write(html); w.document.close()
+  }
+  return (
+    <div className="carte mb-4 flex flex-wrap items-end gap-3 border-or/40 bg-or-50/40 p-4">
+      <div className="min-w-[200px] flex-1">
+        <div className="mb-1 flex items-center gap-1.5 font-titre text-lg font-semibold"><CalendarCheck className="h-4 w-4 text-or" />Célébration {annee}</div>
+        <p className="text-xs text-nuit-600/70">Une seule date pour tous les enfants (paroisse et écoles), publiée dans l'agenda public sous « {TITRES_COLLECTIFS[type]} ».</p>
+      </div>
+      {promo === null ? <Loader2 className="h-4 w-4 animate-spin" /> : <>
+        <div><label className="etiquette">Date et heure</label><input className="champ py-1.5" type="datetime-local" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+        <div><label className="etiquette">Lieu</label><input className="champ py-1.5" value={lieu} onChange={(e) => setLieu(e.target.value)} placeholder="Église" /></div>
+        <button className="btn-principal py-1.5" onClick={enregistrer} disabled={envoi}>{envoi && <Loader2 className="h-4 w-4 animate-spin" />}Enregistrer</button>
+      </>}
+      <button className="btn-clair py-1.5" onClick={imprimer} disabled={!dossiers.length}><Printer className="h-4 w-4" />Liste à imprimer</button>
+    </div>
   )
 }

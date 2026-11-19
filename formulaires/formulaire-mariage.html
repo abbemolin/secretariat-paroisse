@@ -10,7 +10,7 @@
 #cg-mariage .cg-grille{display:grid;grid-template-columns:1fr 1fr;gap:.8em}
 #cg-mariage .cg-large{grid-column:1/-1}
 #cg-mariage label{display:block;font-size:.9em;margin-bottom:.25em;color:#444}
-#cg-mariage input,#cg-mariage textarea{width:100%;box-sizing:border-box;padding:.65em .75em;border:1px solid #ccc;border-radius:6px;font:inherit;background:#fff}
+#cg-mariage input,#cg-mariage textarea,#cg-mariage select{width:100%;box-sizing:border-box;padding:.65em .75em;border:1px solid #ccc;border-radius:6px;font:inherit;background:#fff}
 #cg-mariage input:focus,#cg-mariage textarea:focus{outline:2px solid #d08c4c55;border-color:#d08c4c}
 #cg-mariage textarea{min-height:110px}
 #cg-mariage .cg-req{color:#b33}
@@ -47,10 +47,11 @@
     var manque = Array.prototype.filter.call(form.querySelectorAll('[required]'), function(x){ return x.type === 'checkbox' ? !x.checked : !x.value.trim(); });
     if (manque.length) { afficher('Merci de remplir les champs marqués d\'une étoile et d\'accepter l\'utilisation de vos données.', false); manque[0].focus(); return; }
     if (form.pere_nom && !form.pere_nom.value.trim() && !form.mere_nom_jeune_fille.value.trim()) { afficher('Merci d\'indiquer au moins un des parents.', false); form.pere_prenom.focus(); return; }
+    if (form.preparation && form.preparation.value === 'Autre école' && !form.ecole_autre.value.trim()) { afficher('Merci de préciser le nom de l\'école.', false); form.ecole_autre.focus(); return; }
     var email = form.querySelector('[name=email]');
     if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.value.trim())) { afficher('Adresse e-mail invalide.', false); email.focus(); return; }
     var champs = {};
-    Array.prototype.forEach.call(form.querySelectorAll('input[name],textarea[name]'), function(x){ if (x.name !== 'consentement' && x.name !== 'site_web') champs[x.name] = x.value.trim(); });
+    Array.prototype.forEach.call(form.querySelectorAll('input[name],textarea[name],select[name]'), function(x){ if (x.name !== 'consentement' && x.name !== 'site_web') champs[x.name] = x.value.trim(); });
     bouton.disabled = true; bouton.textContent = 'Envoi…';
     fetch(URL_SCRIPT, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action: 'public.demande', payload: { type: 'mariage', champs: champs, consentement: true, site_web: form.site_web.value } }) })

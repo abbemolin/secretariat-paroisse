@@ -9,8 +9,21 @@ import sys, json, pathlib
 
 URL = sys.argv[1] if len(sys.argv) > 1 else "COLLER_ICI_L_ADRESSE_DU_SCRIPT"
 
-def c(cle, label, type="text", requis=False, aide=""):
-    return dict(cle=cle, label=label, type=type, requis=requis, aide=aide)
+def c(cle, label, type="text", requis=False, aide="", choix=None):
+    return dict(cle=cle, label=label, type=type, requis=requis, aide=aide, choix=choix or [])
+
+GROUPES_ENFANT = [
+    ("L'enfant", [c("enfant_prenoms", "Prénoms", requis=True), c("enfant_nom", "Nom", requis=True),
+                  c("enfant_naissance_date", "Date de naissance", "date", True), c("enfant_naissance_lieu", "Lieu de naissance"),
+                  c("classe", "Classe (ex. CE2)")]),
+    ("La préparation", [c("preparation", "Lieu de préparation", "select", True, choix=["Paroisse", "Herrade de Landsberg", "Saints Louis et Zélie Martin", "Autre école"]),
+                        c("ecole_autre", "Si autre école : laquelle ?")]),
+    ("Les parents", [c("pere_prenom", "Prénom du père"), c("pere_nom", "Nom du père"),
+                     c("mere_prenom", "Prénom de la mère"), c("mere_nom_jeune_fille", "Nom de jeune fille de la mère"),
+                     c("adresse", "Adresse"), c("telephone", "Téléphone", "tel", True), c("email", "E-mail", "email", True)]),
+    ("Le baptême de l'enfant", [c("bapteme_paroisse", "Paroisse du baptême"), c("bapteme_date", "Date du baptême", "date"),
+                                c("message", "Message (facultatif)", "textarea")]),
+]
 
 FORMULAIRES = {
     "bapteme": dict(
@@ -25,6 +38,14 @@ FORMULAIRES = {
             ("Parrain et marraine", [c("parrain_nom", "Parrain (prénom et nom)"), c("marraine_nom", "Marraine (prénom et nom)")]),
             ("Le baptême", [c("date_souhaitee", "Date souhaitée", "date"), c("message", "Message (facultatif)", "textarea")]),
         ]),
+    "premiere_communion": dict(
+        titre="Inscription à la première communion",
+        intro="Votre enfant se prépare à recevoir la première communion ? Inscrivez-le ici, que la préparation ait lieu à la paroisse ou dans son école.",
+        groupes=GROUPES_ENFANT),
+    "profession_foi": dict(
+        titre="Inscription à la profession de foi",
+        intro="Votre enfant se prépare à la profession de foi ? Inscrivez-le ici, que la préparation ait lieu à la paroisse ou dans son école.",
+        groupes=GROUPES_ENFANT),
     "mariage": dict(
         titre="Demande de mariage",
         intro="Vous souhaitez vous marier à l'église ? Merci de prendre contact le plus tôt possible, idéalement un an avant la date envisagée.",
@@ -60,7 +81,7 @@ MODELE = """<meta charset="utf-8">
 #cg-{type} .cg-grille{{display:grid;grid-template-columns:1fr 1fr;gap:.8em}}
 #cg-{type} .cg-large{{grid-column:1/-1}}
 #cg-{type} label{{display:block;font-size:.9em;margin-bottom:.25em;color:#444}}
-#cg-{type} input,#cg-{type} textarea{{width:100%;box-sizing:border-box;padding:.65em .75em;border:1px solid #ccc;border-radius:6px;font:inherit;background:#fff}}
+#cg-{type} input,#cg-{type} textarea,#cg-{type} select{{width:100%;box-sizing:border-box;padding:.65em .75em;border:1px solid #ccc;border-radius:6px;font:inherit;background:#fff}}
 #cg-{type} input:focus,#cg-{type} textarea:focus{{outline:2px solid #d08c4c55;border-color:#d08c4c}}
 #cg-{type} textarea{{min-height:110px}}
 #cg-{type} .cg-req{{color:#b33}}
@@ -94,10 +115,11 @@ MODELE = """<meta charset="utf-8">
     var manque = Array.prototype.filter.call(form.querySelectorAll('[required]'), function(x){{ return x.type === 'checkbox' ? !x.checked : !x.value.trim(); }});
     if (manque.length) {{ afficher('Merci de remplir les champs marqués d\\'une étoile et d\\'accepter l\\'utilisation de vos données.', false); manque[0].focus(); return; }}
     if (form.pere_nom && !form.pere_nom.value.trim() && !form.mere_nom_jeune_fille.value.trim()) {{ afficher('Merci d\\'indiquer au moins un des parents.', false); form.pere_prenom.focus(); return; }}
+    if (form.preparation && form.preparation.value === 'Autre école' && !form.ecole_autre.value.trim()) {{ afficher('Merci de préciser le nom de l\\'école.', false); form.ecole_autre.focus(); return; }}
     var email = form.querySelector('[name=email]');
     if (email && !/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(email.value.trim())) {{ afficher('Adresse e-mail invalide.', false); email.focus(); return; }}
     var champs = {{}};
-    Array.prototype.forEach.call(form.querySelectorAll('input[name],textarea[name]'), function(x){{ if (x.name !== 'consentement' && x.name !== 'site_web') champs[x.name] = x.value.trim(); }});
+    Array.prototype.forEach.call(form.querySelectorAll('input[name],textarea[name],select[name]'), function(x){{ if (x.name !== 'consentement' && x.name !== 'site_web') champs[x.name] = x.value.trim(); }});
     bouton.disabled = true; bouton.textContent = 'Envoi…';
     fetch(URL_SCRIPT, {{ method: 'POST', headers: {{ 'Content-Type': 'text/plain;charset=utf-8' }},
       body: JSON.stringify({{ action: 'public.demande', payload: {{ type: '{type}', champs: champs, consentement: true, site_web: form.site_web.value }} }}) }})
@@ -120,6 +142,9 @@ MODELE = """<meta charset="utf-8">
 def champ_html(ch):
     etoile = ' <span class="cg-req">*</span>' if ch["requis"] else ""
     req = " required" if ch["requis"] else ""
+    if ch["type"] == "select":
+        options = '<option value="">Choisir…</option>' + "".join(f'<option>{o}</option>' for o in ch["choix"])
+        return f'<div class=""><label>{ch["label"]}{etoile}</label><select name="{ch["cle"]}"{req}>{options}</select></div>'
     if ch["type"] == "textarea":
         controle = f'<textarea name="{ch["cle"]}"{req}></textarea>'
         cls = "cg-large"

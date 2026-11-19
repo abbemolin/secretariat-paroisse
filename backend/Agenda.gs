@@ -20,7 +20,7 @@ function evenementPublic_(ev) {
   return {
     id: ev.getId(), titre: ev.getTitle(), lieu: ev.getLocation(), description: ev.getDescription(),
     journee: ev.isAllDayEvent(), debut: ev.getStartTime().toISOString(), fin: ev.getEndTime().toISOString(),
-    recurrent: ev.isRecurringEvent(), dossier: ev.getTag('dossier') || ''
+    recurrent: ev.isRecurringEvent(), dossier: ev.getTag('dossier') || '', promotion: ev.getTag('promotion') || ''
   };
 }
 
@@ -103,4 +103,24 @@ function dateEvenementDossier_(d) {
     var ev = calendrier_().getEventById(d.evenement_id);
     return ev ? ev.getStartTime().toISOString() : '';
   } catch (e) { return null; }
+}
+
+/**
+ * Rendez-vous de l'agenda principal (prises via la page de réservation Google ou saisies à la main).
+ * Ceux dont un invité, le titre ou la description contient l'e-mail donné sont marqués « correspond ».
+ */
+function chercherRendezVous_(p) {
+  var email = String(p.email || '').toLowerCase().trim();
+  var debut = new Date(Date.now() - 30 * 86400000), fin = new Date(Date.now() + 180 * 86400000);
+  return calendrier_().getEvents(debut, fin).filter(function (ev) { return !ev.isAllDayEvent() && !ev.isRecurringEvent() && !ev.getTag('dossier') && !ev.getTag('promotion'); })
+    .map(function (ev) {
+      var invites = ev.getGuestList().map(function (g) { return g.getEmail().toLowerCase(); });
+      var texte = (ev.getTitle() + ' ' + ev.getDescription()).toLowerCase();
+      var e = evenementPublic_(ev);
+      e.invites = invites;
+      e.correspond = !!email && (invites.indexOf(email) > -1 || texte.indexOf(email) > -1);
+      return e;
+    })
+    .sort(function (a, b) { return (b.correspond - a.correspond) || a.debut.localeCompare(b.debut); })
+    .slice(0, 80);
 }

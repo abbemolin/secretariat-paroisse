@@ -115,6 +115,7 @@ var ROUTES = {
   'agenda.creer':          { fn: creerEvenement_, droit: 'agenda' },
   'agenda.modifier':       { fn: modifierEvenement_, droit: 'agenda' },
   'agenda.supprimer':      { fn: supprimerEvenement_, droit: 'agenda' },
+  'agenda.rendezvous':     { fn: chercherRendezVous_, droit: 'dossiers' },
 
   'dossiers.liste':        { fn: listerDossiers_, droit: 'dossiers' },
   'dossiers.lire':         { fn: lireDossier_, droit: 'dossiers' },
@@ -122,6 +123,8 @@ var ROUTES = {
   'dossiers.modifier':     { fn: modifierDossier_, droit: 'dossiers' },
   'dossiers.piece':        { fn: deposerPieceDossier_, droit: 'dossiers' },
   'dossiers.archiver':     { fn: archiverDocumentDossier_, droit: 'dossiers' },
+  'promotions.liste':      { fn: listerPromotions_, droit: 'dossiers' },
+  'promotions.fixer':      { fn: fixerPromotion_, droit: 'dossiers' },
 
   'documents.liste':       { fn: listerDossierDrive_, droit: 'documents' },
   'documents.chercher':    { fn: chercherDocuments_, droit: 'documents' },

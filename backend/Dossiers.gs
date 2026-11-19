@@ -11,8 +11,24 @@ var TYPES_DOSSIER = {
   mariage: { nom: 'Mariage', dossier: 'Mariages', public: true },
   obseques: { nom: 'Obsèques', dossier: 'Obsèques', public: false },
   catechumene: { nom: 'Catéchumène adulte', dossier: 'Catéchumènes', public: true },
-  confirmand: { nom: 'Confirmand adulte', dossier: 'Confirmands', public: true }
+  confirmand: { nom: 'Confirmand adulte', dossier: 'Confirmands', public: true },
+  premiere_communion: { nom: 'Première communion', dossier: 'Premières communions', public: true, collectif: true },
+  profession_foi: { nom: 'Profession de foi', dossier: 'Professions de foi', public: true, collectif: true }
 };
+
+// Lieux de préparation (premières communions, professions de foi)
+var PREPARATIONS = ['Paroisse', 'Herrade de Landsberg', 'Saints Louis et Zélie Martin', 'Autre école'];
+
+/** Année scolaire en cours (septembre → août), ex. « 2026-2027 ». */
+function anneeScolaire_(date) {
+  var d = date ? new Date(date) : new Date();
+  var a = d.getMonth() >= 8 ? d.getFullYear() : d.getFullYear() - 1;
+  return a + '-' + (a + 1);
+}
+
+var CHAMPS_ENFANT_ = ['enfant_nom', 'enfant_prenoms', 'enfant_naissance_date', 'enfant_naissance_lieu', 'classe',
+  'pere_prenom', 'pere_nom', 'mere_prenom', 'mere_nom_jeune_fille', 'adresse', 'telephone', 'email',
+  'bapteme_paroisse', 'bapteme_date', 'preparation', 'ecole_autre', 'message'];
 
 // Champs acceptés depuis les formulaires du site (et champs obligatoires)
 var CHAMPS_PUBLICS = {
@@ -23,13 +39,15 @@ var CHAMPS_PUBLICS = {
   mariage: { tous: ['fiancee_nom', 'fiancee_prenoms', 'fiance_nom', 'fiance_prenoms', 'telephone', 'email', 'date_souhaitee', 'message'],
              requis: ['fiancee_nom', 'fiancee_prenoms', 'fiance_nom', 'fiance_prenoms', 'telephone', 'email'] },
   catechumene: { tous: ['nom', 'prenoms', 'telephone', 'email', 'message'], requis: ['nom', 'prenoms', 'telephone', 'email'] },
-  confirmand: { tous: ['nom', 'prenoms', 'telephone', 'email', 'message'], requis: ['nom', 'prenoms', 'telephone', 'email'] }
+  confirmand: { tous: ['nom', 'prenoms', 'telephone', 'email', 'message'], requis: ['nom', 'prenoms', 'telephone', 'email'] },
+  premiere_communion: { tous: CHAMPS_ENFANT_, requis: ['enfant_nom', 'enfant_prenoms', 'enfant_naissance_date', 'telephone', 'email', 'preparation'] },
+  profession_foi: { tous: CHAMPS_ENFANT_, requis: ['enfant_nom', 'enfant_prenoms', 'enfant_naissance_date', 'telephone', 'email', 'preparation'] }
 };
 
 function nomDossier_(type, i) {
   i = i || {};
   var np = function (prenoms, nom) { return [prenoms, String(nom || '').toUpperCase()].filter(String).join(' '); };
-  if (type === 'bapteme') return np(i.enfant_prenoms, i.enfant_nom);
+  if (type === 'bapteme' || type === 'premiere_communion' || type === 'profession_foi') return np(i.enfant_prenoms, i.enfant_nom);
   if (type === 'mariage') return [np(i.fiancee_prenoms, i.fiancee_nom), np(i.fiance_prenoms, i.fiance_nom)].filter(String).join(' & ');
   if (type === 'obseques') return np(i.defunt_prenoms, i.defunt_nom);
   return np(i.prenoms, i.nom);
@@ -50,7 +68,8 @@ function dossierResume_(d) {
     etapes: Object.keys(etapes).filter(function (k) { return etapes[k] && etapes[k].fait; }),
     documents: Object.keys(docs).filter(function (k) { return docs[k] && docs[k].recu; }),
     date_souhaitee: (don.infos || {}).date_souhaitee || '',
-    annee: (don.infos || {}).annee_sacrements || ''
+    annee: (don.infos || {}).annee_sacrements || (don.infos || {}).annee_scolaire || '',
+    preparation: (don.infos || {}).preparation === 'Autre école' ? ((don.infos || {}).ecole_autre || 'Autre école') : ((don.infos || {}).preparation || '')
   };
 }
 
@@ -111,6 +130,7 @@ function ajouterHistorique_(d, par, texte) {
 function creerDossier_(p, s) {
   if (!TYPES_DOSSIER[p.type]) throw erreur_('INVALIDE', 'Type de dossier inconnu.');
   var infos = p.infos || {};
+  if (TYPES_DOSSIER[p.type].collectif && !infos.annee_scolaire) infos.annee_scolaire = anneeScolaire_();
   var d = verrou_(function () {
     var nouveau = {
       id: uid_(), type: p.type, etat: 'ouvert', cree_le: maintenant_(), source: p.source || 'Saisie : ' + s.nom,
@@ -163,7 +183,7 @@ function modifierDossier_(p, s) {
 
     // Agenda public
     var lieu = (don.infos || {}).lieu_celebration;
-    if (d.date_celebration !== avant.date || lieu !== avant.lieu || d.etat !== avant.etat) {
+    if (!TYPES_DOSSIER[d.type].collectif && (d.date_celebration !== avant.date || lieu !== avant.lieu || d.etat !== avant.etat)) {
       try {
         d.evenement_id = synchroniserEvenementDossier_(d);
         if (d.date_celebration !== avant.date) ajouterHistorique_(d, s.nom, d.date_celebration ? 'Date de célébration fixée (agenda public mis à jour)' : 'Date de célébration retirée');
@@ -268,7 +288,10 @@ function recevoirDemandePublique_(p) {
     if (v !== undefined && v !== null) infos[k] = String(v).slice(0, k === 'message' ? 3000 : 300).trim();
   });
   conf.requis.forEach(function (k) { if (!infos[k]) throw erreur_('INVALIDE', 'Champ obligatoire manquant.'); });
-  if (p.type === 'bapteme' && !(infos.pere_nom || infos.mere_nom_jeune_fille)) throw erreur_('INVALIDE', 'Merci d\'indiquer au moins un des parents.');
+  if (['bapteme', 'premiere_communion', 'profession_foi'].indexOf(p.type) > -1 && !(infos.pere_nom || infos.mere_nom_jeune_fille)) throw erreur_('INVALIDE', 'Merci d\'indiquer au moins un des parents.');
+  if (infos.preparation && PREPARATIONS.indexOf(infos.preparation) === -1) throw erreur_('INVALIDE', 'Lieu de préparation inconnu.');
+  if (infos.preparation === 'Autre école' && !infos.ecole_autre) throw erreur_('INVALIDE', 'Merci de préciser le nom de l\'école.');
+  if (TYPES_DOSSIER[p.type].collectif) infos.annee_scolaire = anneeScolaire_();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(infos.email || '')) throw erreur_('INVALIDE', 'Adresse e-mail invalide.');
 
   var d = verrou_(function () {
@@ -287,4 +310,55 @@ function recevoirDemandePublique_(p) {
     notifier_(u.id, 'Nouvelle demande : ' + TYPES_DOSSIER[d.type].nom, d.nom, '#/dossiers/' + d.id);
   });
   return { recu: true };
+}
+
+// ─────────────────────────────── CÉLÉBRATIONS COLLECTIVES ────────────────────
+// Premières communions et professions de foi : une date par année scolaire,
+// un seul événement public (« Premières communions », « Professions de foi »).
+
+var TITRES_COLLECTIFS = { premiere_communion: 'Premières communions', profession_foi: 'Professions de foi' };
+
+function promotions_() { return json2_(props_().getProperty('PROMOTIONS'), {}); }
+
+function listerPromotions_() {
+  var p = promotions_();
+  // Reprend la date si l'événement a été déplacé ou supprimé dans Google Agenda
+  Object.keys(p).forEach(function (cle) {
+    if (!p[cle].evenement_id) return;
+    try {
+      var ev = calendrier_().getEventById(p[cle].evenement_id);
+      if (!ev) { p[cle].date = ''; p[cle].evenement_id = ''; }
+      else { p[cle].date = ev.getStartTime().toISOString(); p[cle].lieu = ev.getLocation(); }
+    } catch (e) {}
+  });
+  props_().setProperty('PROMOTIONS', JSON.stringify(p));
+  return p;
+}
+
+function fixerPromotion_(p, s) {
+  if (!TITRES_COLLECTIFS[p.type]) throw erreur_('INVALIDE', 'Type inconnu.');
+  if (!/^\d{4}-\d{4}$/.test(String(p.annee))) throw erreur_('INVALIDE', 'Année scolaire invalide.');
+  return verrou_(function () {
+    var tout = promotions_();
+    var cle = p.type + '|' + p.annee;
+    var promo = tout[cle] || { date: '', lieu: '', evenement_id: '' };
+    var cal = calendrier_();
+    var ev = promo.evenement_id ? cal.getEventById(promo.evenement_id) : null;
+    if (!p.date) {
+      if (ev) ev.deleteEvent();
+      promo = { date: '', lieu: p.lieu || '', evenement_id: '' };
+    } else {
+      var debut = new Date(p.date), fin = new Date(debut.getTime() + 2 * 3600000);
+      if (ev) { ev.setTime(debut, fin); ev.setLocation(p.lieu || ''); }
+      else {
+        ev = cal.createEvent(TITRES_COLLECTIFS[p.type], debut, fin, { location: p.lieu || '' });
+        ev.setTag('promotion', cle);
+      }
+      promo = { date: debut.toISOString(), lieu: p.lieu || '', evenement_id: ev.getId() };
+    }
+    tout[cle] = promo;
+    props_().setProperty('PROMOTIONS', JSON.stringify(tout));
+    journaliser_(s, 'Célébration ' + TITRES_COLLECTIFS[p.type], p.annee + ' → ' + (promo.date || 'retirée'));
+    return tout;
+  });
 }

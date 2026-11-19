@@ -13,6 +13,18 @@ const CELEBRATION = (lieu = 'Église') => [
 const REGISTRE = { titre: 'Registre', champs: [T('registre_annee', 'Année du registre'), T('acte_numero', 'Acte n°')] }
 const MESSAGE = { titre: 'Message de la demande', champs: [T('message', 'Message', 'paragraphe')] }
 
+
+const HORS_PAROISSE = (i) => !!i?.preparation && i.preparation !== 'Paroisse'
+const PREPARATION = ['', 'Paroisse', 'Herrade de Landsberg', 'Saints Louis et Zélie Martin', 'Autre école']
+const SECTIONS_ENFANT = [
+  { titre: 'Enfant', champs: [T('enfant_prenoms', 'Prénoms'), T('enfant_nom', 'Nom'), T('enfant_naissance_date', 'Né(e) le', 'date'), T('enfant_naissance_lieu', 'À'), T('classe', 'Classe')] },
+  { titre: 'Préparation', champs: [T('preparation', 'Lieu de préparation', 'choix', { choix: PREPARATION }), T('ecole_autre', 'Nom de l\'école (si autre école)'), T('annee_scolaire', 'Année scolaire de la célébration', 'anneeScolaire')] },
+  { titre: 'Parents', champs: [T('pere_prenom', 'Prénom du père'), T('pere_nom', 'Nom du père'), T('mere_prenom', 'Prénom de la mère'), T('mere_nom_jeune_fille', 'Nom de jeune fille de la mère'),
+    T('adresse', 'Adresse'), T('telephone', 'Téléphone', 'tel'), T('email', 'E-mail', 'email')] },
+  { titre: 'Baptême de l\'enfant', champs: [T('bapteme_paroisse', 'Paroisse du baptême'), T('bapteme_date', 'Date du baptême', 'date')] },
+  MESSAGE
+]
+
 export const TYPES = {
   bapteme: {
     nom: 'Baptême', pluriel: 'Baptêmes', couleur: '#3b6fd6',
@@ -38,6 +50,35 @@ export const TYPES = {
     ],
     generer: ['B14'],
     reponses: ['accuse_bapteme', 'document_manquant']
+  },
+
+  premiere_communion: {
+    nom: 'Première communion', pluriel: 'Premières communions', couleur: '#2f8f83', collectif: true, rdvCure: true,
+    etapes: [
+      T('inscription', 'Inscription reçue'), T('certificat', 'Certificat de baptême reçu'),
+      T('validation', 'Validation du curé (préparation hors paroisse)', 'texte', { si: HORS_PAROISSE }),
+      T('rdv_cure', 'Rendez-vous avec le curé'),
+      T('confession', 'Première confession'), T('retraite', 'Retraite'), T('celebration', 'Célébration'), T('registre', 'Inscription au registre')
+    ],
+    sections: SECTIONS_ENFANT,
+    documents: [T('cert_bapteme', 'Certificat de baptême'), T('autorisation_image', 'Autorisation parentale / droit à l\'image'),
+      T('participation', 'Participation financière'), T('attestation_ecole', 'Attestation de l\'école', 'texte', { si: HORS_PAROISSE })],
+    generer: [],
+    reponses: ['document_manquant']
+  },
+
+  profession_foi: {
+    nom: 'Profession de foi', pluriel: 'Professions de foi', couleur: '#7a5cc2', collectif: true,
+    etapes: [
+      T('inscription', 'Inscription reçue'), T('certificat', 'Certificat de baptême reçu'),
+      T('validation', 'Validation du curé (préparation hors paroisse)', 'texte', { si: HORS_PAROISSE }),
+      T('retraite', 'Retraite'), T('celebration', 'Célébration'), T('registre', 'Inscription au registre')
+    ],
+    sections: SECTIONS_ENFANT,
+    documents: [T('cert_bapteme', 'Certificat de baptême'), T('participation', 'Participation financière'),
+      T('attestation_ecole', 'Attestation de l\'école', 'texte', { si: HORS_PAROISSE })],
+    generer: [],
+    reponses: ['document_manquant']
   },
 
   mariage: {
@@ -137,23 +178,34 @@ export const TYPES = {
   }
 }
 
-export const ORDRE_TYPES = ['bapteme', 'mariage', 'obseques', 'catechumene', 'confirmand']
+export const ORDRE_TYPES = ['bapteme', 'premiere_communion', 'profession_foi', 'mariage', 'obseques', 'catechumene', 'confirmand']
 
 /** Types suivis par « promotion » (année de réception des sacrements). */
-export const PAR_ANNEE = ['catechumene', 'confirmand']
-export const anneeSacrements = (d) => String(d.annee || d.infos?.annee_sacrements || (d.date_celebration ? new Date(d.date_celebration).getFullYear() : ''))
+export const PAR_ANNEE = ['catechumene', 'confirmand', 'premiere_communion', 'profession_foi']
+export const anneeSacrements = (d) => String(d.annee || d.infos?.annee_sacrements || d.infos?.annee_scolaire || (!TYPES[d.type]?.collectif && d.date_celebration ? new Date(d.date_celebration).getFullYear() : ''))
+export const libelleAnnee = (type) => ({ confirmand: 'Confirmations ', catechumene: 'Sacrements ', premiere_communion: 'Année ', profession_foi: 'Année ' })[type] || ''
 export const choixAnnees = () => { const a = new Date().getFullYear(); return Array.from({ length: 7 }, (_, i) => String(a - 2 + i)) }
 
 export const ETATS = { ouvert: 'En cours', clos: 'Clos', annule: 'Annulé' }
 
-/** Prochaine étape non franchie (hors étapes optionnelles). */
-export function prochaineEtape(type, faites) {
-  return TYPES[type]?.etapes.find((e) => !e.optionnel && !faites.includes(e.cle))
+/** L'élément (étape, document) s'applique-t-il à ce dossier ? (ex. validation du curé seulement hors paroisse) */
+export const applicable = (item, infos) => !item.si || item.si(infos || {})
+export const etapesDe = (type, infos) => (TYPES[type]?.etapes || []).filter((e) => applicable(e, infos))
+export const documentsDe = (type, infos) => (TYPES[type]?.documents || []).filter((d) => applicable(d, infos))
+
+/** Prochaine étape non franchie (hors étapes facultatives). infos : au moins { preparation }. */
+export function prochaineEtape(type, faites, infos) {
+  return etapesDe(type, infos).find((e) => !e.optionnel && !faites.includes(e.cle))
 }
 
-export function documentsManquants(type, recus) {
-  return (TYPES[type]?.documents || []).filter((d) => !recus.includes(d.cle))
+export function documentsManquants(type, recus, infos) {
+  return documentsDe(type, infos).filter((d) => !recus.includes(d.cle))
 }
+
+export const TITRES_COLLECTIFS = { premiere_communion: 'Premières communions', profession_foi: 'Professions de foi' }
+export const anneeScolaireActuelle = () => { const d = new Date(); const a = d.getMonth() >= 8 ? d.getFullYear() : d.getFullYear() - 1; return `${a}-${a + 1}` }
+export const choixAnneesScolaires = () => { const a = Number(anneeScolaireActuelle().slice(0, 4)); return Array.from({ length: 5 }, (_, i) => `${a - 1 + i}-${a + i}`) }
+export const lieuPreparation = (i) => (i?.preparation === 'Autre école' ? i.ecole_autre || 'Autre école' : i?.preparation || '')
 
 /** Remplit une réponse type avec les informations d'un dossier. */
 export function remplirModele(texte, ctx = {}) {
