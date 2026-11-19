@@ -56,17 +56,17 @@ MODELE = """<meta charset="utf-8">
 #cg-{type} h2{{margin:0 0 .4em;font-size:1.6em}}
 #cg-{type} p.cg-intro{{margin:0 0 1.4em;color:#555;line-height:1.5}}
 #cg-{type} fieldset{{border:0;padding:0;margin:0 0 1.2em}}
-#cg-{type} legend{{font-weight:bold;font-size:1.05em;margin-bottom:.6em;color:#1f2a44}}
+#cg-{type} legend{{font-weight:bold;font-size:1.05em;margin-bottom:.6em;color:#521a22}}
 #cg-{type} .cg-grille{{display:grid;grid-template-columns:1fr 1fr;gap:.8em}}
 #cg-{type} .cg-large{{grid-column:1/-1}}
 #cg-{type} label{{display:block;font-size:.9em;margin-bottom:.25em;color:#444}}
 #cg-{type} input,#cg-{type} textarea{{width:100%;box-sizing:border-box;padding:.65em .75em;border:1px solid #ccc;border-radius:6px;font:inherit;background:#fff}}
-#cg-{type} input:focus,#cg-{type} textarea:focus{{outline:2px solid #b08a3e55;border-color:#b08a3e}}
+#cg-{type} input:focus,#cg-{type} textarea:focus{{outline:2px solid #d08c4c55;border-color:#d08c4c}}
 #cg-{type} textarea{{min-height:110px}}
 #cg-{type} .cg-req{{color:#b33}}
 #cg-{type} .cg-consent{{display:flex;gap:.6em;align-items:flex-start;font-size:.9em;color:#444;margin:.4em 0 1.2em}}
 #cg-{type} .cg-consent input{{width:auto;margin-top:.2em}}
-#cg-{type} button{{background:#1f2a44;color:#fff;border:0;border-radius:6px;padding:.8em 1.6em;font:inherit;font-weight:bold;cursor:pointer}}
+#cg-{type} button{{background:#521a22;color:#fff;border:0;border-radius:6px;padding:.8em 1.6em;font:inherit;font-weight:bold;cursor:pointer}}
 #cg-{type} button[disabled]{{opacity:.6;cursor:wait}}
 #cg-{type} .cg-msg{{margin-top:1em;padding:.9em 1em;border-radius:6px;display:none;line-height:1.4}}
 #cg-{type} .cg-ok{{background:#e8f5ec;color:#1d5e33}}
