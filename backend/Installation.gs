@@ -155,3 +155,21 @@ function nettoyerAncienneVersion() {
   P.deleteProperty('AGENDAS');
   Logger.log('Nettoyage terminé. Les libellés Gmail « Secrétariat/… » sont conservés (ils ne gênent pas).');
 }
+
+/**
+ * Mot de passe oublié de l'administrateur : génère un nouveau mot de passe provisoire
+ * pour le premier compte administrateur (et le réactive). Le résultat s'affiche dans le journal.
+ */
+function reinitialiserAdmin() {
+  var admin = lignes_('Utilisateurs').filter(function (u) { return u.role === 'admin'; })[0];
+  if (!admin) { Logger.log('Aucun administrateur trouvé : relancez installer().'); return; }
+  var mdp = 'Croix-' + Math.random().toString(36).slice(2, 8) + '!';
+  admin.sel = uid_() + uid_();
+  admin.hash = hacher_(mdp, admin.sel);
+  admin.actif = true;
+  ecrireLigne_('Utilisateurs', admin);
+  CacheService.getScriptCache().remove('u_' + admin.id);
+  CacheService.getScriptCache().remove('essais_' + String(admin.identifiant).toLowerCase());
+  fermerSessionsDe_(admin.id);
+  Logger.log('Identifiant : ' + admin.identifiant + '   nouveau mot de passe provisoire : ' + mdp);
+}

@@ -12,7 +12,7 @@ export default defineConfig({
       srcDir: 'src',
       filename: 'sw.js',
       injectManifest: { globPatterns: ['**/*.{js,css,html,svg,png}'] },
-      includeAssets: ['icon.svg'],
+      includeAssets: ['logo.png', 'logo-128.png', 'apple-touch-icon.png'],
       manifest: {
         name: 'Secrétariat – La Croix glorieuse',
         short_name: 'Secrétariat',
@@ -21,12 +21,12 @@ export default defineConfig({
         start_url: './',
         scope: './',
         display: 'standalone',
-        background_color: '#f7f4ee',
-        theme_color: '#1f2a44',
+        background_color: '#faf7f2',
+        theme_color: '#521a22',
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
+          { src: 'icon-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
         ]
       }
     })

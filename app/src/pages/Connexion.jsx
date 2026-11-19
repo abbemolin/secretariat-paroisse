@@ -23,7 +23,7 @@ export default function Connexion({ onConnexion }) {
     <div className="flex min-h-full items-center justify-center bg-nuit px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center text-white">
-          <img src="./icon.svg" alt="" className="mx-auto mb-4 h-16 w-16 rounded-2xl shadow-lg" />
+          <img src="./logo.png" alt="Paroisse personnelle La Croix glorieuse" className="mx-auto mb-4 h-32 w-32 rounded-full shadow-lg" />
           <h1 className="text-3xl font-semibold">La Croix glorieuse</h1>
           <p className="mt-1 text-sm text-white/60">Secrétariat paroissial</p>
         </div>

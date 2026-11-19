@@ -117,7 +117,7 @@ function Cadre() {
     <div className="flex h-full">
       <aside className="hidden w-60 shrink-0 flex-col bg-nuit text-white lg:flex">
         <div className="flex items-center gap-3 px-5 py-6">
-          <img src="./icon.svg" alt="" className="h-10 w-10 rounded-lg" />
+          <img src="./logo-128.png" alt="" className="h-12 w-12 rounded-full" />
           <div className="leading-tight"><div className="font-titre text-lg font-semibold">La Croix glorieuse</div><div className="text-xs text-white/60">Secrétariat paroissial</div></div>
         </div>
         <nav className="flex-1 space-y-1 px-3">
@@ -142,7 +142,7 @@ function Cadre() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center justify-between bg-nuit px-4 py-2.5 text-white lg:hidden" style={{ paddingTop: 'max(0.6rem, env(safe-area-inset-top))' }}>
-          <div className="flex items-center gap-2"><img src="./icon.svg" alt="" className="h-7 w-7 rounded-md" /><span className="font-titre text-lg font-semibold">La Croix glorieuse</span></div>
+          <div className="flex items-center gap-2"><img src="./logo-128.png" alt="" className="h-8 w-8 rounded-full" /><span className="font-titre text-lg font-semibold">La Croix glorieuse</span></div>
           <div className="flex items-center"><Cloche /><NavLink to="/compte" className="rounded-lg p-2 hover:bg-white/10"><UserCircle className="h-6 w-6" /></NavLink></div>
         </header>
         {estDemo() && <div className="bg-or-100 px-4 py-1.5 text-center text-xs text-or-600">Mode démonstration — données fictives, rien n'est envoyé.</div>}

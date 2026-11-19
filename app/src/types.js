@@ -87,7 +87,7 @@ export const TYPES = {
   },
 
   catechumene: {
-    nom: 'Catéchumène adulte', pluriel: 'Catéchumènes', couleur: '#b08a3e', rencontres: true,
+    nom: 'Catéchumène adulte', pluriel: 'Catéchumènes', couleur: '#c17f3e', rencontres: true,
     etapes: [
       T('accueil', 'Premier accueil'), T('accompagnateur', 'Accompagnateur désigné'), T('entree', 'Entrée en catéchuménat'),
       T('lettre', "Lettre à l'évêque"), T('appel', 'Appel décisif'), T('scrutins', 'Scrutins'),

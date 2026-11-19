@@ -4,9 +4,9 @@ export default {
   theme: {
     extend: {
       colors: {
-        nuit: { DEFAULT: '#1f2a44', 50: '#eef1f7', 100: '#d9dfec', 600: '#2c3a5c', 700: '#1f2a44', 800: '#161e33' },
-        or: { DEFAULT: '#b08a3e', 50: '#faf5ea', 100: '#f1e5c8', 600: '#96732f' },
-        parchemin: '#f7f4ee'
+        nuit: { DEFAULT: '#521a22', 50: '#f8eff0', 100: '#ecd8db', 600: '#6e2a35', 700: '#521a22', 800: '#2b1a1d' },
+        or: { DEFAULT: '#d08c4c', 50: '#fcf4ea', 100: '#f4e0c8', 600: '#a8652a' },
+        parchemin: '#faf7f2'
       },
       fontFamily: {
         titre: ['"Cormorant Garamond"', 'Georgia', 'serif'],
