@@ -34,7 +34,7 @@ export const TYPES = {
       T('date', 'Date fixée'), T('documents', 'Documents reçus'), T('celebration', 'Célébration'), T('registre', 'Inscription au registre')
     ],
     sections: [
-      { titre: 'Enfant', champs: [T('enfant_prenoms', 'Prénoms'), T('enfant_nom', 'Nom'), T('enfant_naissance_date', 'Né(e) le', 'date'), T('enfant_naissance_lieu', 'À')] },
+      { titre: 'Enfant', champs: [T('enfant_prenoms', 'Prénoms'), T('enfant_nom', 'Nom'), T('sexe', 'Garçon ou fille', 'choix', { choix: ['', 'Garçon', 'Fille'] }), T('enfant_naissance_date', 'Né(e) le', 'date'), T('enfant_naissance_lieu', 'À')] },
       { titre: 'Parents', champs: [T('pere_prenom', 'Prénom du père'), T('pere_nom', 'Nom du père'), T('mere_prenom', 'Prénom de la mère'), T('mere_nom_jeune_fille', 'Nom de jeune fille de la mère'),
         T('adresse', 'Adresse'), T('telephone', 'Téléphone', 'tel'), T('email', 'E-mail', 'email'), T('parents_noms', 'Autres informations sur les parents')] },
       { titre: 'Parrain et marraine', champs: [T('parrain_nom', 'Parrain'), T('parrain_bapteme', 'Baptême / confirmation du parrain (paroisse, date)'), T('marraine_nom', 'Marraine'), T('marraine_bapteme', 'Baptême / confirmation de la marraine (paroisse, date)')] },
@@ -138,7 +138,7 @@ export const TYPES = {
       T('sacrements', 'Baptême, confirmation, eucharistie'), T('registre', 'Inscription au registre')
     ],
     sections: [
-      { titre: 'Identité', champs: [T('prenoms', 'Prénoms'), T('nom', 'Nom'), T('nom_jeune_fille', 'Nom de jeune fille'), T('naissance_date', 'Né(e) le', 'date'),
+      { titre: 'Identité', champs: [T('prenoms', 'Prénoms'), T('nom', 'Nom'), T('sexe', 'Homme ou femme', 'choix', { choix: ['', 'Homme', 'Femme'] }), T('nom_jeune_fille', 'Nom de jeune fille'), T('naissance_date', 'Né(e) le', 'date'),
         T('naissance_lieu', 'À'), T('adresse', 'Domicilié(e) à'), T('nationalite', 'Nationalité'), T('profession', 'Profession'),
         T('telephone', 'Téléphone', 'tel'), T('email', 'E-mail', 'email')] },
       { titre: 'Situation familiale', champs: [T('situation', 'Situation', 'choix', { choix: ['', 'Célibataire', 'Marié(e)', 'Pacsé(e)', 'Vie maritale', 'Divorcé(e)', 'Veuf / veuve'] }),

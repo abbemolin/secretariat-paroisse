@@ -34,8 +34,9 @@ export const B14 = {
   titre: 'Extrait de baptême (B14)',
   champs: [
     ['paroisse', 'Paroisse (maternité)'], ['diocese', 'Diocèse'], ['annee', 'Registre des baptêmes, année'], ['acte', 'Acte n°'],
-    ['prenoms', 'Prénoms'], ['nom', 'NOM'], ['ne_le', 'Né(e) le'], ['ne_a', 'À'],
+    ['sexe', 'Garçon ou fille', 'sexe'], ['prenoms', 'Prénoms'], ['nom', 'NOM'], ['ne_le', 'Né(e) le'], ['ne_a', 'À'],
     ['baptise_le', 'A été baptisé(e) le'], ['eglise', "À l'église"], ['de', 'De (commune)'], ['diocese_de', 'Diocèse de'],
+    ['confirme_le', 'Confirmé(e) le (si confirmé)'], ['confirme_a', 'À (lieu de la confirmation)'],
     ['marie_le', 'Pour un adulte : marié religieusement le'], ['marie_a', 'À'], ['fait_a', 'Certifié conforme, à'], ['fait_le', 'Le']
   ],
   depuis(d, r) {
@@ -44,6 +45,9 @@ export const B14 = {
     return {
       paroisse: r.paroisse, diocese: r.diocese,
       annee: i.registre_annee || annee(d.date_celebration), acte: i.acte_numero || '',
+      sexe: i.sexe || '',
+      confirme_le: d.type === 'catechumene' ? dateLongue(d.date_celebration) : dateLongue(i.confirmation_date),
+      confirme_a: d.type === 'catechumene' ? [i.lieu_celebration, i.commune_celebration].filter(Boolean).join(', ') : i.confirmation_lieu || '',
       prenoms: enfant ? i.enfant_prenoms : i.prenoms, nom: String((enfant ? i.enfant_nom : i.nom) || '').toUpperCase(),
       ne_le: dateLongue(enfant ? i.enfant_naissance_date : i.naissance_date), ne_a: enfant ? i.enfant_naissance_lieu : i.naissance_lieu,
       baptise_le: dateLongue(d.date_celebration), eglise: i.lieu_celebration || r.eglise, de: i.commune_celebration || r.commune,
@@ -54,6 +58,9 @@ export const B14 = {
   },
   /** sign (facultatif) : { signature: dataURL, sceau: dataURL, par, le } */
   html(v, sign = {}) {
+    // accord selon le sexe : « né » / « née », « BAPTISÉ » / « BAPTISÉE »…
+    const f = ['Fille', 'Femme'].includes(v.sexe), g = ['Garçon', 'Homme'].includes(v.sexe)
+    const acc = (base) => (f ? base + 'e' : g ? base : base + '(e)')
     return doc(`
       <div class="form">Form. <b>B 14</b></div>
       <div class="titre">EXTRAIT DE BAPTÊME</div>
@@ -62,14 +69,15 @@ export const B14 = {
       <div class="l" style="justify-content:flex-end;margin-top:8mm"><span>REGISTRE DES BAPTÊMES, ANNÉE</span><span class="v court">${e(v.annee)}</span><span>ACTE N°</span><span class="v court" style="flex-basis:28mm">${e(v.acte)}</span></div>
       ${ligne('<b>Prénoms</b>', v.prenoms)}
       ${ligne('<b>NOM</b>', v.nom)}
-      ${ligne('né(e) le', v.ne_le)}
+      ${ligne(acc('né') + ' le', v.ne_le)}
       ${ligne('à', v.ne_a)}
-      ${ligne('<b>A ÉTÉ BAPTISÉ(E)</b> le', v.baptise_le)}
+      ${ligne('<b>A ÉTÉ ' + (f ? 'BAPTISÉE' : g ? 'BAPTISÉ' : 'BAPTISÉ(E)') + '</b> le', v.baptise_le)}
       ${ligne("à l'église", v.eglise)}
       ${ligne('de', v.de)}
       ${ligne('diocèse de', v.diocese_de)}
+      <div class="l"><span>${acc('Confirmé')} le</span><span class="v">${e(v.confirme_le)}</span><span>à</span><span class="v">${e(v.confirme_a)}</span></div>
       <div class="l"><span>Pour un adulte, si nécessaire :</span></div>
-      <div class="l"><span>Marié religieusement le</span><span class="v">${e(v.marie_le)}</span><span>à</span><span class="v">${e(v.marie_a)}</span></div>
+      <div class="l"><span>${acc('Marié')} religieusement le</span><span class="v">${e(v.marie_le)}</span><span>à</span><span class="v">${e(v.marie_a)}</span></div>
       <div class="l" style="margin-top:10mm"><span>Certifié conforme au Registre</span></div>
       <div class="l" style="margin-top:8mm;padding-left:50mm"><span>A</span><span class="v">${e(v.fait_a)}</span><span>le</span><span class="v moyen" style="flex-basis:40mm">${e(v.fait_le)}</span></div>
       <div class="sig" style="align-items:flex-start">

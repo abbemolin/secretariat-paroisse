@@ -14,6 +14,8 @@ const dateLongue = (d) => new Intl.DateTimeFormat('fr-FR', { day: 'numeric', mon
 let sceauCache = null
 export async function chargerSceau() {
   if (sceauCache === null) sceauCache = await api('sceau.lire').catch(() => '')
+  // Sceau fourni avec l'appli, si aucun n'a été enregistré dans les réglages
+  if (!sceauCache) sceauCache = await fetch('./sceau.png').then((r) => r.blob()).then((b) => new Promise((ok) => { const f = new FileReader(); f.onload = () => ok(f.result); f.readAsDataURL(b) })).catch(() => '')
   return sceauCache
 }
 export function oublierSceau() { sceauCache = null }
@@ -151,9 +153,11 @@ function Extrait({ id }) {
         <div className="space-y-4">
           <section className="carte space-y-2 p-4">
             <h2 className="text-xl font-semibold">Informations</h2>
-            {B14.champs.map(([cle, label]) => (
+            {B14.champs.map(([cle, label, genre]) => (
               <div key={cle}><label className="etiquette">{label}</label>
-                <input className="champ py-1.5" value={v[cle] || ''} onChange={(e) => setV({ ...v, [cle]: e.target.value })} /></div>
+                {genre === 'sexe'
+                  ? <div className="flex gap-2">{['Garçon', 'Fille'].map((o) => <button key={o} onClick={() => setV({ ...v, [cle]: o })} className={`btn flex-1 border py-1.5 ${(v[cle] === o || (o === 'Garçon' && v[cle] === 'Homme') || (o === 'Fille' && v[cle] === 'Femme')) ? 'border-nuit bg-nuit text-white' : 'border-nuit-100 bg-white text-nuit-600'}`}>{o}</button>)}</div>
+                  : <input className="champ py-1.5" value={v[cle] || ''} onChange={(e) => setV({ ...v, [cle]: e.target.value })} />}</div>
             ))}
             {modifie && <button className="btn-principal w-full" onClick={enregistrer} disabled={!!occupe}>{occupe === 'save' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}Enregistrer{x.statut === 'signe' ? ' (retire la signature)' : ''}</button>}
           </section>

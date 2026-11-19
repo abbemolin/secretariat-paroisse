@@ -347,7 +347,8 @@ function Imprimer({ modele, dossier, reglages, onFermer, onArchive }) {
           <p className="text-xs text-nuit-600/70">Vérifiez et complétez ; les modifications ici ne changent que ce document.</p>
           {modele.champs.map(([cle, label, genre]) => (
             <div key={cle}><label className="etiquette">{label}</label>
-              {genre === 'zone' ? <textarea className="champ min-h-[60px] py-1.5 text-xs" value={v[cle] || ''} onChange={(e) => setV({ ...v, [cle]: e.target.value })} />
+              {genre === 'sexe' ? <select className="champ py-1.5 text-xs" value={v[cle] || ''} onChange={(e) => setV({ ...v, [cle]: e.target.value })}><option value="">—</option><option>Garçon</option><option>Fille</option></select>
+              : genre === 'zone' ? <textarea className="champ min-h-[60px] py-1.5 text-xs" value={v[cle] || ''} onChange={(e) => setV({ ...v, [cle]: e.target.value })} />
                 : <input className="champ py-1.5 text-xs" value={v[cle] || ''} onChange={(e) => setV({ ...v, [cle]: e.target.value })} />}</div>
           ))}
         </div>

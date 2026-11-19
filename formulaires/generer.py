@@ -33,6 +33,7 @@ FORMULAIRES = {
         intro="Vous souhaitez faire baptiser votre enfant ? Remplissez ce formulaire : le secrétariat vous recontactera pour la suite de la préparation.",
         groupes=[
             ("L'enfant", [c("enfant_prenoms", "Prénoms", requis=True), c("enfant_nom", "Nom", requis=True),
+                          c("sexe", "Garçon ou fille", "select", True, choix=["Garçon", "Fille"]),
                           c("enfant_naissance_date", "Date de naissance", "date", True), c("enfant_naissance_lieu", "Lieu de naissance")]),
             ("Les parents", [c("pere_prenom", "Prénom du père"), c("pere_nom", "Nom du père"),
                              c("mere_prenom", "Prénom de la mère"), c("mere_nom_jeune_fille", "Nom de jeune fille de la mère"),

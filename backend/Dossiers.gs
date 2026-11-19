@@ -32,7 +32,7 @@ var CHAMPS_ENFANT_ = ['enfant_nom', 'enfant_prenoms', 'enfant_naissance_date', '
 
 // Champs acceptés depuis les formulaires du site (et champs obligatoires)
 var CHAMPS_PUBLICS = {
-  bapteme: { tous: ['enfant_nom', 'enfant_prenoms', 'enfant_naissance_date', 'enfant_naissance_lieu',
+  bapteme: { tous: ['enfant_nom', 'enfant_prenoms', 'sexe', 'enfant_naissance_date', 'enfant_naissance_lieu',
                     'pere_prenom', 'pere_nom', 'mere_prenom', 'mere_nom_jeune_fille', 'adresse',
                     'telephone', 'email', 'parrain_nom', 'marraine_nom', 'date_souhaitee', 'message'],
              requis: ['enfant_nom', 'enfant_prenoms', 'enfant_naissance_date', 'telephone', 'email'] },
@@ -295,6 +295,7 @@ function recevoirDemandePublique_(p) {
   });
   conf.requis.forEach(function (k) { if (!infos[k]) throw erreur_('INVALIDE', 'Champ obligatoire manquant.'); });
   if (['bapteme', 'premiere_communion', 'profession_foi'].indexOf(p.type) > -1 && !(infos.pere_nom || infos.mere_nom_jeune_fille)) throw erreur_('INVALIDE', 'Merci d\'indiquer au moins un des parents.');
+  if (infos.sexe && ['Garçon', 'Fille'].indexOf(infos.sexe) === -1) delete infos.sexe;
   if (infos.preparation && PREPARATIONS.indexOf(infos.preparation) === -1) throw erreur_('INVALIDE', 'Lieu de préparation inconnu.');
   if (p.type === 'profession_foi' && infos.preparation === 'Herrade de Landsberg') throw erreur_('INVALIDE', 'La profession de foi se prépare en 3e : Herrade de Landsberg n\'est pas proposée.');
   if (infos.preparation === 'Autre école' && !infos.ecole_autre) throw erreur_('INVALIDE', 'Merci de préciser le nom de l\'école.');
