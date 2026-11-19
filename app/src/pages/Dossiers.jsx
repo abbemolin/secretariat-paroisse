@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Plus, Search, FolderHeart, Loader2, Globe, Printer, CalendarCheck } from 'lucide-react'
+import { Plus, Search, FolderHeart, Loader2, Globe, Printer, CalendarCheck, ScrollText } from 'lucide-react'
 import { api } from '../api.js'
 import { useApp } from '../App.jsx'
 import { TYPES, ORDRE_TYPES, ETATS, prochaineEtape, documentsManquants, PAR_ANNEE, anneeSacrements, etapesDe, libelleAnnee, TITRES_COLLECTIFS, lieuPreparation } from '../types.js'
@@ -29,7 +29,10 @@ export default function Dossiers() {
     <>
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div><h1 className="text-3xl font-semibold">Dossiers</h1><p className="text-sm text-nuit-600/80">Sacrements et célébrations</p></div>
-        <button className="btn-or" onClick={() => setNouveau(true)}><Plus className="h-4 w-4" />Nouveau dossier</button>
+        <div className="flex gap-2">
+          <button className="btn-clair" onClick={() => nav('/extraits')}><ScrollText className="h-4 w-4" />Extraits</button>
+          <button className="btn-or" onClick={() => setNouveau(true)}><Plus className="h-4 w-4" />Nouveau dossier</button>
+        </div>
       </div>
 
       <div className="-mx-1 mb-3 flex gap-1.5 overflow-x-auto px-1 pb-1">

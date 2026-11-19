@@ -177,6 +177,21 @@ export async function demoApi(action, p) {
       { id: 'r1', titre: 'Rendez-vous M. le curé – Julie Weber', lieu: 'Presbytère', debut: jour(5, 17, 30), fin: jour(5, 18), invites: ['julie.weber@example.fr'], correspond: p.email === 'julie.weber@example.fr' },
       { id: 'r2', titre: 'Rendez-vous M. le curé', lieu: 'Presbytère', debut: jour(6, 18), fin: jour(6, 18, 30), invites: ['autre@example.fr'], correspond: false }
     ].sort((a, b) => b.correspond - a.correspond)
+    case 'extraits.liste': return { extraits: (etat.extraits ||= [{ id: 'x1', cree_le: jour(-3), cree_par: 'Bertille Bauer', dossier_id: '', nom: 'Marie LAMBERT', valeurs: { paroisse: 'Paroisse personnelle La Croix glorieuse', diocese: 'Strasbourg', annee: '1994', acte: '27', prenoms: 'Marie', nom: 'LAMBERT', ne_le: '3 mars 1994', ne_a: 'Strasbourg', baptise_le: '15 mai 1994', eglise: 'Saint-Louis', de: 'Strasbourg', diocese_de: 'Strasbourg', marie_le: '', marie_a: '', fait_a: 'Strasbourg', fait_le: '17 novembre 2026' }, statut: 'brouillon', envois: [] }]), peutSigner: true }
+    case 'extraits.lire': { (etat.extraits ||= []); const x = etat.extraits.find((e) => e.id === p.id); return { ...x, peutSigner: true } }
+    case 'extraits.enregistrer': {
+      etat.extraits ||= []
+      let x = p.id && etat.extraits.find((e) => e.id === p.id)
+      if (!x) { x = { id: 'x' + Date.now(), cree_le: new Date().toISOString(), cree_par: moi.nom, dossier_id: p.dossier_id || '', statut: 'brouillon', envois: [] }; etat.extraits.unshift(x) }
+      if (x.statut === 'signe' && JSON.stringify(x.valeurs) !== JSON.stringify(p.valeurs)) x.statut = 'brouillon'
+      x.valeurs = p.valeurs; x.nom = [p.valeurs.prenoms, String(p.valeurs.nom || '').toUpperCase()].filter(Boolean).join(' ') || '(sans nom)'
+      return { ...x, peutSigner: true }
+    }
+    case 'extraits.signer': { const x = etat.extraits.find((e) => e.id === p.id); Object.assign(x, { statut: 'signe', signe_par: moi.nom, signe_le: new Date().toISOString(), sig: p.signature }); return { ...x, peutSigner: true } }
+    case 'extraits.signature': return etat.extraits.find((e) => e.id === p.id)?.sig || ''
+    case 'extraits.envoyer': { const x = etat.extraits.find((e) => e.id === p.id); x.envois = [...x.envois, { a: p.a, date: new Date().toISOString(), par: moi.nom }]; return { ...x, peutSigner: true } }
+    case 'sceau.lire': return etat.sceau || ''
+    case 'sceau.ecrire': etat.sceau = 'data:' + p.type + ';base64,' + p.base64; return etat.sceau
     case 'documents.chercher': return Object.values(dossiersDrive).flatMap((d) => d.fichiers).filter((f) => f.nom.toLowerCase().includes(String(p.texte).toLowerCase()))
     case 'documents.envoyer': case 'documents.dossier': case 'documents.renommer': case 'documents.deplacer': return true
     default: throw new Error('Démo : action non simulée ' + action)

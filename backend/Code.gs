@@ -9,6 +9,7 @@
  *   Dossiers.gs   dossiers de sacrements + formulaires publics du site
  *   Documents.gs  Drive du secrétariat
  *   Push.gs       notifications sur téléphone (Web Push, VAPID)
+ *   Extraits.gs   extraits de baptême signés (registre, PDF, envoi)
  *   Installation.gs  installer() à lancer une fois
  */
 
@@ -42,6 +43,7 @@ var REGLAGES_DEFAUT = {
   adresse: '2, quai Charles Frey 67000 Strasbourg',
   site: 'croix-glorieuse.org',
   url_horaires: 'https://www.croix-glorieuse.org/horaires',
+  signataires: '', // ids des utilisateurs autorisés à signer les extraits (vide = administrateurs et secrétaires)
   url_icones: ''   // ex. https://<compte>.github.io/<depot>/signature (icônes des signatures)
 };
 
@@ -123,6 +125,14 @@ var ROUTES = {
   'dossiers.modifier':     { fn: modifierDossier_, droit: 'dossiers' },
   'dossiers.piece':        { fn: deposerPieceDossier_, droit: 'dossiers' },
   'dossiers.archiver':     { fn: archiverDocumentDossier_, droit: 'dossiers' },
+  'extraits.liste':        { fn: listerExtraits_, droit: 'dossiers' },
+  'extraits.lire':         { fn: lireExtrait_, droit: 'dossiers' },
+  'extraits.enregistrer':  { fn: enregistrerExtrait_, droit: 'dossiers' },
+  'extraits.signer':       { fn: signerExtrait_, droit: 'dossiers' },
+  'extraits.signature':    { fn: signatureExtrait_, droit: 'dossiers' },
+  'extraits.envoyer':      { fn: envoyerExtrait_, droit: 'dossiers' },
+  'sceau.lire':            { fn: function () { return lireSceau_(); } },
+  'sceau.ecrire':          { fn: ecrireSceau_, droit: 'reglages' },
   'promotions.liste':      { fn: listerPromotions_, droit: 'dossiers' },
   'promotions.fixer':      { fn: fixerPromotion_, droit: 'dossiers' },
 

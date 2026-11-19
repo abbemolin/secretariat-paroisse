@@ -52,7 +52,8 @@ export const B14 = {
       fait_a: r.commune, fait_le: aujourdhui()
     }
   },
-  html(v) {
+  /** sign (facultatif) : { signature: dataURL, sceau: dataURL, par, le } */
+  html(v, sign = {}) {
     return doc(`
       <div class="form">Form. <b>B 14</b></div>
       <div class="titre">EXTRAIT DE BAPTÊME</div>
@@ -71,7 +72,13 @@ export const B14 = {
       <div class="l"><span>Marié religieusement le</span><span class="v">${e(v.marie_le)}</span><span>à</span><span class="v">${e(v.marie_a)}</span></div>
       <div class="l" style="margin-top:10mm"><span>Certifié conforme au Registre</span></div>
       <div class="l" style="margin-top:8mm;padding-left:50mm"><span>A</span><span class="v">${e(v.fait_a)}</span><span>le</span><span class="v moyen" style="flex-basis:40mm">${e(v.fait_le)}</span></div>
-      <div class="sig"><span>Sceau paroissial</span><span style="text-align:left">Signature d'une personne<br>canoniquement mandatée</span></div>
+      <div class="sig" style="align-items:flex-start">
+        <div style="width:60mm;text-align:center">Sceau paroissial
+          ${sign.sceau ? `<div style="margin-top:2mm"><img src="${sign.sceau}" style="max-width:38mm;max-height:38mm;opacity:.92"></div>` : ''}</div>
+        <div style="width:62mm;text-align:left">Signature d'une personne<br>canoniquement mandatée
+          ${sign.signature ? `<div style="margin-top:2mm"><img src="${sign.signature}" style="max-width:58mm;max-height:24mm"></div>` : ''}
+          ${sign.par ? `<div style="font-size:8.5pt;color:#555;margin-top:1mm">${e(sign.par)}${sign.le ? ', le ' + e(sign.le) : ''}</div>` : ''}</div>
+      </div>
     `)
   }
 }

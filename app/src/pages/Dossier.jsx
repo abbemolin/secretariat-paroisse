@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Check, Upload, Loader2, Mail, Printer, FileText, Download, ExternalLink, Globe, Plus, Trash2, Save, History, Send, Church, AlertCircle } from 'lucide-react'
 import { api, fichierEnBase64, telechargerBase64 } from '../api.js'
 import { useApp } from '../App.jsx'
@@ -7,6 +7,8 @@ import { TYPES, ETATS, documentsManquants, PAR_ANNEE, anneeSacrements, choixAnne
 import { IMPRIMABLES } from '../imprimables.js'
 import { Chargement, Erreur, Modale, useNotif, dateHeure, dateRelative, dateCourte, versLocal, jourLong, heure } from '../ui.jsx'
 import { Redaction } from './Courrier.jsx'
+import { htmlVersPdf } from '../pdf.js'
+import { creerExtrait } from './Extraits.jsx'
 
 const champsEditables = (d) => ({
   infos: d.infos, etapes: d.etapes, documents: d.documents, rencontres: d.rencontres,
@@ -327,11 +329,17 @@ function Imprimer({ modele, dossier, reglages, onFermer, onArchive }) {
   const html = modele.html(v)
   async function archiver() {
     setArchivage(true)
-    try { onArchive(await api('dossiers.archiver', { dossierId: dossier.id, libelle: modele.titre, html })) } catch (e) { notifier(e.message, 'erreur') } finally { setArchivage(false) }
+    try { const { base64 } = await htmlVersPdf(html); onArchive(await api('dossiers.archiver', { dossierId: dossier.id, libelle: modele.titre, pdf: base64 })) } catch (e) { notifier(e.message, 'erreur') } finally { setArchivage(false) }
+  }
+  const nav = useNavigate()
+  async function delivrer() {
+    setArchivage(true)
+    try { const x = await creerExtrait(v, dossier.id); nav(`/extraits/${x.id}`) } catch (e) { notifier(e.message, 'erreur'); setArchivage(false) }
   }
   return (
     <Modale large titre={modele.titre} onFermer={onFermer}
       pied={<><button className="btn-clair mr-auto" onClick={onFermer}>Fermer</button>
+        {modele === IMPRIMABLES.B14 && <button className="btn-or" onClick={delivrer} disabled={archivage}><FileText className="h-4 w-4" />Délivrer un extrait signé</button>}
         <button className="btn-clair" onClick={archiver} disabled={archivage}>{archivage ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}Archiver (PDF)</button>
         <button className="btn-principal" onClick={() => cadre.current.contentWindow.print()}><Printer className="h-4 w-4" />Imprimer</button></>}>
       <div className="grid gap-4 md:grid-cols-[260px_1fr]">

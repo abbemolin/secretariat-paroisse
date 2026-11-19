@@ -272,7 +272,7 @@ export function ApercuSignature({ sig, reglages }) {
  * Rédaction d'un mail : nouveau, réponse, ou depuis un dossier.
  * props : mode ('nouveau' | 'repondre' | 'tous'), fil, dossier, a, sujet, corps, reponse (clé de réponse type), contexte
  */
-export function Redaction({ mode, fil, dossier, a: aInit = '', sujet: sujetInit = '', corps: corpsInit = '', reponse, contexte = {}, onFermer, onEnvoye }) {
+export function Redaction({ mode, fil, dossier, a: aInit = '', sujet: sujetInit = '', corps: corpsInit = '', reponse, contexte = {}, onFermer, onEnvoye, envoiPersonnalise, noteJointe }) {
   const { utilisateur, signatures, reponses, reglages } = useApp()
   const dernier = fil?.messages?.[fil.messages.length - 1]
   const ctx = { nom: dossier?.nom || (dernier ? nomExpediteur(dernier.de) : ''), type: dossier ? TYPES[dossier.type].nom.toLowerCase() : '', url_horaires: reglages.url_horaires, ...contexte }
@@ -297,6 +297,7 @@ export function Redaction({ mode, fil, dossier, a: aInit = '', sujet: sujetInit 
   async function envoyer() {
     setEnvoi(true); setErreur(null)
     try {
+      if (envoiPersonnalise) { onEnvoye(await envoiPersonnalise({ a, sujet, corps, signature })); return }
       const pieces = await Promise.all(fichiers.map(async (f) => ({ nom: f.name, type: f.type, base64: await fichierEnBase64(f) })))
       const r = await api('mail.envoyer', { a, cc, sujet, corps, signature, fichiers: pieces, documentsDrive: docs.map((d) => d.id),
         filId: mode === 'nouveau' ? undefined : fil.id, tous: mode === 'tous', dossierId: dossier?.id })
@@ -307,9 +308,10 @@ export function Redaction({ mode, fil, dossier, a: aInit = '', sujet: sujetInit 
   return (
     <Modale large titre={mode === 'nouveau' ? 'Nouveau message' : `Réponse${mode === 'tous' ? ' à tous' : ''}`} onFermer={onFermer}
       pied={<>
+        {envoiPersonnalise ? <span className="mr-auto" /> : <>
         <label className="btn-clair mr-auto cursor-pointer"><Paperclip className="h-4 w-4" /><span className="hidden sm:inline">Fichier</span>
           <input type="file" multiple className="hidden" onChange={(e) => setFichiers([...fichiers, ...e.target.files])} /></label>
-        <button className="btn-clair" onClick={() => setChoixDoc(true)}><FolderOpen className="h-4 w-4" /><span className="hidden sm:inline">Document</span></button>
+        <button className="btn-clair" onClick={() => setChoixDoc(true)}><FolderOpen className="h-4 w-4" /><span className="hidden sm:inline">Document</span></button></>}
         <button className="btn-principal" onClick={envoyer} disabled={envoi || (mode === 'nouveau' && !a)}>{envoi ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Envoyer</button>
       </>}>
       <div className="grid gap-4 md:grid-cols-[1fr_220px]">
@@ -320,6 +322,7 @@ export function Redaction({ mode, fil, dossier, a: aInit = '', sujet: sujetInit 
             <div><label className="etiquette">Objet</label><input className="champ" value={sujet} onChange={(e) => setSujet(e.target.value)} /></div>
           </> : <p className="text-sm text-nuit-600">À : <strong>{dernier ? nomExpediteur(dernier.de) : ''}</strong> — {fil.sujet}</p>}
           <textarea className="champ min-h-[260px] font-sans" value={corps} onChange={(e) => setCorps(e.target.value)} autoFocus />
+          {noteJointe && <span className="pastille gap-1 bg-or-50 text-or-600"><Paperclip className="h-3 w-3" />{noteJointe}</span>}
           {(fichiers.length > 0 || docs.length > 0) && (
             <div className="flex flex-wrap gap-2">
               {fichiers.map((f, i) => <span key={'f' + i} className="pastille gap-1 bg-nuit-50 text-nuit"><Paperclip className="h-3 w-3" />{f.name}<button onClick={() => setFichiers(fichiers.filter((_, j) => j !== i))}><X className="h-3 w-3" /></button></span>)}

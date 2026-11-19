@@ -260,9 +260,15 @@ function deposerPieceDossier_(p, s) {
 function archiverDocumentDossier_(p, s) {
   return verrou_(function () {
     var d = trouverDossier_(p.dossierId);
-    var html = String(p.html || '');
-    if (html.indexOf('<html') === -1) html = '<html><head><meta charset="utf-8"></head><body>' + html + '</body></html>';
-    var pdf = Utilities.newBlob(html, 'text/html', 'doc.html').getAs('application/pdf').setName(nomFichierDossier_(d, p.libelle, 'pdf'));
+    var pdf;
+    if (p.pdf) {
+      // PDF fabriqué par l'appli (rendu fidèle du formulaire)
+      pdf = Utilities.newBlob(Utilities.base64Decode(p.pdf), 'application/pdf', nomFichierDossier_(d, p.libelle, 'pdf'));
+    } else {
+      var html = String(p.html || '');
+      if (html.indexOf('<html') === -1) html = '<html><head><meta charset="utf-8"></head><body>' + html + '</body></html>';
+      pdf = Utilities.newBlob(html, 'text/html', 'doc.html').getAs('application/pdf').setName(nomFichierDossier_(d, p.libelle, 'pdf'));
+    }
     var f = dossierDriveDe_(d).createFile(pdf);
     enregistrerPiece_(d, f, p.libelle, '', s, true);
     return dossierComplet_(d);

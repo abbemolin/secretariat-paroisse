@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
-import { Home, Mail, CalendarDays, FolderHeart, FolderOpen, Users, Settings, UserCircle, LogOut, Bell } from 'lucide-react'
+import { Home, Mail, CalendarDays, FolderHeart, FolderOpen, Users, Settings, UserCircle, LogOut, Bell, ScrollText } from 'lucide-react'
 import { api, ecrireToken, lireToken, quandSessionExpire, estDemo } from './api.js'
 import { Chargement, FournisseurNotif, ROLES, dateRelative } from './ui.jsx'
 import Connexion from './pages/Connexion.jsx'
@@ -13,6 +13,7 @@ import Documents from './pages/Documents.jsx'
 import Utilisateurs from './pages/Utilisateurs.jsx'
 import Reglages from './pages/Reglages.jsx'
 import Compte from './pages/Compte.jsx'
+import Extraits from './pages/Extraits.jsx'
 
 const CtxApp = createContext(null)
 export const useApp = () => useContext(CtxApp)
@@ -24,6 +25,7 @@ const MENU = [
   { to: '/agenda', label: 'Agenda', icone: CalendarDays, droit: 'agenda' },
   { to: '/dossiers', label: 'Dossiers', icone: FolderHeart, droit: 'dossiers' },
   { to: '/documents', label: 'Documents', icone: FolderOpen, droit: 'documents' },
+  { to: '/extraits', label: 'Extraits de baptême', icone: ScrollText, droit: 'dossiers', secondaire: true },
   { to: '/utilisateurs', label: 'Utilisateurs', icone: Users, droit: 'utilisateurs', secondaire: true },
   { to: '/reglages', label: 'Réglages', icone: Settings, droit: 'reglages', secondaire: true }
 ]
@@ -156,6 +158,8 @@ function Cadre() {
               {peut('dossiers') && <Route path="/dossiers" element={<Dossiers />} />}
               {peut('dossiers') && <Route path="/dossiers/:id" element={<Dossier />} />}
               {peut('documents') && <Route path="/documents" element={<Documents />} />}
+              {peut('dossiers') && <Route path="/extraits" element={<Extraits />} />}
+              {peut('dossiers') && <Route path="/extraits/:id" element={<Extraits />} />}
               {peut('utilisateurs') && <Route path="/utilisateurs" element={<Utilisateurs />} />}
               {peut('reglages') && <Route path="/reglages" element={<Reglages />} />}
               <Route path="/compte" element={<Compte />} />
