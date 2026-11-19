@@ -5,7 +5,10 @@ const CLE_URL = 'secretariat.apiUrl'
 const CLE_TOKEN = 'secretariat.token'
 
 export const estDemo = () => new URLSearchParams(location.search).has('demo') || localStorage.getItem(CLE_URL) === 'demo'
-export const urlApi = () => import.meta.env.VITE_API_URL || localStorage.getItem(CLE_URL) || ''
+// Tolère un texte autour de l'adresse dans la variable GitHub (ex. « Valeur : https://… »)
+const URL_BUILD = (String(import.meta.env.VITE_API_URL || '').match(/https:\/\/\S+\/exec/) || [''])[0]
+export const urlApi = () => URL_BUILD || localStorage.getItem(CLE_URL) || ''
+export const urlApiFixe = () => !!URL_BUILD
 export function definirUrlApi(url) { localStorage.setItem(CLE_URL, url.trim()); kvEcrire('apiUrl', url.trim()) }
 export const lireToken = () => localStorage.getItem(CLE_TOKEN)
 export function ecrireToken(t) {

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Settings, Loader2 } from 'lucide-react'
-import { api, definirUrlApi, urlApi } from '../api.js'
+import { api, definirUrlApi, urlApi, urlApiFixe } from '../api.js'
 import { Erreur } from '../ui.jsx'
 
 export default function Connexion({ onConnexion }) {
@@ -51,7 +51,7 @@ export default function Connexion({ onConnexion }) {
             </div>
             <Erreur erreur={erreur} />
             <button className="btn-principal w-full" disabled={envoi}>{envoi && <Loader2 className="h-4 w-4 animate-spin" />}Se connecter</button>
-            {!import.meta.env.VITE_API_URL && (
+            {!urlApiFixe() && (
               <button type="button" onClick={() => setReglage(true)} className="mx-auto flex items-center gap-1 text-xs text-nuit-600/70 hover:text-nuit">
                 <Settings className="h-3 w-3" />Serveur
               </button>
