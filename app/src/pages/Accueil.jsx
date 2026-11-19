@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom'
-import { Mail, UserCheck, FolderHeart, CalendarDays, ChevronRight, Bell } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Mail, UserCheck, FolderHeart, CalendarDays, ChevronRight, Bell, ExternalLink } from 'lucide-react'
+import { chargerAppMesse, CELEBRANTS, COULEURS_LITURGIQUES, LIEN_APPMESSE } from '../appmesse.js'
 import { api } from '../api.js'
 import { useApp } from '../App.jsx'
 import { TYPES, prochaineEtape } from '../types.js'
@@ -22,6 +24,8 @@ export default function Accueil() {
             {peut('dossiers') && <Tuile to="/dossiers" icone={FolderHeart} chiffre={data.dossiersOuverts} libelle="dossiers en cours" />}
             {peut('agenda') && <Tuile to="/agenda" icone={CalendarDays} chiffre={data.evenements?.length} libelle="événements sur 7 jours" />}
           </div>
+
+          <FeteEtIntentions />
 
           <div className="grid gap-5 lg:grid-cols-2">
             {peut('dossiers') && (
@@ -97,5 +101,62 @@ function Tuile({ to, icone: I, chiffre, libelle, accent }) {
       <div className={`rounded-lg p-2.5 ${accent ? 'bg-or-50 text-or-600' : 'bg-nuit-50 text-nuit'}`}><I className="h-5 w-5" /></div>
       <div><div className="font-titre text-3xl font-semibold leading-none">{chiffre ?? '—'}</div><div className="mt-1 text-xs text-nuit-600/70">{libelle}</div></div>
     </Link>
+  )
+}
+
+const CLASSES = { I: '1re classe', II: '2e classe', III: '3e classe', IV: '4e classe' }
+
+/** Carte AppMESSE : fête du jour (ordo) et intentions de messe (lecture seule). */
+function FeteEtIntentions() {
+  const [data, setData] = useState(null)
+  const [erreur, setErreur] = useState(false)
+  const [semaine, setSemaine] = useState(false)
+  useEffect(() => { chargerAppMesse(7).then(setData).catch(() => setErreur(true)) }, [])
+  if (erreur) return null
+  const auj = new Date().toLocaleDateString('sv-SE')
+  const ordoDu = (j) => data?.ordo.find((o) => o.date === j)
+  const intentionsDu = (j) => (data?.intentions || []).filter((i) => i.date_messe === j)
+  const jours = semaine ? [...new Set([auj, ...(data?.intentions || []).map((i) => i.date_messe)])].sort() : [auj]
+  const o = ordoDu(auj)
+  return (
+    <section className="carte overflow-hidden">
+      <div className="flex flex-wrap items-center gap-3 border-b border-nuit-50 px-5 py-4" style={{ background: o ? `linear-gradient(90deg, ${COULEURS_LITURGIQUES[o.couleur] || '#fff'}22, transparent 60%)` : undefined }}>
+        {o && <span title={`Couleur liturgique : ${o.couleur}`} className="h-9 w-9 shrink-0 rounded-full border border-nuit-100 shadow-inner" style={{ background: COULEURS_LITURGIQUES[o.couleur] }} />}
+        <div className="min-w-0 flex-1">
+          <div className="text-xs uppercase tracking-wide text-or-600">Fête du jour</div>
+          {!data ? <div className="text-sm text-nuit-600/60">Chargement…</div> : o ? <>
+            <div className="font-titre text-xl font-semibold leading-tight">{o.fete}</div>
+            <div className="text-xs text-nuit-600/70">{CLASSES[o.classe] || o.classe} · {o.couleur}{o.commemoraison ? ` · Commémoraison : ${o.commemoraison}` : ''}</div>
+          </> : <div className="text-sm text-nuit-600/60">Ordo non disponible.</div>}
+        </div>
+        <a href={LIEN_APPMESSE} target="_blank" rel="noreferrer" className="btn-clair py-1.5 text-xs"><ExternalLink className="h-3.5 w-3.5" />AppMESSE</a>
+      </div>
+      <div className="px-5 py-3">
+        <div className="mb-1 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Intentions de messe</h2>
+          <button className="text-xs text-or-600 hover:underline" onClick={() => setSemaine(!semaine)}>{semaine ? "Aujourd'hui seulement" : 'Les 7 prochains jours'}</button>
+        </div>
+        {!data ? null : jours.map((j) => {
+          const liste = intentionsDu(j), oj = ordoDu(j)
+          return (
+            <div key={j} className="py-1.5">
+              {semaine && <div className="mt-1 text-xs font-medium text-nuit-600 first-letter:uppercase">{jourLong(j + 'T12:00')}{oj && j !== auj ? <span className="font-normal text-nuit-600/60"> — {oj.fete}</span> : null}</div>}
+              {!liste.length ? <p className="text-sm text-nuit-600/60">{j === auj ? "Aucune intention aujourd'hui." : 'Aucune intention.'}</p> : (
+                <ul className="divide-y divide-nuit-50">
+                  {liste.map((i) => (
+                    <li key={i.id} className="flex items-baseline gap-3 py-1.5 text-sm">
+                      <span className="w-12 shrink-0 font-medium text-nuit">{i.heure_messe || '—'}</span>
+                      <span className="min-w-0 flex-1"><span className="text-xs text-nuit-600/60">{i.type_intention} · </span>{i.nom_intention}</span>
+                      {i.statut === 'en_attente' && <span className="pastille bg-amber-100 py-0 text-[10px] text-amber-900">à valider</span>}
+                      {i.celebrant && <span className="shrink-0 text-xs text-nuit-600/60">{CELEBRANTS[i.celebrant] || i.celebrant}</span>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </section>
   )
 }
