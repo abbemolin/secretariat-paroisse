@@ -68,6 +68,7 @@ function doPost(e) {
     if (action === 'auth.login') return json_({ ok: true, data: login_(p) });
     if (action === 'public.demande') return json_({ ok: true, data: recevoirDemandePublique_(p) });
     if (action === 'public.infos') return json_({ ok: true, data: infosPubliques_(p) });
+    if (/^chef\./.test(action)) return json_({ ok: true, data: actionChef_(action, p) });
 
     var session = verifierSession_(req.token);
     var route = ROUTES[action];
@@ -157,6 +158,9 @@ var ROUTES = {
   'cor.onglets':           { fn: reprendreOngletsCor_, droit: 'dossiers' },
   'cor.nouvelleAnnee':     { fn: nouvelleAnneeCor_, droit: 'dossiers' },
   'cor.envoyer':           { fn: envoyerCor_, droit: 'dossiers' },
+  'cor.lienChef':          { fn: lienChefCor_, droit: 'dossiers' },
+  'cor.fil':               { fn: filCor_, droit: 'dossiers' },
+  'cor.tousChefs':         { fn: messageTousChefsCor_, droit: 'dossiers' },
   'cor.reglages':          { fn: lireCorReglagesPublic_, droit: 'dossiers' },
   'cor.reglagesEcrire':    { fn: ecrireCorReglagesRoute_, droit: 'reglages' },
   'extraits.liste':        { fn: listerExtraits_, droit: 'dossiers' },

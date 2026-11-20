@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
+<title>Ma fraternité Cor Unum – Paroisse La Croix glorieuse</title>
+<link rel="icon" href="../logo-128.png"><link rel="apple-touch-icon" href="../logo-128.png">
+<meta name="theme-color" content="#521a22">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#faf7f2;font-family:Arial,Helvetica,sans-serif;color:#2b2224;font-size:15px}
+.entete{background:#521a22;color:#fff;padding:14px 18px;display:flex;align-items:center;gap:12px}
+.entete img{width:44px;height:44px;border-radius:50%;background:#fff}
+.entete b{font-family:Georgia,serif;font-size:19px;display:block}.entete span{font-size:12.5px;color:#e8c9a8}
+main{max-width:760px;margin:0 auto;padding:16px}
+.onglets{display:flex;gap:6px;overflow-x:auto;margin:4px 0 14px}
+.onglets button{border:1px solid #e6d8cc;background:#fff;color:#521a22;border-radius:999px;padding:7px 14px;font-size:14px;white-space:nowrap;cursor:pointer}
+.onglets button.actif{background:#521a22;color:#fff;border-color:#521a22}
+.carte{background:#fff;border-radius:12px;box-shadow:0 1px 8px rgba(82,26,34,.07);padding:14px;margin-bottom:12px}
+h2{font-family:Georgia,serif;color:#521a22;font-size:20px;margin:0 0 10px}
+.membre{border-top:1px solid #f1e8e1;padding:10px 0}.membre:first-child{border-top:0}
+.nom{font-weight:bold}.petit{font-size:13px;color:#7a6a64}
+.pastille{display:inline-block;border-radius:999px;padding:1px 8px;font-size:11.5px;margin:2px 4px 0 0;background:#f3ece6;color:#5b4a45}
+.p-cat{background:#fdecc8;color:#7a4b00}.p-conf{background:#fde2e4;color:#8a1f2d}.p-neo{background:#dcf5e6;color:#14532d}.p-nouv{background:#dbeefe;color:#0c4a6e}.p-rec{background:#ede6fd;color:#4c1d95}.p-or{background:#d08c4c;color:#fff}
+a{color:#a8662e}
+.actions button,.bouton{border:1px solid #e6d8cc;background:#fff;color:#521a22;border-radius:8px;padding:6px 10px;font-size:13px;cursor:pointer;margin:6px 6px 0 0}
+.principal{background:#521a22!important;color:#fff!important;border-color:#521a22!important;padding:9px 16px!important;font-size:14px!important;font-weight:bold}
+.danger{color:#a11d1d!important}
+input,textarea,select{width:100%;border:1px solid #e0d2c6;border-radius:8px;padding:9px;font:inherit;background:#fff}
+textarea{min-height:110px}
+label{display:block;font-size:13px;color:#6b5b55;margin:8px 0 3px}
+.grille{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}@media(max-width:560px){.grille{grid-template-columns:1fr}}
+.message{max-width:85%;padding:9px 12px;border-radius:12px;margin:8px 0;white-space:pre-wrap;line-height:1.4}
+.m-chef{background:#521a22;color:#fff;margin-left:auto;border-bottom-right-radius:3px}
+.m-par{background:#f3ece6;border-bottom-left-radius:3px}
+.m-qui{font-size:11.5px;opacity:.75;margin-bottom:3px}
+.info{background:#faf3ea;border-left:4px solid #d08c4c;border-radius:6px;padding:10px 12px;font-size:14px;margin:10px 0}
+.erreur{background:#fdeceb;color:#8a1f17;border-radius:6px;padding:10px 12px;margin:10px 0}
+.ok{background:#e8f5ec;color:#1d5e33;border-radius:6px;padding:10px 12px;margin:10px 0}
+details summary{cursor:pointer;color:#7a6a64;font-size:14px}
+.cache{display:none}
+</style></head>
+<body>
+<div class="entete"><img src="../logo-128.png" alt=""><div><b id="titre">Ma fraternité Cor Unum</b><span id="sous">Paroisse La Croix glorieuse</span></div></div>
+<main>
+  <div id="etat" class="info">Chargement…</div>
+  <div id="appli" class="cache">
+    <div class="onglets">
+      <button data-v="membres" class="actif">Membres</button>
+      <button data-v="rencontres">Rencontres</button>
+      <button data-v="messages">Messages <span id="nbm"></span></button>
+      <button data-v="ecrire">Écrire à l'équipe</button>
+    </div>
+    <section id="v-membres"></section>
+    <section id="v-rencontres" class="cache"></section>
+    <section id="v-messages" class="cache"></section>
+    <section id="v-ecrire" class="cache"></section>
+  </div>
+</main>
+<script>
+(function () {
+  var URL_SCRIPT = __URL_SCRIPT__;
+  var PROFILS = { 'Catéchumène': 'p-cat', 'Confirmand': 'p-conf', 'Néophyte': 'p-neo', 'Nouveau à la paroisse': 'p-nouv', 'Recommençant': 'p-rec', 'Paroissien': '' };
+  var q = new URLSearchParams(location.search), c = q.get('c') || '';
+  try { if (c) localStorage.setItem('cor_c', c); else c = localStorage.getItem('cor_c') || ''; } catch (e) {}
+  var d = null, ouvert = {};
+  function $(id) { return document.getElementById(id); }
+  function e(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function appel(action, p) {
+    p = p || {}; p.c = c;
+    return fetch(URL_SCRIPT, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: action, payload: p }) })
+      .then(function (r) { return r.json(); }).then(function (r) { if (!r.ok) throw new Error(r.message || 'Erreur'); return r.data; });
+  }
+  function dateLongue(s) { try { return new Date(String(s).slice(0, 10) + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); } catch (x) { return s; } }
+  function dateHeure(s) { try { return new Date(s).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); } catch (x) { return s; } }
+  function message(zone, texte, ok) { var z = $(zone); if (z) { z.className = ok ? 'ok' : 'erreur'; z.textContent = texte; z.style.display = 'block'; } }
+
+  // Onglets
+  Array.prototype.forEach.call(document.querySelectorAll('.onglets button'), function (b) {
+    b.addEventListener('click', function () {
+      Array.prototype.forEach.call(document.querySelectorAll('.onglets button'), function (x) { x.classList.toggle('actif', x === b); });
+      ['membres', 'rencontres', 'messages', 'ecrire'].forEach(function (v) { $('v-' + v).classList.toggle('cache', v !== b.dataset.v); });
+      if (b.dataset.v === 'messages') { var f = $('fil'); if (f) f.scrollTop = f.scrollHeight; }
+    });
+  });
+
+  function pastilles(m) {
+    return m.profils.filter(function (p) { return p !== 'Paroissien'; }).map(function (p) { return '<span class="pastille ' + (PROFILS[p] || '') + '">' + e(p) + '</span>'; }).join('') +
+      (m.nouveau ? '<span class="pastille p-or">Nouveau dans l\'équipe</span>' : '');
+  }
+  function carteMembre(m, ancien) {
+    var mails = String(m.email || '').split(/[\s,;]+/).filter(Boolean);
+    var tels = String(m.telephone || '').split('/').map(function (t) { return t.trim(); }).filter(Boolean);
+    var h = '<div class="membre"><div><span class="nom">' + (m.chef ? '♛ ' : '') + e(m.prenoms) + ' ' + e(String(m.nom).toUpperCase()) + '</span> ' + pastilles(m) + '</div>' +
+      '<div class="petit">' + tels.map(function (t) { return '<a href="tel:' + e(t.replace(/\s/g, '')) + '">' + e(t) + '</a>'; }).join(' · ') +
+      (tels.length && mails.length ? ' · ' : '') + mails.map(function (x) { return '<a href="mailto:' + e(x) + '">' + e(x) + '</a>'; }).join(' · ') + '</div>' +
+      (m.adresse ? '<div class="petit">' + e(m.adresse) + '</div>' : '') + (ancien && m.note ? '<div class="petit"><i>' + e(m.note) + '</i></div>' : '');
+    if (!ancien) {
+      h += '<div class="actions"><button data-act="corriger" data-id="' + m.id + '">Corriger les coordonnées</button>' + (m.chef ? '' : '<button class="danger" data-act="depart" data-id="' + m.id + '">Signaler un départ</button>') + '</div>';
+      if (ouvert[m.id] === 'corriger') h += '<div class="grille"><div><label>Téléphone</label><input id="t-' + m.id + '" value="' + e(m.telephone) + '"></div><div><label>E-mail</label><input id="m-' + m.id + '" value="' + e(m.email) + '"></div></div>' +
+        '<label>Adresse</label><input id="a-' + m.id + '" value="' + e(m.adresse) + '"><button class="bouton principal" data-act="enregistrer" data-id="' + m.id + '">Enregistrer</button><button class="bouton" data-act="fermer" data-id="' + m.id + '">Annuler</button>';
+      if (ouvert[m.id] === 'depart') h += '<div class="info">Confirmez-vous le départ de ' + e(m.prenoms) + ' ? Le secrétariat en sera prévenu.<label>Précision (facultatif)</label><input id="n-' + m.id + '" placeholder="A déménagé, ne vient plus…">' +
+        '<button class="bouton principal" data-act="confirmer-depart" data-id="' + m.id + '">Confirmer le départ</button><button class="bouton" data-act="fermer" data-id="' + m.id + '">Annuler</button></div>';
+    }
+    return h + '</div>';
+  }
+
+  function rendre() {
+    $('titre').textContent = 'Fraternité Cor Unum ' + d.nom;
+    $('sous').textContent = d.paroisse + ' · ' + d.annee;
+    // Membres
+    $('v-membres').innerHTML = '<div class="carte"><h2>Membres (' + d.membres.length + ')</h2>' + (d.membres.length ? d.membres.map(function (m) { return carteMembre(m, false); }).join('') : '<p class="petit">Personne pour l\'instant.</p>') + '</div>' +
+      '<div class="carte"><h2>Ajouter un membre</h2><div class="grille"><div><label>Prénom(s)</label><input id="aj-prenoms" placeholder="Paul ou Paul et Marie"></div><div><label>Nom</label><input id="aj-nom"></div>' +
+      '<div><label>Téléphone</label><input id="aj-tel" type="tel"></div><div><label>E-mail</label><input id="aj-mail" type="email"></div></div><label>Adresse</label><input id="aj-adr">' +
+      '<label>Profil</label><select id="aj-profil"><option value="">Paroissien</option>' + d.profils.filter(function (p) { return p !== 'Paroissien'; }).map(function (p) { return '<option>' + e(p) + '</option>'; }).join('') + '</select>' +
+      '<button class="bouton principal" data-act="ajouter">Ajouter à la fraternité</button><div id="z-aj" style="display:none"></div></div>' +
+      (d.anciens.length ? '<div class="carte"><details><summary>' + d.anciens.length + ' ancien(s) membre(s) pas encore réinscrit(s)</summary>' + d.anciens.map(function (m) { return carteMembre(m, true); }).join('') + '</details></div>' : '');
+    // Rencontres
+    var auj = new Date().toISOString().slice(0, 10);
+    var r = d.rencontres.slice().sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); });
+    var ligneR = function (x) { return '<div class="membre"><div class="nom" style="text-transform:capitalize">' + e(dateLongue(x.date)) + '</div>' + (x.lieu ? '<div class="petit">' + e(x.lieu) + '</div>' : '') + (x.note ? '<div class="petit">' + e(x.note) + '</div>' : '') +
+      '<div class="actions">' + (ouvert['r' + x.id] ? '<span class="petit">Supprimer cette rencontre ?</span><button class="danger" data-act="suppr-r-ok" data-id="' + x.id + '">Oui, supprimer</button><button data-act="suppr-r-non" data-id="' + x.id + '">Non</button>' : '<button class="danger" data-act="suppr-r" data-id="' + x.id + '">Supprimer</button>') + '</div></div>'; };
+    var avenir = r.filter(function (x) { return x.date >= auj; }), passees = r.filter(function (x) { return x.date < auj; }).reverse();
+    $('v-rencontres').innerHTML = '<div class="carte"><h2>Prochaines rencontres</h2>' + (avenir.length ? avenir.map(ligneR).join('') : '<p class="petit">Aucune rencontre prévue.</p>') + '</div>' +
+      '<div class="carte"><h2>Ajouter une rencontre</h2><div class="grille"><div><label>Date</label><input id="r-date" type="date"></div><div><label>Lieu (chez qui)</label><input id="r-lieu"></div></div><label>Note (facultatif)</label><input id="r-note" placeholder="Thème, repas partagé…">' +
+      '<button class="bouton principal" data-act="rencontre">Ajouter</button><div id="z-r" style="display:none"></div><p class="petit">Les dates sont visibles par le secrétariat de la paroisse.</p></div>' +
+      (passees.length ? '<div class="carte"><details><summary>' + passees.length + ' rencontre(s) passée(s)</summary>' + passees.map(ligneR).join('') + '</details></div>' : '');
+    // Messages
+    $('nbm').textContent = d.messages.length ? '(' + d.messages.length + ')' : '';
+    $('v-messages').innerHTML = '<div class="carte"><h2>Messages avec la paroisse</h2><div id="fil" style="max-height:55vh;overflow-y:auto">' +
+      (d.messages.length ? d.messages.map(function (m) { return '<div class="message ' + (m.cote === 'chef' ? 'm-chef' : 'm-par') + '"><div class="m-qui">' + e(m.cote === 'chef' ? 'Vous' : m.auteur) + ' · ' + e(dateHeure(m.date)) + '</div>' + e(m.texte) + '</div>'; }).join('') : '<p class="petit">Aucun message. Écrivez ici au curé et au secrétariat.</p>') +
+      '</div><label>Votre message</label><textarea id="msg"></textarea><button class="bouton principal" data-act="message">Envoyer</button><div id="z-msg" style="display:none"></div>' +
+      '<p class="petit">Revenez sur cette page pour voir les réponses.</p></div>';
+    // Écrire à l'équipe
+    if (!$('e-sujet')) $('v-ecrire').innerHTML = '<div class="carte"><h2>Écrire à toute l\'équipe</h2><p class="petit">Le message part de l\'adresse de la paroisse, en copie cachée à tous les membres ; leurs réponses vous arrivent directement.</p>' +
+      '<label>Objet</label><input id="e-sujet" placeholder="Prochaine rencontre"><label>Message</label><textarea id="e-corps" style="min-height:180px"></textarea>' +
+      '<div id="z-e" style="display:none"></div><div id="e-conf"></div><button class="bouton principal" data-act="mail">Envoyer à l\'équipe</button></div>';
+  }
+
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-act]'); if (!b) return;
+    var act = b.dataset.act, id = b.dataset.id;
+    var occuper = function (pr, zone) {
+      b.disabled = true; var t = b.textContent; b.textContent = 'Envoi…';
+      return pr.then(function (r) { if (r && r.membres) { d = r; rendre(); } return r; })
+        .catch(function (err) { b.disabled = false; b.textContent = t; message(zone, err.message); });
+    };
+    if (act === 'corriger' || act === 'depart') { ouvert[id] = act; rendre(); return; }
+    if (act === 'fermer') { delete ouvert[id]; rendre(); return; }
+    if (act === 'enregistrer') { delete ouvert[id]; occuper(appel('chef.modifier', { id: id, telephone: $('t-' + id).value, email: $('m-' + id).value, adresse: $('a-' + id).value })); return; }
+    if (act === 'confirmer-depart') { delete ouvert[id]; occuper(appel('chef.depart', { id: id, note: $('n-' + id).value })); return; }
+    if (act === 'ajouter') {
+      if (!$('aj-nom').value.trim() && !$('aj-prenoms').value.trim()) { message('z-aj', 'Indiquez au moins le nom ou le prénom.'); return; }
+      occuper(appel('chef.ajouter', { prenoms: $('aj-prenoms').value, nom: $('aj-nom').value, telephone: $('aj-tel').value, email: $('aj-mail').value, adresse: $('aj-adr').value, profils: $('aj-profil').value ? [$('aj-profil').value] : [] }), 'z-aj')
+        .then(function (r) { if (r && r.membres) message('z-aj', 'Membre ajouté.', true); });
+      return;
+    }
+    if (act === 'rencontre') {
+      if (!$('r-date').value) { message('z-r', 'Choisissez une date.'); return; }
+      occuper(appel('chef.rencontre', { date: $('r-date').value, lieu: $('r-lieu').value, note: $('r-note').value }), 'z-r'); return;
+    }
+    if (act === 'suppr-r') { ouvert['r' + id] = 1; rendre(); return; }
+    if (act === 'suppr-r-non') { delete ouvert['r' + id]; rendre(); return; }
+    if (act === 'suppr-r-ok') { delete ouvert['r' + id]; occuper(appel('chef.rencontre', { supprimer: id })); return; }
+    if (act === 'message') {
+      if (!$('msg').value.trim()) return;
+      occuper(appel('chef.message', { texte: $('msg').value }), 'z-msg').then(function () { var f = $('fil'); if (f) f.scrollTop = f.scrollHeight; });
+      return;
+    }
+    if (act === 'mail') {
+      if (!$('e-sujet').value.trim() || !$('e-corps').value.trim()) { message('z-e', 'Objet et message obligatoires.'); return; }
+      if (!b.dataset.ok) { b.dataset.ok = '1'; b.textContent = 'Confirmer l\'envoi à ' + d.membres.length + ' membre(s)'; return; }
+      occuper(appel('chef.mail', { sujet: $('e-sujet').value, corps: $('e-corps').value }), 'z-e').then(function (r) {
+        if (r && r.nb) { message('z-e', 'Message envoyé à ' + r.nb + ' adresse(s).', true); $('e-sujet').value = ''; $('e-corps').value = ''; b.disabled = false; b.textContent = 'Envoyer à l\'équipe'; delete b.dataset.ok; }
+      });
+    }
+  });
+
+  if (!c) { $('etat').className = 'erreur'; $('etat').textContent = 'Lien incomplet. Ouvrez le lien reçu par mail de la paroisse.'; return; }
+  appel('chef.lire').then(function (r) { d = r; $('etat').style.display = 'none'; $('appli').classList.remove('cache'); rendre(); })
+    .catch(function (err) { $('etat').className = 'erreur'; $('etat').textContent = err.message; });
+})();
+</script>
+</body></html>

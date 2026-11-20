@@ -100,7 +100,7 @@ function equipeCor_(p, s) {
       var ex = l.filter(function (y) { return y.id === e.id; })[0];
       if (ex) { ex.nom = nom; ex.chefs = e.chefs || ex.chefs || []; }
       else {
-        var n = { id: uid_(), nom: nom, chefs: e.chefs || [] };
+        var n = { id: uid_(), nom: nom, chefs: e.chefs || [], fil: uid_(), jeton: jeton_() };
         l.push(n);
         // le chef choisi rejoint son équipe
         (n.chefs || []).forEach(function (id) {
@@ -183,7 +183,8 @@ function listerCor_(p) {
   return {
     annee: annee, annees: liste, profils: PROFILS_COR, lien_formulaire: r.lien_formulaire,
     onglets_repris: !!r.onglets_repris[annee],
-    equipes: equipesDe_(r, annee),
+    equipes: equipesDe_(r, annee).map(function (e) { return { id: e.id, nom: e.nom, chefs: e.chefs || [], fil: !!e.fil }; }),
+    fils: resumeFils_(equipesDe_(r, annee)),
     membres: toutes.filter(function (x) { return x.annee === annee; }).map(function (x) { return corPublic_(x, dossiers); })
       .sort(function (a, b) { return (a.nom + ' ' + a.prenoms).localeCompare(b.nom + ' ' + b.prenoms, 'fr'); })
   };
@@ -408,7 +409,7 @@ function reprendreOngletsCor_(p, s) {
       var chef = foyers.filter(function (y) { return memeNom_(y.nom, nomOnglet); })[0] || foyers[0];
       var nom = nomEquipe_(chef.nom || nomOnglet);
       var eq = equipes.filter(function (e) { return memeNom_(e.nom, nom); })[0];
-      if (!eq) { eq = { id: uid_(), nom: nom, chefs: [] }; equipes.push(eq); res.equipes++; }
+      if (!eq) { eq = { id: uid_(), nom: nom, chefs: [], fil: uid_(), jeton: jeton_() }; equipes.push(eq); res.equipes++; }
       foyers.forEach(function (y) {
         var prenoms = y.prenoms.filter(String).join(' et ');
         // Fiches déjà créées par le formulaire pour ce foyer (souvent une par conjoint) : regroupées en une seule
@@ -466,7 +467,8 @@ function nouvelleAnneeCor_(p, s) {
     feuilleCor_();
     var anciens = lignes_('CorUnum').filter(function (x) { return x.annee === de && x.statut !== 'ancien' && x.equipe_id; });
     var corresp = {}, idsMembres = {};
-    r.equipes[vers] = (r.equipes[de] || []).map(function (e) { var n = { id: uid_(), nom: e.nom, chefs: [] }; corresp[e.id] = n; return n; });
+    assurerJetons_(r);
+    r.equipes[vers] = (r.equipes[de] || []).map(function (e) { var n = { id: uid_(), nom: e.nom, chefs: [], fil: e.fil, jeton: e.jeton }; corresp[e.id] = n; return n; });
     anciens.forEach(function (x) {
       var y = {};
       COLONNES_COR.forEach(function (k) { y[k] = x[k]; });
@@ -508,4 +510,255 @@ function envoyerCor_(p, s) {
   }
   journaliser_(s, 'Cor Unum : mail', (p.sujet || '') + ' → ' + emails.length + ' destinataires');
   return { nb: emails.length };
+}
+
+// ─────────────── Page des chefs de fraternité (sans compte : lien secret) ───────────────
+// Chaque fraternité a un « jeton » (lien personnel du chef) et un « fil » (messages et rencontres),
+// reconduits d'une année sur l'autre. La page publique fraternite/?c=<jeton> appelle les actions chef.*.
+
+var COLONNES_FIL = ['id', 'fil', 'type', 'date', 'auteur', 'cote', 'texte', 'lieu', 'lu'];
+function feuilleFil_() {
+  var f = db_().getSheetByName('CorUnumFils');
+  if (!f) {
+    f = db_().insertSheet('CorUnumFils');
+    f.getRange('A:Z').setNumberFormat('@');
+    f.appendRow(COLONNES_FIL);
+    f.setFrozenRows(1);
+  }
+  return f;
+}
+function jeton_() { return (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, '').slice(0, 32); }
+
+/** Complète jeton et fil des fraternités qui n'en ont pas encore. */
+function assurerJetons_(r) {
+  var change = false;
+  Object.keys(r.equipes).forEach(function (a) {
+    r.equipes[a].forEach(function (e) {
+      if (!e.fil) { e.fil = uid_(); change = true; }
+      if (!e.jeton) { e.jeton = jeton_(); change = true; }
+    });
+  });
+  return change;
+}
+
+/** Fraternité (année la plus récente) correspondant au jeton. */
+function equipeParJeton_(c) {
+  if (!/^[a-f0-9]{32}$/.test(String(c || ''))) throw erreur_('LIEN', 'Ce lien n\'est pas valable. Demandez un nouveau lien au secrétariat.');
+  var r = corReglages_();
+  var annees = Object.keys(r.equipes).sort().reverse();
+  for (var i = 0; i < annees.length; i++) {
+    var e = r.equipes[annees[i]].filter(function (y) { return y.jeton === c; })[0];
+    if (e) return { r: r, annee: annees[i], equipe: e };
+  }
+  throw erreur_('LIEN', 'Ce lien n\'est plus valable. Demandez un nouveau lien au secrétariat.');
+}
+
+function elementsFil_(fil) {
+  feuilleFil_();
+  return lignes_('CorUnumFils').filter(function (x) { return x.fil === fil; })
+    .sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); });
+}
+function messagePublic_(x) { return { id: x.id, date: x.date, auteur: x.auteur, cote: x.cote, texte: x.texte }; }
+function rencontrePublique_(x) { return { id: x.id, date: x.texte, lieu: x.lieu, note: x.auteur }; }
+
+/** Vue du chef : sa fraternité, ses membres (coordonnées, profils), anciens, rencontres, messages. */
+function vueChef_(ctx) {
+  var e = ctx.equipe;
+  var membres = lignes_('CorUnum').filter(function (x) { return x.annee === ctx.annee && x.equipe_id === e.id; });
+  var pub = function (x) {
+    return { id: x.id, nom: x.nom, prenoms: x.prenoms, email: x.email, telephone: x.telephone, adresse: x.adresse,
+             profils: json2_(x.profils, []), nouveau: /non/i.test(x.deja_participe || '') || /non/i.test(x.rester || ''),
+             chef: (e.chefs || []).indexOf(x.id) > -1, statut: x.statut || 'actif', note: x.statut === 'ancien' ? x.note : '' };
+  };
+  var fil = elementsFil_(e.fil);
+  return {
+    annee: ctx.annee, nom: e.nom, paroisse: reglages_().paroisse,
+    membres: membres.filter(function (x) { return x.statut !== 'ancien'; }).map(pub),
+    anciens: membres.filter(function (x) { return x.statut === 'ancien'; }).map(pub),
+    rencontres: fil.filter(function (x) { return x.type === 'rencontre'; }).map(rencontrePublique_),
+    messages: fil.filter(function (x) { return x.type === 'message'; }).map(messagePublic_),
+    profils: PROFILS_COR
+  };
+}
+
+function nomsChefs_(ctx) {
+  var ids = ctx.equipe.chefs || [];
+  return lignes_('CorUnum').filter(function (x) { return ids.indexOf(x.id) > -1; });
+}
+function prevenirEquipeParoisse_(titre, texte, annee) {
+  lignes_('Utilisateurs').filter(estActif_).forEach(function (u) { notifier_(u.id, titre, texte, '#/cor-unum?annee=' + annee); });
+}
+
+/** Point d'entrée public des pages de chef (doPost, sans session). */
+function actionChef_(action, p) {
+  // limite simple : 120 actions par heure et par lien
+  var cache = CacheService.getScriptCache(), cle = 'chef_' + String(p.c || '').slice(0, 32);
+  var n = Number(cache.get(cle) || 0);
+  if (n > 120) throw erreur_('LIMITE', 'Trop d\'actions en peu de temps. Réessayez dans une heure.');
+  cache.put(cle, String(n + 1), 3600);
+
+  var ctx = equipeParJeton_(p.c);
+  var e = ctx.equipe;
+  var qui = 'Chef – ' + e.nom;
+  var s = { nom: qui, uid: '' };
+  feuilleCor_();
+  var membreDeLEquipe = function (id) {
+    var x = lignes_('CorUnum').filter(function (y) { return y.id === id && y.annee === ctx.annee && y.equipe_id === e.id; })[0];
+    if (!x) throw erreur_('INTROUVABLE', 'Membre introuvable dans votre fraternité.');
+    return x;
+  };
+  var court = function (t, max) { return String(t || '').trim().slice(0, max || 300); };
+
+  if (action === 'chef.lire') return vueChef_(ctx);
+
+  if (action === 'chef.ajouter') {
+    if (!court(p.nom) && !court(p.prenoms)) throw erreur_('INVALIDE', 'Nom ou prénom manquant.');
+    verrou_(function () {
+      ecrireLigne_('CorUnum', {
+        id: uid_(), annee: ctx.annee, cree_le: maintenant_(), sources: '["chef"]', nom: court(p.nom, 80), prenoms: court(p.prenoms, 80),
+        email: court(p.email, 120), telephone: court(p.telephone, 40), adresse: court(p.adresse, 200),
+        profils: JSON.stringify((p.profils || []).filter(function (y) { return PROFILS_COR.indexOf(y) > -1; })), situation: '',
+        deja_participe: 'Non', rester: '', chef_indique: '', chef_possible: '', souhait: '', groupe_service: '',
+        equipe_id: e.id, equipe_proposee: '', statut: 'actif', note: 'Ajouté par le chef', maj_le: maintenant_(), maj_par: qui
+      });
+    });
+    journaliser_(s, 'Cor Unum : membre ajouté par le chef', court(p.prenoms) + ' ' + court(p.nom));
+    prevenirEquipeParoisse_('Fraternité ' + e.nom + ' : nouveau membre', court(p.prenoms) + ' ' + court(p.nom) + ' ajouté par le chef', ctx.annee);
+    return vueChef_(ctx);
+  }
+
+  if (action === 'chef.modifier') {
+    verrou_(function () {
+      var x = membreDeLEquipe(p.id);
+      ['email', 'telephone', 'adresse'].forEach(function (k) { if (p[k] !== undefined) x[k] = court(p[k], k === 'adresse' ? 200 : 120); });
+      x.maj_le = maintenant_(); x.maj_par = qui;
+      ecrireLigne_('CorUnum', x);
+    });
+    return vueChef_(ctx);
+  }
+
+  if (action === 'chef.depart') {
+    var nom = '';
+    verrou_(function () {
+      var x = membreDeLEquipe(p.id);
+      x.statut = 'ancien';
+      x.note = [x.note, 'Départ signalé par le chef le ' + maintenant_().slice(0, 10) + (court(p.note) ? ' : ' + court(p.note) : '')].filter(String).join(' ; ');
+      x.maj_le = maintenant_(); x.maj_par = qui;
+      ecrireLigne_('CorUnum', x);
+      nom = x.prenoms + ' ' + x.nom;
+    });
+    journaliser_(s, 'Cor Unum : départ signalé', nom);
+    prevenirEquipeParoisse_('Fraternité ' + e.nom + ' : départ signalé', nom + (court(p.note) ? ' – ' + court(p.note) : ''), ctx.annee);
+    return vueChef_(ctx);
+  }
+
+  if (action === 'chef.rencontre') {
+    verrou_(function () {
+      feuilleFil_();
+      if (p.supprimer) {
+        var x = lignes_('CorUnumFils').filter(function (y) { return y.id === p.supprimer && y.fil === e.fil && y.type === 'rencontre'; })[0];
+        if (x) feuilleFil_().deleteRow(x._ligne);
+      } else {
+        if (!/^\d{4}-\d{2}-\d{2}/.test(String(p.date || ''))) throw erreur_('INVALIDE', 'Date manquante.');
+        ecrireLigne_('CorUnumFils', { id: uid_(), fil: e.fil, type: 'rencontre', date: maintenant_(), auteur: court(p.note, 300), cote: 'chef', texte: court(p.date, 20), lieu: court(p.lieu, 200), lu: '' });
+      }
+    });
+    return vueChef_(ctx);
+  }
+
+  if (action === 'chef.message') {
+    var texte = court(p.texte, 4000);
+    if (!texte) throw erreur_('INVALIDE', 'Message vide.');
+    var chefs = nomsChefs_(ctx).map(function (x) { return x.prenoms + ' ' + x.nom; }).join(', ') || qui;
+    verrou_(function () { feuilleFil_(); ecrireLigne_('CorUnumFils', { id: uid_(), fil: e.fil, type: 'message', date: maintenant_(), auteur: chefs, cote: 'chef', texte: texte, lieu: '', lu: '' }); });
+    prevenirEquipeParoisse_('Message de la fraternité ' + e.nom, texte.slice(0, 120), ctx.annee);
+    return vueChef_(ctx);
+  }
+
+  if (action === 'chef.mail') {
+    var sujet = court(p.sujet, 200), corps = court(p.corps, 8000);
+    if (!sujet || !corps) throw erreur_('INVALIDE', 'Objet et message obligatoires.');
+    var chefsX = nomsChefs_(ctx);
+    var repondreA = chefsX.map(function (x) { return String(x.email || '').split(/[\s,;]+/)[0]; }).filter(function (m) { return /@/.test(m); });
+    var emails = [];
+    lignes_('CorUnum').filter(function (x) { return x.annee === ctx.annee && x.equipe_id === e.id && x.statut !== 'ancien'; }).forEach(function (x) {
+      String(x.email || '').split(/[\s,;]+/).filter(function (m) { return /@/.test(m); }).forEach(function (m) { m = m.toLowerCase(); if (emails.indexOf(m) === -1) emails.push(m); });
+    });
+    if (!emails.length) throw erreur_('INVALIDE', 'Aucune adresse e-mail dans votre fraternité.');
+    var quota = MailApp.getRemainingDailyQuota();
+    if (emails.length + 1 > quota) throw erreur_('QUOTA', 'Envoi impossible aujourd\'hui (quota de la paroisse atteint). Réessayez demain.');
+    var opts = optionsEnvoi_();
+    var signe = '\n\n' + (chefsX.map(function (x) { return x.prenoms + ' ' + x.nom; }).join(' et ') || qui) + '\nFraternité Cor Unum ' + e.nom;
+    var o = { name: 'Fraternité Cor Unum ' + e.nom, from: opts.from, bcc: emails.join(','), htmlBody: corpsHtml_(corps + signe, '') };
+    if (repondreA.length) o.replyTo = repondreA.join(',');
+    GmailApp.sendEmail(repondreA[0] || CONFIG.ALIAS, sujet, corps + signe, o);
+    journaliser_(s, 'Cor Unum : mail du chef à son équipe', sujet + ' → ' + emails.length + ' destinataires');
+    return { nb: emails.length };
+  }
+  throw erreur_('ACTION_INCONNUE', 'Action inconnue.');
+}
+
+// ─── Côté appli : lien du chef, fil de messages, message à tous les chefs ───
+
+function lienChefCor_(p, s) {
+  var res = verrou_(function () {
+    var r = corReglages_();
+    assurerJetons_(r);
+    var e = (r.equipes[p.annee] || []).filter(function (y) { return y.id === p.equipe; })[0];
+    if (!e) throw erreur_('INTROUVABLE', 'Fraternité introuvable.');
+    if (p.nouveau) {
+      var ancien = e.jeton;
+      e.jeton = jeton_();
+      Object.keys(r.equipes).forEach(function (a) { r.equipes[a].forEach(function (y) { if (y.jeton === ancien) y.jeton = e.jeton; }); });
+    }
+    ecrireCorReglages_(r);
+    return e;
+  });
+  if (p.nouveau) journaliser_(s, 'Cor Unum : nouveau lien de chef', res.nom);
+  var base = String(reglages_().url_formulaires || 'https://secretariat.croix-glorieuse.org/').replace(/\/?$/, '/');
+  return { lien: base + 'fraternite/?c=' + res.jeton };
+}
+
+function filCor_(p, s) {
+  var r = corReglages_();
+  if (assurerJetons_(r)) ecrireCorReglages_(r);
+  var e = (r.equipes[p.annee] || []).filter(function (y) { return y.id === p.equipe; })[0];
+  if (!e) throw erreur_('INTROUVABLE', 'Fraternité introuvable.');
+  if (p.texte) {
+    var t = String(p.texte).trim().slice(0, 4000);
+    verrou_(function () { feuilleFil_(); ecrireLigne_('CorUnumFils', { id: uid_(), fil: e.fil, type: 'message', date: maintenant_(), auteur: s.nom, cote: 'paroisse', texte: t, lieu: '', lu: 'oui' }); });
+  }
+  var fil = elementsFil_(e.fil);
+  // ouvrir le fil dans l'appli = messages du chef lus
+  verrou_(function () { fil.forEach(function (x) { if (x.type === 'message' && x.cote === 'chef' && x.lu !== 'oui') { x.lu = 'oui'; ecrireLigne_('CorUnumFils', x); } }); });
+  return { messages: fil.filter(function (x) { return x.type === 'message'; }).map(messagePublic_), rencontres: fil.filter(function (x) { return x.type === 'rencontre'; }).map(rencontrePublique_) };
+}
+
+function messageTousChefsCor_(p, s) {
+  var t = String(p.texte || '').trim().slice(0, 4000);
+  if (!t) throw erreur_('INVALIDE', 'Message vide.');
+  var r = corReglages_();
+  if (assurerJetons_(r)) ecrireCorReglages_(r);
+  var eqs = r.equipes[p.annee] || [];
+  verrou_(function () {
+    feuilleFil_();
+    eqs.forEach(function (e) { ecrireLigne_('CorUnumFils', { id: uid_(), fil: e.fil, type: 'message', date: maintenant_(), auteur: s.nom, cote: 'paroisse', texte: t, lieu: '', lu: 'oui' }); });
+  });
+  journaliser_(s, 'Cor Unum : message à tous les chefs', t.slice(0, 80));
+  return { nb: eqs.length };
+}
+
+/** Pour la liste : messages non lus et prochaine rencontre de chaque fraternité. */
+function resumeFils_(equipes) {
+  if (!db_().getSheetByName('CorUnumFils')) return {};
+  var parFil = {};
+  var auj = maintenant_().slice(0, 10);
+  lignes_('CorUnumFils').forEach(function (x) {
+    var f = parFil[x.fil] = parFil[x.fil] || { non_lus: 0, prochaine: null, nb_rencontres: 0 };
+    if (x.type === 'message' && x.cote === 'chef' && x.lu !== 'oui') f.non_lus++;
+    if (x.type === 'rencontre') { f.nb_rencontres++; if (x.texte >= auj && (!f.prochaine || x.texte < f.prochaine.date)) f.prochaine = rencontrePublique_(x); }
+  });
+  var res = {};
+  equipes.forEach(function (e) { if (e.fil && parFil[e.fil]) res[e.id] = parFil[e.fil]; });
+  return res;
 }

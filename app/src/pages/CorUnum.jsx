@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Download, HeartHandshake, Loader2, Mail, Plus, Search, Trash2, UserPlus, Users, Crown, Check, BellRing, Pencil, FolderHeart, CalendarPlus, Sparkles, Import } from 'lucide-react'
+import { Download, HeartHandshake, Loader2, Mail, Plus, Search, Trash2, UserPlus, Users, Crown, Check, BellRing, Pencil, FolderHeart, CalendarPlus, Sparkles, Import, MessageSquare, Link2, Copy, RefreshCw, Send, CalendarDays } from 'lucide-react'
 import { api } from '../api.js'
 import { TYPES } from '../types.js'
 import { Chargement, Erreur, Modale, Vide, useCharger, useNotif, useConfirmer } from '../ui.jsx'
@@ -36,6 +36,9 @@ export default function CorUnum() {
   const [fiche, setFiche] = useState(null)
   const [equipeEdit, setEquipeEdit] = useState(null)
   const [mail, setMail] = useState(null)
+  const [fil, setFil] = useState(null)
+  const [lien, setLien] = useState(null)
+  const [tousChefs, setTousChefs] = useState(false)
   const { data, setData, chargement, erreur, recharger } = useCharger(() => api('cor.liste', { annee }), [annee])
   const changer = (p) => setParams(Object.fromEntries(Object.entries({ annee, vue: onglet, ...p }).filter(([, v]) => v)))
   useEffect(() => { const id = params.get('fiche'); if (id && data) { const m = data.membres.find((x) => x.id === id); if (m) setFiche(m) } }, [params, data])
@@ -151,7 +154,10 @@ export default function CorUnum() {
                         <ul className="mt-1 space-y-0.5">{anciens.map((m) => <li key={m.id}><button className="text-left text-nuit-600/60 hover:underline" onClick={() => setFiche(m)}>{nomComplet(m)}{m.note ? <span className="text-xs italic"> — {m.note}</span> : ''}</button></li>)}</ul>
                       </details>
                     )}
+                    {data.fils?.[e.id]?.prochaine && <p className="mt-2 flex items-center gap-1.5 text-xs text-nuit-600"><CalendarDays className="h-3.5 w-3.5 text-or" />Prochaine rencontre : {new Date(data.fils[e.id].prochaine.date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}{data.fils[e.id].prochaine.lieu ? ` — ${data.fils[e.id].prochaine.lieu}` : ''}</p>}
                     <div className="mt-3 flex flex-wrap gap-1.5 border-t border-nuit-50 pt-3">
+                      <button className={`btn-clair px-2.5 py-1 text-xs ${data.fils?.[e.id]?.non_lus ? 'border-or bg-or-50' : ''}`} onClick={() => setFil(e)}><MessageSquare className="h-3.5 w-3.5" />Messages{data.fils?.[e.id]?.non_lus ? <span className="rounded-full bg-or px-1.5 text-[10px] font-semibold text-white">{data.fils[e.id].non_lus}</span> : ''}</button>
+                      <button className="btn-clair px-2.5 py-1 text-xs" onClick={() => setLien(e)}><Link2 className="h-3.5 w-3.5" />Lien du chef</button>
                       <button className="btn-clair px-2.5 py-1 text-xs" disabled={!chefs.some((c) => c.email)} onClick={() => mailChef(e)}><Crown className="h-3.5 w-3.5" />Liste au chef</button>
                       <button className="btn-clair px-2.5 py-1 text-xs" disabled={!ms.length} onClick={() => mailEquipe(e)}><Mail className="h-3.5 w-3.5" />Mail à l'équipe</button>
                       {anciens.length > 0 && <button className="btn-clair px-2.5 py-1 text-xs" onClick={() => relancer(e)}><BellRing className="h-3.5 w-3.5" />Relancer les anciens</button>}
@@ -160,6 +166,7 @@ export default function CorUnum() {
                 )
               })}
               <div className="flex flex-wrap gap-2 lg:col-span-2">
+                {equipes.length > 0 && <button className="btn-clair" onClick={() => setTousChefs(true)}><Send className="h-4 w-4" />Message à tous les chefs</button>}
                 {membres.some((m) => m.statut === 'ancien') && <button className="btn-clair" onClick={() => relancer(null)}><BellRing className="h-4 w-4" />Relancer tous les anciens</button>}
                 <button className="btn-clair" disabled={!!occupe || !equipes.length} onClick={nouvelleAnnee}>{occupe === 'annee' ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarPlus className="h-4 w-4" />}Préparer {anneeSuivante(data.annee)}</button>
               </div>
@@ -209,6 +216,9 @@ export default function CorUnum() {
       )}
       {fiche && <Fiche m={fiche} annee={data?.annee} equipes={equipes} profils={data?.profils || []} onFermer={() => { setFiche(null); if (params.get('fiche')) changer({ fiche: '' }) }} onMaj={(r) => { setData(r); setFiche(null) }} />}
       {equipeEdit && <EquipeEdit e={equipeEdit} annee={data.annee} membres={actifs} onFermer={() => setEquipeEdit(null)} onMaj={(r) => { setData(r); setEquipeEdit(null); notifier('Fraternité enregistrée') }} />}
+      {fil && <Fil e={fil} annee={data.annee} onFermer={() => { setFil(null); recharger() }} />}
+      {lien && <LienChef e={lien} annee={data.annee} chefs={membres.filter((m) => lien.chefs.includes(m.id))} onFermer={() => setLien(null)} onMail={(m) => { setLien(null); setMail(m) }} />}
+      {tousChefs && <TousChefs annee={data.annee} nb={equipes.length} onFermer={() => setTousChefs(false)} />}
       {mail && <Redaction mode="nouveau" a={mail.a || ''} sujet={mail.sujet} corps={mail.corps} destinataires={mail.destinataires} boutons={mail.boutons}
         envoiPersonnalise={mail.ids ? ({ sujet, corps, signature }) => api('cor.envoyer', { ids: mail.ids, sujet, corps, signature, boutons: mail.boutons }) : undefined}
         onFermer={() => setMail(null)} onEnvoye={(r) => { setMail(null); notifier(r?.nb ? `Envoyé à ${r.nb} adresse${r.nb > 1 ? 's' : ''}` : 'Message envoyé') }} />}
@@ -305,6 +315,94 @@ function Fiche({ m, annee, equipes, profils, onFermer, onMaj }) {
         </div>
       </div>
       <div className="mt-3"><Erreur erreur={erreur} /></div>
+    </Modale>
+  )
+}
+
+const dateFil = (d) => new Date(d).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+
+function Fil({ e, annee, onFermer }) {
+  const notifier = useNotif()
+  const [d, setD] = useState(null)
+  const [texte, setTexte] = useState('')
+  const [envoi, setEnvoi] = useState(false)
+  useEffect(() => { api('cor.fil', { annee, equipe: e.id }).then(setD).catch((err) => notifier(err.message, 'erreur')) }, [annee, e.id, notifier])
+  async function envoyer() {
+    setEnvoi(true)
+    try { setD(await api('cor.fil', { annee, equipe: e.id, texte })); setTexte('') } catch (err) { notifier(err.message, 'erreur') } finally { setEnvoi(false) }
+  }
+  return (
+    <Modale large titre={`Fraternité ${e.nom} — messages`} onFermer={onFermer}>
+      {!d ? <Chargement /> : (
+        <div className="grid gap-4 md:grid-cols-[1fr_220px]">
+          <div>
+            <div className="max-h-[50vh] space-y-2 overflow-y-auto rounded-lg bg-nuit-50/40 p-3">
+              {!d.messages.length && <p className="text-sm text-nuit-600/70">Aucun message. Le chef voit ce fil sur sa page.</p>}
+              {d.messages.map((m) => (
+                <div key={m.id} className={`max-w-[85%] whitespace-pre-wrap rounded-xl px-3 py-2 text-sm ${m.cote === 'chef' ? 'bg-white' : 'ml-auto bg-nuit text-white'}`}>
+                  <div className="mb-0.5 text-[11px] opacity-70">{m.cote === 'chef' ? `${m.auteur} (chef)` : m.auteur} · {dateFil(m.date)}</div>{m.texte}
+                </div>
+              ))}
+            </div>
+            <textarea className="champ mt-3 min-h-[90px]" value={texte} onChange={(ev) => setTexte(ev.target.value)} placeholder="Votre réponse…" />
+            <div className="mt-2 flex items-center gap-2"><button className="btn-principal" disabled={envoi || !texte.trim()} onClick={envoyer}>{envoi ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Envoyer</button>
+              <span className="text-xs text-nuit-600/70">Le chef le verra en ouvrant sa page (pas de mail).</span></div>
+          </div>
+          <div>
+            <h3 className="mb-2 text-sm font-semibold">Rencontres notées par le chef</h3>
+            {!d.rencontres.length ? <p className="text-xs text-nuit-600/70">Aucune.</p> : (
+              <ul className="space-y-1.5 text-sm">{[...d.rencontres].sort((a, b) => b.date.localeCompare(a.date)).map((r) => <li key={r.id}><div className="font-medium first-letter:uppercase">{new Date(r.date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div>{(r.lieu || r.note) && <div className="text-xs text-nuit-600/70">{[r.lieu, r.note].filter(Boolean).join(' — ')}</div>}</li>)}</ul>
+            )}
+          </div>
+        </div>
+      )}
+    </Modale>
+  )
+}
+
+function LienChef({ e, annee, chefs, onFermer, onMail }) {
+  const notifier = useNotif()
+  const confirmer = useConfirmer()
+  const [lien, setLien] = useState('')
+  const [occupe, setOccupe] = useState(false)
+  useEffect(() => { api('cor.lienChef', { annee, equipe: e.id }).then((r) => setLien(r.lien)).catch((err) => notifier(err.message, 'erreur')) }, [annee, e.id, notifier])
+  async function nouveau() {
+    if (!(await confirmer({ titre: 'Nouveau lien', texte: "L'ancien lien ne fonctionnera plus. Il faudra envoyer le nouveau au chef.", bouton: 'Créer un nouveau lien', danger: true }))) return
+    setOccupe(true)
+    try { setLien((await api('cor.lienChef', { annee, equipe: e.id, nouveau: true })).lien); notifier('Nouveau lien créé') } catch (err) { notifier(err.message, 'erreur') } finally { setOccupe(false) }
+  }
+  function copier() { navigator.clipboard?.writeText(lien).then(() => notifier('Lien copié'), () => notifier('Copie impossible : sélectionnez le lien', 'erreur')) }
+  function envoyer() {
+    const B = 'Ouvrir la page de ma fraternité'
+    onMail({ a: chefs.map((c) => String(c.email || '').split(/[\s,;]+/)[0]).filter(Boolean).join(', '), sujet: `Fraternité Cor Unum ${e.nom} – votre page de chef`,
+      corps: `Bonjour ${chefs.map((c) => c.prenoms).join(' et ')},\n\nVoici le lien personnel de votre fraternité Cor Unum. Il vous permet, sans mot de passe, de voir les membres et leurs coordonnées, d'ajouter un membre, de corriger un téléphone ou une adresse, de signaler un départ, de noter vos rencontres, d'écrire à toute l'équipe et d'échanger avec le curé et le secrétariat.\n[Bouton : ${B}]\n\nConseil : ajoutez cette page à vos favoris ou à l'écran d'accueil de votre téléphone. Ce lien est personnel : merci de ne pas le transférer.\n\nAvec l'assurance de nos prières à toutes vos intentions,`,
+      boutons: [{ texte: B, url: lien }] })
+  }
+  return (
+    <Modale titre={`Lien du chef — ${e.nom}`} onFermer={onFermer}
+      pied={<><button className="btn-clair mr-auto text-red-700" disabled={occupe || !lien} onClick={nouveau}><RefreshCw className="h-4 w-4" />Nouveau lien</button><button className="btn-principal" disabled={!lien || !chefs.some((c) => c.email)} onClick={envoyer}><Mail className="h-4 w-4" />Envoyer au chef</button></>}>
+      <p className="mb-3 text-sm text-nuit-600">Page personnelle du chef, sans compte : membres, ajout, corrections, départs, rencontres, mail à l'équipe et messages avec la paroisse.</p>
+      {!lien ? <Chargement /> : (
+        <div className="flex gap-2"><input className="champ text-xs" readOnly value={lien} onFocus={(ev) => ev.target.select()} /><button className="btn-clair" onClick={copier}><Copy className="h-4 w-4" /></button></div>
+      )}
+      <p className="mt-2 text-xs text-nuit-600/70">« Nouveau lien » désactive immédiatement l'ancien (lien transféré par erreur, changement de chef…).</p>
+    </Modale>
+  )
+}
+
+function TousChefs({ annee, nb, onFermer }) {
+  const notifier = useNotif()
+  const [texte, setTexte] = useState('')
+  const [envoi, setEnvoi] = useState(false)
+  async function envoyer() {
+    setEnvoi(true)
+    try { const r = await api('cor.tousChefs', { annee, texte }); notifier(`Message ajouté au fil de ${r.nb} fraternité${r.nb > 1 ? 's' : ''}`); onFermer() } catch (err) { notifier(err.message, 'erreur'); setEnvoi(false) }
+  }
+  return (
+    <Modale titre="Message à tous les chefs" onFermer={onFermer}
+      pied={<><button className="btn-clair" onClick={onFermer}>Annuler</button><button className="btn-principal" disabled={envoi || !texte.trim()} onClick={envoyer}>{envoi ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Envoyer aux {nb} fraternités</button></>}>
+      <textarea className="champ min-h-[160px]" value={texte} onChange={(ev) => setTexte(ev.target.value)} placeholder="Message…" autoFocus />
+      <p className="mt-2 text-xs text-nuit-600/70">Le message s'ajoute au fil de chaque fraternité ; les chefs le voient en ouvrant leur page.</p>
     </Modale>
   )
 }
