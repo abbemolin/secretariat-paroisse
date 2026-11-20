@@ -38,7 +38,7 @@ var CHAMPS_PUBLICS = {
              requis: ['enfant_nom', 'enfant_prenoms', 'enfant_naissance_date', 'telephone', 'email'] },
   mariage: { tous: ['fiancee_nom', 'fiancee_prenoms', 'fiance_nom', 'fiance_prenoms', 'telephone', 'email', 'date_souhaitee', 'message'],
              requis: ['fiancee_nom', 'fiancee_prenoms', 'fiance_nom', 'fiance_prenoms', 'telephone', 'email'] },
-  catechumene: { tous: ['nom', 'prenoms', 'telephone', 'email', 'pere_prenom', 'pere_nom', 'mere_prenom', 'mere_nom_jeune_fille', 'message'], requis: ['nom', 'prenoms', 'telephone', 'email'] },
+  catechumene: { tous: ['nom', 'prenoms', 'telephone', 'email', 'message'], requis: ['nom', 'prenoms', 'telephone', 'email'] },
   confirmand: { tous: ['nom', 'prenoms', 'telephone', 'email', 'message'], requis: ['nom', 'prenoms', 'telephone', 'email'] },
   premiere_communion: { tous: CHAMPS_ENFANT_, requis: ['enfant_nom', 'enfant_prenoms', 'enfant_naissance_date', 'telephone', 'email', 'preparation'] },
   profession_foi: { tous: CHAMPS_ENFANT_, requis: ['enfant_nom', 'enfant_prenoms', 'enfant_naissance_date', 'telephone', 'email', 'preparation'] }

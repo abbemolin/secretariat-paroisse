@@ -62,10 +62,8 @@ FORMULAIRES = {
         titre="Demander le baptême (adulte)",
         intro="Vous êtes adulte et vous souhaitez recevoir le baptême ? Laissez-nous vos coordonnées : un prêtre vous recontactera.",
         groupes=[("Vos coordonnées", [c("prenoms", "Prénom", requis=True), c("nom", "Nom", requis=True),
-                                       c("telephone", "Téléphone", "tel", True), c("email", "E-mail", "email", True)]),
-                 ("Vos parents", [c("pere_prenom", "Prénom du père"), c("pere_nom", "Nom du père"),
-                                  c("mere_prenom", "Prénom de la mère"), c("mere_nom_jeune_fille", "Nom de jeune fille de la mère"),
-                                  c("message", "Message (facultatif)", "textarea")])]),
+                                       c("telephone", "Téléphone", "tel", True), c("email", "E-mail", "email", True),
+                                       c("message", "Message (facultatif)", "textarea")])]),
     "confirmand": dict(
         titre="Demander la confirmation (adulte)",
         intro="Vous êtes baptisé(e) et souhaitez recevoir le sacrement de confirmation ? Laissez-nous vos coordonnées : nous vous recontacterons.",
