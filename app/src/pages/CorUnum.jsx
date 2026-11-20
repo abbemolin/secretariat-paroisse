@@ -1,0 +1,310 @@
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { Download, HeartHandshake, Loader2, Mail, Plus, Search, Trash2, UserPlus, Users, Crown, Check, BellRing, Pencil, FolderHeart, CalendarPlus, Sparkles, Import } from 'lucide-react'
+import { api } from '../api.js'
+import { TYPES } from '../types.js'
+import { Chargement, Erreur, Modale, Vide, useCharger, useNotif, useConfirmer } from '../ui.jsx'
+import { Redaction } from './Courrier.jsx'
+
+export const COULEURS_PROFILS = {
+  'Catéchumène': 'bg-amber-100 text-amber-900', 'Confirmand': 'bg-rose-100 text-rose-900', 'Néophyte': 'bg-emerald-100 text-emerald-900',
+  'Nouveau à la paroisse': 'bg-sky-100 text-sky-900', 'Recommençant': 'bg-violet-100 text-violet-900', 'Paroissien': 'bg-nuit-50 text-nuit-600'
+}
+const COURT = { 'Nouveau à la paroisse': 'Nouveau', 'Paroissien': 'Paroissien' }
+const anneeSuivante = (a) => { const n = Number(String(a).slice(0, 4)) + 1; return `${n}-${n + 1}` }
+const nomComplet = (m) => `${m.prenoms} ${String(m.nom).toUpperCase()}`.trim()
+
+function Profils({ m, sansParoissien = true }) {
+  return (
+    <>
+      {m.profils.filter((p) => !sansParoissien || p !== 'Paroissien').map((p) => <span key={p} className={`pastille py-0 text-[10px] ${COULEURS_PROFILS[p] || ''}`}>{COURT[p] || p}</span>)}
+      {m.nouveau && m.statut !== 'ancien' && <span className="pastille bg-or text-white py-0 text-[10px]">Nouveau dans l'équipe</span>}
+      {m.chef_possible && <span className="pastille gap-0.5 border border-or py-0 text-[10px] text-or-600"><Crown className="h-2.5 w-2.5" />chef possible</span>}
+      {m.dossiers.map((d) => <Link key={d.id} to={`/dossiers/${d.id}`} onClick={(e) => e.stopPropagation()} className="pastille gap-0.5 border py-0 text-[10px] hover:underline" style={{ borderColor: TYPES[d.type]?.couleur, color: TYPES[d.type]?.couleur }}><FolderHeart className="h-2.5 w-2.5" />{TYPES[d.type]?.nom}</Link>)}
+    </>
+  )
+}
+
+export default function CorUnum() {
+  const notifier = useNotif()
+  const confirmer = useConfirmer()
+  const [params, setParams] = useSearchParams()
+  const annee = params.get('annee') || ''
+  const onglet = params.get('vue') || 'equipes'
+  const [texte, setTexte] = useState('')
+  const [occupe, setOccupe] = useState('')
+  const [fiche, setFiche] = useState(null)
+  const [equipeEdit, setEquipeEdit] = useState(null)
+  const [mail, setMail] = useState(null)
+  const { data, setData, chargement, erreur, recharger } = useCharger(() => api('cor.liste', { annee }), [annee])
+  const changer = (p) => setParams(Object.fromEntries(Object.entries({ annee, vue: onglet, ...p }).filter(([, v]) => v)))
+  useEffect(() => { const id = params.get('fiche'); if (id && data) { const m = data.membres.find((x) => x.id === id); if (m) setFiche(m) } }, [params, data])
+
+  const membres = data?.membres || []
+  const equipes = data?.equipes || []
+  const nomEquipe = (id) => equipes.find((e) => e.id === id)?.nom || ''
+  const actifs = membres.filter((m) => m.statut !== 'ancien')
+  const aRepartir = actifs.filter((m) => !m.equipe_id)
+  const chefsPossibles = actifs.filter((m) => m.chef_possible)
+  const filtre = (l) => l.filter((m) => !texte || `${m.nom} ${m.prenoms} ${m.email}`.toLowerCase().includes(texte.toLowerCase()))
+
+  async function action(nom, fn, msg) {
+    setOccupe(nom)
+    try { const r = await fn(); if (r?.membres) setData(r); else if (r?.liste) setData(r.liste); if (msg) notifier(typeof msg === 'function' ? msg(r) : msg) }
+    catch (e) { notifier(e.message, 'erreur') } finally { setOccupe('') }
+  }
+  const placer = (ids, equipe_id) => action('placer', () => api('cor.modifier', { ids, annee: data.annee, equipe_id }), ids.length > 1 ? `${ids.length} personnes placées` : 'Placé dans l\'équipe')
+
+  function mailChef(e) {
+    const ms = actifs.filter((m) => m.equipe_id === e.id)
+    const chefs = membres.filter((m) => e.chefs.includes(m.id))
+    const ligne = (m) => `- ${nomComplet(m)}${m.telephone ? ' – ' + m.telephone : ''}${m.email ? ' – ' + m.email : ''}${m.profils.filter((p) => p !== 'Paroissien').length ? ' (' + m.profils.filter((p) => p !== 'Paroissien').join(', ').toLowerCase() + ')' : ''}`
+    const nouveaux = ms.filter((m) => m.nouveau)
+    const corps = `Bonjour ${chefs.map((c) => c.prenoms).join(' et ') || ''},\n\nVoici la liste de votre fraternité Cor Unum pour l'année ${data.annee} (${ms.length} inscrit${ms.length > 1 ? 's' : ''}) :\n\n${ms.map(ligne).join('\n')}` +
+      (nouveaux.length ? `\n\nNouveaux dans votre équipe cette année, à bien accueillir :\n${nouveaux.map((m) => `- ${nomComplet(m)}${m.souhait ? ' (souhaitait retrouver : ' + m.souhait + ')' : ''}`).join('\n')}` : '') +
+      '\n\nMerci pour votre service.\n\nAvec l\'assurance de nos prières à toutes vos intentions,'
+    setMail({ a: chefs.map((c) => c.email).filter(Boolean).join(', '), sujet: `Fraternité Cor Unum ${data.annee} – votre équipe`, corps })
+  }
+  function mailEquipe(e) {
+    const ids = actifs.filter((m) => m.equipe_id === e.id).map((m) => m.id)
+    setMail({ destinataires: `Fraternité ${e.nom} — ${ids.length} fiche${ids.length > 1 ? 's' : ''}, en copie cachée`, sujet: `Fraternité Cor Unum – équipe ${e.nom}`, corps: 'Bonjour à tous,\n\n\n\nAvec l\'assurance de nos prières à toutes vos intentions,', ids })
+  }
+  function relancer(e) {
+    const ids = membres.filter((m) => m.statut === 'ancien' && (!e || m.equipe_id === e.id)).map((m) => m.id)
+    if (!data.lien_formulaire) { notifier('Ajoutez d\'abord le lien du formulaire dans Réglages → Cor Unum.', 'erreur'); return }
+    const B = "S'inscrire aux fraternités Cor Unum"
+    setMail({ destinataires: `Anciens membres${e ? ' de la fraternité ' + e.nom : ''} pas encore réinscrits — ${ids.length} fiche${ids.length > 1 ? 's' : ''}, en copie cachée`, ids,
+      sujet: `Fraternités Cor Unum ${data.annee}`,
+      corps: `Bonjour,\n\nLes fraternités Cor Unum reprennent pour l'année ${data.annee}${e ? ', et votre équipe (' + e.nom + ') serait heureuse de vous retrouver' : ''}. Pour vous réinscrire, il suffit de cliquer ici :\n[Bouton : ${B}]\n\nAvec l'assurance de nos prières à toutes vos intentions,`,
+      boutons: [{ texte: B, url: data.lien_formulaire }] })
+  }
+  async function supprimerEquipe(e) {
+    if (!(await confirmer({ titre: 'Supprimer la fraternité', texte: `La fraternité ${e.nom} sera supprimée ; ses membres passent « à répartir ».`, bouton: 'Supprimer', danger: true }))) return
+    action('suppr', () => api('cor.equipe', { annee: data.annee, supprimer: e.id }), 'Fraternité supprimée')
+  }
+  async function nouvelleAnnee() {
+    const vers = anneeSuivante(data.annee)
+    if (!(await confirmer({ titre: `Préparer ${vers}`, texte: `Les fraternités et leurs chefs sont reconduits en ${vers}. Les membres actuels y apparaissent comme « anciens » jusqu'à leur réinscription par le formulaire.\n\nPensez à ajouter la feuille de réponses ${vers} dans Réglages → Cor Unum.`, bouton: 'Préparer' }))) return
+    setOccupe('annee')
+    try { await api('cor.nouvelleAnnee', { de: data.annee, vers }); changer({ annee: vers }); notifier(`Année ${vers} préparée`) } catch (e) { notifier(e.message, 'erreur') } finally { setOccupe('') }
+  }
+
+  const ONGLETS = [['equipes', 'Fraternités', equipes.length], ['repartir', 'À répartir', aRepartir.length], ['chefs', 'Chefs possibles', chefsPossibles.length], ['tous', 'Tout le monde', membres.length]]
+
+  return (
+    <>
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+        <div><h1 className="text-3xl font-semibold">Fraternités Cor Unum</h1><p className="text-sm text-nuit-600/80">Inscriptions, équipes et chefs</p></div>
+        <div className="flex flex-wrap gap-2">
+          {data && <select className="champ w-auto py-2" value={data.annee} onChange={(e) => changer({ annee: e.target.value })}>{data.annees.map((a) => <option key={a}>{a}</option>)}</select>}
+          <button className="btn-clair" disabled={!!occupe} onClick={() => action('import', () => api('cor.importer', { annee: data?.annee }).then(async (r) => { const l = await api('cor.liste', { annee: data?.annee }); return { ...l, _r: r } }), (r) => r._r.nouvelles || r._r.fusionnees ? `${r._r.nouvelles} nouvelle(s), ${r._r.fusionnees} mise(s) à jour` : 'Aucune nouvelle réponse')}>
+            {occupe === 'import' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}<span className="hidden sm:inline">Importer le formulaire</span></button>
+          <button className="btn-clair" onClick={() => setFiche({ nouveau: true })}><UserPlus className="h-4 w-4" /><span className="hidden sm:inline">Ajouter</span></button>
+          <button className="btn-or" onClick={() => setEquipeEdit({ nom: '', chefs: [] })}><Plus className="h-4 w-4" />Fraternité</button>
+        </div>
+      </div>
+      <Erreur erreur={erreur} reessayer={recharger} />
+      {chargement && !data ? <Chargement /> : data && (
+        <>
+          {!data.onglets_repris && (
+            <div className="carte mb-4 flex flex-wrap items-center gap-3 border-l-4 border-l-or p-4">
+              <Import className="h-5 w-5 text-or" />
+              <p className="flex-1 text-sm">Reprendre une fois les fraternités des onglets « Equipe … » de la feuille {data.annee} : chefs, membres (et anciens sous la ligne vide). Les fiches d'un même foyer sont regroupées.</p>
+              <button className="btn-principal" disabled={!!occupe} onClick={() => action('onglets', () => api('cor.onglets', { annee: data.annee }), (r) => `${r.equipes} fraternités, ${r.membres} membres, ${r.anciens} anciens repris`)}>{occupe === 'onglets' && <Loader2 className="h-4 w-4 animate-spin" />}Reprendre les fraternités</button>
+            </div>
+          )}
+          <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {[['Inscrits cette année', actifs.length, Users], ['Fraternités', equipes.length, HeartHandshake], ['À répartir', aRepartir.length, Sparkles], ['Anciens à relancer', membres.filter((m) => m.statut === 'ancien').length, BellRing]].map(([l, v, I]) => (
+              <div key={l} className="carte flex items-center gap-3 p-4"><I className="h-6 w-6 shrink-0 text-or" /><div><div className="text-xl font-semibold">{v}</div><div className="text-xs text-nuit-600/70">{l}</div></div></div>
+            ))}
+          </div>
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <div className="-mx-1 flex flex-1 gap-1.5 overflow-x-auto px-1 pb-1">
+              {ONGLETS.map(([k, l, n]) => <button key={k} onClick={() => changer({ vue: k })} className={`pastille shrink-0 gap-1.5 border py-1 ${onglet === k ? 'border-nuit bg-nuit text-white' : 'border-nuit-100 bg-white text-nuit-600'}`}>{l}<span className="opacity-60">{n}</span></button>)}
+            </div>
+            <div className="relative w-full sm:w-64"><Search className="absolute left-3 top-2.5 h-4 w-4 text-nuit-600/50" /><input className="champ pl-9" placeholder="Rechercher…" value={texte} onChange={(e) => setTexte(e.target.value)} /></div>
+          </div>
+
+          {onglet === 'equipes' && (
+            <div className="grid gap-4 lg:grid-cols-2">
+              {!equipes.length && <div className="carte lg:col-span-2"><Vide icone={HeartHandshake} texte="Aucune fraternité pour cette année." /></div>}
+              {equipes.map((e) => {
+                const ms = filtre(actifs.filter((m) => m.equipe_id === e.id))
+                const anciens = filtre(membres.filter((m) => m.statut === 'ancien' && m.equipe_id === e.id))
+                const chefs = membres.filter((m) => e.chefs.includes(m.id))
+                return (
+                  <section key={e.id} className="carte flex flex-col p-4">
+                    <div className="mb-2 flex items-start gap-2">
+                      <div className="flex-1"><h2 className="text-xl font-semibold">Fraternité {e.nom}</h2>
+                        <p className="text-xs text-nuit-600/70"><Crown className="mr-1 inline h-3 w-3 text-or" />{chefs.map(nomComplet).join(', ') || 'chef à choisir'} · {ms.length} inscrit{ms.length > 1 ? 's' : ''}{ms.filter((m) => m.nouveau).length ? ` · ${ms.filter((m) => m.nouveau).length} nouveau(x)` : ''}</p></div>
+                      <button className="btn-icone" title="Modifier" onClick={() => setEquipeEdit(e)}><Pencil className="h-4 w-4" /></button>
+                      <button className="btn-icone text-red-700" title="Supprimer" onClick={() => supprimerEquipe(e)}><Trash2 className="h-4 w-4" /></button>
+                    </div>
+                    <ul className="flex-1 divide-y divide-nuit-50">
+                      {ms.map((m) => (
+                        <li key={m.id}><button className="flex w-full flex-wrap items-center gap-1.5 py-1.5 text-left text-sm hover:bg-nuit-50/50" onClick={() => setFiche(m)}>
+                          {e.chefs.includes(m.id) && <Crown className="h-3.5 w-3.5 text-or" />}<span className="mr-1">{nomComplet(m)}</span><Profils m={m} /></button></li>
+                      ))}
+                    </ul>
+                    {anciens.length > 0 && (
+                      <details className="mt-2 text-sm"><summary className="cursor-pointer text-xs text-nuit-600/70">{anciens.length} ancien{anciens.length > 1 ? 's' : ''} pas encore réinscrit{anciens.length > 1 ? 's' : ''}</summary>
+                        <ul className="mt-1 space-y-0.5">{anciens.map((m) => <li key={m.id}><button className="text-left text-nuit-600/60 hover:underline" onClick={() => setFiche(m)}>{nomComplet(m)}{m.note ? <span className="text-xs italic"> — {m.note}</span> : ''}</button></li>)}</ul>
+                      </details>
+                    )}
+                    <div className="mt-3 flex flex-wrap gap-1.5 border-t border-nuit-50 pt-3">
+                      <button className="btn-clair px-2.5 py-1 text-xs" disabled={!chefs.some((c) => c.email)} onClick={() => mailChef(e)}><Crown className="h-3.5 w-3.5" />Liste au chef</button>
+                      <button className="btn-clair px-2.5 py-1 text-xs" disabled={!ms.length} onClick={() => mailEquipe(e)}><Mail className="h-3.5 w-3.5" />Mail à l'équipe</button>
+                      {anciens.length > 0 && <button className="btn-clair px-2.5 py-1 text-xs" onClick={() => relancer(e)}><BellRing className="h-3.5 w-3.5" />Relancer les anciens</button>}
+                    </div>
+                  </section>
+                )
+              })}
+              <div className="flex flex-wrap gap-2 lg:col-span-2">
+                {membres.some((m) => m.statut === 'ancien') && <button className="btn-clair" onClick={() => relancer(null)}><BellRing className="h-4 w-4" />Relancer tous les anciens</button>}
+                <button className="btn-clair" disabled={!!occupe || !equipes.length} onClick={nouvelleAnnee}>{occupe === 'annee' ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarPlus className="h-4 w-4" />}Préparer {anneeSuivante(data.annee)}</button>
+              </div>
+            </div>
+          )}
+
+          {onglet === 'repartir' && (
+            <div className="carte divide-y divide-nuit-50">
+              {!aRepartir.length ? <Vide icone={Check} texte="Tout le monde est dans une fraternité." /> : (
+                <>
+                  {aRepartir.some((m) => m.equipe_proposee) && (
+                    <div className="flex items-center gap-2 bg-or-50/60 p-3 text-sm"><Sparkles className="h-4 w-4 text-or" /><span className="flex-1">{aRepartir.filter((m) => m.equipe_proposee).length} proposition(s) d'après les réponses au formulaire.</span>
+                      <button className="btn-or py-1.5 text-xs" disabled={!!occupe} onClick={async () => { for (const eq of new Set(aRepartir.filter((m) => m.equipe_proposee).map((m) => m.equipe_proposee))) await placer(aRepartir.filter((m) => m.equipe_proposee === eq).map((m) => m.id), eq) }}>Tout valider</button></div>
+                  )}
+                  {filtre(aRepartir).map((m) => <ARepartir key={m.id} m={m} equipes={equipes} occupe={!!occupe} onPlacer={(eq) => placer([m.id], eq)} onOuvrir={() => setFiche(m)} />)}
+                </>
+              )}
+            </div>
+          )}
+
+          {onglet === 'chefs' && (
+            <div className="carte divide-y divide-nuit-50">
+              {!chefsPossibles.length ? <Vide icone={Crown} texte="Personne ne s'est encore proposé." /> : filtre(chefsPossibles).map((m) => {
+                const estChef = equipes.find((e) => e.chefs.includes(m.id))
+                return (
+                  <div key={m.id} className="flex flex-wrap items-center gap-2 px-4 py-3 text-sm">
+                    <button className="flex-1 text-left" onClick={() => setFiche(m)}><span className="font-medium">{nomComplet(m)}</span> <span className="text-xs text-nuit-600/70">{m.telephone} {m.email}</span>
+                      <span className="block text-xs text-nuit-600/70">{estChef ? `Chef de la fraternité ${estChef.nom}` : m.equipe_id ? `Membre de la fraternité ${nomEquipe(m.equipe_id)}` : 'Pas encore dans une fraternité'}</span></button>
+                    {!estChef && <button className="btn-clair px-2.5 py-1 text-xs" onClick={() => setEquipeEdit({ nom: m.nom.charAt(0).toUpperCase() + m.nom.slice(1).toLowerCase(), chefs: [m.id] })}><Plus className="h-3.5 w-3.5" />Créer une fraternité avec ce chef</button>}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {onglet === 'tous' && (
+            <div className="carte divide-y divide-nuit-50">
+              {filtre(membres).map((m) => (
+                <button key={m.id} className={`flex w-full flex-wrap items-center gap-1.5 px-4 py-2.5 text-left text-sm hover:bg-nuit-50/50 ${m.statut === 'ancien' ? 'text-nuit-600/60' : ''}`} onClick={() => setFiche(m)}>
+                  <span className="min-w-[180px] flex-1">{nomComplet(m)}<span className="block text-xs text-nuit-600/60">{m.equipe_id ? `Fraternité ${nomEquipe(m.equipe_id)}` : 'À répartir'}{m.statut === 'ancien' ? ' · ancien, pas réinscrit' : ''}</span></span>
+                  <Profils m={m} />
+                </button>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+      {fiche && <Fiche m={fiche} annee={data?.annee} equipes={equipes} profils={data?.profils || []} onFermer={() => { setFiche(null); if (params.get('fiche')) changer({ fiche: '' }) }} onMaj={(r) => { setData(r); setFiche(null) }} />}
+      {equipeEdit && <EquipeEdit e={equipeEdit} annee={data.annee} membres={actifs} onFermer={() => setEquipeEdit(null)} onMaj={(r) => { setData(r); setEquipeEdit(null); notifier('Fraternité enregistrée') }} />}
+      {mail && <Redaction mode="nouveau" a={mail.a || ''} sujet={mail.sujet} corps={mail.corps} destinataires={mail.destinataires} boutons={mail.boutons}
+        envoiPersonnalise={mail.ids ? ({ sujet, corps, signature }) => api('cor.envoyer', { ids: mail.ids, sujet, corps, signature, boutons: mail.boutons }) : undefined}
+        onFermer={() => setMail(null)} onEnvoye={(r) => { setMail(null); notifier(r?.nb ? `Envoyé à ${r.nb} adresse${r.nb > 1 ? 's' : ''}` : 'Message envoyé') }} />}
+    </>
+  )
+}
+
+function ARepartir({ m, equipes, occupe, onPlacer, onOuvrir }) {
+  const [eq, setEq] = useState(m.equipe_proposee || '')
+  return (
+    <div className="flex flex-wrap items-center gap-2 px-4 py-3 text-sm">
+      <button className="min-w-[200px] flex-1 text-left" onClick={onOuvrir}>
+        <span className="mr-1 font-medium">{nomComplet(m)}</span><Profils m={m} />
+        <span className="block text-xs text-nuit-600/70">{[m.rester && `rester dans la même équipe : ${m.rester}`, m.chef_indique && `chef indiqué : ${m.chef_indique}`, m.souhait && `souhaite retrouver : ${m.souhait}`].filter(Boolean).join(' · ') || 'Aucune indication'}</span>
+      </button>
+      <select className={`champ w-auto py-1.5 text-sm ${eq && eq === m.equipe_proposee ? 'border-or bg-or-50' : ''}`} value={eq} onChange={(e) => setEq(e.target.value)}>
+        <option value="">Choisir…</option>{equipes.map((e) => <option key={e.id} value={e.id}>{e.nom}{e.id === m.equipe_proposee ? ' (proposée)' : ''}</option>)}
+      </select>
+      <button className="btn-principal py-1.5 text-xs" disabled={!eq || occupe} onClick={() => onPlacer(eq)}><Check className="h-3.5 w-3.5" />Valider</button>
+    </div>
+  )
+}
+
+function EquipeEdit({ e, annee, membres, onFermer, onMaj }) {
+  const [nom, setNom] = useState(e.nom)
+  const [chefs, setChefs] = useState(e.chefs || [])
+  const [choix, setChoix] = useState('')
+  const [envoi, setEnvoi] = useState(false)
+  const [erreur, setErreur] = useState(null)
+  const candidats = useMemo(() => [...membres].sort((a, b) => (b.chef_possible - a.chef_possible) || nomComplet(a).localeCompare(nomComplet(b))), [membres])
+  async function enregistrer() {
+    setEnvoi(true); setErreur(null)
+    try { onMaj(await api('cor.equipe', { annee, equipe: { id: e.id, nom, chefs } })) } catch (err) { setErreur(err); setEnvoi(false) }
+  }
+  return (
+    <Modale titre={e.id ? `Fraternité ${e.nom}` : 'Nouvelle fraternité'} onFermer={onFermer}
+      pied={<><button className="btn-clair" onClick={onFermer}>Annuler</button><button className="btn-principal" disabled={envoi || !nom.trim()} onClick={enregistrer}>{envoi && <Loader2 className="h-4 w-4 animate-spin" />}Enregistrer</button></>}>
+      <div className="space-y-3">
+        <div><label className="etiquette">Nom (en général le nom du chef)</label><input className="champ" value={nom} onChange={(ev) => setNom(ev.target.value)} /></div>
+        <div><label className="etiquette">Chef(s) d'équipe</label>
+          <div className="mb-2 flex flex-wrap gap-1.5">{chefs.map((id) => { const m = membres.find((x) => x.id === id); return <span key={id} className="pastille gap-1 bg-or-50 text-or-600"><Crown className="h-3 w-3" />{m ? nomComplet(m) : '?'}<button onClick={() => setChefs(chefs.filter((x) => x !== id))}>×</button></span> })}</div>
+          <div className="flex gap-2"><select className="champ" value={choix} onChange={(ev) => setChoix(ev.target.value)}><option value="">Ajouter un chef…</option>{candidats.filter((m) => !chefs.includes(m.id)).map((m) => <option key={m.id} value={m.id}>{nomComplet(m)}{m.chef_possible ? ' — chef possible' : ''}</option>)}</select>
+            <button className="btn-clair" disabled={!choix} onClick={() => { setChefs([...chefs, choix]); setChoix('') }}><Plus className="h-4 w-4" /></button></div>
+          {!e.id && <p className="mt-1 text-xs text-nuit-600/70">Le chef rejoint automatiquement sa nouvelle fraternité.</p>}
+        </div>
+        <Erreur erreur={erreur} />
+      </div>
+    </Modale>
+  )
+}
+
+const CHAMPS_FICHE = [['prenoms', 'Prénom(s) — « Paul et Marie » pour un foyer'], ['nom', 'Nom'], ['email', 'E-mail(s)'], ['telephone', 'Téléphone'], ['adresse', 'Adresse'], ['situation', 'Situation (marié, célibataire…)']]
+
+function Fiche({ m, annee, equipes, profils, onFermer, onMaj }) {
+  const confirmer = useConfirmer()
+  const nouveau = !!m.nouveau && !m.id
+  const [v, setV] = useState(nouveau ? { prenoms: '', nom: '', email: '', telephone: '', adresse: '', situation: '', profils: [], equipe_id: '', statut: 'actif', note: '', souhait: '', chef_possible: false } : { ...m })
+  const [envoi, setEnvoi] = useState(false)
+  const [erreur, setErreur] = useState(null)
+  const maj = (k, val) => setV({ ...v, [k]: val })
+  async function enregistrer() {
+    setEnvoi(true); setErreur(null)
+    try {
+      const champs = { nom: v.nom, prenoms: v.prenoms, email: v.email, telephone: v.telephone, adresse: v.adresse, situation: v.situation, profils: v.profils, equipe_id: v.equipe_id, statut: v.statut, note: v.note, souhait: v.souhait, chef_possible: !!v.chef_possible }
+      onMaj(await api(nouveau ? 'cor.creer' : 'cor.modifier', { ...champs, id: m.id, annee }))
+    } catch (err) { setErreur(err); setEnvoi(false) }
+  }
+  async function supprimer() {
+    if (!(await confirmer({ titre: 'Supprimer la fiche', texte: `${nomComplet(m)} sera retiré(e) des fraternités ${annee}.`, bouton: 'Supprimer', danger: true }))) return
+    try { onMaj(await api('cor.supprimer', { id: m.id, annee })) } catch (err) { setErreur(err) }
+  }
+  return (
+    <Modale large titre={nouveau ? 'Ajouter une personne' : nomComplet(m)} onFermer={onFermer}
+      pied={<>{!nouveau && <button className="btn-clair mr-auto text-red-700" onClick={supprimer}><Trash2 className="h-4 w-4" />Supprimer</button>}<button className="btn-clair" onClick={onFermer}>Annuler</button><button className="btn-principal" disabled={envoi || !(v.nom || v.prenoms)} onClick={enregistrer}>{envoi && <Loader2 className="h-4 w-4 animate-spin" />}Enregistrer</button></>}>
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-3">
+          {CHAMPS_FICHE.map(([k, l]) => <div key={k}><label className="etiquette">{l}</label><input className="champ" value={v[k] || ''} onChange={(e) => maj(k, e.target.value)} /></div>)}
+        </div>
+        <div className="space-y-3">
+          <div><label className="etiquette">Fraternité</label><select className="champ" value={v.equipe_id || ''} onChange={(e) => maj('equipe_id', e.target.value)}><option value="">À répartir</option>{equipes.map((e) => <option key={e.id} value={e.id}>{e.nom}{e.id === m.equipe_proposee ? ' (proposée)' : ''}</option>)}</select></div>
+          <div><label className="etiquette">Statut</label><select className="champ" value={v.statut || 'actif'} onChange={(e) => maj('statut', e.target.value)}><option value="actif">Inscrit cette année</option><option value="ancien">Ancien, pas encore réinscrit</option></select></div>
+          <div><label className="etiquette">Profil</label><div className="flex flex-wrap gap-1.5">{profils.map((p) => (
+            <label key={p} className={`pastille cursor-pointer gap-1 border py-1 ${v.profils.includes(p) ? 'border-transparent ' + COULEURS_PROFILS[p] : 'border-nuit-100 bg-white text-nuit-600'}`}><input type="checkbox" className="hidden" checked={v.profils.includes(p)} onChange={(e) => maj('profils', e.target.checked ? [...v.profils, p] : v.profils.filter((x) => x !== p))} />{p}</label>
+          ))}</div></div>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!v.chef_possible} onChange={(e) => maj('chef_possible', e.target.checked)} />Peut devenir chef de fraternité</label>
+          <div><label className="etiquette">Souhaite retrouver</label><input className="champ" value={v.souhait || ''} onChange={(e) => maj('souhait', e.target.value)} /></div>
+          <div><label className="etiquette">Note</label><textarea className="champ min-h-[60px]" value={v.note || ''} onChange={(e) => maj('note', e.target.value)} /></div>
+          {!nouveau && (
+            <div className="rounded-lg bg-nuit-50/60 p-3 text-xs text-nuit-600">
+              {[['Déjà participé l\'an dernier', m.deja_participe], ['Rester dans la même équipe', m.rester], ['Chef indiqué', m.chef_indique], ['Groupe / service à la paroisse', m.groupe_service]].filter(([, x]) => x).map(([l, x]) => <div key={l}>{l} : <strong>{x}</strong></div>)}
+              {m.dossiers?.length > 0 && <div className="mt-1.5 flex flex-wrap gap-1">{m.dossiers.map((d) => <Link key={d.id} to={`/dossiers/${d.id}`} className="pastille gap-1 border bg-white py-0.5" style={{ borderColor: TYPES[d.type]?.couleur, color: TYPES[d.type]?.couleur }}><FolderHeart className="h-3 w-3" />Dossier {TYPES[d.type]?.nom}</Link>)}</div>}
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="mt-3"><Erreur erreur={erreur} /></div>
+    </Modale>
+  )
+}

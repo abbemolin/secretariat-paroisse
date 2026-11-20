@@ -11,6 +11,7 @@
  *   Push.gs       notifications sur téléphone (Web Push, VAPID)
  *   Extraits.gs   extraits de baptême signés (registre, PDF, envoi)
  *   Catechisme.gs inscriptions au catéchisme (formulaire Google), groupes, paiements
+ *   CorUnum.gs    fraternités Cor Unum (formulaire Google, équipes, chefs, anciens)
  *   Tri.gs        tri automatique des mails entrants (mots-clés, réponse auto horaires)
  *   Installation.gs  installer() à lancer une fois
  */
@@ -147,6 +148,17 @@ var ROUTES = {
   'cate.envoyer':          { fn: envoyerCate_, droit: 'dossiers' },
   'cate.reglages':         { fn: lireCateReglages_, droit: 'dossiers' },
   'cate.reglagesEcrire':   { fn: ecrireCateReglages_, droit: 'reglages' },
+  'cor.liste':             { fn: listerCor_, droit: 'dossiers' },
+  'cor.modifier':          { fn: modifierCor_, droit: 'dossiers' },
+  'cor.creer':             { fn: creerCor_, droit: 'dossiers' },
+  'cor.supprimer':         { fn: supprimerCor_, droit: 'dossiers' },
+  'cor.equipe':            { fn: equipeCor_, droit: 'dossiers' },
+  'cor.importer':          { fn: importerCor_, droit: 'dossiers' },
+  'cor.onglets':           { fn: reprendreOngletsCor_, droit: 'dossiers' },
+  'cor.nouvelleAnnee':     { fn: nouvelleAnneeCor_, droit: 'dossiers' },
+  'cor.envoyer':           { fn: envoyerCor_, droit: 'dossiers' },
+  'cor.reglages':          { fn: lireCorReglagesPublic_, droit: 'dossiers' },
+  'cor.reglagesEcrire':    { fn: ecrireCorReglagesRoute_, droit: 'reglages' },
   'extraits.liste':        { fn: listerExtraits_, droit: 'dossiers' },
   'extraits.lire':         { fn: lireExtrait_, droit: 'dossiers' },
   'extraits.enregistrer':  { fn: enregistrerExtrait_, droit: 'dossiers' },

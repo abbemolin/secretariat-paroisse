@@ -101,6 +101,7 @@ function dossierComplet_(d) {
   res.rencontres = don.rencontres || [];
   res.pieces = don.pieces || [];
   res.historique = (don.historique || []).slice().reverse();
+  try { res.fraternite = fraterniteDuDossier_(d); } catch (e) { res.fraternite = null; }
   res.fils = (don.fils || []).slice(-30).map(function (id) {
     try {
       var t = GmailApp.getThreadById(id);

@@ -6,7 +6,7 @@ import { useApp } from '../App.jsx'
 import { Chargement, Erreur, useCharger, useNotif, dateHeure, Interrupteur } from '../ui.jsx'
 import { ApercuSignature } from './Courrier.jsx'
 
-const ONGLETS = ['Paroisse', 'Signatures', 'Réponses types', 'Tri automatique', 'Catéchisme', 'Journal']
+const ONGLETS = ['Paroisse', 'Signatures', 'Réponses types', 'Tri automatique', 'Catéchisme', 'Cor Unum', 'Journal']
 
 export default function Reglages() {
   const [onglet, setOnglet] = useState('Paroisse')
@@ -21,6 +21,7 @@ export default function Reglages() {
       {onglet === 'Réponses types' && <Reponses />}
       {onglet === 'Tri automatique' && <TriAutomatique />}
       {onglet === 'Catéchisme' && <CatechismeReglages />}
+      {onglet === 'Cor Unum' && <CorUnumReglages />}
       {onglet === 'Journal' && <Journal />}
     </>
   )
@@ -368,6 +369,61 @@ function CatechismeReglages() {
             </div>
           ))}
           <button className="text-sm text-or-600 hover:underline" onClick={() => setF({ ...f, ecoles: [...f.ecoles, { nom: '', email: '' }] })}><Plus className="mr-1 inline h-3.5 w-3.5" />Ajouter une école</button>
+        </div>
+        <button className="btn-principal" onClick={() => enregistrer()} disabled={envoi}>{envoi && <Loader2 className="h-4 w-4 animate-spin" />}Enregistrer</button>
+      </div>
+    </div>
+  )
+}
+
+function CorUnumReglages() {
+  const notifier = useNotif()
+  const { data, chargement, erreur } = useCharger(() => api('cor.reglages'), [])
+  const [f, setF] = useState(null)
+  const [envoi, setEnvoi] = useState(false)
+  const [importe, setImporte] = useState(false)
+  useEffect(() => { if (data) setF({ ...data, feuilles: data.feuilles.map((x) => ({ ...x })) }) }, [data])
+  if (chargement || !f) return <><Erreur erreur={erreur} />{!erreur && <Chargement />}</>
+  async function enregistrer(modif = {}) {
+    const g = { ...f, ...modif }
+    setF(g); setEnvoi(true)
+    try {
+      const r = await api('cor.reglagesEcrire', { lien_formulaire: g.lien_formulaire, feuilles: g.feuilles.map(({ id, annee }) => ({ id, annee })), import_auto: g.import_auto })
+      setF(r); notifier(modif.import_auto !== undefined ? (g.import_auto ? 'Import automatique activé' : 'Import automatique désactivé') : 'Réglages enregistrés')
+    } catch (e) { notifier(e.message, 'erreur') } finally { setEnvoi(false) }
+  }
+  async function importer() {
+    setImporte(true)
+    try { const r = await api('cor.importer'); notifier(r.nouvelles || r.fusionnees ? `${r.nouvelles} nouvelle(s), ${r.fusionnees} mise(s) à jour` : 'Aucune nouvelle réponse') } catch (e) { notifier(e.message, 'erreur') } finally { setImporte(false) }
+  }
+  const majF = (i, k, v) => setF({ ...f, feuilles: f.feuilles.map((x, j) => (j === i ? { ...x, [k]: v } : x)) })
+  return (
+    <div className="grid gap-5 lg:grid-cols-2">
+      <div className="carte space-y-3 p-5">
+        <h2 className="text-xl font-semibold">Formulaire d'inscription</h2>
+        <p className="text-sm text-nuit-600">L'appli lit la feuille de réponses du formulaire Google de chaque année. Une réponse rejoint la fiche de la même personne (ou de son foyer), sinon une fiche « à répartir » est créée avec une fraternité proposée.</p>
+        {f.feuilles.map((x, i) => (
+          <div key={i} className="space-y-1 rounded-lg border border-nuit-100 p-3">
+            <div className="grid grid-cols-[110px_1fr_auto] items-end gap-2">
+              <div><label className="etiquette">Année</label><input className="champ py-1.5" placeholder="2027-2028" value={x.annee || ''} onChange={(e) => majF(i, 'annee', e.target.value)} /></div>
+              <div><label className="etiquette">Feuille de réponses (adresse)</label><input className="champ py-1.5 text-xs" value={x.id} onChange={(e) => majF(i, 'id', e.target.value)} /></div>
+              <button className="btn-icone text-red-700" onClick={() => setF({ ...f, feuilles: f.feuilles.filter((_, j) => j !== i) })}><Trash2 className="h-4 w-4" /></button>
+            </div>
+            {x.nom ? <p className="text-xs text-emerald-700">✓ {x.nom}</p> : x.erreur ? <p className="text-xs text-red-700">{x.erreur}</p> : null}
+          </div>
+        ))}
+        <button className="text-sm text-or-600 hover:underline" onClick={() => setF({ ...f, feuilles: [...f.feuilles, { id: '', annee: '' }] })}><Plus className="mr-1 inline h-3.5 w-3.5" />Ajouter l'année suivante</button>
+        <div className="flex items-center gap-3 rounded-lg bg-or-50/60 p-3">
+          <div className="flex-1 text-sm"><strong>Import automatique</strong><br /><span className="text-xs text-nuit-600">Toutes les 15 minutes ; une notification signale les nouvelles inscriptions.</span></div>
+          <Interrupteur actif={f.import_auto} onChange={(v) => enregistrer({ import_auto: v })} />
+        </div>
+        <button className="btn-clair w-full" onClick={importer} disabled={importe}>{importe ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}Importer maintenant</button>
+      </div>
+      <div className="space-y-5">
+        <div className="carte space-y-3 p-5">
+          <h2 className="text-xl font-semibold">Lien public du formulaire</h2>
+          <p className="text-xs text-nuit-600/70">Pour relancer les anciens. Dans Google Forms : bouton « Envoyer » → icône lien → copier (adresse qui commence par https://docs.google.com/forms/d/e/… ou https://forms.gle/…).</p>
+          <input className="champ" placeholder="https://forms.gle/…" value={f.lien_formulaire || ''} onChange={(e) => setF({ ...f, lien_formulaire: e.target.value })} />
         </div>
         <button className="btn-principal" onClick={() => enregistrer()} disabled={envoi}>{envoi && <Loader2 className="h-4 w-4 animate-spin" />}Enregistrer</button>
       </div>
