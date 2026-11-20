@@ -46,11 +46,11 @@ export const B14 = {
       paroisse: r.paroisse, diocese: r.diocese,
       annee: i.registre_annee || annee(d.date_celebration), acte: i.acte_numero || '',
       sexe: i.sexe || '',
-      confirme_le: d.type === 'catechumene' ? dateLongue(d.date_celebration) : dateLongue(i.confirmation_date),
+      confirme_le: d.type === 'catechumene' ? '' : dateLongue(i.confirmation_date),
       confirme_a: d.type === 'catechumene' ? [i.lieu_celebration, i.commune_celebration].filter(Boolean).join(', ') : i.confirmation_lieu || '',
       prenoms: enfant ? i.enfant_prenoms : i.prenoms, nom: String((enfant ? i.enfant_nom : i.nom) || '').toUpperCase(),
       ne_le: dateLongue(enfant ? i.enfant_naissance_date : i.naissance_date), ne_a: enfant ? i.enfant_naissance_lieu : i.naissance_lieu,
-      baptise_le: dateLongue(d.date_celebration), eglise: i.lieu_celebration || r.eglise, de: i.commune_celebration || r.commune,
+      baptise_le: d.type === 'catechumene' ? '' : dateLongue(d.date_celebration), eglise: i.lieu_celebration || r.eglise, de: i.commune_celebration || r.commune,
       diocese_de: i.diocese_celebration || r.diocese,
       marie_le: dateLongue(i.marie_religieusement_le), marie_a: i.marie_religieusement_a || '',
       fait_a: r.commune, fait_le: aujourdhui()

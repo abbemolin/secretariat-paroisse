@@ -10,7 +10,7 @@ var TYPES_DOSSIER = {
   bapteme: { nom: 'Baptême', dossier: 'Baptêmes', public: true },
   mariage: { nom: 'Mariage', dossier: 'Mariages', public: true },
   obseques: { nom: 'Obsèques', dossier: 'Obsèques', public: false },
-  catechumene: { nom: 'Catéchumène adulte', dossier: 'Catéchumènes', public: true },
+  catechumene: { nom: 'Catéchumène adulte', dossier: 'Catéchumènes', public: true, sansAgenda: true },  // seulement l'année des sacrements, aucun lien avec l'agenda
   confirmand: { nom: 'Confirmand adulte', dossier: 'Confirmands', public: true },
   premiere_communion: { nom: 'Première communion', dossier: 'Premières communions', public: true, collectif: true },
   profession_foi: { nom: 'Profession de foi', dossier: 'Professions de foi', public: true, collectif: true }
@@ -108,7 +108,7 @@ function dossierComplet_(d) {
 function lireDossier_(p, s) {
   var d = trouverDossier_(p.id);
   // Si l'événement a été déplacé directement dans Google Agenda, on reprend sa date.
-  var dateAgenda = dateEvenementDossier_(d);
+  var dateAgenda = TYPES_DOSSIER[d.type].sansAgenda ? null : dateEvenementDossier_(d);
   if (dateAgenda !== null && dateAgenda !== d.date_celebration) {
     verrou_(function () {
       d = trouverDossier_(p.id);
@@ -183,7 +183,7 @@ function modifierDossier_(p, s) {
 
     // Agenda public
     var lieu = (don.infos || {}).lieu_celebration;
-    if (!TYPES_DOSSIER[d.type].collectif && (d.date_celebration !== avant.date || lieu !== avant.lieu || d.etat !== avant.etat)) {
+    if (!TYPES_DOSSIER[d.type].collectif && !TYPES_DOSSIER[d.type].sansAgenda && (d.date_celebration !== avant.date || lieu !== avant.lieu || d.etat !== avant.etat)) {
       try {
         d.evenement_id = synchroniserEvenementDossier_(d);
         if (d.date_celebration !== avant.date) ajouterHistorique_(d, s.nom, d.date_celebration ? 'Date de célébration fixée (agenda public mis à jour)' : 'Date de célébration retirée');
@@ -248,6 +248,7 @@ function signerB6_(p, s) {
 function majDateDossierDepuisAgenda_(id, iso, lieu, s) {
   verrou_(function () {
     var d = trouverDossier_(id);
+    if (TYPES_DOSSIER[d.type].sansAgenda) return;
     d.date_celebration = iso;
     if (!iso) d.evenement_id = '';
     var don = json2_(d.donnees, {});

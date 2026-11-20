@@ -165,20 +165,22 @@ export default function Dossier() {
             </section>
           ) : (
           <section className="carte p-4">
-            <h2 className="mb-2 text-xl font-semibold">{d.type === 'catechumene' ? 'Date du baptême' : d.type === 'confirmand' ? 'Date de confirmation' : 'Date de célébration'}</h2>
+            <h2 className="mb-2 text-xl font-semibold">{d.type === 'catechumene' ? 'Année des sacrements' : d.type === 'confirmand' ? 'Date de confirmation' : 'Date de célébration'}</h2>
             {['catechumene', 'confirmand'].includes(d.type) && (
               <div className="mb-3">
-                <label className="etiquette">{d.type === 'confirmand' ? 'Année de la confirmation' : 'Année des sacrements (Pâques)'}</label>
+                {d.type === 'confirmand' ? <label className="etiquette">Année de la confirmation</label> : <p className="mb-1 text-xs text-nuit-600/70">Baptême, confirmation et eucharistie à la veillée pascale de l'année choisie.</p>}
                 <select className="champ" value={b.infos.annee_sacrements || ''} onChange={(e) => majInfo('annee_sacrements', e.target.value)}>
                   <option value="">{b.date_celebration ? `D'après la date : ${new Date(b.date_celebration).getFullYear()}` : 'Non fixée'}</option>
                   {choixAnnees().map((o) => <option key={o} value={o}>{o}</option>)}
                 </select>
-                <label className="etiquette mt-3">Date exacte</label>
+                {d.type === 'confirmand' && <label className="etiquette mt-3">Date exacte</label>}
               </div>
             )}
+            {d.type !== 'catechumene' && <>
             <input className="champ" type="datetime-local" value={b.date_celebration ? versLocal(b.date_celebration) : ''} onChange={(e) => changerDate(e.target.value)} />
             <p className="mt-2 flex gap-1.5 text-xs text-nuit-600/70"><Globe className="mt-0.5 h-3.5 w-3.5 shrink-0 text-or" />Publiée dans l'agenda public comme « {({ bapteme: 'Baptême', mariage: 'Mariage', obseques: 'Obsèques', catechumene: "Baptême d'adulte", confirmand: 'Confirmation' })[d.type]} », sans nom{b.infos.lieu_celebration ? `, lieu : ${b.infos.lieu_celebration}` : ''}.</p>
             {b.date_celebration && <p className="mt-1 text-sm font-medium capitalize">{jourLong(b.date_celebration)} à {heure(b.date_celebration)}</p>}
+            </>}
           </section>
           )}
 
