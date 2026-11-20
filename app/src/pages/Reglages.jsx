@@ -30,6 +30,7 @@ const CHAMPS_PAROISSE = [
   ['paroisse', 'Nom de la paroisse (formulaires B14, B6…)'], ['paroisse_courte', 'Nom court'], ['diocese', 'Diocèse'],
   ['commune', 'Commune (« fait à »)'], ['eglise', 'Église par défaut'], ['adresse', 'Adresse (signatures)'],
   ['site', 'Site (signatures)'], ['url_horaires', 'Page des horaires'],
+  ['url_formulaires', 'Adresse des formulaires envoyés par mail (ex. https://secretariat.croix-glorieuse.org/)'],
   ['url_rdv_cure', 'Prise de rendez-vous avec le curé – lien (première communion)'], ['url_rdv_cure_integre', 'Prise de rendez-vous avec le curé – adresse de la page intégrée (iframe)'], ['url_icones', 'Adresse des icônes de signature (facultatif)']
 ]
 

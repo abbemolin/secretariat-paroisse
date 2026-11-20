@@ -45,6 +45,7 @@ var REGLAGES_DEFAUT = {
   adresse: '2, quai Charles Frey 67000 Strasbourg',
   site: 'croix-glorieuse.org',
   url_horaires: 'https://www.croix-glorieuse.org/horaires',
+  url_formulaires: '',   // adresse du site des formulaires, ex. https://secretariat.croix-glorieuse.org/ (vide = hébergés avec l'appli)
   url_rdv_cure: 'https://calendar.app.google/B8m9xbUJEaXQSDQQA',   // prise de rendez-vous avec le curé (première communion)
   url_rdv_cure_integre: 'https://calendar.google.com/calendar/appointments/schedules/AcZssZ19XHvXRpcqqDx7pdnUvlmlmIJNzWLQ65CAx0cKZMInSlwRxZ3gbAtEGx4jf2OC1AdF1gm6yuIg?gv=true',
   signataires: '', // ids des utilisateurs autorisés à signer les extraits (vide = administrateurs et secrétaires)

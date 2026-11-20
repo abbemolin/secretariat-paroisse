@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Inscription à la profession de foi – Paroisse La Croix glorieuse</title>
+<link rel="icon" href="../logo-128.png">
+<style>body{margin:0;background:#faf7f2;font-family:Georgia,'Times New Roman',serif;color:#222}
+.entete{background:#521a22;color:#fff;padding:18px 20px;display:flex;align-items:center;gap:14px}
+.entete img{width:52px;height:52px;border-radius:50%;background:#fff}
+.entete b{font-size:20px;display:block} .entete span{font-size:13px;color:#e8c9a8}
+main{max-width:680px;margin:24px auto;background:#fff;border-radius:14px;padding:26px 22px;box-shadow:0 2px 14px rgba(82,26,34,.08)}
+main .cg-form{font-family:Arial,Helvetica,sans-serif}</style></head>
+<body><div class="entete"><img src="../logo-128.png" alt=""><div><b>Paroisse La Croix glorieuse</b><span>Strasbourg</span></div></div>
+<main><meta charset="utf-8">
+<!-- Formulaire « Inscription à la profession de foi » – Paroisse La Croix glorieuse. Les réponses arrivent dans l'appli du secrétariat. -->
+<div class="cg-form" id="cg-profession_foi">
+<style>
+#cg-profession_foi{font-family:inherit;max-width:640px;margin:0 auto;color:#222}
+#cg-profession_foi h2{margin:0 0 .4em;font-size:1.6em}
+#cg-profession_foi p.cg-intro{margin:0 0 1.4em;color:#555;line-height:1.5}
+#cg-profession_foi fieldset{border:0;padding:0;margin:0 0 1.2em}
+#cg-profession_foi legend{font-weight:bold;font-size:1.05em;margin-bottom:.6em;color:#521a22}
+#cg-profession_foi .cg-grille{display:grid;grid-template-columns:1fr 1fr;gap:.8em}
+#cg-profession_foi .cg-large{grid-column:1/-1}
+#cg-profession_foi label{display:block;font-size:.9em;margin-bottom:.25em;color:#444}
+#cg-profession_foi input,#cg-profession_foi textarea,#cg-profession_foi select{width:100%;box-sizing:border-box;padding:.65em .75em;border:1px solid #ccc;border-radius:6px;font:inherit;background:#fff}
+#cg-profession_foi input:focus,#cg-profession_foi textarea:focus{outline:2px solid #d08c4c55;border-color:#d08c4c}
+#cg-profession_foi textarea{min-height:110px}
+#cg-profession_foi .cg-req{color:#b33}
+#cg-profession_foi .cg-consent{display:flex;gap:.6em;align-items:flex-start;font-size:.9em;color:#444;margin:.4em 0 1.2em}
+#cg-profession_foi .cg-consent input{width:auto;margin-top:.2em}
+#cg-profession_foi button{background:#521a22;color:#fff;border:0;border-radius:6px;padding:.8em 1.6em;font:inherit;font-weight:bold;cursor:pointer}
+#cg-profession_foi button[disabled]{opacity:.6;cursor:wait}
+#cg-profession_foi .cg-msg{margin-top:1em;padding:.9em 1em;border-radius:6px;display:none;line-height:1.4}
+#cg-profession_foi .cg-ok{background:#e8f5ec;color:#1d5e33}
+#cg-profession_foi .cg-ko{background:#fdeceb;color:#8a1f17}
+#cg-profession_foi .cg-infos{background:#faf3ea;border-left:4px solid #d08c4c;border-radius:6px;padding:.9em 1em;margin:0 0 1.4em;line-height:1.5}
+#cg-profession_foi .cg-infos p{margin:.3em 0}
+#cg-profession_foi .cg-rdv{display:inline-block;margin-top:.4em;background:#521a22;color:#fff!important;text-decoration:none;padding:.55em 1em;border-radius:6px;font-weight:bold}
+#cg-profession_foi .cg-piege{position:absolute;left:-9999px;height:0;overflow:hidden}
+@media(max-width:560px){#cg-profession_foi .cg-grille{grid-template-columns:1fr}}
+</style>
+<h2>Inscription à la profession de foi</h2>
+<p class="cg-intro">La profession de foi se fait en classe de 3e. Inscrivez votre enfant ici, que la préparation ait lieu à la paroisse ou dans son école.</p>
+<div class="cg-infos" style="display:none"></div>
+<form novalidate>
+<fieldset><legend>L'enfant</legend><div class="cg-grille"><div class=""><label>Prénoms <span class="cg-req">*</span></label><input type="text" name="enfant_prenoms" required></div><div class=""><label>Nom <span class="cg-req">*</span></label><input type="text" name="enfant_nom" required></div><div class=""><label>Date de naissance <span class="cg-req">*</span></label><input type="date" name="enfant_naissance_date" required></div><div class=""><label>Lieu de naissance</label><input type="text" name="enfant_naissance_lieu"></div><div class=""><label>Classe (3e)</label><input type="text" name="classe"></div></div></fieldset>
+<fieldset><legend>La préparation</legend><div class="cg-grille"><div class=""><label>Lieu de préparation <span class="cg-req">*</span></label><select name="preparation" required><option value="">Choisir…</option><option>Paroisse</option><option>Saints Louis et Zélie Martin</option><option>Autre école</option></select></div><div class=""><label>Si autre école : laquelle ?</label><input type="text" name="ecole_autre"></div></div></fieldset>
+<fieldset><legend>Les parents</legend><div class="cg-grille"><div class=""><label>Prénom du père</label><input type="text" name="pere_prenom"></div><div class=""><label>Nom du père</label><input type="text" name="pere_nom"></div><div class=""><label>Prénom de la mère</label><input type="text" name="mere_prenom"></div><div class=""><label>Nom de jeune fille de la mère</label><input type="text" name="mere_nom_jeune_fille"></div><div class=""><label>Adresse</label><input type="text" name="adresse"></div><div class=""><label>Téléphone <span class="cg-req">*</span></label><input type="tel" name="telephone" required autocomplete="tel"></div><div class=""><label>E-mail <span class="cg-req">*</span></label><input type="email" name="email" required autocomplete="email"></div></div></fieldset>
+<fieldset><legend>Le baptême de l'enfant</legend><div class="cg-grille"><div class=""><label>Où l'enfant a-t-il été baptisé ? <span class="cg-req">*</span></label><select name="bapteme_ou" required><option value="">Choisir…</option><option>À la paroisse La Croix glorieuse</option><option>Dans une autre paroisse</option></select></div><div class=""><label>Date du baptême</label><input type="date" name="bapteme_date"></div><div class=""><label>Paroisse du baptême (ville et paroisse)</label><input type="text" name="bapteme_paroisse"></div><div class="cg-large cg-fichier"><label>Copie de l'acte de baptême (PDF ou photo, 10 Mo maximum) <span class="cg-req">*</span></label><input type="file" name="certificat" accept="application/pdf,image/*,.heic,.heif"><small style="display:block;color:#777;margin-top:.25em">Obligatoire, sauf si l'enfant a été baptisé à la paroisse La Croix glorieuse.</small></div><div class="cg-large"><label>Message (facultatif)</label><textarea name="message"></textarea></div></div></fieldset>
+<div class="cg-piege" aria-hidden="true"><label>Site web<input name="site_web" tabindex="-1" autocomplete="off"></label></div>
+<label class="cg-consent"><input type="checkbox" name="consentement" required> <span>J'accepte que la paroisse La Croix glorieuse utilise ces informations uniquement pour traiter ma demande. <span class="cg-req">*</span></span></label>
+<button type="submit">Envoyer ma demande</button>
+<div class="cg-msg"></div>
+</form>
+<script>
+(function(){
+  var URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzSjwHZONGGz0xfWXo_u4MJRYBon8eZZzyTvWNrgo6418zkoOXpzVDx3Q8nthP5rLAleg/exec";
+  var racine = document.getElementById('cg-profession_foi');
+  var form = racine.querySelector('form'), msg = racine.querySelector('.cg-msg'), bouton = form.querySelector('button');
+  // Lien envoyé par mail (écoles) : ?preparation=…&ecole=… pré-remplit le lieu de préparation
+  try {
+    var q = new URLSearchParams(location.search);
+    if (form.preparation && q.get('preparation')) { form.preparation.value = q.get('preparation'); }
+    if (form.ecole_autre && q.get('ecole')) { form.ecole_autre.value = q.get('ecole'); }
+  } catch (e) {}
+  var A_LA_PAROISSE = "À la paroisse La Croix glorieuse";
+  var AVEC_INFOS = true, NOM_CELEBRATION = "Profession de foi", infosRdv = null;
+  function echap(t){ return String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
+  // Date de la célébration de l'année (fixée dans l'appli), retraite, rendez-vous avec M. le curé
+  if (AVEC_INFOS) {
+    fetch(URL_SCRIPT, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'public.infos', payload: { type: 'profession_foi' } }) })
+      .then(function(r){ return r.json(); })
+      .then(function(r){
+        if (!r.ok) return;
+        var i = r.data, html = '';
+        if (i.date) {
+          var d = new Date(i.date), z = { timeZone: 'Europe/Paris' };
+          var jour = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Paris' });
+          var heure = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' }).replace(':', ' h ');
+          html += '<p><strong>' + NOM_CELEBRATION + ' ' + echap(i.annee) + ' :</strong> ' + echap(jour) + ' à ' + echap(heure) + (i.lieu ? ', ' + echap(i.lieu) : '') + '.</p>';
+        } else html += '<p><strong>' + NOM_CELEBRATION + ' ' + echap(i.annee) + ' :</strong> la date et l\'heure vous seront communiquées prochainement.</p>';
+        html += '<p>Les informations concernant la retraite vous seront communiquées plus tard.</p>';
+        if (i.rdv && i.rdv.url) {
+          infosRdv = i.rdv;
+          html += '<p><strong>Rendez-vous avec Monsieur le Curé :</strong> merci de vous inscrire rapidement.<br><a class="cg-rdv" href="' + echap(i.rdv.url) + '" target="_blank" rel="noopener">Prendre rendez-vous</a></p>';
+        }
+        var bloc = racine.querySelector('.cg-infos'); bloc.innerHTML = html; bloc.style.display = 'block';
+      }).catch(function(){});
+  }
+  function lireFichier(f){
+    return new Promise(function(ok, ko){
+      if (!f) return ok(null);
+      var r = new FileReader();
+      r.onload = function(){ ok({ nom: f.name, type: f.type || '', base64: String(r.result).split(',')[1] }); };
+      r.onerror = function(){ ko(new Error('Lecture du fichier impossible.')); };
+      r.readAsDataURL(f);
+    });
+  }
+  // Copie de l'acte de baptême : masquée si l'enfant a été baptisé à la paroisse
+  if (form.bapteme_ou && form.certificat) {
+    var bloc = form.certificat.closest('.cg-fichier');
+    var maj = function(){ bloc.style.display = form.bapteme_ou.value === A_LA_PAROISSE ? 'none' : ''; };
+    form.bapteme_ou.addEventListener('change', maj); maj();
+  }
+  function afficher(texte, ok){ msg.textContent = texte; msg.className = 'cg-msg ' + (ok ? 'cg-ok' : 'cg-ko'); msg.style.display = 'block'; }
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    var manque = Array.prototype.filter.call(form.querySelectorAll('[required]'), function(x){ return x.type === 'checkbox' ? !x.checked : !x.value.trim(); });
+    var fichier = form.certificat && form.certificat.files && form.certificat.files[0];
+    var sansCopie = form.bapteme_ou && form.bapteme_ou.value === A_LA_PAROISSE;
+    if (manque.length) { afficher('Merci de remplir les champs marqués d\'une étoile et d\'accepter l\'utilisation de vos données.', false); manque[0].focus(); return; }
+    if (form.pere_nom && !form.pere_nom.value.trim() && !form.mere_nom_jeune_fille.value.trim()) { afficher('Merci d\'indiquer au moins un des parents.', false); form.pere_prenom.focus(); return; }
+    if (form.preparation && form.preparation.value === 'Autre école' && !form.ecole_autre.value.trim()) { afficher('Merci de préciser le nom de l\'école.', false); form.ecole_autre.focus(); return; }
+    if (form.certificat && !sansCopie && !fichier) { afficher('Merci de joindre une copie de l\'acte de baptême (sauf si l\'enfant a été baptisé à la paroisse La Croix glorieuse).', false); form.certificat.focus(); return; }
+    if (fichier && fichier.size > 10 * 1024 * 1024) { afficher('Le fichier est trop lourd (10 Mo maximum).', false); form.certificat.focus(); return; }
+    if (fichier && !/pdf|image|heic|heif/i.test((fichier.type || '') + fichier.name)) { afficher('Merci de joindre un PDF ou une photo.', false); form.certificat.focus(); return; }
+    var email = form.querySelector('[name=email]');
+    if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.value.trim())) { afficher('Adresse e-mail invalide.', false); email.focus(); return; }
+    var champs = {};
+    Array.prototype.forEach.call(form.querySelectorAll('input[name],textarea[name],select[name]'), function(x){ if (x.name !== 'consentement' && x.name !== 'site_web' && x.type !== 'file') champs[x.name] = x.value.trim(); });
+    bouton.disabled = true; bouton.textContent = 'Envoi…';
+    lireFichier(sansCopie ? null : fichier).then(function(piece){
+      return fetch(URL_SCRIPT, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'public.demande', payload: { type: 'profession_foi', champs: champs, fichier: piece, consentement: true, site_web: form.site_web.value } }) });
+    })
+      .then(function(r){ return r.json(); })
+      .then(function(r){
+        if (!r.ok) throw new Error(r.message);
+        form.querySelectorAll('fieldset,.cg-consent,button').forEach(function(x){ x.style.display = 'none'; });
+        afficher('Merci ! Votre demande a bien été transmise au secrétariat de la paroisse. Nous vous recontacterons prochainement.', true);
+        if (infosRdv && infosRdv.integre) {
+          var r2 = document.createElement('div');
+          r2.innerHTML = '<p style="margin:1.4em 0 .6em;font-weight:bold;color:#521a22">Rendez-vous avec Monsieur le Curé : merci de vous inscrire rapidement.</p><iframe src="' + echap(infosRdv.integre) + '" style="border:0" width="100%" height="600" frameborder="0"></iframe>';
+          form.appendChild(r2);
+        }
+      })
+      .catch(function(err){
+        bouton.disabled = false; bouton.textContent = 'Envoyer ma demande';
+        afficher((err && err.message && err.message.length < 200 ? err.message : 'L\'envoi n\'a pas fonctionné.') + ' Vous pouvez aussi écrire à secretariat@croix-glorieuse.org.', false);
+      });
+  });
+})();
+</script>
+</div>
+</main></body></html>

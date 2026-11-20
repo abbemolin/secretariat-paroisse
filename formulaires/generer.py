@@ -241,6 +241,15 @@ def champ_html(ch):
     return f'<div class="{cls}"><label>{ch["label"]}{etoile}</label>{controle}</div>'
 
 sortie = pathlib.Path(__file__).parent
+SITE = sortie / "site"
+SITE.mkdir(exist_ok=True)
+(SITE / "CNAME").write_text("secretariat.croix-glorieuse.org\n", encoding="utf-8")
+(SITE / ".nojekyll").write_text("", encoding="utf-8")
+ACCUEIL = '<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Paroisse La Croix glorieuse</title><meta http-equiv="refresh" content="0; url=https://www.croix-glorieuse.org/"></head><body><a href="https://www.croix-glorieuse.org/">croix-glorieuse.org</a></body></html>\n'
+(SITE / "index.html").write_text(ACCUEIL, encoding="utf-8")
+(SITE / "404.html").write_text(ACCUEIL, encoding="utf-8")
+import shutil
+shutil.copy(sortie.parent / "app" / "public" / "logo-128.png", SITE / "logo-128.png")
 for type_, f in FORMULAIRES.items():
     groupes = "\n".join(
         f'<fieldset><legend>{titre}</legend><div class="cg-grille">' + "".join(champ_html(ch) for ch in champs) + "</div></fieldset>"
@@ -257,3 +266,8 @@ for type_, f in FORMULAIRES.items():
         dest.mkdir(parents=True, exist_ok=True)
         (dest / f"{type_}.html").write_text(page, encoding="utf-8")
         print("✓ app/public/formulaires/" + type_ + ".html")
+        # Site des formulaires à l'adresse de la paroisse (dépôt « formulaires », secretariat.croix-glorieuse.org)
+        slug = {"premiere_communion": "premiere-communion", "profession_foi": "profession-de-foi"}[type_]
+        (SITE / slug).mkdir(parents=True, exist_ok=True)
+        (SITE / slug / "index.html").write_text(page, encoding="utf-8")
+        print("✓ site/" + slug + "/")

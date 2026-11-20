@@ -214,7 +214,9 @@ function EnvoiFormulaire({ onFermer }) {
 
   function rediger() {
     const base = location.href.split('#')[0].replace(/[?].*$/, '').replace(/[^/]*$/, '')
-    let url = `${base}formulaires/${f.fichier}.html`
+    const slug = { premiere_communion: 'premiere-communion', profession_foi: 'profession-de-foi' }[type]
+    const site = String(reglages.url_formulaires || '').trim()
+    let url = site ? `${site.replace(/\/?$/, '/')}${slug}/` : `${base}formulaires/${f.fichier}.html`
     if (vers === 'ecole' && choisie) url += PREPARATIONS_CONNUES.includes(choisie.nom) ? `?preparation=${encodeURIComponent(choisie.nom)}` : `?preparation=${encodeURIComponent('Autre école')}&ecole=${encodeURIComponent(choisie.nom)}`
     // Date de la célébration de l'année, retraite, rendez-vous avec M. le curé (première communion)
     const annee = anneeScolaireActuelle()
