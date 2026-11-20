@@ -198,7 +198,7 @@ function Extrait({ id }) {
 
       {pad && <PadSignature nom={utilisateur.nom} onFermer={() => setPad(false)} onValider={signer} />}
       {mail && <Redaction mode="nouveau" a={x.valeurs?._demandeur || ''} sujet={`Extrait de baptême – ${x.nom}`}
-        corps={`Bonjour,\n\nVeuillez trouver ci-joint l'extrait de baptême de ${x.nom}.\n\nBien fraternellement,`}
+        corps={`Bonjour,\n\nVeuillez trouver ci-joint l'extrait de baptême de ${x.nom}.\n\nAvec l'assurance de nos prières à toutes vos intentions,`}
         envoiPersonnalise={async ({ a, sujet, corps, signature }) => api('extraits.envoyer', { id, a, sujet, corps, signatureMail: signature })}
         onFermer={() => setMail(false)} onEnvoye={(r) => { setMail(false); if (r?.envois) setX(r); notifier('Extrait envoyé') }}
         noteJointe={`Extrait de baptême – ${x.nom}.pdf (signé)`} />}

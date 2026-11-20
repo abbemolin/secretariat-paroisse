@@ -106,23 +106,46 @@ function piecesPourEnvoi_(p) {
   return blobs;
 }
 
-function corpsHtml_(texte, signature, bouton) {
-  var t = echapper_(texte || '').replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1">$1</a>').replace(/\n/g, '<br>');
-  var b = bouton && /^https:\/\//.test(bouton.url || '') ? '<p style="margin:22px 0"><a href="' + echapper_(bouton.url) + '" style="background:#521a22;color:#fff;text-decoration:none;padding:12px 22px;border-radius:8px;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;display:inline-block">' + echapper_(bouton.texte || 'Ouvrir') + '</a></p>' : '';
-  return '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222">' + t + b + '</div>' + (signature ? signatureHtml_(signature) : '');
+/** Boutons d'un mail : [{ texte, url, image }]. « [Bouton : texte] » dans le corps place le bouton à cet endroit ; sinon il va à la fin. */
+function listeBoutons_(b) { return (Array.isArray(b) ? b : b ? [b] : []).filter(function (x) { return x && /^https:\/\//.test(x.url || ''); }); }
+function boutonHtml_(b) {
+  var h = '<p style="margin:16px 0"><a href="' + echapper_(b.url) + '" style="background:#521a22;color:#fff;text-decoration:none;padding:12px 22px;border-radius:8px;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;display:inline-block">' + echapper_(b.texte || 'Ouvrir') + '</a></p>';
+  if (b.image && /^https:\/\//.test(b.image)) h += '<p style="margin:0 0 16px"><a href="' + echapper_(b.url) + '"><img src="' + echapper_(b.image) + '" width="480" alt="' + echapper_(b.texte || '') + '" style="max-width:100%;height:auto;border:0;border-radius:10px;display:block"></a></p>';
+  return h;
 }
-function corpsTexte_(texte, signatureCle) {
+function corpsHtml_(texte, signature, boutons) {
+  var bs = listeBoutons_(boutons), places = {};
+  var t = echapper_(texte || '').replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1">$1</a>');
+  t = t.replace(/\[Bouton : ([^\]\n]+)\]\n?/g, function (m, nom) {
+    var b = bs.filter(function (x) { return echapper_(x.texte) === nom.trim(); })[0];
+    if (!b) return m;
+    places[b.texte] = true;
+    return '</div>' + boutonHtml_(b) + '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222">';
+  }).replace(/\n/g, '<br>');
+  var fin = bs.filter(function (x) { return !places[x.texte]; }).map(boutonHtml_).join('');
+  return '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222">' + t + '</div>' + fin + (signature ? signatureHtml_(signature) : '');
+}
+function corpsTexte_(texte, signatureCle, boutons) {
+  var bs = listeBoutons_(boutons), places = {};
+  var t = String(texte || '').replace(/\[Bouton : ([^\]\n]+)\]/g, function (m, nom) {
+    var b = bs.filter(function (x) { return x.texte === nom.trim(); })[0];
+    if (!b) return m;
+    places[b.texte] = true;
+    return b.texte + ' : ' + b.url;
+  });
+  bs.forEach(function (b) { if (!places[b.texte]) t += '\n\n' + b.texte + ' : ' + b.url; });
   var sig = listerSignatures_().filter(function (x) { return x.cle === signatureCle; })[0];
   var r = reglages_();
-  return (texte || '') + (sig ? '\n\n' + [sig.nom, sig.fonction, sig.email, sig.telephone, r.adresse, r.site].filter(String).join('\n') : '');
+  return t + (sig ? '\n\n' + [sig.nom, sig.fonction, sig.email, sig.telephone, r.adresse, r.site].filter(String).join('\n') : '');
 }
 
 /** Envoi d'un nouveau mail ou d'une réponse (p.filId). Retourne l'id du fil. */
 function envoyerMail_(p, s) {
   var opts = optionsEnvoi_();
-  opts.htmlBody = corpsHtml_(p.corps, p.signature, p.bouton);
+  var boutons = p.boutons || p.bouton;
+  opts.htmlBody = corpsHtml_(p.corps, p.signature, boutons);
   opts.attachments = piecesPourEnvoi_(p);
-  var texte = corpsTexte_(p.corps + (p.bouton && p.bouton.url ? '\n\n' + (p.bouton.texte || '') + ' : ' + p.bouton.url : ''), p.signature);
+  var texte = corpsTexte_(p.corps, p.signature, boutons);
   var message;
   if (p.filId) {
     var t = GmailApp.getThreadById(p.filId);

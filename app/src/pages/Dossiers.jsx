@@ -222,12 +222,15 @@ function EnvoiFormulaire({ onFermer }) {
     const quand = promo?.date
       ? `La ${f.nom.toLowerCase()} (année ${annee}) aura lieu le ${new Date(promo.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} à ${heure(promo.date).replace(':', ' h ')}${promo.lieu ? ', ' + promo.lieu : ''}.`
       : `La date et l'heure de la ${f.nom.toLowerCase()} (année ${annee}) vous seront communiquées prochainement.`
+    const B_FORM = "Remplir le formulaire d'inscription", B_RDV = 'Prendre rendez-vous avec Monsieur le Curé'
+    const rdv = type === 'premiere_communion' && reglages.url_rdv_cure
     const infos = `${quand}\nLes informations concernant la retraite vous seront communiquées plus tard.` +
-      (type === 'premiere_communion' && reglages.url_rdv_cure ? `\n\nRendez-vous avec Monsieur le Curé : les parents et l'enfant sont invités à le rencontrer. Merci de vous inscrire rapidement ici :\n${reglages.url_rdv_cure}` : '')
+      (rdv ? `\n\nRendez-vous avec Monsieur le Curé : merci de vous inscrire rapidement ici :\n[Bouton : ${B_RDV}]` : '')
     const corps = vers === 'ecole'
-      ? `Bonjour,\n\nPour l'inscription des enfants de votre établissement à la ${f.nom.toLowerCase()}, voici le formulaire à transmettre aux familles. Il suffit de cliquer sur le bouton ci-dessous ; les réponses arrivent directement au secrétariat de la paroisse. Une copie de l'acte de baptême de l'enfant est demandée (sauf baptême à la paroisse La Croix glorieuse).\n\n${infos}\n\nMerci beaucoup pour votre aide, bien fraternellement,`
-      : `Bonjour,\n\nPour inscrire votre enfant à la ${f.nom.toLowerCase()}, merci de remplir le formulaire en cliquant sur le bouton ci-dessous, en joignant une copie de son acte de baptême (sauf baptême à la paroisse La Croix glorieuse). Votre demande arrivera directement au secrétariat de la paroisse.\n\n${infos}\n\nBien fraternellement,`
-    setRedaction({ a: vers === 'ecole' ? choisie?.email || '' : email, sujet: `Inscription à la ${f.nom.toLowerCase()}`, corps, bouton: { texte: "Remplir le formulaire d'inscription", url } })
+      ? `Bonjour,\n\nPour l'inscription des enfants de votre établissement à la ${f.nom.toLowerCase()}, voici le formulaire à transmettre aux familles. Il suffit de cliquer sur le bouton ci-dessous ; les réponses arrivent directement au secrétariat de la paroisse. Une copie de l'acte de baptême de l'enfant est demandée (sauf baptême à la paroisse La Croix glorieuse).\n[Bouton : ${B_FORM}]\n\n${infos}\n\nMerci beaucoup pour votre aide.\n\nAvec l'assurance de nos prières à toutes vos intentions,`
+      : `Bonjour,\n\nPour inscrire votre enfant à la ${f.nom.toLowerCase()}, merci de remplir le formulaire en cliquant sur le bouton ci-dessous, en joignant une copie de son acte de baptême (sauf baptême à la paroisse La Croix glorieuse). Votre demande arrivera directement au secrétariat de la paroisse.\n[Bouton : ${B_FORM}]\n\n${infos}\n\nAvec l'assurance de nos prières à toutes vos intentions,`
+    const boutons = [{ texte: B_FORM, url }, ...(rdv ? [{ texte: B_RDV, url: reglages.url_rdv_cure, image: `${base}mail/rdv-cure.png` }] : [])]
+    setRedaction({ a: vers === 'ecole' ? choisie?.email || '' : email, sujet: `Inscription à la ${f.nom.toLowerCase()}`, corps, boutons })
   }
   if (redaction) return <Redaction mode="nouveau" {...redaction} onFermer={onFermer} onEnvoye={() => { onFermer(); notifier('Formulaire envoyé') }} />
   return (

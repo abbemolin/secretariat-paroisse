@@ -35,10 +35,10 @@ const etat = {
     { cle: 'vicaire', nom: 'Abbé Guillaume LE GALL', fonction: 'Vicaire', email: 'secretariat@croix-glorieuse.org', telephone: '03 88 36 08 42' }
   ],
   reponses: [
-    { cle: 'accuse_bapteme', titre: 'Accusé de réception – baptême', sujet: 'Votre demande de baptême', corps: "Bonjour,\n\nNous avons bien reçu votre demande de baptême pour {nom} et nous nous en réjouissons avec vous.\n\nNous vous recontacterons prochainement pour convenir d'une rencontre de préparation.\n\nBien fraternellement," },
-    { cle: 'accuse_mariage', titre: 'Accusé de réception – mariage', sujet: 'Votre demande de mariage', corps: 'Bonjour,\n\nNous avons bien reçu votre demande de mariage ({nom}) et nous nous en réjouissons avec vous.\n\nBien fraternellement,' },
-    { cle: 'horaires', titre: 'Horaires de la paroisse', sujet: 'Horaires de la paroisse La Croix glorieuse', corps: 'Bonjour,\n\nVous trouverez les horaires, toujours à jour, sur notre site :\n{url_horaires}\n\nBien fraternellement,' },
-    { cle: 'document_manquant', titre: 'Document manquant', sujet: 'Dossier de {type} – document(s) à fournir', corps: 'Bonjour,\n\nPour compléter le dossier de {type} ({nom}), il nous manque encore :\n{documents_manquants}\n\nMerci d\'avance, bien fraternellement,' }
+    { cle: 'accuse_bapteme', titre: 'Accusé de réception – baptême', sujet: 'Votre demande de baptême', corps: "Bonjour,\n\nNous avons bien reçu votre demande de baptême pour {nom} et nous nous en réjouissons avec vous.\n\nNous vous recontacterons prochainement pour convenir d'une rencontre de préparation.\n\nAvec l'assurance de nos prières à toutes vos intentions," },
+    { cle: 'accuse_mariage', titre: 'Accusé de réception – mariage', sujet: 'Votre demande de mariage', corps: 'Bonjour,\n\nNous avons bien reçu votre demande de mariage ({nom}) et nous nous en réjouissons avec vous.\n\nAvec l\'assurance de nos prières à toutes vos intentions,' },
+    { cle: 'horaires', titre: 'Horaires de la paroisse', sujet: 'Horaires de la paroisse La Croix glorieuse', corps: 'Bonjour,\n\nVous trouverez les horaires, toujours à jour, sur notre site :\n{url_horaires}\n\nAvec l\'assurance de nos prières à toutes vos intentions,' },
+    { cle: 'document_manquant', titre: 'Document manquant', sujet: 'Dossier de {type} – document(s) à fournir', corps: 'Bonjour,\n\nPour compléter le dossier de {type} ({nom}), il nous manque encore :\n{documents_manquants}\n\nMerci d\'avance.\n\nAvec l\'assurance de nos prières à toutes vos intentions,' }
   ],
   notifications: [
     { id: 'n1', date: jour(0, 10, 13), titre: 'Nouvelle demande : Baptême', texte: 'Louise WEBER', lien: '#/dossiers/d1', lu: false },

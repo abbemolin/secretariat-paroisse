@@ -162,7 +162,7 @@ function Reponses() {
         </div>
       ))}
       <div className="flex gap-2">
-        <button className="btn-clair" onClick={() => setListe([...liste, { cle: 'rep' + Date.now(), titre: 'Nouvelle réponse', sujet: '', corps: 'Bonjour,\n\n\n\nBien fraternellement,' }])}><Plus className="h-4 w-4" />Ajouter</button>
+        <button className="btn-clair" onClick={() => setListe([...liste, { cle: 'rep' + Date.now(), titre: 'Nouvelle réponse', sujet: '', corps: 'Bonjour,\n\n\n\nAvec l\'assurance de nos prières à toutes vos intentions,' }])}><Plus className="h-4 w-4" />Ajouter</button>
         <button className="btn-principal" onClick={enregistrer} disabled={envoi}>{envoi && <Loader2 className="h-4 w-4 animate-spin" />}Enregistrer</button>
       </div>
     </div>

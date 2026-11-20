@@ -417,7 +417,20 @@ function signatureHtml_(cle) {
     '</table>';
 }
 
-function listerReponses_() { return json2_(props_().getProperty('REPONSES'), []); }
+var FORMULE_FIN = 'Avec l\'assurance de nos prières à toutes vos intentions,';
+function avecFormuleFin_(t) {
+  return String(t || '').replace(/,\s*bien fraternellement,/gi, '.\n\n' + FORMULE_FIN).replace(/Bien fraternellement,/g, FORMULE_FIN);
+}
+function listerReponses_() {
+  var l = json2_(props_().getProperty('REPONSES'), []);
+  // Une seule fois : « Bien fraternellement, » devient la formule de la paroisse dans les réponses types enregistrées
+  if (!props_().getProperty('FORMULE_FIN_OK')) {
+    l = l.map(function (x) { x.corps = avecFormuleFin_(x.corps); return x; });
+    props_().setProperty('REPONSES', JSON.stringify(l));
+    props_().setProperty('FORMULE_FIN_OK', '1');
+  }
+  return l;
+}
 function ecrireReponses_(p, s) {
   var liste = (p.reponses || []).map(function (x) {
     return { cle: x.cle || uid_(), titre: String(x.titre || ''), sujet: String(x.sujet || ''), corps: String(x.corps || '') };

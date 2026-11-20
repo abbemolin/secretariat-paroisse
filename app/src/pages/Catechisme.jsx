@@ -132,8 +132,8 @@ function MailParents({ ids, individuel, nomListe, onFermer }) {
   const notifier = useNotif()
   const sujet = individuel ? 'Catéchisme – inscription de {enfants}' : `Catéchisme – ${nomListe}`
   const corps = individuel
-    ? 'Bonjour,\n\nSauf erreur de notre part, il reste {reste} à régler pour l\'inscription au catéchisme de {enfants} :\n{detail}\n\nVous pouvez régler au secrétariat (espèces ou chèque à l\'ordre de la paroisse) ou par virement.\n\nMerci beaucoup, bien fraternellement,'
-    : 'Bonjour,\n\n\n\nBien fraternellement,'
+    ? 'Bonjour,\n\nSauf erreur de notre part, il reste {reste} à régler pour l\'inscription au catéchisme de {enfants} :\n{detail}\n\nVous pouvez régler au secrétariat (espèces ou chèque à l\'ordre de la paroisse) ou par virement.\n\nMerci beaucoup.\n\nAvec l\'assurance de nos prières à toutes vos intentions,'
+    : 'Bonjour,\n\n\n\nAvec l\'assurance de nos prières à toutes vos intentions,'
   return (
     <Redaction mode="nouveau" sujet={sujet} corps={corps}
       destinataires={individuel ? `Un mail personnel à chaque famille qui doit encore régler (${ids.length} enfant${ids.length > 1 ? 's' : ''}). {enfants}, {reste} et {detail} sont remplis pour chacune.` : `Parents — ${nomListe} (${ids.length} enfant${ids.length > 1 ? 's' : ''}), en copie cachée`}

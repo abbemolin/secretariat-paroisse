@@ -95,8 +95,8 @@ export default function Dossier() {
     const i = b.infos
     const quand = b.date_celebration ? `le ${dateCourte(b.date_celebration)}` : ''
     const corps = d.type === 'mariage'
-      ? `Bonjour,\n\nNous vous informons du mariage de ${d.nom}, célébré ${quand} (${i.lieu_celebration || app.reglages.paroisse}), inscrit au registre des mariages ${i.registre_annee || ''} sous l'acte n° ${i.acte_numero || '…'}.\n\nMerci de bien vouloir en porter mention en marge de l'acte de baptême.\n\nBien fraternellement,`
-      : `Bonjour,\n\nNous vous informons de la confirmation de ${d.nom}, célébrée ${quand} (${i.lieu_celebration || ''}), inscrite au registre des confirmations ${i.registre_annee || ''} sous l'acte n° ${i.acte_numero || '…'}.\n\nBaptême : ${i.bapteme_paroisse || '…'}, le ${i.bapteme_date ? dateCourte(i.bapteme_date) : '…'}.\n\nMerci de bien vouloir en porter mention en marge de l'acte de baptême.\n\nBien fraternellement,`
+      ? `Bonjour,\n\nNous vous informons du mariage de ${d.nom}, célébré ${quand} (${i.lieu_celebration || app.reglages.paroisse}), inscrit au registre des mariages ${i.registre_annee || ''} sous l'acte n° ${i.acte_numero || '…'}.\n\nMerci de bien vouloir en porter mention en marge de l'acte de baptême.\n\nAvec l'assurance de nos prières à toutes vos intentions,`
+      : `Bonjour,\n\nNous vous informons de la confirmation de ${d.nom}, célébrée ${quand} (${i.lieu_celebration || ''}), inscrite au registre des confirmations ${i.registre_annee || ''} sous l'acte n° ${i.acte_numero || '…'}.\n\nBaptême : ${i.bapteme_paroisse || '…'}, le ${i.bapteme_date ? dateCourte(i.bapteme_date) : '…'}.\n\nMerci de bien vouloir en porter mention en marge de l'acte de baptême.\n\nAvec l'assurance de nos prières à toutes vos intentions,`
     ouvrirMail({ a: '', sujet: d.type === 'mariage' ? `Notification de mariage – ${d.nom}` : `Notification de confirmation – ${d.nom}`, corps })
   }
 
@@ -189,7 +189,7 @@ export default function Dossier() {
               etapes: ev && !b.etapes.rdv_cure?.fait ? { ...b.etapes, rdv_cure: { fait: true, date: new Date().toISOString(), par: app.utilisateur.nom, libelle: 'Rendez-vous avec le curé' } } : b.etapes })}
             onRappel={() => ouvrirMail({
               sujet: `Rappel : rendez-vous avec M. le curé – première communion de ${b.infos.enfant_prenoms || d.nom}`,
-              corps: `Bonjour,\n\nNous vous rappelons votre rendez-vous avec M. le curé, dans le cadre de la préparation à la première communion de ${b.infos.enfant_prenoms || d.nom} :\n\n${jourLong(b.infos.rdv_cure_date).replace(/^./, (c) => c.toUpperCase())} à ${heure(b.infos.rdv_cure_date)}${b.infos.rdv_cure_lieu ? '\n' + b.infos.rdv_cure_lieu : ''}\n\nEn cas d'empêchement, merci de nous prévenir en répondant à ce message.\n\nBien fraternellement,`
+              corps: `Bonjour,\n\nNous vous rappelons votre rendez-vous avec M. le curé, dans le cadre de la préparation à la première communion de ${b.infos.enfant_prenoms || d.nom} :\n\n${jourLong(b.infos.rdv_cure_date).replace(/^./, (c) => c.toUpperCase())} à ${heure(b.infos.rdv_cure_date)}${b.infos.rdv_cure_lieu ? '\n' + b.infos.rdv_cure_lieu : ''}\n\nEn cas d'empêchement, merci de nous prévenir en répondant à ce message.\n\nAvec l'assurance de nos prières à toutes vos intentions,`
             })} />}
 
           {documentsDe(d.type, b.infos).length > 0 && (

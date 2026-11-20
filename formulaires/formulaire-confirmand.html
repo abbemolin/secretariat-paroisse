@@ -67,7 +67,7 @@
         html += '<p>Les informations concernant la retraite vous seront communiquées plus tard.</p>';
         if (i.rdv && i.rdv.url) {
           infosRdv = i.rdv;
-          html += '<p><strong>Rendez-vous avec Monsieur le Curé</strong> (les parents et l\'enfant) : merci de vous inscrire rapidement.<br><a class="cg-rdv" href="' + echap(i.rdv.url) + '" target="_blank" rel="noopener">Prendre rendez-vous</a></p>';
+          html += '<p><strong>Rendez-vous avec Monsieur le Curé :</strong> merci de vous inscrire rapidement.<br><a class="cg-rdv" href="' + echap(i.rdv.url) + '" target="_blank" rel="noopener">Prendre rendez-vous</a></p>';
         }
         var bloc = racine.querySelector('.cg-infos'); bloc.innerHTML = html; bloc.style.display = 'block';
       }).catch(function(){});
@@ -115,7 +115,7 @@
         afficher('Merci ! Votre demande a bien été transmise au secrétariat de la paroisse. Nous vous recontacterons prochainement.', true);
         if (infosRdv && infosRdv.integre) {
           var r2 = document.createElement('div');
-          r2.innerHTML = '<p style="margin:1.4em 0 .6em;font-weight:bold;color:#521a22">Prenez dès maintenant rendez-vous avec Monsieur le Curé (les parents et l\'enfant) :</p><iframe src="' + echap(infosRdv.integre) + '" style="border:0" width="100%" height="600" frameborder="0"></iframe>';
+          r2.innerHTML = '<p style="margin:1.4em 0 .6em;font-weight:bold;color:#521a22">Rendez-vous avec Monsieur le Curé : merci de vous inscrire rapidement.</p><iframe src="' + echap(infosRdv.integre) + '" style="border:0" width="100%" height="600" frameborder="0"></iframe>';
           form.appendChild(r2);
         }
       })

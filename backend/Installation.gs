@@ -29,19 +29,19 @@ var REPONSES_DEFAUT = [
       'Pour préparer le dossier, merci de nous faire parvenir dès que possible :\n' +
       '- le certificat de baptême (ou de confirmation) du parrain et de la marraine ;\n' +
       '- si vous n\'habitez pas sur le territoire de la paroisse, l\'autorisation de votre paroisse.\n\n' +
-      'Bien fraternellement,' },
+      'Avec l\'assurance de nos prières à toutes vos intentions,' },
   { cle: 'accuse_mariage', titre: 'Accusé de réception – mariage', sujet: 'Votre demande de mariage',
     corps: 'Bonjour,\n\nNous avons bien reçu votre demande de mariage ({nom}) et nous nous en réjouissons avec vous.\n\n' +
       'Un prêtre vous recontactera prochainement pour un premier rendez-vous. Nous vous présenterons alors le chemin de préparation ' +
       'et les documents à réunir (notamment un acte de baptême de moins de six mois pour chacun).\n\n' +
-      'Bien fraternellement,' },
+      'Avec l\'assurance de nos prières à toutes vos intentions,' },
   { cle: 'horaires', titre: 'Horaires de la paroisse', sujet: 'Horaires de la paroisse La Croix glorieuse',
     corps: 'Bonjour,\n\nVous trouverez les horaires des messes, des confessions et des permanences, toujours à jour, sur notre site :\n{url_horaires}\n\n' +
-      'Bien fraternellement,' },
+      'Avec l\'assurance de nos prières à toutes vos intentions,' },
   { cle: 'document_manquant', titre: 'Document manquant', sujet: 'Dossier de {type} – document(s) à fournir',
     corps: 'Bonjour,\n\nPour compléter le dossier de {type} ({nom}), il nous manque encore :\n{documents_manquants}\n\n' +
       'Vous pouvez nous les envoyer en réponse à ce message ou les déposer au secrétariat.\n\n' +
-      'Merci d\'avance, bien fraternellement,' }
+      'Merci d\'avance.\n\nAvec l\'assurance de nos prières à toutes vos intentions,' }
 ];
 
 function installer() {
