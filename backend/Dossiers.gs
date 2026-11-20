@@ -104,7 +104,13 @@ function listerDossiers_(p) {
   var ds = lignes_('Dossiers');
   if (p.type) ds = ds.filter(function (x) { return x.type === p.type; });
   if (p.etat) ds = ds.filter(function (x) { return x.etat === p.etat; });
-  return ds.sort(function (a, b) { return String(b.maj_le).localeCompare(String(a.maj_le)); }).map(dossierResume_);
+  var frat = {};
+  if (ds.some(function (x) { return TYPES_LIES_COR.indexOf(x.type) > -1; })) { try { frat = fraternitesDesDossiers_(); } catch (e) { frat = {}; } }
+  return ds.sort(function (a, b) { return String(b.maj_le).localeCompare(String(a.maj_le)); }).map(function (d) {
+    var r = dossierResume_(d);
+    if (frat[d.id]) r.fraternite = frat[d.id];
+    return r;
+  });
 }
 
 function dossierComplet_(d) {

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Download, HeartHandshake, Loader2, Mail, Plus, Search, Trash2, UserPlus, Users, Crown, Check, BellRing, Pencil, FolderHeart, CalendarPlus, Sparkles, Import, MessageSquare, Link2, Copy, RefreshCw, Send, CalendarDays } from 'lucide-react'
 import { api } from '../api.js'
-import { TYPES } from '../types.js'
+import { TYPES, prochaineEtape, ETATS } from '../types.js'
 import { Chargement, Erreur, Modale, Vide, useCharger, useNotif, useConfirmer, useDifferer, enSuppression, Aide } from '../ui.jsx'
 import { Redaction } from './Courrier.jsx'
 
@@ -217,7 +217,7 @@ export default function CorUnum() {
           )}
         </>
       )}
-      {fiche && <Fiche m={fiche} annee={data?.annee} equipes={equipes} profils={data?.profils || []} onFermer={() => { setFiche(null); if (params.get('fiche')) changer({ fiche: '' }) }} onMaj={(r) => { setData(r); setFiche(null) }}
+      {fiche && <Fiche m={fiche} annee={data?.annee} equipes={equipes} profils={data?.profils || []} onFermer={() => { setFiche(null); if (params.get('fiche')) changer({ fiche: '' }) }} onMaj={(r) => { setData(r); setFiche(null) }} onLiens={(r) => setData(r)}
         onSupprimer={(m) => { setFiche(null); differer(`${nomComplet(m)} retiré(e) des fraternités`, async () => setData(await api('cor.supprimer', { id: m.id, annee: data.annee })), { ids: [m.id], onAnnule: () => setData((d) => ({ ...d })) }); setData((d) => ({ ...d })) }} />}
       {equipeEdit && <EquipeEdit e={equipeEdit} annee={data.annee} membres={actifs} onFermer={() => setEquipeEdit(null)} onMaj={(r) => { setData(r); setEquipeEdit(null); notifier('Fraternité enregistrée') }} />}
       {fil && <Fil e={fil} annee={data.annee} onFermer={() => { setFil(null); recharger() }} />}
@@ -276,13 +276,25 @@ function EquipeEdit({ e, annee, membres, onFermer, onMaj }) {
 
 const CHAMPS_FICHE = [['prenoms', 'Prénom(s) — « Paul et Marie » pour un foyer'], ['nom', 'Nom'], ['email', 'E-mail(s)'], ['telephone', 'Téléphone'], ['adresse', 'Adresse'], ['situation', 'Situation (marié, célibataire…)']]
 
-function Fiche({ m, annee, equipes, profils, onFermer, onMaj, onSupprimer }) {
+function Fiche({ m, annee, equipes, profils, onFermer, onMaj, onSupprimer, onLiens }) {
   const confirmer = useConfirmer()
   const nouveau = !!m.nouveau && !m.id
   const [v, setV] = useState(nouveau ? { prenoms: '', nom: '', email: '', telephone: '', adresse: '', situation: '', profils: [], equipe_id: '', statut: 'actif', note: '', souhait: '', chef_possible: false } : { ...m })
   const [envoi, setEnvoi] = useState(false)
   const [erreur, setErreur] = useState(null)
+  const [liens, setLiens] = useState({ dossiers: m.dossiers || [], auto: m.profils_auto || [] })
+  const [choix, setChoix] = useState(false)
   const maj = (k, val) => setV({ ...v, [k]: val })
+  const notifierL = useNotif()
+  async function lier(dossierId, delier, message) {
+    try {
+      await api('cor.relier', { fiche_id: m.id, dossier_id: dossierId, delier })
+      const r = await api('cor.liste', { annee }); onLiens?.(r)
+      const x = r.membres.find((y) => y.id === m.id)
+      if (x) { setLiens({ dossiers: x.dossiers, auto: x.profils_auto }); setV((w) => ({ ...w, profils: x.profils })) }
+      notifierL(message, 'ok', delier ? { action: { label: 'Annuler', fn: () => lier(dossierId, false, 'Lien rétabli') } } : {})
+    } catch (err) { notifierL(err.message, 'erreur') }
+  }
   async function enregistrer() {
     setEnvoi(true); setErreur(null)
     try {
@@ -302,20 +314,67 @@ function Fiche({ m, annee, equipes, profils, onFermer, onMaj, onSupprimer }) {
           <div><label className="etiquette">Fraternité</label><select className="champ" value={v.equipe_id || ''} onChange={(e) => maj('equipe_id', e.target.value)}><option value="">À répartir</option>{equipes.map((e) => <option key={e.id} value={e.id}>{e.nom}{e.id === m.equipe_proposee ? ' (proposée)' : ''}</option>)}</select></div>
           <div><label className="etiquette">Statut</label><select className="champ" value={v.statut || 'actif'} onChange={(e) => maj('statut', e.target.value)}><option value="actif">Inscrit cette année</option><option value="ancien">Ancien, pas encore réinscrit</option></select></div>
           <div><label className="etiquette">Profil</label><div className="flex flex-wrap gap-1.5">{profils.map((p) => (
-            <label key={p} className={`pastille cursor-pointer gap-1 border py-1 ${v.profils.includes(p) ? 'border-transparent ' + COULEURS_PROFILS[p] : 'border-nuit-100 bg-white text-nuit-600'}`}><input type="checkbox" className="hidden" checked={v.profils.includes(p)} onChange={(e) => maj('profils', e.target.checked ? [...v.profils, p] : v.profils.filter((x) => x !== p))} />{p}</label>
-          ))}</div></div>
+            liens.dossiers.length > 0 && ['Catéchumène', 'Néophyte', 'Confirmand'].includes(p)
+              ? <span key={p} title="D'après le dossier" className={`pastille gap-1 border py-1 ${liens.auto.includes(p) ? 'border-transparent ' + COULEURS_PROFILS[p] : 'border-dashed border-nuit-100 bg-white text-nuit-600/40'}`}>{p}{liens.auto.includes(p) && <FolderHeart className="h-3 w-3" />}</span>
+              : <label key={p} className={`pastille cursor-pointer gap-1 border py-1 ${v.profils.includes(p) ? 'border-transparent ' + COULEURS_PROFILS[p] : 'border-nuit-100 bg-white text-nuit-600'}`}><input type="checkbox" className="hidden" checked={v.profils.includes(p)} onChange={(e) => maj('profils', e.target.checked ? [...v.profils, p] : v.profils.filter((x) => x !== p))} />{p}</label>
+          ))}</div>
+            {liens.dossiers.length > 0 && <p className="mt-1 text-[11px] text-nuit-600/60">Catéchumène, néophyte et confirmand suivent le dossier.</p>}</div>
+          {!nouveau && (
+            <div className="rounded-xl border border-rose-200 bg-rose-50/60 p-3">
+              <div className="mb-1.5 flex items-center justify-between gap-2"><span className="etiquette mb-0">Dossier de sacrement</span>
+                <button className="btn-clair px-2.5 py-1 text-xs" onClick={() => setChoix(true)}><Link2 className="h-3.5 w-3.5" />{liens.dossiers.length ? 'Relier un autre' : 'Relier à un dossier'}</button></div>
+              {!liens.dossiers.length ? <p className="text-sm text-nuit-600/70">Aucun dossier de catéchumène ou de confirmand trouvé.</p> : liens.dossiers.map((d) => {
+                const pe = d.etat === 'ouvert' ? prochaineEtape(d.type, d.etapes || [], {}) : null
+                return (
+                  <div key={d.id} className="flex flex-wrap items-center gap-2 py-1 text-sm">
+                    <Link to={`/dossiers/${d.id}`} className="pastille gap-1 border bg-white py-0.5 hover:underline" style={{ borderColor: TYPES[d.type]?.couleur, color: TYPES[d.type]?.couleur }}><FolderHeart className="h-3 w-3" />{TYPES[d.type]?.nom}</Link>
+                    <span className="flex-1 text-xs text-nuit-600">{d.etat !== 'ouvert' ? ETATS[d.etat] : pe ? '→ ' + pe.label : 'Toutes les étapes faites'}{d.mode === 'auto' && <span className="text-nuit-600/50"> · reconnu par le nom</span>}</span>
+                    <button className="btn-clair px-2 py-0.5 text-xs" onClick={() => lier(d.id, true, 'Lien avec le dossier défait')}>Délier</button>
+                  </div>
+                )
+              })}
+            </div>
+          )}
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!v.chef_possible} onChange={(e) => maj('chef_possible', e.target.checked)} />Peut devenir chef de fraternité</label>
           <div><label className="etiquette">Souhaite retrouver</label><input className="champ" value={v.souhait || ''} onChange={(e) => maj('souhait', e.target.value)} /></div>
           <div><label className="etiquette">Note</label><textarea className="champ min-h-[60px]" value={v.note || ''} onChange={(e) => maj('note', e.target.value)} /></div>
           {!nouveau && (
             <div className="rounded-lg bg-nuit-50/60 p-3 text-xs text-nuit-600">
               {[['Déjà participé l\'an dernier', m.deja_participe], ['Rester dans la même équipe', m.rester], ['Chef indiqué', m.chef_indique], ['Groupe / service à la paroisse', m.groupe_service]].filter(([, x]) => x).map(([l, x]) => <div key={l}>{l} : <strong>{x}</strong></div>)}
-              {m.dossiers?.length > 0 && <div className="mt-1.5 flex flex-wrap gap-1">{m.dossiers.map((d) => <Link key={d.id} to={`/dossiers/${d.id}`} className="pastille gap-1 border bg-white py-0.5" style={{ borderColor: TYPES[d.type]?.couleur, color: TYPES[d.type]?.couleur }}><FolderHeart className="h-3 w-3" />Dossier {TYPES[d.type]?.nom}</Link>)}</div>}
             </div>
           )}
         </div>
       </div>
       <div className="mt-3"><Erreur erreur={erreur} /></div>
+      {choix && <ChoixDossier nom={nomComplet(m)} deja={liens.dossiers.map((d) => d.id)} onFermer={() => setChoix(false)} onChoisir={(id) => { setChoix(false); lier(id, false, 'Dossier relié') }} />}
+    </Modale>
+  )
+}
+
+function ChoixDossier({ nom, deja, onFermer, onChoisir }) {
+  const [liste, setListe] = useState(null)
+  const [erreur, setErreur] = useState(null)
+  const [texte, setTexte] = useState('')
+  useEffect(() => { api('dossiers.liste', {}).then((l) => setListe(l.filter((d) => ['catechumene', 'confirmand'].includes(d.type)))).catch(setErreur) }, [])
+  const sa = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const vus = (liste || []).filter((d) => !texte || sa(`${d.nom} ${d.email}`).includes(sa(texte)))
+  return (
+    <Modale titre={`Relier ${nom} à un dossier`} onFermer={onFermer} pied={<button className="btn-clair" onClick={onFermer}>Fermer</button>}>
+      <Erreur erreur={erreur} />
+      {!liste ? <Chargement /> : <>
+        <input className="champ mb-3" placeholder="Nom ou e-mail…" value={texte} onChange={(e) => setTexte(e.target.value)} autoFocus />
+        {!vus.length ? <p className="text-sm text-nuit-600/70">Aucun dossier de catéchumène ou de confirmand.</p> : (
+          <ul className="max-h-[50vh] divide-y divide-nuit-100 overflow-y-auto">
+            {vus.map((d) => (
+              <li key={d.id}><button className="flex w-full items-center gap-3 py-2 text-left text-sm hover:bg-nuit-50/60 disabled:opacity-50" disabled={deja.includes(d.id)} onClick={() => onChoisir(d.id)}>
+                <span className="pastille w-fit text-white" style={{ background: TYPES[d.type]?.couleur }}>{TYPES[d.type]?.nom}</span>
+                <span className="flex-1 font-medium">{d.nom}</span>
+                <span className="text-xs text-nuit-600/70">{d.fraternite ? 'Cor Unum : ' + (d.fraternite.equipe || 'à répartir') : ''}</span>
+              </button></li>
+            ))}
+          </ul>
+        )}
+      </>}
     </Modale>
   )
 }

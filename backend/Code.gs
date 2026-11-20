@@ -157,6 +157,7 @@ var ROUTES = {
   'conf.reglagesEcrire':   { fn: ecrireConfReglages_, droit: 'reglages' },
   'dossiers.changerType':  { fn: changerTypeConf_, droit: 'dossiers' },
   'cor.liste':             { fn: listerCor_, droit: 'dossiers' },
+  'cor.relier':            { fn: relierCor_, droit: 'dossiers' },
   'cor.modifier':          { fn: modifierCor_, droit: 'dossiers' },
   'cor.creer':             { fn: creerCor_, droit: 'dossiers' },
   'cor.supprimer':         { fn: supprimerCor_, droit: 'dossiers' },

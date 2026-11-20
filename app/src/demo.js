@@ -128,7 +128,18 @@ const etat = {
 const cateResume = (x) => { const du = Number(x.cotisation || 0) + x.manuels.reduce((a, m) => a + Number(m.prix || 0), 0); const paye = x.paiements.reduce((a, y) => a + Number(y.montant || 0), 0); return { id: x.id, annee: x.annee, cree_le: x.cree_le, source: x.source, nom: x.nom, prenoms: x.prenoms, classe: x.classe, groupe: x.groupe, email: x.email, telephone: x.telephone, demandes: x.demandes, du, paye, reste: Math.round((du - paye) * 100) / 100, manuels_remis: x.manuels.length > 0 && x.manuels.every((m) => m.remis), nb_manuels: x.manuels.length } }
 const cateComplet = (x) => ({ ...x, ...cateResume(x), manuels: x.manuels.map((m) => ({ ...m })), paiements: [...x.paiements] })
 const corListe = (a) => corListe2(a || '2026-2027')
-const corListe2 = (annee) => ({ annee, fils: Object.fromEntries(Object.entries(etat.cor.fils).map(([k, f]) => [k, { non_lus: f.lu ? 0 : f.messages.filter((m) => m.cote === 'chef').length, prochaine: [...f.rencontres].filter((r) => r.date >= new Date().toISOString().slice(0, 10)).sort((a, b) => a.date.localeCompare(b.date))[0] || null }])), annees: [...new Set(['2026-2027', ...Object.keys(etat.cor.equipes)])].sort().reverse(), profils: etat.cor.reglages.profils, lien_formulaire: etat.cor.reglages.lien_formulaire, onglets_repris: true, equipes: (etat.cor.equipes[annee] || []).map((e) => ({ ...e })), membres: etat.cor.membres.filter((m) => m.annee === annee).map((m) => ({ ...m, nouveau: m.deja_participe === 'Non' || m.rester === 'Non' })).sort((x, y) => (x.nom + x.prenoms).localeCompare(y.nom + y.prenoms)) })
+const corListe2 = (annee) => ({ annee, fils: Object.fromEntries(Object.entries(etat.cor.fils).map(([k, f]) => [k, { non_lus: f.lu ? 0 : f.messages.filter((m) => m.cote === 'chef').length, prochaine: [...f.rencontres].filter((r) => r.date >= new Date().toISOString().slice(0, 10)).sort((a, b) => a.date.localeCompare(b.date))[0] || null }])), annees: [...new Set(['2026-2027', ...Object.keys(etat.cor.equipes)])].sort().reverse(), profils: etat.cor.reglages.profils, lien_formulaire: etat.cor.reglages.lien_formulaire, onglets_repris: true, equipes: (etat.cor.equipes[annee] || []).map((e) => ({ ...e })), membres: etat.cor.membres.filter((m) => m.annee === annee).map((m) => corMembre(m)).sort((x, y) => (x.nom + x.prenoms).localeCompare(y.nom + y.prenoms)) })
+const PROF_DOS = ['Catéchumène', 'Néophyte', 'Confirmand']
+function corMembre(m) {
+  const ds = m.dossiers.map((l) => { const d = etat.dossiers.find((x) => x.id === l.id); return d && { id: d.id, type: d.type, nom: nomDe(d), etat: d.etat, etapes: Object.keys(d.etapes).filter((k) => d.etapes[k]?.fait), mode: l.mode || 'auto' } }).filter(Boolean)
+  const auto = [...new Set(ds.flatMap((d) => d.type === 'catechumene' ? [d.etapes.includes('sacrements') ? 'Néophyte' : 'Catéchumène'] : d.etat === 'ouvert' && !d.etapes.includes('confirmation') ? ['Confirmand'] : []))]
+  return { ...m, dossiers: ds, profils_auto: ds.length ? auto : [], profils: ds.length ? [...auto, ...m.profils.filter((p) => !PROF_DOS.includes(p))] : m.profils, nouveau: m.deja_participe === 'Non' || m.rester === 'Non' }
+}
+function fratDemo(id) {
+  const m = etat.cor.membres.find((x) => x.dossiers.some((y) => y.id === id)); if (!m) return null
+  const e = (etat.cor.equipes[m.annee] || []).find((q) => q.id === m.equipe_id)
+  return { id: m.id, annee: m.annee, equipe: e?.nom || '', chefs: (e?.chefs || []).map((c) => { const x = etat.cor.membres.find((y) => y.id === c); return x ? x.prenoms + ' ' + x.nom.toUpperCase() : '' }).filter(Boolean), ancien: m.statut === 'ancien', mode: m.dossiers.find((y) => y.id === id).mode || 'auto' }
+}
 const pub = (u) => ({ ...u, droits: DROITS[u.role] })
 const alertesDemo = (d) => { const i = d.infos, a = []; if (!['confirmand', 'confirmation_jeune', 'catechumene'].includes(d.type)) return a; if (i.bapteme_inconnu === 'oui' && !i.bapteme_date && !i.bapteme_paroisse) a.push('bapteme_a_trouver'); if (i.autre_confession === 'oui') a.push('autre_confession'); if (d.type === 'confirmand' && i.naissance_date && (Date.now() - new Date(i.naissance_date)) / 3.156e10 < 18) a.push('mineur'); return a }
 const resume = (d) => ({ ...d, alertes: alertesDemo(d), autre_confession: d.infos.autre_confession || '', nom: nomDe(d), preparation: d.infos.preparation === 'Autre école' ? d.infos.ecole_autre : d.infos.preparation || '', etapes: Object.keys(d.etapes).filter((k) => d.etapes[k]?.fait), documents: Object.keys(d.documents).filter((k) => d.documents[k]?.recu), date_souhaitee: d.infos.date_souhaitee || '', annee: d.infos.annee_sacrements || d.infos.annee_scolaire || '' })
@@ -251,8 +262,14 @@ export async function demoApi(action, p) {
     case 'agenda.creer': { const e = { ...p, id: 'e' + Date.now(), recurrent: false, dossier: '' }; etat.evenements.push(e); return e }
     case 'agenda.modifier': { const e = etat.evenements.find((x) => x.id === p.id); Object.assign(e, p); if (e.dossier) etat.dossiers.find((d) => d.id === e.dossier).date_celebration = p.debut; return e }
     case 'agenda.supprimer': { const e = etat.evenements.find((x) => x.id === p.id); if (e?.dossier) etat.dossiers.find((d) => d.id === e.dossier).date_celebration = ''; etat.evenements = etat.evenements.filter((x) => x.id !== p.id); return true }
-    case 'dossiers.liste': return etat.dossiers.map(resume).sort((a, b) => b.maj_le.localeCompare(a.maj_le))
-    case 'dossiers.lire': { const d = complet(etat.dossiers.find((x) => x.id === p.id)); const m = etat.cor.membres.find((x) => x.dossiers.some((y) => y.id === d.id)); return { ...d, fraternite: m ? { id: m.id, annee: m.annee, equipe: (etat.cor.equipes[m.annee] || []).find((e) => e.id === m.equipe_id)?.nom || '' } : null } }
+    case 'dossiers.liste': return etat.dossiers.map((d) => ({ ...resume(d), fraternite: fratDemo(d.id) || undefined })).sort((a, b) => b.maj_le.localeCompare(a.maj_le))
+    case 'dossiers.lire': { const d = complet(etat.dossiers.find((x) => x.id === p.id)); return { ...d, fraternite: fratDemo(d.id) } }
+    case 'cor.relier': {
+      const m = etat.cor.membres.find((x) => x.id === p.fiche_id)
+      if (p.delier) m.dossiers = m.dossiers.filter((y) => y.id !== p.dossier_id)
+      else { etat.cor.membres.forEach((x) => { if (x.annee === m.annee) x.dossiers = x.dossiers.filter((y) => y.id !== p.dossier_id) }); m.dossiers.push({ id: p.dossier_id, mode: 'manuel' }) }
+      return { fraternite: fratDemo(p.dossier_id) }
+    }
     case 'dossiers.creer': { const d = { id: 'd' + Date.now(), type: p.type, etat: 'ouvert', cree_le: new Date().toISOString(), source: 'Saisie : ' + moi.nom, email: p.infos?.email || '', telephone: p.infos?.telephone || '', date_celebration: '', evenement_id: '', responsable: p.responsable || '', maj_le: new Date().toISOString(), infos: p.infos || {}, etapes: {}, documents: {}, rencontres: [], pieces: [], fils: p.filId ? [p.filId] : [], historique: [{ date: new Date().toISOString(), par: moi.nom, texte: 'Dossier créé' }] }; etat.dossiers.unshift(d); if (p.filId) { const f = etat.fils.find((x) => x.id === p.filId); f.suivi = { ...(f.suivi || {}), dossier_id: d.id } } return complet(d) }
     case 'dossiers.modifier': {
       const d = etat.dossiers.find((x) => x.id === p.id)

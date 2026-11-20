@@ -11,7 +11,7 @@
 
 var COLONNES_COR = ['id', 'annee', 'cree_le', 'sources', 'nom', 'prenoms', 'email', 'telephone', 'adresse', 'profils', 'situation',
   'deja_participe', 'rester', 'chef_indique', 'chef_possible', 'souhait', 'groupe_service', 'equipe_id', 'equipe_proposee',
-  'statut', 'note', 'maj_le', 'maj_par'];
+  'statut', 'note', 'maj_le', 'maj_par', 'dossiers_lies', 'dossiers_exclus'];
 var PROFILS_COR = ['Catéchumène', 'Confirmand', 'Néophyte', 'Nouveau à la paroisse', 'Recommençant', 'Paroissien'];
 
 function feuilleCor_() {
@@ -21,6 +21,11 @@ function feuilleCor_() {
     f.getRange('A:Z').setNumberFormat('@');
     f.appendRow(COLONNES_COR);
     f.setFrozenRows(1);
+  } else {
+    // colonnes ajoutées depuis la création de la feuille
+    var ent = f.getRange(1, 1, 1, f.getLastColumn()).getValues()[0];
+    var manque = COLONNES_COR.filter(function (c) { return ent.indexOf(c) === -1; });
+    if (manque.length) f.getRange(1, ent.length + 1, 1, manque.length).setValues([manque]);
   }
   return f;
 }
@@ -149,24 +154,74 @@ function profilsDe_(t) {
   return PROFILS_COR.filter(function (p) { return v.indexOf(sansAccents_(p).split(' ')[0]) > -1; });
 }
 
-function corPublic_(x, dossiers) {
+// ─── Lien fiches Cor Unum ↔ dossiers (catéchumènes, néophytes, confirmands) ───
+
+var TYPES_LIES_COR = ['catechumene', 'confirmand'];
+var PROFILS_DOSSIER = ['Catéchumène', 'Néophyte', 'Confirmand'];
+
+function dossiersLies_() {
+  return lignes_('Dossiers').filter(function (d) { return TYPES_LIES_COR.indexOf(d.type) > -1; })
+    .map(function (d) {
+      var don = json2_(d.donnees, {}), et = don.etapes || {};
+      return { id: d.id, type: d.type, nom: d.nom, email: d.email, etat: d.etat, infos: don.infos || {},
+               etapes: Object.keys(et).filter(function (k) { return et[k] && et[k].fait; }) };
+    });
+}
+/** Le dossier d correspond-il (par le nom) à la fiche x ? Nom de jeune fille et nom/prénom inversés tolérés. */
+function dossierCorrespond_(x, d) {
+  var i = d.infos || {};
+  return correspond_(x, i.nom || '', i.prenoms || '', d.email) || (!!i.nom_jeune_fille && correspond_(x, i.nom_jeune_fille, i.prenoms || '', ''));
+}
+/**
+ * Calcule tous les liens. Un lien posé à la main (« Relier ») l'emporte ; sinon on reconnaît par le nom,
+ * sauf si le lien a été défait (« Délier »). Un dossier n'est relié qu'à une fiche par année.
+ */
+function liensCor_(fiches, dossiers) {
+  var parFiche = {}, parDossier = {}, manuels = {};
+  var ajouter = function (x, d, mode) {
+    (parFiche[x.id] = parFiche[x.id] || []).push({ d: d, mode: mode });
+    (parDossier[d.id] = parDossier[d.id] || []).push({ x: x, mode: mode });
+  };
+  var parId = {}; dossiers.forEach(function (d) { parId[d.id] = d; });
+  fiches.forEach(function (x) {
+    json2_(x.dossiers_lies, []).forEach(function (id) { if (parId[id]) { ajouter(x, parId[id], 'manuel'); manuels[x.annee + '|' + id] = true; } });
+  });
+  fiches.forEach(function (x) {
+    var lies = json2_(x.dossiers_lies, []), exclus = json2_(x.dossiers_exclus, []);
+    dossiers.forEach(function (d) {
+      if (lies.indexOf(d.id) > -1 || exclus.indexOf(d.id) > -1 || manuels[x.annee + '|' + d.id]) return;
+      if (dossierCorrespond_(x, d)) ajouter(x, d, 'auto');
+    });
+  });
+  return { parFiche: parFiche, parDossier: parDossier };
+}
+/** Profils affichés : ceux du dossier remplacent Catéchumène / Néophyte / Confirmand saisis. */
+function profilsDossier_(liens) {
+  var p = [];
+  (liens || []).forEach(function (l) {
+    var d = l.d;
+    if (d.type === 'catechumene') p.push(d.etapes.indexOf('sacrements') > -1 ? 'Néophyte' : 'Catéchumène');
+    if (d.type === 'confirmand' && d.etat === 'ouvert' && d.etapes.indexOf('confirmation') === -1) p.push('Confirmand');
+  });
+  return p.filter(function (v, k) { return p.indexOf(v) === k; });
+}
+function profilsEffectifs_(x, liens) {
+  var saisis = json2_(x.profils, []);
+  if (!liens || !liens.length) return saisis;
+  var auto = profilsDossier_(liens);
+  return auto.concat(saisis.filter(function (p) { return PROFILS_DOSSIER.indexOf(p) === -1 && auto.indexOf(p) === -1; }));
+}
+
+function corPublic_(x, liensFiche) {
   var o = {};
   COLONNES_COR.forEach(function (k) { o[k] = x[k]; });
-  o.profils = json2_(x.profils, []);
-  o.sources = undefined;
+  o.sources = undefined; o.dossiers_lies = undefined; o.dossiers_exclus = undefined;
+  o.profils = profilsEffectifs_(x, liensFiche);
+  o.profils_auto = liensFiche && liensFiche.length ? profilsDossier_(liensFiche) : [];
   o.nouveau = /non/i.test(x.deja_participe || '') || /non/i.test(x.rester || '');
   o.chef_possible = /oui/i.test(x.chef_possible || '');
-  o.dossiers = (dossiers || []).filter(function (d) {
-    var i = d.infos || {};
-    var emailOk = d.email && String(x.email || '').toLowerCase().indexOf(String(d.email).toLowerCase()) > -1;
-    var nomD = i.nom || i.enfant_nom || '', prenD = i.prenoms || i.enfant_prenoms || '';
-    return (emailOk && memeNom_(x.nom, nomD)) || (memeNom_(x.nom, nomD) && prenomCommun_(x.prenoms, prenD));
-  }).map(function (d) { return { id: d.id, type: d.type, nom: d.nom }; });
+  o.dossiers = (liensFiche || []).map(function (l) { return { id: l.d.id, type: l.d.type, nom: l.d.nom, etat: l.d.etat, etapes: l.d.etapes, mode: l.mode }; });
   return o;
-}
-function dossiersLies_() {
-  return lignes_('Dossiers').filter(function (d) { return ['catechumene', 'confirmand', 'confirmation_jeune'].indexOf(d.type) > -1; })
-    .map(function (d) { return { id: d.id, type: d.type, nom: d.nom, email: d.email, infos: json2_(d.donnees, {}).infos || {} }; });
 }
 
 function listerCor_(p) {
@@ -179,28 +234,83 @@ function listerCor_(p) {
   Object.keys(r.equipes).forEach(function (a) { annees[a] = true; });
   var liste = Object.keys(annees).sort().reverse();
   var annee = p.annee || r.feuilles.map(function (f) { return f.annee; }).sort().reverse()[0] || anneeScolaire_();
-  var dossiers = dossiersLies_();
+  var liens = liensCor_(toutes, dossiersLies_());
   return {
     annee: annee, annees: liste, profils: PROFILS_COR, lien_formulaire: r.lien_formulaire,
     onglets_repris: !!r.onglets_repris[annee],
     equipes: equipesDe_(r, annee).map(function (e) { return { id: e.id, nom: e.nom, chefs: e.chefs || [], fil: !!e.fil }; }),
     fils: resumeFils_(equipesDe_(r, annee)),
-    membres: toutes.filter(function (x) { return x.annee === annee; }).map(function (x) { return corPublic_(x, dossiers); })
+    membres: toutes.filter(function (x) { return x.annee === annee; }).map(function (x) { return corPublic_(x, liens.parFiche[x.id]); })
       .sort(function (a, b) { return (a.nom + ' ' + a.prenoms).localeCompare(b.nom + ' ' + b.prenoms, 'fr'); })
   };
 }
 
+/** Fraternité d'un dossier à partir des liens calculés (année la plus récente, membre actif d'abord). */
+function fraterniteDepuisLiens_(l, r) {
+  if (!l || !l.length) return null;
+  var x = l.slice().sort(function (a, b) {
+    return String(b.x.annee).localeCompare(String(a.x.annee)) || ((a.x.statut === 'ancien') - (b.x.statut === 'ancien'));
+  })[0];
+  var e = equipesDe_(r, x.x.annee).filter(function (y) { return y.id === x.x.equipe_id; })[0];
+  var chefs = e ? lignes_cache_('CorUnum').filter(function (y) { return (e.chefs || []).indexOf(y.id) > -1; }).map(function (y) { return (y.prenoms + ' ' + y.nom).trim(); }) : [];
+  return { id: x.x.id, annee: x.x.annee, equipe: e ? e.nom : '', chefs: chefs, ancien: x.x.statut === 'ancien', mode: x.mode };
+}
+var CACHE_LIGNES_ = {};
+function lignes_cache_(nom) { return CACHE_LIGNES_[nom] || (CACHE_LIGNES_[nom] = lignes_(nom)); }
+
 /** Pour la page d'un dossier : la fraternité de la personne, s'il y en a une. */
 function fraterniteDuDossier_(d) {
-  if (['catechumene', 'confirmand', 'confirmation_jeune'].indexOf(d.type) === -1) return null;
+  if (TYPES_LIES_COR.indexOf(d.type) === -1) return null;
   if (!db_().getSheetByName('CorUnum')) return null;
-  var i = json2_(d.donnees, {}).infos || {};
-  var r = corReglages_();
-  var x = lignes_('CorUnum').filter(function (y) { return y.statut !== 'ancien' && correspond_(y, i.nom || i.enfant_nom || '', i.prenoms || i.enfant_prenoms || '', d.email); })
-    .sort(function (a, b) { return String(b.annee).localeCompare(String(a.annee)); })[0];
-  if (!x) return null;
-  var e = equipesDe_(r, x.annee).filter(function (y) { return y.id === x.equipe_id; })[0];
-  return { id: x.id, annee: x.annee, equipe: e ? e.nom : '' };
+  feuilleCor_();
+  var liens = liensCor_(lignes_('CorUnum'), dossiersLies_());
+  return fraterniteDepuisLiens_(liens.parDossier[d.id], corReglages_());
+}
+/** Pour la liste des dossiers : nom de la fraternité de chaque dossier relié. */
+function fraternitesDesDossiers_() {
+  if (!db_().getSheetByName('CorUnum')) return {};
+  var r = corReglages_(), liens = liensCor_(lignes_('CorUnum'), dossiersLies_()), res = {};
+  Object.keys(liens.parDossier).forEach(function (id) {
+    var f = fraterniteDepuisLiens_(liens.parDossier[id], r);
+    if (f) res[id] = { equipe: f.equipe, annee: f.annee, id: f.id, ancien: f.ancien };
+  });
+  return res;
+}
+
+/** « Relier » ou « Délier » à la main une fiche Cor Unum et un dossier. */
+function relierCor_(p, s) {
+  if (!p.fiche_id || !p.dossier_id) throw erreur_('PARAMETRE', 'Fiche ou dossier manquant.');
+  var d = trouverDossier_(p.dossier_id);
+  if (!d || TYPES_LIES_COR.indexOf(d.type) === -1) throw erreur_('INTROUVABLE', 'Seuls les dossiers de catéchumènes et de confirmands peuvent être reliés.');
+  var nomFiche = '';
+  verrou_(function () {
+    feuilleCor_();
+    var toutes = lignes_('CorUnum');
+    var x = toutes.filter(function (y) { return y.id === p.fiche_id; })[0];
+    if (!x) throw erreur_('INTROUVABLE', 'Fiche introuvable.');
+    nomFiche = (x.prenoms + ' ' + x.nom).trim();
+    var sans = function (l, v) { return l.filter(function (k) { return k !== v; }); };
+    var avec = function (l, v) { return l.indexOf(v) > -1 ? l : l.concat([v]); };
+    if (p.delier) {
+      x.dossiers_lies = JSON.stringify(sans(json2_(x.dossiers_lies, []), d.id));
+      x.dossiers_exclus = JSON.stringify(avec(json2_(x.dossiers_exclus, []), d.id));
+      ecrireLigne_('CorUnum', x);
+    } else {
+      // une seule fiche par dossier et par année : les autres fiches de l'année sont déliées
+      toutes.filter(function (y) { return y.annee === x.annee && y.id !== x.id; }).forEach(function (y) {
+        var lies = json2_(y.dossiers_lies, []), excl = json2_(y.dossiers_exclus, []);
+        if (lies.indexOf(d.id) > -1 || (excl.indexOf(d.id) === -1 && dossierCorrespond_(y, { infos: json2_(d.donnees, {}).infos || {}, email: d.email }))) {
+          y.dossiers_lies = JSON.stringify(sans(lies, d.id)); y.dossiers_exclus = JSON.stringify(avec(excl, d.id));
+          ecrireLigne_('CorUnum', y);
+        }
+      });
+      x.dossiers_lies = JSON.stringify(avec(json2_(x.dossiers_lies, []), d.id));
+      x.dossiers_exclus = JSON.stringify(sans(json2_(x.dossiers_exclus, []), d.id));
+      ecrireLigne_('CorUnum', x);
+    }
+  });
+  journaliser_(s, p.delier ? 'Cor Unum : lien défait' : 'Cor Unum : dossier relié', nomFiche + ' ↔ ' + d.nom);
+  return { fraternite: fraterniteDuDossier_(d) };
 }
 
 // ─── Modification ───
@@ -361,6 +471,9 @@ function fusionnerCor_(x, z) {
   if (z.souhait && String(x.souhait || '').indexOf(z.souhait) === -1) x.souhait = [x.souhait, z.souhait].filter(String).join(' ; ');
   var p1 = json2_(x.profils, []); json2_(z.profils, []).forEach(function (y) { if (p1.indexOf(y) === -1) p1.push(y); }); x.profils = JSON.stringify(p1);
   x.sources = JSON.stringify(json2_(x.sources, []).concat(json2_(z.sources, [])));
+  ['dossiers_lies', 'dossiers_exclus'].forEach(function (k) {
+    var l = json2_(x[k], []); json2_(z[k], []).forEach(function (y) { if (l.indexOf(y) === -1) l.push(y); }); x[k] = JSON.stringify(l);
+  });
   if (z.statut === 'actif') x.statut = 'actif';
 }
 
@@ -564,10 +677,13 @@ function rencontrePublique_(x) { return { id: x.id, date: x.texte, lieu: x.lieu,
 /** Vue du chef : sa fraternité, ses membres (coordonnées, profils), anciens, rencontres, messages. */
 function vueChef_(ctx) {
   var e = ctx.equipe;
-  var membres = lignes_('CorUnum').filter(function (x) { return x.annee === ctx.annee && x.equipe_id === e.id; });
+  var toutes = lignes_('CorUnum');
+  var membres = toutes.filter(function (x) { return x.annee === ctx.annee && x.equipe_id === e.id; });
+  var liens = { parFiche: {} };
+  try { liens = liensCor_(membres, dossiersLies_()); } catch (er) { /* sans dossiers */ }
   var pub = function (x) {
     return { id: x.id, nom: x.nom, prenoms: x.prenoms, email: x.email, telephone: x.telephone, adresse: x.adresse,
-             profils: json2_(x.profils, []), nouveau: /non/i.test(x.deja_participe || '') || /non/i.test(x.rester || ''),
+             profils: profilsEffectifs_(x, liens.parFiche[x.id]), nouveau: /non/i.test(x.deja_participe || '') || /non/i.test(x.rester || ''),
              chef: (e.chefs || []).indexOf(x.id) > -1, statut: x.statut || 'actif', note: x.statut === 'ancien' ? x.note : '' };
   };
   var fil = elementsFil_(e.fil);

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Plus, Search, FolderHeart, Loader2, Globe, Printer, CalendarCheck, ScrollText, Send, Download, BellRing } from 'lucide-react'
+import { Plus, Search, FolderHeart, Loader2, Globe, Printer, CalendarCheck, ScrollText, Send, Download, BellRing, HeartHandshake } from 'lucide-react'
 import { Redaction } from './Courrier.jsx'
 import { api } from '../api.js'
 import { useApp } from '../App.jsx'
@@ -87,7 +87,8 @@ export default function Dossiers() {
                       {PAR_ANNEE.includes(d.type) && !parAnnee && anneeSacrements(d) && <span className="pastille w-fit border border-or/40 py-0 text-[10px] text-or-600">{anneeSacrements(d)}</span>}</span>
                     <span className="min-w-0"><span className="block truncate font-medium">{d.nom}</span>
                       <span className="block truncate text-xs text-nuit-600/60">{d.etat !== 'ouvert' ? <span className={`pastille py-0 ${COULEURS_STATUT[d.etat]}`}>{ETATS[d.etat]}</span> : prochaine ? '→ ' + prochaine.label : 'Toutes les étapes faites'}{manquants > 0 && d.etat === 'ouvert' && ` · ${manquants} document${manquants > 1 ? 's' : ''} manquant${manquants > 1 ? 's' : ''}`}</span>
-                      {d.alertes?.length > 0 && <span className="mt-0.5 flex flex-wrap gap-1">{d.alertes.map((a) => <span key={a} className={`pastille py-0 text-[10px] ${ALERTES[a]?.classe}`}>{ALERTES[a]?.nom}</span>)}</span>}
+                      {(d.alertes?.length > 0 || d.fraternite) && <span className="mt-0.5 flex flex-wrap gap-1">{d.alertes?.map((a) => <span key={a} className={`pastille py-0 text-[10px] ${ALERTES[a]?.classe}`}>{ALERTES[a]?.nom}</span>)}
+                        {d.fraternite && <span className="pastille gap-0.5 bg-rose-50 py-0 text-[10px] text-rose-800"><HeartHandshake className="h-2.5 w-2.5" />Cor Unum : {d.fraternite.equipe || 'à répartir'}{d.fraternite.ancien ? ' (ancien)' : ''}</span>}</span>}
                       {t.collectif && d.preparation && <span className="mt-0.5 flex flex-wrap gap-1"><span className="pastille py-0 text-[10px] border border-nuit-100 text-nuit-600">{d.preparation}</span>{d.preparation !== 'Paroisse' && !d.etapes.includes('validation') && <span className="pastille bg-amber-100 py-0 text-[10px] text-amber-900">à valider par le curé</span>}</span>}</span>
                     <span className="hidden md:block"><span className="block h-1.5 overflow-hidden rounded-full bg-nuit-50"><span className="block h-full rounded-full" style={{ width: `${(faites / total) * 100}%`, background: t.couleur }} /></span><span className="text-[11px] text-nuit-600/60">{faites}/{total} étapes</span></span>
                     <span className="text-right text-xs text-nuit-600/70 md:text-left">{d.date_celebration ? <span className="inline-flex items-center gap-1 font-medium text-nuit"><Globe className="h-3 w-3 text-or" />{dateCourte(d.date_celebration)}</span> : d.date_souhaitee ? 'souhaité ' + dateCourte(d.date_souhaitee) : '—'}</span>

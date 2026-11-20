@@ -9,7 +9,7 @@ import { Chargement, Erreur, Modale, useNotif, useConfirmer, useDifferer, useAut
 import { Redaction } from './Courrier.jsx'
 import { htmlVersPdf } from '../pdf.js'
 import { creerExtrait, PadSignature, chargerSceau } from './Extraits.jsx'
-import { PenLine, RefreshCw } from 'lucide-react'
+import { PenLine, RefreshCw, HeartHandshake, Link2 } from 'lucide-react'
 
 const champsEditables = (d) => ({
   infos: d.infos, etapes: d.etapes, documents: d.documents, rencontres: d.rencontres,
@@ -136,7 +136,8 @@ export default function Dossier() {
             {t.collectif && b.infos.preparation && b.infos.preparation !== 'Paroisse' && !b.etapes.validation?.fait && <span className="pastille bg-amber-100 text-amber-900">En attente de validation du curé</span>}</span>
           {d.alertes?.length > 0 && <span className="mb-1 flex flex-wrap gap-1.5">{d.alertes.map((a) => <span key={a} className={`pastille ${ALERTES[a]?.classe}`}>{ALERTES[a]?.nom}{a === 'autre_confession' && b.infos.confession_origine ? ` : ${b.infos.confession_origine}` : ''}</span>)}</span>}
           <h1 className="text-3xl font-semibold leading-tight">{d.nom || 'Sans nom'}</h1>
-          <p className="text-xs text-nuit-600/70">Créé le {dateCourte(d.cree_le)} · {d.source}{t.note ? ` · ${t.note}` : ''}{b.infos.inscription_catechisme && <> · <Link to={`/catechisme/${b.infos.inscription_catechisme}`} className="text-or-600 hover:underline">Inscription au catéchisme →</Link></>}{d.fraternite && <> · <Link to={`/cor-unum?annee=${d.fraternite.annee}&vue=tous&fiche=${d.fraternite.id}`} className="text-or-600 hover:underline">Fraternité Cor Unum{d.fraternite.equipe ? ' ' + d.fraternite.equipe : ' (à répartir)'} →</Link></>}</p>
+          <p className="text-xs text-nuit-600/70">Créé le {dateCourte(d.cree_le)} · {d.source}{t.note ? ` · ${t.note}` : ''}{b.infos.inscription_catechisme && <> · <Link to={`/catechisme/${b.infos.inscription_catechisme}`} className="text-or-600 hover:underline">Inscription au catéchisme →</Link></>}</p>
+          {['catechumene', 'confirmand'].includes(d.type) && <FraterniteDossier d={d} onMaj={(f) => setD((x) => ({ ...x, fraternite: f }))} />}
         </div>
         <div className="flex flex-wrap gap-2">
           <select className="champ w-auto" value={b.responsable} onChange={(e) => setB({ ...b, responsable: e.target.value })}>
@@ -469,5 +470,67 @@ function RendezVousCure({ infos, email, onChoix, onRappel }) {
         </Modale>
       )}
     </section>
+  )
+}
+
+/** Fraternité Cor Unum du catéchumène / néophyte / confirmand, avec « Relier » et « Délier ». */
+function FraterniteDossier({ d, onMaj }) {
+  const notifier = useNotif()
+  const [choix, setChoix] = useState(false)
+  const f = d.fraternite
+  async function relier(ficheId, message = 'Fiche Cor Unum reliée') {
+    try { const r = await api('cor.relier', { fiche_id: ficheId, dossier_id: d.id }); onMaj(r.fraternite); notifier(message) } catch (e) { notifier(e.message, 'erreur') }
+  }
+  async function delier() {
+    const ancien = f
+    try {
+      const r = await api('cor.relier', { fiche_id: f.id, dossier_id: d.id, delier: true }); onMaj(r.fraternite)
+      notifier('Lien avec la fraternité défait', 'ok', { action: { label: 'Annuler', fn: () => relier(ancien.id, 'Lien rétabli') } })
+    } catch (e) { notifier(e.message, 'erreur') }
+  }
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-rose-200 bg-rose-50/60 px-3 py-2 text-sm">
+      <HeartHandshake className="h-4 w-4 shrink-0 text-rose-700" />
+      {f ? <>
+        <span className="min-w-0 flex-1">Fraternité Cor Unum {f.annee} : <Link to={`/cor-unum?annee=${f.annee}&vue=tous&fiche=${f.id}`} className="font-semibold text-rose-800 hover:underline">{f.equipe || 'à répartir'}</Link>
+          {f.chefs?.length > 0 && <span className="text-nuit-600/70"> · chef : {f.chefs.join(', ')}</span>}
+          {f.ancien && <span className="pastille ml-1.5 bg-nuit-100 py-0 text-[10px] text-nuit-600">ancien membre</span>}
+          {f.mode === 'auto' && <span className="ml-1.5 text-[11px] text-nuit-600/60">(reconnu par le nom)</span>}</span>
+        <span className="flex gap-1.5"><button className="btn-clair px-2.5 py-1 text-xs" onClick={() => setChoix(true)}>Changer</button><button className="btn-clair px-2.5 py-1 text-xs" onClick={delier}>Délier</button></span>
+      </> : <>
+        <span className="flex-1 text-nuit-600">Pas de fraternité Cor Unum trouvée.</span>
+        <button className="btn-clair px-2.5 py-1 text-xs" onClick={() => setChoix(true)}><Link2 className="h-3.5 w-3.5" />Relier à une fiche Cor Unum</button>
+      </>}
+      {choix && <ChoixFicheCor d={d} actuelle={f?.id} onFermer={() => setChoix(false)} onChoisir={(id) => { setChoix(false); relier(id) }} />}
+    </div>
+  )
+}
+
+function ChoixFicheCor({ d, actuelle, onFermer, onChoisir }) {
+  const [data, setData] = useState(null)
+  const [erreur, setErreur] = useState(null)
+  const [texte, setTexte] = useState(d.infos?.nom || '')
+  useEffect(() => { api('cor.liste', {}).then(setData).catch(setErreur) }, [])
+  const sa = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const equipes = Object.fromEntries((data?.equipes || []).map((e) => [e.id, e.nom]))
+  const liste = (data?.membres || []).filter((m) => !texte || sa(`${m.prenoms} ${m.nom} ${m.email}`).includes(sa(texte)))
+  return (
+    <Modale titre="Relier à une fiche Cor Unum" onFermer={onFermer} pied={<button className="btn-clair" onClick={onFermer}>Fermer</button>}>
+      <Erreur erreur={erreur} />
+      {!data ? <Chargement /> : <>
+        <p className="mb-2 text-sm text-nuit-600">Fraternités {data.annee} : choisissez la fiche de {d.nom}.</p>
+        <input className="champ mb-3" placeholder="Nom, prénom ou e-mail…" value={texte} onChange={(e) => setTexte(e.target.value)} autoFocus />
+        {!liste.length ? <p className="text-sm text-nuit-600/70">Aucune fiche. Effacez la recherche ou essayez le prénom.</p> : (
+          <ul className="max-h-[50vh] divide-y divide-nuit-100 overflow-y-auto">
+            {liste.slice(0, 80).map((m) => (
+              <li key={m.id}><button className="flex w-full items-center gap-3 py-2 text-left text-sm hover:bg-nuit-50/60 disabled:opacity-50" disabled={m.id === actuelle} onClick={() => onChoisir(m.id)}>
+                <span className="flex-1"><span className="font-medium">{m.prenoms} {m.nom}</span><span className="block text-xs text-nuit-600/70">{m.email}</span></span>
+                <span className="text-xs text-nuit-600">{equipes[m.equipe_id] || 'à répartir'}{m.statut === 'ancien' ? ' · ancien' : ''}</span>
+              </button></li>
+            ))}
+          </ul>
+        )}
+      </>}
+    </Modale>
   )
 }
