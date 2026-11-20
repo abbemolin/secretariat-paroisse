@@ -111,7 +111,7 @@ export default function Dossier() {
             {t.collectif && b.infos.preparation && <span className="pastille border border-nuit-100 bg-white text-nuit-600">Préparation : {lieuPreparation(b.infos)}</span>}
             {t.collectif && b.infos.preparation && b.infos.preparation !== 'Paroisse' && !b.etapes.validation?.fait && <span className="pastille bg-amber-100 text-amber-900">En attente de validation du curé</span>}</span>
           <h1 className="text-3xl font-semibold leading-tight">{d.nom || 'Sans nom'}</h1>
-          <p className="text-xs text-nuit-600/70">Créé le {dateCourte(d.cree_le)} · {d.source}{t.note ? ` · ${t.note}` : ''}</p>
+          <p className="text-xs text-nuit-600/70">Créé le {dateCourte(d.cree_le)} · {d.source}{t.note ? ` · ${t.note}` : ''}{b.infos.inscription_catechisme && <> · <Link to={`/catechisme/${b.infos.inscription_catechisme}`} className="text-or-600 hover:underline">Inscription au catéchisme →</Link></>}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <select className="champ w-auto" value={b.responsable} onChange={(e) => setB({ ...b, responsable: e.target.value })}>

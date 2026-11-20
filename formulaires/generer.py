@@ -112,6 +112,12 @@ MODELE = """<meta charset="utf-8">
   var URL_SCRIPT = {url};
   var racine = document.getElementById('cg-{type}');
   var form = racine.querySelector('form'), msg = racine.querySelector('.cg-msg'), bouton = form.querySelector('button');
+  // Lien envoyé par mail (écoles) : ?preparation=…&ecole=… pré-remplit le lieu de préparation
+  try {{
+    var q = new URLSearchParams(location.search);
+    if (form.preparation && q.get('preparation')) {{ form.preparation.value = q.get('preparation'); }}
+    if (form.ecole_autre && q.get('ecole')) {{ form.ecole_autre.value = q.get('ecole'); }}
+  }} catch (e) {{}}
   function afficher(texte, ok){{ msg.textContent = texte; msg.className = 'cg-msg ' + (ok ? 'cg-ok' : 'cg-ko'); msg.style.display = 'block'; }}
   form.addEventListener('submit', function(e){{
     e.preventDefault();
@@ -142,6 +148,20 @@ MODELE = """<meta charset="utf-8">
 </div>
 """
 
+PAGE = """<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{titre} – Paroisse La Croix glorieuse</title>
+<link rel="icon" href="../logo-128.png">
+<style>body{{margin:0;background:#faf7f2;font-family:Georgia,'Times New Roman',serif;color:#222}}
+.entete{{background:#521a22;color:#fff;padding:18px 20px;display:flex;align-items:center;gap:14px}}
+.entete img{{width:52px;height:52px;border-radius:50%;background:#fff}}
+.entete b{{font-size:20px;display:block}} .entete span{{font-size:13px;color:#e8c9a8}}
+main{{max-width:680px;margin:24px auto;background:#fff;border-radius:14px;padding:26px 22px;box-shadow:0 2px 14px rgba(82,26,34,.08)}}
+main .cg-form{{font-family:Arial,Helvetica,sans-serif}}</style></head>
+<body><div class="entete"><img src="../logo-128.png" alt=""><div><b>Paroisse La Croix glorieuse</b><span>Strasbourg</span></div></div>
+<main>{contenu}</main></body></html>
+"""
+
 def champ_html(ch):
     etoile = ' <span class="cg-req">*</span>' if ch["requis"] else ""
     req = " required" if ch["requis"] else ""
@@ -165,3 +185,10 @@ for type_, f in FORMULAIRES.items():
     html = MODELE.format(type=type_, titre=f["titre"], intro=f["intro"], groupes=groupes, url=json.dumps(URL))
     (sortie / f"formulaire-{type_}.html").write_text(html, encoding="utf-8")
     print("✓ formulaire-" + type_ + ".html")
+    # Pages autonomes (envoyées par mail avec un bouton), hébergées avec l'appli
+    if type_ in ("premiere_communion", "profession_foi"):
+        page = PAGE.format(titre=f["titre"], contenu=html)
+        dest = sortie.parent / "app" / "public" / "formulaires"
+        dest.mkdir(parents=True, exist_ok=True)
+        (dest / f"{type_}.html").write_text(page, encoding="utf-8")
+        print("✓ app/public/formulaires/" + type_ + ".html")

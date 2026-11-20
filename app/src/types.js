@@ -83,6 +83,29 @@ export const TYPES = {
     reponses: ['document_manquant']
   },
 
+  confirmation_jeune: {
+    nom: 'Confirmation (jeunes)', pluriel: 'Confirmations jeunes', couleur: '#b5532f', collectif: true,
+    etapes: [
+      T('inscription', 'Inscription reçue'), T('certificat', 'Certificat de baptême reçu'), T('lettre', "Lettre à l'évêque"),
+      T('retraite', 'Retraite'), T('celebration', 'Confirmation'), T('registre', 'Inscription au registre'),
+      T('notification', 'Notification à la paroisse de baptême')
+    ],
+    sections: [
+      { titre: 'Jeune', champs: [T('enfant_prenoms', 'Prénoms'), T('enfant_nom', 'Nom'), T('enfant_naissance_date', 'Né(e) le', 'date'), T('enfant_naissance_lieu', 'À'), T('classe', 'Classe')] },
+      { titre: 'Préparation', champs: [T('annee_scolaire', 'Année scolaire de la confirmation', 'anneeScolaire')] },
+      { titre: 'Parents', champs: [T('pere_prenom', 'Prénom du père'), T('pere_nom', 'Nom du père'), T('mere_prenom', 'Prénom de la mère'), T('mere_nom_jeune_fille', 'Nom de jeune fille de la mère'),
+        T('adresse', 'Adresse'), T('telephone', 'Téléphone', 'tel'), T('email', 'E-mail', 'email')] },
+      { titre: 'Baptême', champs: [T('bapteme_paroisse', 'Paroisse du baptême'), T('bapteme_date', 'Date du baptême', 'date')] },
+      { titre: 'Parrain / marraine de confirmation', champs: [T('parrain_marraine', 'Nom'), T('parrain_contact', 'Coordonnées')] },
+      { titre: 'Confirmation', champs: [T('celebrant', 'Célébrant (évêque ou délégué)'), T('lieu_celebration', 'Lieu'), T('registre_annee', 'Année du registre'), T('acte_numero', 'Acte n°')] },
+      MESSAGE
+    ],
+    documents: [T('cert_bapteme', 'Certificat de baptême'), T('lettre_eveque', "Lettre à l'évêque"), T('cert_parrain', 'Certificat du parrain / de la marraine')],
+    generer: [],
+    actions: ['notifier_paroisse_bapteme'],
+    reponses: ['document_manquant']
+  },
+
   mariage: {
     nom: 'Mariage', pluriel: 'Mariages', couleur: '#c2577a',
     etapes: [
@@ -181,12 +204,12 @@ export const TYPES = {
   }
 }
 
-export const ORDRE_TYPES = ['bapteme', 'premiere_communion', 'profession_foi', 'mariage', 'obseques', 'catechumene', 'confirmand']
+export const ORDRE_TYPES = ['bapteme', 'premiere_communion', 'profession_foi', 'confirmation_jeune', 'mariage', 'obseques', 'catechumene', 'confirmand']
 
 /** Types suivis par « promotion » (année de réception des sacrements). */
-export const PAR_ANNEE = ['catechumene', 'confirmand', 'premiere_communion', 'profession_foi']
+export const PAR_ANNEE = ['catechumene', 'confirmand', 'premiere_communion', 'profession_foi', 'confirmation_jeune']
 export const anneeSacrements = (d) => String(d.annee || d.infos?.annee_sacrements || d.infos?.annee_scolaire || (!TYPES[d.type]?.collectif && d.date_celebration ? new Date(d.date_celebration).getFullYear() : ''))
-export const libelleAnnee = (type) => ({ confirmand: 'Confirmations ', catechumene: 'Sacrements ', premiere_communion: 'Année ', profession_foi: 'Année ' })[type] || ''
+export const libelleAnnee = (type) => ({ confirmand: 'Confirmations ', catechumene: 'Sacrements ', premiere_communion: 'Année ', profession_foi: 'Année ', confirmation_jeune: 'Année ' })[type] || ''
 export const choixAnnees = () => { const a = new Date().getFullYear(); return Array.from({ length: 7 }, (_, i) => String(a - 2 + i)) }
 
 export const ETATS = { ouvert: 'En cours', clos: 'Clos', annule: 'Annulé' }
@@ -205,7 +228,7 @@ export function documentsManquants(type, recus, infos) {
   return documentsDe(type, infos).filter((d) => !recus.includes(d.cle))
 }
 
-export const TITRES_COLLECTIFS = { premiere_communion: 'Premières communions', profession_foi: 'Professions de foi' }
+export const TITRES_COLLECTIFS = { premiere_communion: 'Premières communions', profession_foi: 'Professions de foi', confirmation_jeune: 'Confirmations' }
 export const anneeScolaireActuelle = () => { const d = new Date(); const a = d.getMonth() >= 8 ? d.getFullYear() : d.getFullYear() - 1; return `${a}-${a + 1}` }
 export const choixAnneesScolaires = () => { const a = Number(anneeScolaireActuelle().slice(0, 4)); return Array.from({ length: 5 }, (_, i) => `${a - 1 + i}-${a + i}`) }
 export const lieuPreparation = (i) => (i?.preparation === 'Autre école' ? i.ecole_autre || 'Autre école' : i?.preparation || '')

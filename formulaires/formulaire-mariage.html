@@ -41,6 +41,12 @@
   var URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzSjwHZONGGz0xfWXo_u4MJRYBon8eZZzyTvWNrgo6418zkoOXpzVDx3Q8nthP5rLAleg/exec";
   var racine = document.getElementById('cg-mariage');
   var form = racine.querySelector('form'), msg = racine.querySelector('.cg-msg'), bouton = form.querySelector('button');
+  // Lien envoyé par mail (écoles) : ?preparation=…&ecole=… pré-remplit le lieu de préparation
+  try {
+    var q = new URLSearchParams(location.search);
+    if (form.preparation && q.get('preparation')) { form.preparation.value = q.get('preparation'); }
+    if (form.ecole_autre && q.get('ecole')) { form.ecole_autre.value = q.get('ecole'); }
+  } catch (e) {}
   function afficher(texte, ok){ msg.textContent = texte; msg.className = 'cg-msg ' + (ok ? 'cg-ok' : 'cg-ko'); msg.style.display = 'block'; }
   form.addEventListener('submit', function(e){
     e.preventDefault();

@@ -5,7 +5,8 @@ import { NavigationRoute, registerRoute } from 'workbox-routing'
 self.skipWaiting()
 cleanupOutdatedCaches()
 precacheAndRoute(self.__WB_MANIFEST)
-registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html')))
+// Les formulaires publics (formulaires/*.html) ne passent pas par l'appli
+registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html'), { denylist: [/\/formulaires\//] }))
 self.addEventListener('activate', () => self.clients.claim())
 
 function lire(cle) {

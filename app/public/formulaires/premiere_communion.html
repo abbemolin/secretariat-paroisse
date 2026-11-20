@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Inscription à la première communion – Paroisse La Croix glorieuse</title>
+<link rel="icon" href="../logo-128.png">
+<style>body{margin:0;background:#faf7f2;font-family:Georgia,'Times New Roman',serif;color:#222}
+.entete{background:#521a22;color:#fff;padding:18px 20px;display:flex;align-items:center;gap:14px}
+.entete img{width:52px;height:52px;border-radius:50%;background:#fff}
+.entete b{font-size:20px;display:block} .entete span{font-size:13px;color:#e8c9a8}
+main{max-width:680px;margin:24px auto;background:#fff;border-radius:14px;padding:26px 22px;box-shadow:0 2px 14px rgba(82,26,34,.08)}
+main .cg-form{font-family:Arial,Helvetica,sans-serif}</style></head>
+<body><div class="entete"><img src="../logo-128.png" alt=""><div><b>Paroisse La Croix glorieuse</b><span>Strasbourg</span></div></div>
+<main><meta charset="utf-8">
+<!-- Formulaire « Inscription à la première communion » – Paroisse La Croix glorieuse. Les réponses arrivent dans l'appli du secrétariat. -->
+<div class="cg-form" id="cg-premiere_communion">
+<style>
+#cg-premiere_communion{font-family:inherit;max-width:640px;margin:0 auto;color:#222}
+#cg-premiere_communion h2{margin:0 0 .4em;font-size:1.6em}
+#cg-premiere_communion p.cg-intro{margin:0 0 1.4em;color:#555;line-height:1.5}
+#cg-premiere_communion fieldset{border:0;padding:0;margin:0 0 1.2em}
+#cg-premiere_communion legend{font-weight:bold;font-size:1.05em;margin-bottom:.6em;color:#521a22}
+#cg-premiere_communion .cg-grille{display:grid;grid-template-columns:1fr 1fr;gap:.8em}
+#cg-premiere_communion .cg-large{grid-column:1/-1}
+#cg-premiere_communion label{display:block;font-size:.9em;margin-bottom:.25em;color:#444}
+#cg-premiere_communion input,#cg-premiere_communion textarea,#cg-premiere_communion select{width:100%;box-sizing:border-box;padding:.65em .75em;border:1px solid #ccc;border-radius:6px;font:inherit;background:#fff}
+#cg-premiere_communion input:focus,#cg-premiere_communion textarea:focus{outline:2px solid #d08c4c55;border-color:#d08c4c}
+#cg-premiere_communion textarea{min-height:110px}
+#cg-premiere_communion .cg-req{color:#b33}
+#cg-premiere_communion .cg-consent{display:flex;gap:.6em;align-items:flex-start;font-size:.9em;color:#444;margin:.4em 0 1.2em}
+#cg-premiere_communion .cg-consent input{width:auto;margin-top:.2em}
+#cg-premiere_communion button{background:#521a22;color:#fff;border:0;border-radius:6px;padding:.8em 1.6em;font:inherit;font-weight:bold;cursor:pointer}
+#cg-premiere_communion button[disabled]{opacity:.6;cursor:wait}
+#cg-premiere_communion .cg-msg{margin-top:1em;padding:.9em 1em;border-radius:6px;display:none;line-height:1.4}
+#cg-premiere_communion .cg-ok{background:#e8f5ec;color:#1d5e33}
+#cg-premiere_communion .cg-ko{background:#fdeceb;color:#8a1f17}
+#cg-premiere_communion .cg-piege{position:absolute;left:-9999px;height:0;overflow:hidden}
+@media(max-width:560px){#cg-premiere_communion .cg-grille{grid-template-columns:1fr}}
+</style>
+<h2>Inscription à la première communion</h2>
+<p class="cg-intro">Votre enfant se prépare à recevoir la première communion ? Inscrivez-le ici, que la préparation ait lieu à la paroisse ou dans son école.</p>
+<form novalidate>
+<fieldset><legend>L'enfant</legend><div class="cg-grille"><div class=""><label>Prénoms <span class="cg-req">*</span></label><input type="text" name="enfant_prenoms" required></div><div class=""><label>Nom <span class="cg-req">*</span></label><input type="text" name="enfant_nom" required></div><div class=""><label>Date de naissance <span class="cg-req">*</span></label><input type="date" name="enfant_naissance_date" required></div><div class=""><label>Lieu de naissance</label><input type="text" name="enfant_naissance_lieu"></div><div class=""><label>Classe (ex. CE2)</label><input type="text" name="classe"></div></div></fieldset>
+<fieldset><legend>La préparation</legend><div class="cg-grille"><div class=""><label>Lieu de préparation <span class="cg-req">*</span></label><select name="preparation" required><option value="">Choisir…</option><option>Paroisse</option><option>Herrade de Landsberg</option><option>Saints Louis et Zélie Martin</option><option>Autre école</option></select></div><div class=""><label>Si autre école : laquelle ?</label><input type="text" name="ecole_autre"></div></div></fieldset>
+<fieldset><legend>Les parents</legend><div class="cg-grille"><div class=""><label>Prénom du père</label><input type="text" name="pere_prenom"></div><div class=""><label>Nom du père</label><input type="text" name="pere_nom"></div><div class=""><label>Prénom de la mère</label><input type="text" name="mere_prenom"></div><div class=""><label>Nom de jeune fille de la mère</label><input type="text" name="mere_nom_jeune_fille"></div><div class=""><label>Adresse</label><input type="text" name="adresse"></div><div class=""><label>Téléphone <span class="cg-req">*</span></label><input type="tel" name="telephone" required autocomplete="tel"></div><div class=""><label>E-mail <span class="cg-req">*</span></label><input type="email" name="email" required autocomplete="email"></div></div></fieldset>
+<fieldset><legend>Le baptême de l'enfant</legend><div class="cg-grille"><div class=""><label>Paroisse du baptême</label><input type="text" name="bapteme_paroisse"></div><div class=""><label>Date du baptême</label><input type="date" name="bapteme_date"></div><div class="cg-large"><label>Message (facultatif)</label><textarea name="message"></textarea></div></div></fieldset>
+<div class="cg-piege" aria-hidden="true"><label>Site web<input name="site_web" tabindex="-1" autocomplete="off"></label></div>
+<label class="cg-consent"><input type="checkbox" name="consentement" required> <span>J'accepte que la paroisse La Croix glorieuse utilise ces informations uniquement pour traiter ma demande. <span class="cg-req">*</span></span></label>
+<button type="submit">Envoyer ma demande</button>
+<div class="cg-msg"></div>
+</form>
+<script>
+(function(){
+  var URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzSjwHZONGGz0xfWXo_u4MJRYBon8eZZzyTvWNrgo6418zkoOXpzVDx3Q8nthP5rLAleg/exec";
+  var racine = document.getElementById('cg-premiere_communion');
+  var form = racine.querySelector('form'), msg = racine.querySelector('.cg-msg'), bouton = form.querySelector('button');
+  // Lien envoyé par mail (écoles) : ?preparation=…&ecole=… pré-remplit le lieu de préparation
+  try {
+    var q = new URLSearchParams(location.search);
+    if (form.preparation && q.get('preparation')) { form.preparation.value = q.get('preparation'); }
+    if (form.ecole_autre && q.get('ecole')) { form.ecole_autre.value = q.get('ecole'); }
+  } catch (e) {}
+  function afficher(texte, ok){ msg.textContent = texte; msg.className = 'cg-msg ' + (ok ? 'cg-ok' : 'cg-ko'); msg.style.display = 'block'; }
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    var manque = Array.prototype.filter.call(form.querySelectorAll('[required]'), function(x){ return x.type === 'checkbox' ? !x.checked : !x.value.trim(); });
+    if (manque.length) { afficher('Merci de remplir les champs marqués d\'une étoile et d\'accepter l\'utilisation de vos données.', false); manque[0].focus(); return; }
+    if (form.pere_nom && !form.pere_nom.value.trim() && !form.mere_nom_jeune_fille.value.trim()) { afficher('Merci d\'indiquer au moins un des parents.', false); form.pere_prenom.focus(); return; }
+    if (form.preparation && form.preparation.value === 'Autre école' && !form.ecole_autre.value.trim()) { afficher('Merci de préciser le nom de l\'école.', false); form.ecole_autre.focus(); return; }
+    var email = form.querySelector('[name=email]');
+    if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.value.trim())) { afficher('Adresse e-mail invalide.', false); email.focus(); return; }
+    var champs = {};
+    Array.prototype.forEach.call(form.querySelectorAll('input[name],textarea[name],select[name]'), function(x){ if (x.name !== 'consentement' && x.name !== 'site_web') champs[x.name] = x.value.trim(); });
+    bouton.disabled = true; bouton.textContent = 'Envoi…';
+    fetch(URL_SCRIPT, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'public.demande', payload: { type: 'premiere_communion', champs: champs, consentement: true, site_web: form.site_web.value } }) })
+      .then(function(r){ return r.json(); })
+      .then(function(r){
+        if (!r.ok) throw new Error(r.message);
+        form.querySelectorAll('fieldset,.cg-consent,button').forEach(function(x){ x.style.display = 'none'; });
+        afficher('Merci ! Votre demande a bien été transmise au secrétariat de la paroisse. Nous vous recontacterons prochainement.', true);
+      })
+      .catch(function(err){
+        bouton.disabled = false; bouton.textContent = 'Envoyer ma demande';
+        afficher((err && err.message && err.message.length < 200 ? err.message : 'L\'envoi n\'a pas fonctionné.') + ' Vous pouvez aussi écrire à secretariat@croix-glorieuse.org.', false);
+      });
+  });
+})();
+</script>
+</div>
+</main></body></html>

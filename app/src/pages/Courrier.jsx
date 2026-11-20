@@ -359,7 +359,7 @@ export function ApercuSignature({ sig, reglages }) {
  * Rédaction d'un mail : nouveau, réponse, ou depuis un dossier.
  * props : mode ('nouveau' | 'repondre' | 'tous'), fil, dossier, a, sujet, corps, reponse (clé de réponse type), contexte
  */
-export function Redaction({ mode, fil, dossier, a: aInit = '', sujet: sujetInit = '', corps: corpsInit = '', reponse, contexte = {}, onFermer, onEnvoye, envoiPersonnalise, noteJointe }) {
+export function Redaction({ mode, fil, dossier, a: aInit = '', sujet: sujetInit = '', corps: corpsInit = '', reponse, contexte = {}, onFermer, onEnvoye, envoiPersonnalise, noteJointe, destinataires, bouton }) {
   const { utilisateur, signatures, reponses, reglages } = useApp()
   const dernier = fil?.messages?.[fil.messages.length - 1]
   const ctx = { nom: dossier?.nom || (dernier ? nomExpediteur(dernier.de) : ''), type: dossier ? TYPES[dossier.type].nom.toLowerCase() : '', url_horaires: reglages.url_horaires, ...contexte }
@@ -387,7 +387,7 @@ export function Redaction({ mode, fil, dossier, a: aInit = '', sujet: sujetInit 
       if (envoiPersonnalise) { onEnvoye(await envoiPersonnalise({ a, sujet, corps, signature })); return }
       const pieces = await Promise.all(fichiers.map(async (f) => ({ nom: f.name, type: f.type, base64: await fichierEnBase64(f) })))
       const r = await api('mail.envoyer', { a, cc, sujet, corps, signature, fichiers: pieces, documentsDrive: docs.map((d) => d.id),
-        filId: mode === 'nouveau' ? undefined : fil.id, tous: mode === 'tous', dossierId: dossier?.id })
+        filId: mode === 'nouveau' ? undefined : fil.id, tous: mode === 'tous', dossierId: dossier?.id, bouton })
       onEnvoye(r)
     } catch (e) { setErreur(e) } finally { setEnvoi(false) }
   }
@@ -399,16 +399,20 @@ export function Redaction({ mode, fil, dossier, a: aInit = '', sujet: sujetInit 
         <label className="btn-clair mr-auto cursor-pointer"><Paperclip className="h-4 w-4" /><span className="hidden sm:inline">Fichier</span>
           <input type="file" multiple className="hidden" onChange={(e) => setFichiers([...fichiers, ...e.target.files])} /></label>
         <button className="btn-clair" onClick={() => setChoixDoc(true)}><FolderOpen className="h-4 w-4" /><span className="hidden sm:inline">Document</span></button></>}
-        <button className="btn-principal" onClick={envoyer} disabled={envoi || (mode === 'nouveau' && !a)}>{envoi ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Envoyer</button>
+        <button className="btn-principal" onClick={envoyer} disabled={envoi || (mode === 'nouveau' && !a && !destinataires)}>{envoi ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Envoyer</button>
       </>}>
       <div className="grid gap-4 md:grid-cols-[1fr_220px]">
         <div className="space-y-3">
-          {mode === 'nouveau' ? <>
+          {destinataires ? <>
+            <p className="rounded-lg bg-or-50 px-3 py-2 text-sm text-or-600"><Users className="mr-1 inline h-4 w-4" />{destinataires}</p>
+            <div><label className="etiquette">Objet</label><input className="champ" value={sujet} onChange={(e) => setSujet(e.target.value)} /></div>
+          </> : mode === 'nouveau' ? <>
             <div><label className="etiquette">À</label><input className="champ" value={a} onChange={(e) => setA(e.target.value)} placeholder="adresse@exemple.fr" /></div>
             <div><label className="etiquette">Cc</label><input className="champ" value={cc} onChange={(e) => setCc(e.target.value)} /></div>
             <div><label className="etiquette">Objet</label><input className="champ" value={sujet} onChange={(e) => setSujet(e.target.value)} /></div>
           </> : <p className="text-sm text-nuit-600">À : <strong>{dernier ? nomExpediteur(dernier.de) : ''}</strong> — {fil.sujet}</p>}
           <textarea className="champ min-h-[260px] font-sans" value={corps} onChange={(e) => setCorps(e.target.value)} autoFocus />
+          {bouton && <div className="text-xs text-nuit-600/70">Ajouté sous le message :<div className="mt-1"><span className="inline-block rounded-lg bg-nuit px-4 py-2 text-sm font-semibold text-white">{bouton.texte}</span></div></div>}
           {noteJointe && <span className="pastille gap-1 bg-or-50 text-or-600"><Paperclip className="h-3 w-3" />{noteJointe}</span>}
           {(fichiers.length > 0 || docs.length > 0) && (
             <div className="flex flex-wrap gap-2">

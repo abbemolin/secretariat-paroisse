@@ -10,6 +10,7 @@
  *   Documents.gs  Drive du secrétariat
  *   Push.gs       notifications sur téléphone (Web Push, VAPID)
  *   Extraits.gs   extraits de baptême signés (registre, PDF, envoi)
+ *   Catechisme.gs inscriptions au catéchisme (formulaire Google), groupes, paiements
  *   Tri.gs        tri automatique des mails entrants (mots-clés, réponse auto horaires)
  *   Installation.gs  installer() à lancer une fois
  */
@@ -131,6 +132,17 @@ var ROUTES = {
   'dossiers.archiver':     { fn: archiverDocumentDossier_, droit: 'dossiers' },
   'dossiers.supprimer':    { fn: supprimerDossier_, droit: 'dossiers' },
   'dossiers.signerB6':     { fn: signerB6_, droit: 'dossiers' },
+  'cate.liste':            { fn: listerCate_, droit: 'dossiers' },
+  'cate.lire':             { fn: lireCate_, droit: 'dossiers' },
+  'cate.creer':            { fn: creerCate_, droit: 'dossiers' },
+  'cate.modifier':         { fn: modifierCate_, droit: 'dossiers' },
+  'cate.paiement':         { fn: paiementCate_, droit: 'dossiers' },
+  'cate.supprimer':        { fn: supprimerCate_, droit: 'dossiers' },
+  'cate.dossier':          { fn: dossierCate_, droit: 'dossiers' },
+  'cate.importer':         { fn: importerCate_, droit: 'dossiers' },
+  'cate.envoyer':          { fn: envoyerCate_, droit: 'dossiers' },
+  'cate.reglages':         { fn: lireCateReglages_, droit: 'dossiers' },
+  'cate.reglagesEcrire':   { fn: ecrireCateReglages_, droit: 'reglages' },
   'extraits.liste':        { fn: listerExtraits_, droit: 'dossiers' },
   'extraits.lire':         { fn: lireExtrait_, droit: 'dossiers' },
   'extraits.enregistrer':  { fn: enregistrerExtrait_, droit: 'dossiers' },

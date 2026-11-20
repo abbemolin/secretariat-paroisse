@@ -13,7 +13,8 @@ var TYPES_DOSSIER = {
   catechumene: { nom: 'Catéchumène adulte', dossier: 'Catéchumènes', public: true, sansAgenda: true },  // seulement l'année des sacrements, aucun lien avec l'agenda
   confirmand: { nom: 'Confirmand adulte', dossier: 'Confirmands', public: true },
   premiere_communion: { nom: 'Première communion', dossier: 'Premières communions', public: true, collectif: true },
-  profession_foi: { nom: 'Profession de foi', dossier: 'Professions de foi', public: true, collectif: true }
+  profession_foi: { nom: 'Profession de foi', dossier: 'Professions de foi', public: true, collectif: true },
+  confirmation_jeune: { nom: 'Confirmation (jeunes)', dossier: 'Confirmations jeunes', public: false, collectif: true }
 };
 
 // Lieux de préparation (premières communions, professions de foi)
@@ -47,7 +48,7 @@ var CHAMPS_PUBLICS = {
 function nomDossier_(type, i) {
   i = i || {};
   var np = function (prenoms, nom) { return [prenoms, String(nom || '').toUpperCase()].filter(String).join(' '); };
-  if (type === 'bapteme' || type === 'premiere_communion' || type === 'profession_foi') return np(i.enfant_prenoms, i.enfant_nom);
+  if (type === 'bapteme' || type === 'premiere_communion' || type === 'profession_foi' || type === 'confirmation_jeune') return np(i.enfant_prenoms, i.enfant_nom);
   if (type === 'mariage') return [np(i.fiancee_prenoms, i.fiancee_nom), np(i.fiance_prenoms, i.fiance_nom)].filter(String).join(' & ');
   if (type === 'obseques') return np(i.defunt_prenoms, i.defunt_nom);
   return np(i.prenoms, i.nom);
@@ -208,6 +209,15 @@ function supprimerDossier_(p, s) {
     try {
       var fx = db_().getSheetByName('Extraits');
       if (fx) lignes_('Extraits').forEach(function (x) { if (x.dossier_id === d.id) { x.dossier_id = ''; ecrireLigne_('Extraits', x); } });
+    } catch (e) {}
+    // Inscription au catéchisme reliée : on retire le lien
+    try {
+      var idIns = (don.infos || {}).inscription_catechisme;
+      if (idIns && db_().getSheetByName('Catechisme')) lignes_('Catechisme').forEach(function (x) {
+        if (x.id !== idIns) return;
+        x.demandes = JSON.stringify(json2_(x.demandes, []).filter(function (z) { return z.dossier_id !== d.id; }));
+        ecrireLigne_('Catechisme', x);
+      });
     } catch (e) {}
     feuille_('Dossiers').deleteRow(d._ligne);
     return d;
@@ -373,7 +383,7 @@ function recevoirDemandePublique_(p) {
 // Premières communions et professions de foi : une date par année scolaire,
 // un seul événement public (« Premières communions », « Professions de foi »).
 
-var TITRES_COLLECTIFS = { premiere_communion: 'Premières communions', profession_foi: 'Professions de foi' };
+var TITRES_COLLECTIFS = { premiere_communion: 'Premières communions', profession_foi: 'Professions de foi', confirmation_jeune: 'Confirmations' };
 
 function promotions_() { return json2_(props_().getProperty('PROMOTIONS'), {}); }
 

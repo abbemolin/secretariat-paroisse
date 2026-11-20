@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Loader2, Plus, Trash2, RotateCcw, Wand2, AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { Loader2, Plus, Trash2, RotateCcw, Wand2, AlertTriangle, CheckCircle2, Download, GraduationCap } from 'lucide-react'
 import { api, fichierEnBase64 } from '../api.js'
 import { chargerSceau, oublierSceau } from './Extraits.jsx'
 import { useApp } from '../App.jsx'
 import { Chargement, Erreur, useCharger, useNotif, dateHeure, Interrupteur } from '../ui.jsx'
 import { ApercuSignature } from './Courrier.jsx'
 
-const ONGLETS = ['Paroisse', 'Signatures', 'Réponses types', 'Tri automatique', 'Journal']
+const ONGLETS = ['Paroisse', 'Signatures', 'Réponses types', 'Tri automatique', 'Catéchisme', 'Journal']
 
 export default function Reglages() {
   const [onglet, setOnglet] = useState('Paroisse')
@@ -20,6 +20,7 @@ export default function Reglages() {
       {onglet === 'Signatures' && <Signatures />}
       {onglet === 'Réponses types' && <Reponses />}
       {onglet === 'Tri automatique' && <TriAutomatique />}
+      {onglet === 'Catéchisme' && <CatechismeReglages />}
       {onglet === 'Journal' && <Journal />}
     </>
   )
@@ -289,6 +290,84 @@ function TriAutomatique() {
             <ul className="divide-y divide-nuit-50 text-sm">{auto.slice(0, 40).map((j, i) => <li key={i} className="py-2"><div className="text-xs text-nuit-600/60">{dateHeure(j.date)}</div>{j.detail}</li>)}</ul>
           )}
         </div>
+      </div>
+    </div>
+  )
+}
+
+function CatechismeReglages() {
+  const notifier = useNotif()
+  const { data, chargement, erreur } = useCharger(() => api('cate.reglages'), [])
+  const [f, setF] = useState(null)
+  const [envoi, setEnvoi] = useState(false)
+  const [importe, setImporte] = useState(false)
+  useEffect(() => { if (data) setF({ ...data, cotisation: String(data.cotisation), feuilles: data.feuilles.map((x) => ({ ...x })) }) }, [data])
+  if (chargement || !f) return <><Erreur erreur={erreur} />{!erreur && <Chargement />}</>
+
+  async function enregistrer(modif = {}) {
+    const g = { ...f, ...modif }
+    setF(g); setEnvoi(true)
+    try {
+      const r = await api('cate.reglagesEcrire', { cotisation: g.cotisation, ecoles: g.ecoles, feuilles: g.feuilles.map(({ id, annee }) => ({ id, annee })), import_auto: g.import_auto })
+      setF({ ...r, cotisation: String(r.cotisation) })
+      notifier(modif.import_auto !== undefined ? (g.import_auto ? 'Import automatique activé' : 'Import automatique désactivé') : 'Réglages enregistrés')
+    } catch (e) { notifier(e.message, 'erreur') } finally { setEnvoi(false) }
+  }
+  async function importer() {
+    setImporte(true)
+    try { const r = await api('cate.importer'); notifier(r.nouvelles ? `${r.nouvelles} inscription(s) importée(s)` : 'Aucune nouvelle inscription'); if (r.erreurs?.length) notifier(r.erreurs.slice(0, 3).join(' · '), 'erreur') }
+    catch (e) { notifier(e.message, 'erreur') } finally { setImporte(false) }
+  }
+  const majF = (i, k, v) => setF({ ...f, feuilles: f.feuilles.map((x, j) => (j === i ? { ...x, [k]: v } : x)) })
+  const majE = (i, k, v) => setF({ ...f, ecoles: f.ecoles.map((x, j) => (j === i ? { ...x, [k]: v } : x)) })
+
+  return (
+    <div className="grid gap-5 lg:grid-cols-2">
+      <div className="space-y-5">
+        <div className="carte space-y-3 p-5">
+          <div className="flex items-start gap-3">
+            <GraduationCap className="mt-1 h-5 w-5 shrink-0 text-or" />
+            <div className="flex-1"><h2 className="text-xl font-semibold">Formulaire d'inscription</h2>
+              <p className="text-sm text-nuit-600">L'appli lit la feuille de réponses du formulaire Google de chaque année. Chaque nouvelle réponse devient une inscription ; une demande de sacrement crée le dossier.</p></div>
+          </div>
+          {f.feuilles.map((x, i) => (
+            <div key={i} className="space-y-1 rounded-lg border border-nuit-100 p-3">
+              <div className="grid grid-cols-[110px_1fr_auto] items-end gap-2">
+                <div><label className="etiquette">Année</label><input className="champ py-1.5" placeholder="2027-2028" value={x.annee || ''} onChange={(e) => majF(i, 'annee', e.target.value)} /></div>
+                <div><label className="etiquette">Feuille de réponses (adresse)</label><input className="champ py-1.5 text-xs" placeholder="https://docs.google.com/spreadsheets/d/…" value={x.id} onChange={(e) => majF(i, 'id', e.target.value)} /></div>
+                <button className="btn-icone text-red-700" onClick={() => setF({ ...f, feuilles: f.feuilles.filter((_, j) => j !== i) })}><Trash2 className="h-4 w-4" /></button>
+              </div>
+              {x.nom ? <p className="text-xs text-emerald-700">✓ {x.nom}</p> : x.erreur ? <p className="text-xs text-red-700">{x.erreur}</p> : null}
+            </div>
+          ))}
+          <button className="text-sm text-or-600 hover:underline" onClick={() => setF({ ...f, feuilles: [...f.feuilles, { id: '', annee: '' }] })}><Plus className="mr-1 inline h-3.5 w-3.5" />Ajouter l'année suivante</button>
+          <p className="text-xs text-nuit-600/70">Chaque année, après avoir créé le nouveau formulaire, ouvrez sa feuille de réponses et collez son adresse ici.</p>
+          <div className="flex items-center gap-3 rounded-lg bg-or-50/60 p-3">
+            <div className="flex-1 text-sm"><strong>Import automatique</strong><br /><span className="text-xs text-nuit-600">Toutes les 15 minutes ; une notification signale les nouvelles inscriptions.</span></div>
+            <Interrupteur actif={f.import_auto} onChange={(v) => enregistrer({ import_auto: v })} />
+          </div>
+          <button className="btn-clair w-full" onClick={importer} disabled={importe}>{importe ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}Importer maintenant</button>
+        </div>
+      </div>
+      <div className="space-y-5">
+        <div className="carte space-y-3 p-5">
+          <h2 className="text-xl font-semibold">Cotisation</h2>
+          <div className="flex items-center gap-2 text-sm"><span className="flex-1">Cotisation d'inscription, par enfant</span><input className="champ w-28 text-right" value={f.cotisation} onChange={(e) => setF({ ...f, cotisation: e.target.value })} /> €</div>
+          <p className="text-xs text-nuit-600/70">S'applique aux nouvelles inscriptions ; modifiable enfant par enfant. Le prix des manuels est lu dans le texte des choix du formulaire, par ex. « (17 €) ».</p>
+        </div>
+        <div className="carte space-y-3 p-5">
+          <h2 className="text-xl font-semibold">Écoles</h2>
+          <p className="text-xs text-nuit-600/70">Pour envoyer les formulaires Première communion et Profession de foi aux écoles (Dossiers → Envoyer un formulaire).</p>
+          {f.ecoles.map((x, i) => (
+            <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+              <input className="champ py-1.5" placeholder="Nom de l'école" value={x.nom} onChange={(e) => majE(i, 'nom', e.target.value)} />
+              <input className="champ py-1.5" placeholder="E-mail du responsable" value={x.email} onChange={(e) => majE(i, 'email', e.target.value)} />
+              <button className="btn-icone text-red-700" onClick={() => setF({ ...f, ecoles: f.ecoles.filter((_, j) => j !== i) })}><Trash2 className="h-4 w-4" /></button>
+            </div>
+          ))}
+          <button className="text-sm text-or-600 hover:underline" onClick={() => setF({ ...f, ecoles: [...f.ecoles, { nom: '', email: '' }] })}><Plus className="mr-1 inline h-3.5 w-3.5" />Ajouter une école</button>
+        </div>
+        <button className="btn-principal" onClick={() => enregistrer()} disabled={envoi}>{envoi && <Loader2 className="h-4 w-4 animate-spin" />}Enregistrer</button>
       </div>
     </div>
   )
