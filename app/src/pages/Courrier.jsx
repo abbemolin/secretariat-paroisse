@@ -414,7 +414,7 @@ export function Redaction({ mode, fil, dossier, a: aInit = '', sujet: sujetInit 
           </> : <p className="text-sm text-nuit-600">À : <strong>{dernier ? nomExpediteur(dernier.de) : ''}</strong> — {fil.sujet}</p>}
           <textarea className="champ min-h-[260px] font-sans" value={corps} onChange={(e) => setCorps(e.target.value)} autoFocus />
           {boutons.length > 0 && <div className="space-y-1.5 text-xs text-nuit-600/70"><div>Boutons du mail (placés là où le texte indique « [Bouton : …] », sinon à la fin) :</div>
-            {boutons.map((b) => <div key={b.texte}><span className="inline-block rounded-lg bg-nuit px-4 py-2 text-sm font-semibold text-white">{b.texte}</span>{b.image && <img src={b.image} alt="" className="mt-1.5 w-72 rounded-lg border border-nuit-100" />}</div>)}</div>}
+            {boutons.map((b) => <div key={b.texte}>{!b.imageSeule && <span className="inline-block rounded-lg bg-nuit px-4 py-2 text-sm font-semibold text-white">{b.texte}</span>}{b.image && <img src={b.image} alt="" className="mt-1.5 w-72 rounded-lg border border-nuit-100" />}</div>)}</div>}
           {noteJointe && <span className="pastille gap-1 bg-or-50 text-or-600"><Paperclip className="h-3 w-3" />{noteJointe}</span>}
           {(fichiers.length > 0 || docs.length > 0) && (
             <div className="flex flex-wrap gap-2">

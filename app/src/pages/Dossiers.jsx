@@ -231,7 +231,7 @@ function EnvoiFormulaire({ onFermer }) {
     const corps = vers === 'ecole'
       ? `Bonjour,\n\nPour l'inscription des enfants de votre établissement à la ${f.nom.toLowerCase()}, voici le formulaire à transmettre aux familles. Il suffit de cliquer sur le bouton ci-dessous ; les réponses arrivent directement au secrétariat de la paroisse. Une copie de l'acte de baptême de l'enfant est demandée (sauf baptême à la paroisse La Croix glorieuse).\n[Bouton : ${B_FORM}]\n\n${infos}\n\nMerci beaucoup pour votre aide.\n\nAvec l'assurance de nos prières à toutes vos intentions,`
       : `Bonjour,\n\nPour inscrire votre enfant à la ${f.nom.toLowerCase()}, merci de remplir le formulaire en cliquant sur le bouton ci-dessous, en joignant une copie de son acte de baptême (sauf baptême à la paroisse La Croix glorieuse). Votre demande arrivera directement au secrétariat de la paroisse.\n[Bouton : ${B_FORM}]\n\n${infos}\n\nAvec l'assurance de nos prières à toutes vos intentions,`
-    const boutons = [{ texte: B_FORM, url }, ...(rdv ? [{ texte: B_RDV, url: reglages.url_rdv_cure, image: `${base}mail/rdv-cure.png` }] : [])]
+    const boutons = [{ texte: B_FORM, url }, ...(rdv ? [{ texte: B_RDV, url: reglages.url_rdv_cure, image: `${base}mail/rdv-cure.png`, imageSeule: true }] : [])]
     setRedaction({ a: vers === 'ecole' ? choisie?.email || '' : email, sujet: `Inscription à la ${f.nom.toLowerCase()}`, corps, boutons })
   }
   if (redaction) return <Redaction mode="nouveau" {...redaction} onFermer={onFermer} onEnvoye={() => { onFermer(); notifier('Formulaire envoyé') }} />

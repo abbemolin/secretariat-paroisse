@@ -109,6 +109,8 @@ function piecesPourEnvoi_(p) {
 /** Boutons d'un mail : [{ texte, url, image }]. « [Bouton : texte] » dans le corps place le bouton à cet endroit ; sinon il va à la fin. */
 function listeBoutons_(b) { return (Array.isArray(b) ? b : b ? [b] : []).filter(function (x) { return x && /^https:\/\//.test(x.url || ''); }); }
 function boutonHtml_(b) {
+  // imageSeule : seul le visuel cliquable (pas de bouton au-dessus)
+  if (b.imageSeule && b.image && /^https:\/\//.test(b.image)) return '<p style="margin:16px 0"><a href="' + echapper_(b.url) + '"><img src="' + echapper_(b.image) + '" width="480" alt="' + echapper_(b.texte || '') + '" style="max-width:100%;height:auto;border:0;border-radius:10px;display:block"></a></p>';
   var h = '<p style="margin:16px 0"><a href="' + echapper_(b.url) + '" style="background:#521a22;color:#fff;text-decoration:none;padding:12px 22px;border-radius:8px;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;display:inline-block">' + echapper_(b.texte || 'Ouvrir') + '</a></p>';
   if (b.image && /^https:\/\//.test(b.image)) h += '<p style="margin:0 0 16px"><a href="' + echapper_(b.url) + '"><img src="' + echapper_(b.image) + '" width="480" alt="' + echapper_(b.texte || '') + '" style="max-width:100%;height:auto;border:0;border-radius:10px;display:block"></a></p>';
   return h;
