@@ -12,6 +12,8 @@ URL = sys.argv[1] if len(sys.argv) > 1 else "COLLER_ICI_L_ADRESSE_DU_SCRIPT"
 def c(cle, label, type="text", requis=False, aide="", choix=None):
     return dict(cle=cle, label=label, type=type, requis=requis, aide=aide, choix=choix or [])
 
+A_LA_PAROISSE = "À la paroisse La Croix glorieuse"
+
 def groupes_enfant(lieux, classe="Classe (ex. CE2)", aide_classe=False):
     return [
     ("L'enfant", [c("enfant_prenoms", "Prénoms", requis=True), c("enfant_nom", "Nom", requis=True),
@@ -22,7 +24,10 @@ def groupes_enfant(lieux, classe="Classe (ex. CE2)", aide_classe=False):
     ("Les parents", [c("pere_prenom", "Prénom du père"), c("pere_nom", "Nom du père"),
                      c("mere_prenom", "Prénom de la mère"), c("mere_nom_jeune_fille", "Nom de jeune fille de la mère"),
                      c("adresse", "Adresse"), c("telephone", "Téléphone", "tel", True), c("email", "E-mail", "email", True)]),
-    ("Le baptême de l'enfant", [c("bapteme_paroisse", "Paroisse du baptême"), c("bapteme_date", "Date du baptême", "date"),
+    ("Le baptême de l'enfant", [c("bapteme_ou", "Où l'enfant a-t-il été baptisé ?", "select", True, choix=[A_LA_PAROISSE, "Dans une autre paroisse"]),
+                                c("bapteme_date", "Date du baptême", "date"), c("bapteme_paroisse", "Paroisse du baptême (ville et paroisse)"),
+                                c("certificat", "Copie de l'acte de baptême (PDF ou photo, 10 Mo maximum)", "file", True,
+                                  aide="Obligatoire, sauf si l'enfant a été baptisé à la paroisse La Croix glorieuse."),
                                 c("message", "Message (facultatif)", "textarea")]),
     ]
 
@@ -118,20 +123,43 @@ MODELE = """<meta charset="utf-8">
     if (form.preparation && q.get('preparation')) {{ form.preparation.value = q.get('preparation'); }}
     if (form.ecole_autre && q.get('ecole')) {{ form.ecole_autre.value = q.get('ecole'); }}
   }} catch (e) {{}}
+  var A_LA_PAROISSE = {a_la_paroisse};
+  function lireFichier(f){{
+    return new Promise(function(ok, ko){{
+      if (!f) return ok(null);
+      var r = new FileReader();
+      r.onload = function(){{ ok({{ nom: f.name, type: f.type || '', base64: String(r.result).split(',')[1] }}); }};
+      r.onerror = function(){{ ko(new Error('Lecture du fichier impossible.')); }};
+      r.readAsDataURL(f);
+    }});
+  }}
+  // Copie de l'acte de baptême : masquée si l'enfant a été baptisé à la paroisse
+  if (form.bapteme_ou && form.certificat) {{
+    var bloc = form.certificat.closest('.cg-fichier');
+    var maj = function(){{ bloc.style.display = form.bapteme_ou.value === A_LA_PAROISSE ? 'none' : ''; }};
+    form.bapteme_ou.addEventListener('change', maj); maj();
+  }}
   function afficher(texte, ok){{ msg.textContent = texte; msg.className = 'cg-msg ' + (ok ? 'cg-ok' : 'cg-ko'); msg.style.display = 'block'; }}
   form.addEventListener('submit', function(e){{
     e.preventDefault();
     var manque = Array.prototype.filter.call(form.querySelectorAll('[required]'), function(x){{ return x.type === 'checkbox' ? !x.checked : !x.value.trim(); }});
+    var fichier = form.certificat && form.certificat.files && form.certificat.files[0];
+    var sansCopie = form.bapteme_ou && form.bapteme_ou.value === A_LA_PAROISSE;
     if (manque.length) {{ afficher('Merci de remplir les champs marqués d\\'une étoile et d\\'accepter l\\'utilisation de vos données.', false); manque[0].focus(); return; }}
     if (form.pere_nom && !form.pere_nom.value.trim() && !form.mere_nom_jeune_fille.value.trim()) {{ afficher('Merci d\\'indiquer au moins un des parents.', false); form.pere_prenom.focus(); return; }}
     if (form.preparation && form.preparation.value === 'Autre école' && !form.ecole_autre.value.trim()) {{ afficher('Merci de préciser le nom de l\\'école.', false); form.ecole_autre.focus(); return; }}
+    if (form.certificat && !sansCopie && !fichier) {{ afficher('Merci de joindre une copie de l\\'acte de baptême (sauf si l\\'enfant a été baptisé à la paroisse La Croix glorieuse).', false); form.certificat.focus(); return; }}
+    if (fichier && fichier.size > 10 * 1024 * 1024) {{ afficher('Le fichier est trop lourd (10 Mo maximum).', false); form.certificat.focus(); return; }}
+    if (fichier && !/pdf|image|heic|heif/i.test((fichier.type || '') + fichier.name)) {{ afficher('Merci de joindre un PDF ou une photo.', false); form.certificat.focus(); return; }}
     var email = form.querySelector('[name=email]');
     if (email && !/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(email.value.trim())) {{ afficher('Adresse e-mail invalide.', false); email.focus(); return; }}
     var champs = {{}};
-    Array.prototype.forEach.call(form.querySelectorAll('input[name],textarea[name],select[name]'), function(x){{ if (x.name !== 'consentement' && x.name !== 'site_web') champs[x.name] = x.value.trim(); }});
+    Array.prototype.forEach.call(form.querySelectorAll('input[name],textarea[name],select[name]'), function(x){{ if (x.name !== 'consentement' && x.name !== 'site_web' && x.type !== 'file') champs[x.name] = x.value.trim(); }});
     bouton.disabled = true; bouton.textContent = 'Envoi…';
-    fetch(URL_SCRIPT, {{ method: 'POST', headers: {{ 'Content-Type': 'text/plain;charset=utf-8' }},
-      body: JSON.stringify({{ action: 'public.demande', payload: {{ type: '{type}', champs: champs, consentement: true, site_web: form.site_web.value }} }}) }})
+    lireFichier(sansCopie ? null : fichier).then(function(piece){{
+      return fetch(URL_SCRIPT, {{ method: 'POST', headers: {{ 'Content-Type': 'text/plain;charset=utf-8' }},
+        body: JSON.stringify({{ action: 'public.demande', payload: {{ type: '{type}', champs: champs, fichier: piece, consentement: true, site_web: form.site_web.value }} }}) }});
+    }})
       .then(function(r){{ return r.json(); }})
       .then(function(r){{
         if (!r.ok) throw new Error(r.message);
@@ -168,6 +196,9 @@ def champ_html(ch):
     if ch["type"] == "select":
         options = '<option value="">Choisir…</option>' + "".join(f'<option>{o}</option>' for o in ch["choix"])
         return f'<div class=""><label>{ch["label"]}{etoile}</label><select name="{ch["cle"]}"{req}>{options}</select></div>'
+    if ch["type"] == "file":
+        aide = f'<small style="display:block;color:#777;margin-top:.25em">{ch["aide"]}</small>' if ch["aide"] else ""
+        return f'<div class="cg-large cg-fichier"><label>{ch["label"]}{etoile}</label><input type="file" name="{ch["cle"]}" accept="application/pdf,image/*,.heic,.heif">{aide}</div>'
     if ch["type"] == "textarea":
         controle = f'<textarea name="{ch["cle"]}"{req}></textarea>'
         cls = "cg-large"
@@ -182,7 +213,7 @@ for type_, f in FORMULAIRES.items():
     groupes = "\n".join(
         f'<fieldset><legend>{titre}</legend><div class="cg-grille">' + "".join(champ_html(ch) for ch in champs) + "</div></fieldset>"
         for titre, champs in f["groupes"])
-    html = MODELE.format(type=type_, titre=f["titre"], intro=f["intro"], groupes=groupes, url=json.dumps(URL))
+    html = MODELE.format(type=type_, titre=f["titre"], intro=f["intro"], groupes=groupes, url=json.dumps(URL), a_la_paroisse=json.dumps(A_LA_PAROISSE, ensure_ascii=False))
     (sortie / f"formulaire-{type_}.html").write_text(html, encoding="utf-8")
     print("✓ formulaire-" + type_ + ".html")
     # Pages autonomes (envoyées par mail avec un bouton), hébergées avec l'appli

@@ -29,7 +29,11 @@ function anneeScolaire_(date) {
 
 var CHAMPS_ENFANT_ = ['enfant_nom', 'enfant_prenoms', 'enfant_naissance_date', 'enfant_naissance_lieu', 'classe',
   'pere_prenom', 'pere_nom', 'mere_prenom', 'mere_nom_jeune_fille', 'adresse', 'telephone', 'email',
-  'bapteme_paroisse', 'bapteme_date', 'preparation', 'ecole_autre', 'message'];
+  'bapteme_ou', 'bapteme_paroisse', 'bapteme_date', 'preparation', 'ecole_autre', 'message'];
+
+// Première communion, profession de foi : copie de l'acte de baptême obligatoire, sauf baptême à la paroisse
+var BAPTISE_A_LA_PAROISSE = 'À la paroisse La Croix glorieuse';
+var CERTIFICAT_MAX = 10 * 1024 * 1024;
 
 // Champs acceptés depuis les formulaires du site (et champs obligatoires)
 var CHAMPS_PUBLICS = {
@@ -360,6 +364,22 @@ function recevoirDemandePublique_(p) {
   if (infos.preparation === 'Autre école' && !infos.ecole_autre) throw erreur_('INVALIDE', 'Merci de préciser le nom de l\'école.');
   if (TYPES_DOSSIER[p.type].collectif) infos.annee_scolaire = anneeScolaire_();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(infos.email || '')) throw erreur_('INVALIDE', 'Adresse e-mail invalide.');
+  var certificat = null;
+  if (p.type === 'premiere_communion' || p.type === 'profession_foi') {
+    if (infos.bapteme_ou && infos.bapteme_ou !== BAPTISE_A_LA_PAROISSE && infos.bapteme_ou !== 'Dans une autre paroisse') delete infos.bapteme_ou;
+    var aLaParoisse = infos.bapteme_ou === BAPTISE_A_LA_PAROISSE;
+    if (aLaParoisse && !infos.bapteme_paroisse) infos.bapteme_paroisse = reglages_().paroisse;
+    if (p.fichier && p.fichier.base64 && !aLaParoisse) {
+      var octets = Utilities.base64Decode(String(p.fichier.base64));
+      if (octets.length > CERTIFICAT_MAX) throw erreur_('INVALIDE', 'Le fichier est trop lourd (10 Mo maximum).');
+      var nomF = String(p.fichier.nom || 'certificat').slice(0, 120);
+      var ext = ((nomF.match(/\.([a-z0-9]{2,5})$/i) || [])[1] || '').toLowerCase();
+      var typeF = String(p.fichier.type || '').toLowerCase();
+      if (!/^(application\/pdf|image\/)/.test(typeF) && ['pdf', 'jpg', 'jpeg', 'png', 'heic', 'heif', 'webp'].indexOf(ext) === -1) throw erreur_('INVALIDE', 'Merci de joindre un PDF ou une photo.');
+      certificat = { octets: octets, type: typeF || 'application/octet-stream', ext: ext };
+    }
+    if (!aLaParoisse && !certificat) throw erreur_('INVALIDE', 'Merci de joindre une copie de l\'acte de baptême (sauf si l\'enfant a été baptisé à la paroisse La Croix glorieuse).');
+  }
 
   var d = verrou_(function () {
     var nouveau = {
@@ -372,6 +392,22 @@ function recevoirDemandePublique_(p) {
     ajouterHistorique_(nouveau, 'Formulaire du site', 'Demande reçue');
     return ecrireLigne_('Dossiers', nouveau);
   });
+  if (certificat) {
+    try {
+      var systeme = { nom: 'Formulaire', uid: '' };
+      var f = dossierDriveDe_(d).createFile(Utilities.newBlob(certificat.octets, certificat.type, nomFichierDossier_(d, 'Acte de baptême', certificat.ext)));
+      verrou_(function () {
+        var dd = trouverDossier_(d.id);
+        enregistrerPiece_(dd, f, 'Copie de l\'acte de baptême (jointe au formulaire)', 'cert_bapteme', systeme, false);
+        dd = trouverDossier_(d.id);
+        var don = json2_(dd.donnees, {});
+        don.etapes = don.etapes || {};
+        don.etapes.certificat = { fait: true, date: maintenant_(), par: 'Formulaire', libelle: 'Certificat de baptême reçu' };
+        dd.donnees = JSON.stringify(don);
+        ecrireLigne_('Dossiers', dd);
+      });
+    } catch (e) { console.error('certificat formulaire', e); }
+  }
   journaliser_(null, 'Demande reçue (site)', TYPES_DOSSIER[d.type].nom + ' – ' + d.nom);
   lignes_('Utilisateurs').filter(estActif_).forEach(function (u) {
     notifier_(u.id, 'Nouvelle demande : ' + TYPES_DOSSIER[d.type].nom, d.nom, '#/dossiers/' + d.id);

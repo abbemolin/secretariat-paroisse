@@ -44,20 +44,43 @@
     if (form.preparation && q.get('preparation')) { form.preparation.value = q.get('preparation'); }
     if (form.ecole_autre && q.get('ecole')) { form.ecole_autre.value = q.get('ecole'); }
   } catch (e) {}
+  var A_LA_PAROISSE = "À la paroisse La Croix glorieuse";
+  function lireFichier(f){
+    return new Promise(function(ok, ko){
+      if (!f) return ok(null);
+      var r = new FileReader();
+      r.onload = function(){ ok({ nom: f.name, type: f.type || '', base64: String(r.result).split(',')[1] }); };
+      r.onerror = function(){ ko(new Error('Lecture du fichier impossible.')); };
+      r.readAsDataURL(f);
+    });
+  }
+  // Copie de l'acte de baptême : masquée si l'enfant a été baptisé à la paroisse
+  if (form.bapteme_ou && form.certificat) {
+    var bloc = form.certificat.closest('.cg-fichier');
+    var maj = function(){ bloc.style.display = form.bapteme_ou.value === A_LA_PAROISSE ? 'none' : ''; };
+    form.bapteme_ou.addEventListener('change', maj); maj();
+  }
   function afficher(texte, ok){ msg.textContent = texte; msg.className = 'cg-msg ' + (ok ? 'cg-ok' : 'cg-ko'); msg.style.display = 'block'; }
   form.addEventListener('submit', function(e){
     e.preventDefault();
     var manque = Array.prototype.filter.call(form.querySelectorAll('[required]'), function(x){ return x.type === 'checkbox' ? !x.checked : !x.value.trim(); });
+    var fichier = form.certificat && form.certificat.files && form.certificat.files[0];
+    var sansCopie = form.bapteme_ou && form.bapteme_ou.value === A_LA_PAROISSE;
     if (manque.length) { afficher('Merci de remplir les champs marqués d\'une étoile et d\'accepter l\'utilisation de vos données.', false); manque[0].focus(); return; }
     if (form.pere_nom && !form.pere_nom.value.trim() && !form.mere_nom_jeune_fille.value.trim()) { afficher('Merci d\'indiquer au moins un des parents.', false); form.pere_prenom.focus(); return; }
     if (form.preparation && form.preparation.value === 'Autre école' && !form.ecole_autre.value.trim()) { afficher('Merci de préciser le nom de l\'école.', false); form.ecole_autre.focus(); return; }
+    if (form.certificat && !sansCopie && !fichier) { afficher('Merci de joindre une copie de l\'acte de baptême (sauf si l\'enfant a été baptisé à la paroisse La Croix glorieuse).', false); form.certificat.focus(); return; }
+    if (fichier && fichier.size > 10 * 1024 * 1024) { afficher('Le fichier est trop lourd (10 Mo maximum).', false); form.certificat.focus(); return; }
+    if (fichier && !/pdf|image|heic|heif/i.test((fichier.type || '') + fichier.name)) { afficher('Merci de joindre un PDF ou une photo.', false); form.certificat.focus(); return; }
     var email = form.querySelector('[name=email]');
     if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.value.trim())) { afficher('Adresse e-mail invalide.', false); email.focus(); return; }
     var champs = {};
-    Array.prototype.forEach.call(form.querySelectorAll('input[name],textarea[name],select[name]'), function(x){ if (x.name !== 'consentement' && x.name !== 'site_web') champs[x.name] = x.value.trim(); });
+    Array.prototype.forEach.call(form.querySelectorAll('input[name],textarea[name],select[name]'), function(x){ if (x.name !== 'consentement' && x.name !== 'site_web' && x.type !== 'file') champs[x.name] = x.value.trim(); });
     bouton.disabled = true; bouton.textContent = 'Envoi…';
-    fetch(URL_SCRIPT, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'public.demande', payload: { type: 'catechumene', champs: champs, consentement: true, site_web: form.site_web.value } }) })
+    lireFichier(sansCopie ? null : fichier).then(function(piece){
+      return fetch(URL_SCRIPT, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'public.demande', payload: { type: 'catechumene', champs: champs, fichier: piece, consentement: true, site_web: form.site_web.value } }) });
+    })
       .then(function(r){ return r.json(); })
       .then(function(r){
         if (!r.ok) throw new Error(r.message);

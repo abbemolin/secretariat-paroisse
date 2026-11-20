@@ -22,7 +22,7 @@ const sectionsEnfant = (choixPrep, classe) => [
   { titre: 'Préparation', champs: [T('preparation', 'Lieu de préparation', 'choix', { choix: choixPrep }), T('ecole_autre', 'Nom de l\'école (si autre école)'), T('annee_scolaire', 'Année scolaire de la célébration', 'anneeScolaire')] },
   { titre: 'Parents', champs: [T('pere_prenom', 'Prénom du père'), T('pere_nom', 'Nom du père'), T('mere_prenom', 'Prénom de la mère'), T('mere_nom_jeune_fille', 'Nom de jeune fille de la mère'),
     T('adresse', 'Adresse'), T('telephone', 'Téléphone', 'tel'), T('email', 'E-mail', 'email')] },
-  { titre: 'Baptême de l\'enfant', champs: [T('bapteme_paroisse', 'Paroisse du baptême'), T('bapteme_date', 'Date du baptême', 'date')] },
+  { titre: 'Baptême de l\'enfant', champs: [T('bapteme_ou', 'Baptisé(e)', 'choix', { choix: ['', 'À la paroisse La Croix glorieuse', 'Dans une autre paroisse'] }), T('bapteme_paroisse', 'Paroisse du baptême'), T('bapteme_date', 'Date du baptême', 'date')] },
   MESSAGE
 ]
 
