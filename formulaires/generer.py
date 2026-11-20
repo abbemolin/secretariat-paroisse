@@ -100,11 +100,15 @@ MODELE = """<meta charset="utf-8">
 #cg-{type} .cg-msg{{margin-top:1em;padding:.9em 1em;border-radius:6px;display:none;line-height:1.4}}
 #cg-{type} .cg-ok{{background:#e8f5ec;color:#1d5e33}}
 #cg-{type} .cg-ko{{background:#fdeceb;color:#8a1f17}}
+#cg-{type} .cg-infos{{background:#faf3ea;border-left:4px solid #d08c4c;border-radius:6px;padding:.9em 1em;margin:0 0 1.4em;line-height:1.5}}
+#cg-{type} .cg-infos p{{margin:.3em 0}}
+#cg-{type} .cg-rdv{{display:inline-block;margin-top:.4em;background:#521a22;color:#fff!important;text-decoration:none;padding:.55em 1em;border-radius:6px;font-weight:bold}}
 #cg-{type} .cg-piege{{position:absolute;left:-9999px;height:0;overflow:hidden}}
 @media(max-width:560px){{#cg-{type} .cg-grille{{grid-template-columns:1fr}}}}
 </style>
 <h2>{titre}</h2>
 <p class="cg-intro">{intro}</p>
+<div class="cg-infos" style="display:none"></div>
 <form novalidate>
 {groupes}
 <div class="cg-piege" aria-hidden="true"><label>Site web<input name="site_web" tabindex="-1" autocomplete="off"></label></div>
@@ -124,6 +128,29 @@ MODELE = """<meta charset="utf-8">
     if (form.ecole_autre && q.get('ecole')) {{ form.ecole_autre.value = q.get('ecole'); }}
   }} catch (e) {{}}
   var A_LA_PAROISSE = {a_la_paroisse};
+  var AVEC_INFOS = {avec_infos}, NOM_CELEBRATION = {nom_celebration}, infosRdv = null;
+  function echap(t){{ return String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }}
+  // Date de la célébration de l'année (fixée dans l'appli), retraite, rendez-vous avec M. le curé
+  if (AVEC_INFOS) {{
+    fetch(URL_SCRIPT, {{ method: 'POST', headers: {{ 'Content-Type': 'text/plain;charset=utf-8' }}, body: JSON.stringify({{ action: 'public.infos', payload: {{ type: '{type}' }} }}) }})
+      .then(function(r){{ return r.json(); }})
+      .then(function(r){{
+        if (!r.ok) return;
+        var i = r.data, html = '';
+        if (i.date) {{
+          var d = new Date(i.date), z = {{ timeZone: 'Europe/Paris' }};
+          var jour = d.toLocaleDateString('fr-FR', {{ weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Paris' }});
+          var heure = d.toLocaleTimeString('fr-FR', {{ hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' }}).replace(':', ' h ');
+          html += '<p><strong>' + NOM_CELEBRATION + ' ' + echap(i.annee) + ' :</strong> ' + echap(jour) + ' à ' + echap(heure) + (i.lieu ? ', ' + echap(i.lieu) : '') + '.</p>';
+        }} else html += '<p><strong>' + NOM_CELEBRATION + ' ' + echap(i.annee) + ' :</strong> la date et l\\'heure vous seront communiquées prochainement.</p>';
+        html += '<p>Les informations concernant la retraite vous seront communiquées plus tard.</p>';
+        if (i.rdv && i.rdv.url) {{
+          infosRdv = i.rdv;
+          html += '<p><strong>Rendez-vous avec Monsieur le Curé</strong> (les parents et l\\'enfant) : merci de vous inscrire rapidement.<br><a class="cg-rdv" href="' + echap(i.rdv.url) + '" target="_blank" rel="noopener">Prendre rendez-vous</a></p>';
+        }}
+        var bloc = racine.querySelector('.cg-infos'); bloc.innerHTML = html; bloc.style.display = 'block';
+      }}).catch(function(){{}});
+  }}
   function lireFichier(f){{
     return new Promise(function(ok, ko){{
       if (!f) return ok(null);
@@ -165,6 +192,11 @@ MODELE = """<meta charset="utf-8">
         if (!r.ok) throw new Error(r.message);
         form.querySelectorAll('fieldset,.cg-consent,button').forEach(function(x){{ x.style.display = 'none'; }});
         afficher('Merci ! Votre demande a bien été transmise au secrétariat de la paroisse. Nous vous recontacterons prochainement.', true);
+        if (infosRdv && infosRdv.integre) {{
+          var r2 = document.createElement('div');
+          r2.innerHTML = '<p style="margin:1.4em 0 .6em;font-weight:bold;color:#521a22">Prenez dès maintenant rendez-vous avec Monsieur le Curé (les parents et l\\'enfant) :</p><iframe src="' + echap(infosRdv.integre) + '" style="border:0" width="100%" height="600" frameborder="0"></iframe>';
+          form.appendChild(r2);
+        }}
       }})
       .catch(function(err){{
         bouton.disabled = false; bouton.textContent = 'Envoyer ma demande';
@@ -213,7 +245,9 @@ for type_, f in FORMULAIRES.items():
     groupes = "\n".join(
         f'<fieldset><legend>{titre}</legend><div class="cg-grille">' + "".join(champ_html(ch) for ch in champs) + "</div></fieldset>"
         for titre, champs in f["groupes"])
-    html = MODELE.format(type=type_, titre=f["titre"], intro=f["intro"], groupes=groupes, url=json.dumps(URL), a_la_paroisse=json.dumps(A_LA_PAROISSE, ensure_ascii=False))
+    html = MODELE.format(type=type_, titre=f["titre"], intro=f["intro"], groupes=groupes, url=json.dumps(URL), a_la_paroisse=json.dumps(A_LA_PAROISSE, ensure_ascii=False),
+                        avec_infos='true' if type_ in ('premiere_communion', 'profession_foi') else 'false',
+                        nom_celebration=json.dumps({'premiere_communion': 'Première communion', 'profession_foi': 'Profession de foi'}.get(type_, ''), ensure_ascii=False))
     (sortie / f"formulaire-{type_}.html").write_text(html, encoding="utf-8")
     print("✓ formulaire-" + type_ + ".html")
     # Pages autonomes (envoyées par mail avec un bouton), hébergées avec l'appli

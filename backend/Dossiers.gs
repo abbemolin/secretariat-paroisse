@@ -421,6 +421,18 @@ function recevoirDemandePublique_(p) {
 
 var TITRES_COLLECTIFS = { premiere_communion: 'Premières communions', profession_foi: 'Professions de foi', confirmation_jeune: 'Confirmations' };
 
+/** Pour les formulaires (sans connexion) : date de la célébration de l'année et prise de rendez-vous avec le curé. */
+function infosPubliques_(p) {
+  if (p.type !== 'premiere_communion' && p.type !== 'profession_foi') throw erreur_('INVALIDE', 'Formulaire inconnu.');
+  var annee = anneeScolaire_();
+  var promo = promotions_()[p.type + '|' + annee] || {};
+  var r = reglages_();
+  return {
+    annee: annee, date: promo.date || '', lieu: promo.lieu || '',
+    rdv: p.type === 'premiere_communion' ? { url: r.url_rdv_cure || '', integre: r.url_rdv_cure_integre || '' } : null
+  };
+}
+
 function promotions_() { return json2_(props_().getProperty('PROMOTIONS'), {}); }
 
 function listerPromotions_() {

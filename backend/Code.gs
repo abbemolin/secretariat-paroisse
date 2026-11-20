@@ -45,6 +45,8 @@ var REGLAGES_DEFAUT = {
   adresse: '2, quai Charles Frey 67000 Strasbourg',
   site: 'croix-glorieuse.org',
   url_horaires: 'https://www.croix-glorieuse.org/horaires',
+  url_rdv_cure: 'https://calendar.app.google/B8m9xbUJEaXQSDQQA',   // prise de rendez-vous avec le curé (première communion)
+  url_rdv_cure_integre: 'https://calendar.google.com/calendar/appointments/schedules/AcZssZ19XHvXRpcqqDx7pdnUvlmlmIJNzWLQ65CAx0cKZMInSlwRxZ3gbAtEGx4jf2OC1AdF1gm6yuIg?gv=true',
   signataires: '', // ids des utilisateurs autorisés à signer les extraits (vide = administrateurs et secrétaires)
   url_icones: ''   // ex. https://<compte>.github.io/<depot>/signature (icônes des signatures)
 };
@@ -63,6 +65,7 @@ function doPost(e) {
 
     if (action === 'auth.login') return json_({ ok: true, data: login_(p) });
     if (action === 'public.demande') return json_({ ok: true, data: recevoirDemandePublique_(p) });
+    if (action === 'public.infos') return json_({ ok: true, data: infosPubliques_(p) });
 
     var session = verifierSession_(req.token);
     var route = ROUTES[action];

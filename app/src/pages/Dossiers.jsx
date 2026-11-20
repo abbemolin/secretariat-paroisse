@@ -4,7 +4,7 @@ import { Plus, Search, FolderHeart, Loader2, Globe, Printer, CalendarCheck, Scro
 import { Redaction } from './Courrier.jsx'
 import { api } from '../api.js'
 import { useApp } from '../App.jsx'
-import { TYPES, ORDRE_TYPES, ETATS, prochaineEtape, documentsManquants, PAR_ANNEE, anneeSacrements, etapesDe, libelleAnnee, TITRES_COLLECTIFS, lieuPreparation } from '../types.js'
+import { TYPES, ORDRE_TYPES, ETATS, prochaineEtape, documentsManquants, PAR_ANNEE, anneeSacrements, etapesDe, libelleAnnee, TITRES_COLLECTIFS, lieuPreparation, anneeScolaireActuelle } from '../types.js'
 import { Chargement, Erreur, Modale, Vide, useCharger, useNotif, imprimerHtml, dateCourte, initiales, versLocal, jourLong, heure, COULEURS_STATUT } from '../ui.jsx'
 
 export default function Dossiers() {
@@ -206,6 +206,8 @@ function EnvoiFormulaire({ onFermer }) {
   const [ecole, setEcole] = useState('')
   const [redaction, setRedaction] = useState(null)
   const { data } = useCharger(() => api('cate.reglages'), [])
+  const promos = useCharger(() => api('promotions.liste'), [])
+  const { reglages } = useApp()
   const ecoles = (data?.ecoles || []).filter((x) => x.nom)
   const choisie = ecoles.find((x) => x.nom === ecole)
   const f = FORMULAIRES_ECOLES[type]
@@ -214,15 +216,23 @@ function EnvoiFormulaire({ onFermer }) {
     const base = location.href.split('#')[0].replace(/[?].*$/, '').replace(/[^/]*$/, '')
     let url = `${base}formulaires/${f.fichier}.html`
     if (vers === 'ecole' && choisie) url += PREPARATIONS_CONNUES.includes(choisie.nom) ? `?preparation=${encodeURIComponent(choisie.nom)}` : `?preparation=${encodeURIComponent('Autre école')}&ecole=${encodeURIComponent(choisie.nom)}`
+    // Date de la célébration de l'année, retraite, rendez-vous avec M. le curé (première communion)
+    const annee = anneeScolaireActuelle()
+    const promo = promos.data?.[`${type}|${annee}`]
+    const quand = promo?.date
+      ? `La ${f.nom.toLowerCase()} (année ${annee}) aura lieu le ${new Date(promo.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} à ${heure(promo.date).replace(':', ' h ')}${promo.lieu ? ', ' + promo.lieu : ''}.`
+      : `La date et l'heure de la ${f.nom.toLowerCase()} (année ${annee}) vous seront communiquées prochainement.`
+    const infos = `${quand}\nLes informations concernant la retraite vous seront communiquées plus tard.` +
+      (type === 'premiere_communion' && reglages.url_rdv_cure ? `\n\nRendez-vous avec Monsieur le Curé : les parents et l'enfant sont invités à le rencontrer. Merci de vous inscrire rapidement ici :\n${reglages.url_rdv_cure}` : '')
     const corps = vers === 'ecole'
-      ? `Bonjour,\n\nPour l'inscription des enfants de votre établissement à la ${f.nom.toLowerCase()}, voici le formulaire à transmettre aux familles. Il suffit de cliquer sur le bouton ci-dessous ; les réponses arrivent directement au secrétariat de la paroisse.\n\nMerci beaucoup pour votre aide, bien fraternellement,`
-      : `Bonjour,\n\nPour inscrire votre enfant à la ${f.nom.toLowerCase()}, merci de remplir le formulaire en cliquant sur le bouton ci-dessous. Votre demande arrivera directement au secrétariat de la paroisse.\n\nBien fraternellement,`
+      ? `Bonjour,\n\nPour l'inscription des enfants de votre établissement à la ${f.nom.toLowerCase()}, voici le formulaire à transmettre aux familles. Il suffit de cliquer sur le bouton ci-dessous ; les réponses arrivent directement au secrétariat de la paroisse. Une copie de l'acte de baptême de l'enfant est demandée (sauf baptême à la paroisse La Croix glorieuse).\n\n${infos}\n\nMerci beaucoup pour votre aide, bien fraternellement,`
+      : `Bonjour,\n\nPour inscrire votre enfant à la ${f.nom.toLowerCase()}, merci de remplir le formulaire en cliquant sur le bouton ci-dessous, en joignant une copie de son acte de baptême (sauf baptême à la paroisse La Croix glorieuse). Votre demande arrivera directement au secrétariat de la paroisse.\n\n${infos}\n\nBien fraternellement,`
     setRedaction({ a: vers === 'ecole' ? choisie?.email || '' : email, sujet: `Inscription à la ${f.nom.toLowerCase()}`, corps, bouton: { texte: "Remplir le formulaire d'inscription", url } })
   }
   if (redaction) return <Redaction mode="nouveau" {...redaction} onFermer={onFermer} onEnvoye={() => { onFermer(); notifier('Formulaire envoyé') }} />
   return (
     <Modale titre="Envoyer un formulaire d'inscription" onFermer={onFermer}
-      pied={<><button className="btn-clair" onClick={onFermer}>Annuler</button><button className="btn-principal" disabled={vers === 'ecole' ? !choisie : !email} onClick={rediger}>Rédiger le mail</button></>}>
+      pied={<><button className="btn-clair" onClick={onFermer}>Annuler</button><button className="btn-principal" disabled={(vers === 'ecole' ? !choisie : !email) || promos.chargement} onClick={rediger}>Rédiger le mail</button></>}>
       <div className="space-y-4">
         <div><label className="etiquette">Formulaire</label>
           <div className="grid grid-cols-2 gap-2">{Object.entries(FORMULAIRES_ECOLES).map(([k, x]) => (

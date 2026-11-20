@@ -22,7 +22,7 @@ const etat = {
     ]
   },
   tri: { actif: true, envoi_auto: true, desactivees: [], sensibles: ["deces","decede*","obseques","enterrement","funerailles","malade*","maladie","hopital","mourant*","fin de vie","soins palliatifs","onction","sacrement des malades","derniers sacrements","urgent*","urgence","detresse","suicide","abus","agression","plainte"], ignores: ["no-reply","noreply","ne-pas-repondre","nepasrepondre","donotreply","mailer-daemon","postmaster","notification","newsletter","news@","info@mail."], mots: Object.fromEntries(TRI_DEMO.map((c) => [c.cle, c.mots])) },
-  reglages: { paroisse: 'Paroisse personnelle La Croix glorieuse', paroisse_courte: 'La Croix glorieuse', diocese: 'Strasbourg', commune: 'Strasbourg', eglise: '', adresse: '2, quai Charles Frey 67000 Strasbourg', site: 'croix-glorieuse.org', url_horaires: 'https://www.croix-glorieuse.org/horaires', url_icones: '' },
+  reglages: { paroisse: 'Paroisse personnelle La Croix glorieuse', paroisse_courte: 'La Croix glorieuse', diocese: 'Strasbourg', commune: 'Strasbourg', eglise: '', adresse: '2, quai Charles Frey 67000 Strasbourg', site: 'croix-glorieuse.org', url_horaires: 'https://www.croix-glorieuse.org/horaires', url_icones: '', url_rdv_cure: 'https://calendar.app.google/B8m9xbUJEaXQSDQQA', url_rdv_cure_integre: '' },
   utilisateurs: [
     { id: 'u1', identifiant: 'florent', nom: 'abbé Florent Molin', role: 'admin', signature: 'cure', actif: true, derniere_connexion: jour(0, 9) },
     { id: 'u2', identifiant: 'guillaume', nom: 'abbé Guillaume Le Gall', role: 'cure', signature: 'vicaire', actif: true, derniere_connexion: jour(-1, 18) },
