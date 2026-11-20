@@ -4,7 +4,7 @@ import { Inbox, Star, AlertTriangle, CheckCircle2, ScrollText, ExternalLink, Wan
 import { api, fichierEnBase64, telechargerBase64 } from '../api.js'
 import { useApp } from '../App.jsx'
 import { TYPES, ORDRE_TYPES, remplirModele } from '../types.js'
-import { Chargement, Erreur, Vide, Modale, useNotif, dateRelative, dateHeure, nomExpediteur, taille, COULEURS_STATUT, initiales } from '../ui.jsx'
+import { Chargement, Erreur, Vide, Modale, useNotif, useDifferer, Aide, dateRelative, dateHeure, nomExpediteur, taille, COULEURS_STATUT, initiales } from '../ui.jsx'
 import { ChoisirDocument } from './Documents.jsx'
 import { EditionEvenement } from './Agenda.jsx'
 import { creerExtrait } from './Extraits.jsx'
@@ -45,6 +45,7 @@ export default function Courrier() {
   const libelle = params.get('libelle') || ''
   const ouvert = params.get('fil')
   const [recherche, setRecherche] = useState('')
+  const differer = useDifferer()
   const [fils, setFils] = useState([])
   const [suivant, setSuivant] = useState(null)
   const [chargement, setChargement] = useState(true)
@@ -67,6 +68,12 @@ export default function Courrier() {
   useEffect(() => { api('mail.libelles').then(setLibelles).catch(() => {}) }, [])
 
   async function agir(fil, modif, message) {
+    if (modif.archiver || modif.corbeille) {
+      const avant = fils
+      setFils((l) => l.filter((x) => x.id !== fil.id)); changer({ fil: '' })
+      differer(message, () => api('mail.modifier', { id: fil.id, ...modif }), { onAnnule: () => { setFils(avant); changer({ fil: fil.id }) }, onErreur: () => setFils(avant) })
+      return
+    }
     try {
       await api('mail.modifier', { id: fil.id, ...modif })
       if (modif.archiver || modif.corbeille) { setFils((l) => l.filter((x) => x.id !== fil.id)); changer({ fil: '' }) }
@@ -101,6 +108,7 @@ export default function Courrier() {
               <option value="">Tri automatique…</option>
               {[...TRI_SPECIAUX, ...TRI].map((c) => <option key={c.cle} value={'Tri/' + c.nom}>{c.nom}</option>)}
             </select>
+            <Aide className="self-center">Les mails entrants sont classés par mots-clés toutes les 5 minutes. Seules les demandes d'horaires reçoivent une réponse automatique ; un mot sensible place le mail en « Prioritaire ». Règles : Réglages → Tri automatique.</Aide>
             {libelles.length > 0 && (
               <select className={`champ py-1.5 text-xs ${libelle && !libelle.startsWith('Tri/') ? 'border-or bg-or-50' : ''}`} value={libelle.startsWith('Tri/') ? '' : libelle} onChange={(e) => changer({ libelle: e.target.value, fil: '' })}>
                 <option value="">Libellés…</option>{libelles.map((l) => <option key={l}>{l}</option>)}
@@ -433,7 +441,7 @@ export function Redaction({ mode, fil, dossier, a: aInit = '', sujet: sujetInit 
             <select className="champ py-1.5" value={signature} onChange={(e) => setSignature(e.target.value)}>
               {signatures.map((s) => <option key={s.cle} value={s.cle}>{s.nom}</option>)}
             </select></div>
-          <div className="rounded-lg border border-nuit-100 bg-white p-3"><ApercuSignature sig={signatures.find((s) => s.cle === signature)} reglages={reglages} /></div>
+          <div className="apercu-clair rounded-lg border border-nuit-100 bg-white p-3"><ApercuSignature sig={signatures.find((s) => s.cle === signature)} reglages={reglages} /></div>
           <p className="text-[11px] text-nuit-600/60">Envoyé depuis secretariat@croix-glorieuse.org{dossier ? ' · rattaché au dossier' : ''}.</p>
         </div>
       </div>

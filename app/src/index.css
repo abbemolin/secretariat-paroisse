@@ -22,3 +22,32 @@
 }
 
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+
+/* ─── Taille du texte (Mon compte → Affichage) ─── */
+html.texte-grand { font-size: 17.5px; }
+html.texte-tresgrand { font-size: 19.5px; }
+
+/* ─── Mode sombre (Mon compte → Affichage) ─── */
+html.sombre { color-scheme: dark; }
+html.sombre body { background: #171012; color: #eee2df; }
+html.sombre .bg-parchemin, html.sombre main { background-color: #171012; }
+html.sombre .carte, html.sombre .bg-white, html.sombre [class*="bg-white/"] { background-color: #231a1c; }
+html.sombre .carte, html.sombre [class*="border-nuit-100"], html.sombre [class*="border-nuit-50"], html.sombre [class*="divide-nuit-50"] > *, html.sombre [class*="divide-nuit-100"] > * { border-color: #3a2b2e; }
+html.sombre .champ { background-color: #1c1416; border-color: #4a373b; color: #eee2df; }
+html.sombre .champ::placeholder { color: #9b8a87; }
+html.sombre .btn-clair { background-color: #2b2023; border-color: #4a373b; color: #eee2df; }
+html.sombre .btn-clair:hover, html.sombre .btn-icone:hover, html.sombre [class*="hover:bg-nuit-50"]:hover { background-color: #33262a; }
+html.sombre .btn-icone { color: #d9c4c1; }
+html.sombre [class*="text-nuit-800"], html.sombre [class*="text-nuit-700"], html.sombre .text-nuit, html.sombre h1, html.sombre h2, html.sombre h3 { color: #f1e6e3; }
+html.sombre [class*="text-nuit-600"] { color: #c9b4b1; }
+html.sombre [class*="bg-nuit-50"] { background-color: #2b2023; }
+html.sombre [class*="bg-or-50"] { background-color: #3a2a1b; }
+html.sombre .bg-or-100 { background-color: #3a2a1b; }
+html.sombre [class*="text-or-600"] { color: #e6a86c; }
+html.sombre .etiquette { color: #c9b4b1; }
+html.sombre nav.fixed { background-color: #1f1517; border-color: #3a2b2e; }
+html.sombre .bg-nuit-800\/40 { background-color: rgba(0,0,0,.55); }
+html.sombre .bg-amber-50, html.sombre .bg-red-50, html.sombre .bg-emerald-50, html.sombre .bg-sky-50 { background-color: #2b2023; }
+html.sombre select option { background: #231a1c; color: #eee2df; }
+/* aperçus de mail : restent tels que le destinataire les verra */
+html.sombre .apercu-clair, html.sombre .apercu-clair * { background-color: #fff !important; color: #2a1d20; }

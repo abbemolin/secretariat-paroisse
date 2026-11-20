@@ -24,7 +24,7 @@ export default function Agenda() {
   const [ref, setRef] = useState(() => new Date())
   const [edition, setEdition] = useState(null)
   const [debut, fin] = useMemo(() => bornes(vue, ref), [vue, ref])
-  const evts = useCharger(() => api('agenda.evenements', { debut: debut.toISOString(), fin: fin.toISOString() }), [debut.getTime(), fin.getTime()])
+  const evts = useCharger(() => api('agenda.evenements', { debut: debut.toISOString(), fin: fin.toISOString() }), [debut.getTime(), fin.getTime()], ['agenda.evenements', { debut: debut.toISOString(), fin: fin.toISOString() }])
   const liste = evts.data || []
   const duJour = (j) => liste.filter((e) => new Date(e.debut) < ajouterJours(j, 1) && new Date(e.fin) > j && !(e.journee && new Date(e.fin).getTime() === j.getTime()))
 

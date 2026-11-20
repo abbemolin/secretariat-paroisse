@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { Mail, UserCheck, FolderHeart, CalendarDays, ChevronRight, Bell, ExternalLink } from 'lucide-react'
+import { Mail, UserCheck, FolderHeart, CalendarDays, ChevronRight, Bell, ExternalLink, ListChecks, CheckCircle2 } from 'lucide-react'
 import { chargerAppMesse, CELEBRANTS, COULEURS_LITURGIQUES, LIEN_APPMESSE } from '../appmesse.js'
 import { api } from '../api.js'
 import { useApp } from '../App.jsx'
@@ -9,7 +9,7 @@ import { Chargement, Erreur, EnTete, heure, jourLong, dateRelative, useCharger }
 
 export default function Accueil() {
   const { utilisateur, peut } = useApp()
-  const { data, chargement, erreur, recharger } = useCharger(() => api('accueil.resume'), [])
+  const { data, chargement, erreur, recharger } = useCharger(() => api('accueil.resume'), [], ['accueil.resume', {}])
   const salut = new Date().getHours() < 18 ? 'Bonjour' : 'Bonsoir'
 
   return (
@@ -24,6 +24,21 @@ export default function Accueil() {
             {peut('dossiers') && <Tuile to="/dossiers" icone={FolderHeart} chiffre={data.dossiersOuverts} libelle="dossiers en cours" />}
             {peut('agenda') && <Tuile to="/agenda" icone={CalendarDays} chiffre={data.evenements?.length} libelle="événements sur 7 jours" />}
           </div>
+
+          {data.afaire && (
+            <section className="carte p-5">
+              <h2 className="mb-2 flex items-center gap-2 text-xl font-semibold"><ListChecks className="h-5 w-5 text-or" />À faire</h2>
+              {!data.afaire.length ? <p className="flex items-center gap-2 text-sm text-nuit-600/70"><CheckCircle2 className="h-4 w-4 text-emerald-600" />Rien en attente. Bonne journée !</p> : (
+                <ul className="divide-y divide-nuit-50">
+                  {data.afaire.map((x) => (
+                    <li key={x.cle}><Link to={x.lien} className="flex items-center gap-3 py-2.5 text-sm hover:text-or-600">
+                      <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-or px-2 text-xs font-bold text-white">{x.nombre}</span>
+                      <span className="flex-1">{x.texte}</span><ChevronRight className="h-4 w-4 text-nuit-600/40" /></Link></li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
 
           <FeteEtIntentions />
 

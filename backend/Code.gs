@@ -105,6 +105,7 @@ var ROUTES = {
 
   'notifications.liste':   { fn: listerNotifications_ },
   'notifications.lues':    { fn: marquerNotificationsLues_ },
+  'notifications.prefs':   { fn: function (p, s) { return p.ecrire ? ecrirePrefsNotif_(p, s) : lirePrefsNotif_(p, s); } },
   'push.cle':              { fn: function () { return clePubliquePush_(); } },
   'push.abonner':          { fn: abonnerPush_ },
   'push.desabonner':       { fn: desabonnerPush_ },
@@ -499,16 +500,110 @@ function resumeAccueil_(p, s) {
     res.nouveaux = ds.filter(function (x) { return !json2_(x.donnees, {}).etapes || etapesFaites_(x) === 0; }).map(dossierResume_);
   }
   res.notifications = listerNotifications_({ limite: 8 }, s);
+  res.afaire = aFaire_(s);
   return res;
 }
 
+/** Liste « À faire » de l'accueil : tout ce qui attend une action, avec le lien pour y aller. */
+function aFaire_(s) {
+  var d = DROITS[s.role], l = [];
+  var essai = function (fn) { try { fn(); } catch (e) { console.error('aFaire', e); } };
+  if (d.indexOf('mail') > -1) essai(function () {
+    var n = lignes_('SuiviMails').filter(function (x) { return x.statut === 'À traiter'; }).length;
+    if (n) l.push({ cle: 'mails', nombre: n, texte: n > 1 ? 'mails à traiter' : 'mail à traiter', lien: '/courrier?filtre=atraiter' });
+  });
+  if (d.indexOf('dossiers') > -1) {
+    essai(function () {
+      var ds = lignes_('Dossiers').filter(function (x) { return x.etat === 'ouvert'; });
+      var nouv = ds.filter(function (x) { return etapesFaites_(x) <= 1 && (json2_(x.donnees, {}).historique || []).length <= 2; }).length;
+      if (nouv) l.push({ cle: 'demandes', nombre: nouv, texte: nouv > 1 ? 'nouvelles demandes à prendre en charge' : 'nouvelle demande à prendre en charge', lien: '/dossiers' });
+      var valider = ds.filter(function (x) {
+        if (!TYPES_DOSSIER[x.type].collectif) return false;
+        var don = json2_(x.donnees, {}), i = don.infos || {};
+        return i.preparation && i.preparation !== 'Paroisse' && !((don.etapes || {}).validation || {}).fait;
+      }).length;
+      if (valider) l.push({ cle: 'valider', nombre: valider, texte: valider > 1 ? 'préparations hors paroisse à valider par le curé' : 'préparation hors paroisse à valider par le curé', lien: '/dossiers?type=premiere_communion' });
+      var bap = ds.filter(function (x) { return alertesDossier_(x.type, json2_(x.donnees, {}).infos || {}).indexOf('bapteme_a_trouver') > -1; }).length;
+      if (bap) l.push({ cle: 'bapteme', nombre: bap, texte: bap > 1 ? 'confirmands dont le baptême est à trouver' : 'confirmand dont le baptême est à trouver', lien: '/dossiers?type=confirmand' });
+    });
+    essai(function () {
+      if (!db_().getSheetByName('CorUnum')) return;
+      var r = corReglages_();
+      var annee = r.feuilles.map(function (f) { return f.annee; }).sort().reverse()[0];
+      var n = lignes_('CorUnum').filter(function (x) { return x.annee === annee && x.statut !== 'ancien' && !x.equipe_id; }).length;
+      if (n) l.push({ cle: 'cor', nombre: n, texte: n > 1 ? 'inscrits Cor Unum à répartir' : 'inscrit Cor Unum à répartir', lien: '/cor-unum?vue=repartir' });
+      var fils = resumeFils_(equipesDe_(r, annee));
+      var m = Object.keys(fils).reduce(function (a, k) { return a + fils[k].non_lus; }, 0);
+      if (m) l.push({ cle: 'chefs', nombre: m, texte: m > 1 ? 'messages de chefs de fraternité non lus' : 'message de chef de fraternité non lu', lien: '/cor-unum' });
+    });
+    essai(function () {
+      if (!db_().getSheetByName('Catechisme')) return;
+      var annee = cateReglages_().feuilles.map(function (f) { return f.annee; }).sort().reverse()[0] || anneeScolaire_();
+      var imp = lignes_('Catechisme').filter(function (x) { return x.annee === annee; }).map(resumeInscription_).filter(function (x) { return x.reste > 0; });
+      if (imp.length) {
+        var total = Math.round(imp.reduce(function (a, x) { return a + x.reste; }, 0));
+        l.push({ cle: 'impayes', nombre: imp.length, texte: (imp.length > 1 ? 'inscriptions au catéchisme non réglées' : 'inscription au catéchisme non réglée') + ' (' + total + ' €)', lien: '/catechisme?impayes=1' });
+      }
+    });
+  }
+  return l;
+}
+
 // ─────────────────────────────── NOTIFICATIONS ───────────────────────────────
+
+// Catégories que chaque utilisateur peut couper (Mon compte → Notifications)
+var CATEGORIES_NOTIF = [
+  { cle: 'demandes', nom: 'Nouvelles demandes (formulaires du site)' },
+  { cle: 'courrier', nom: 'Courrier : mails attribués, commentaires' },
+  { cle: 'dossiers', nom: 'Dossiers qui me sont confiés' },
+  { cle: 'catechisme', nom: 'Inscriptions au catéchisme' },
+  { cle: 'confirmands', nom: 'Inscriptions des confirmands' },
+  { cle: 'cor_unum', nom: 'Cor Unum : inscriptions, messages des chefs, ajouts et départs' }
+];
+function categorieNotif_(titre, lien) {
+  var t = String(titre || ''), l = String(lien || '');
+  if (/^Nouvelle demande/.test(t)) return 'demandes';
+  if (/^Confirmation : inscription/.test(t)) return 'confirmands';
+  if (l.indexOf('#/courrier') === 0) return 'courrier';
+  if (l.indexOf('#/catechisme') === 0) return 'catechisme';
+  if (l.indexOf('#/cor-unum') === 0) return 'cor_unum';
+  if (l.indexOf('#/dossiers') === 0) return 'dossiers';
+  return '';
+}
+function prefsNotif_() { return json2_(props_().getProperty('NOTIF_PREFS'), {}); }
+function lirePrefsNotif_(p, s) {
+  var r = prefsNotif_()[s.uid] || {};
+  return { categories: CATEGORIES_NOTIF, coupees: r.coupees || [], calme: r.calme || { actif: false, de: '21:30', a: '07:30' } };
+}
+function ecrirePrefsNotif_(p, s) {
+  verrou_(function () {
+    var tout = prefsNotif_();
+    var ok = CATEGORIES_NOTIF.map(function (c) { return c.cle; });
+    var h = function (t, d) { return /^\d{2}:\d{2}$/.test(String(t || '')) ? String(t) : d; };
+    tout[s.uid] = {
+      coupees: (p.coupees || []).filter(function (c) { return ok.indexOf(c) > -1; }),
+      calme: { actif: !!(p.calme && p.calme.actif), de: h(p.calme && p.calme.de, '21:30'), a: h(p.calme && p.calme.a, '07:30') }
+    };
+    props_().setProperty('NOTIF_PREFS', JSON.stringify(tout));
+  });
+  return lirePrefsNotif_(p, s);
+}
+/** Heures calmes : la notification reste dans l'appli, mais rien ne sonne sur le téléphone. */
+function enHeuresCalmes_(calme) {
+  if (!calme || !calme.actif) return false;
+  var maintenant = Utilities.formatDate(new Date(), 'Europe/Paris', 'HH:mm');
+  return calme.de <= calme.a ? (maintenant >= calme.de && maintenant < calme.a) : (maintenant >= calme.de || maintenant < calme.a);
+}
 
 /** Crée une notification pour un utilisateur et l'envoie sur ses téléphones. */
 function notifier_(uid, titre, texte, lien) {
   if (!uid) return;
   try {
+    var pr = prefsNotif_()[uid] || {};
+    var cat = categorieNotif_(titre, lien);
+    if (cat && (pr.coupees || []).indexOf(cat) > -1) return;
     ecrireLigne_('Notifications', { id: uid_(), uid: uid, date: maintenant_(), titre: titre, texte: texte || '', lien: lien || '', lu: 'non' });
+    if (enHeuresCalmes_(pr.calme)) return;
     envoyerPush_(uid);
   } catch (e) { console.error('notifier_', e); }
 }

@@ -5,7 +5,7 @@ import { api } from '../api.js'
 import { useApp } from '../App.jsx'
 import { B14 } from '../imprimables.js'
 import { htmlVersPdf, telechargerBlob } from '../pdf.js'
-import { Chargement, Erreur, Modale, Vide, useCharger, useNotif, useConfirmer, dateHeure, dateCourte } from '../ui.jsx'
+import { Chargement, Erreur, Modale, Vide, useCharger, useNotif, useConfirmer, useDifferer, enSuppression, dateHeure, dateCourte } from '../ui.jsx'
 import { Redaction } from './Courrier.jsx'
 
 const dateLongue = (d) => new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }).format(d ? new Date(d) : new Date())
@@ -35,8 +35,8 @@ function Registre() {
   const { reglages } = useApp()
   const [texte, setTexte] = useState('')
   const [creation, setCreation] = useState(false)
-  const { data, chargement, erreur, recharger } = useCharger(() => api('extraits.liste'), [])
-  const liste = (data?.extraits || []).filter((x) => !texte || `${x.nom} ${x.valeurs.annee} ${x.valeurs.acte}`.toLowerCase().includes(texte.toLowerCase()))
+  const { data, chargement, erreur, recharger } = useCharger(() => api('extraits.liste'), [], ['extraits.liste', {}])
+  const liste = (data?.extraits || []).filter((x) => !enSuppression.has(x.id)).filter((x) => !texte || `${x.nom} ${x.valeurs.annee} ${x.valeurs.acte}`.toLowerCase().includes(texte.toLowerCase()))
 
   async function nouveau() {
     setCreation(true)
@@ -82,6 +82,7 @@ function Registre() {
 
 function Extrait({ id }) {
   const nav = useNavigate()
+  const differer = useDifferer()
   const confirmer = useConfirmer()
   const notifier = useNotif()
   const { utilisateur, reglages } = useApp()
@@ -130,10 +131,9 @@ function Extrait({ id }) {
       notifier('Extrait signé et archivé dans le Drive')
     } catch (e) { notifier(e.message, 'erreur') } finally { setOccupe('') }
   }
-  async function supprimer() {
-    if (!(await confirmer({ titre: "Supprimer l'extrait", texte: `L'extrait de ${x.nom} sera retiré du registre, et le PDF signé mis à la corbeille du Drive.`, bouton: 'Supprimer définitivement', danger: true }))) return
-    setOccupe('suppr')
-    try { await api('extraits.supprimer', { id }); notifier('Extrait supprimé'); nav('/extraits') } catch (e) { notifier(e.message, 'erreur'); setOccupe('') }
+  function supprimer() {
+    nav('/extraits')
+    differer(`Extrait de ${x.nom} supprimé`, () => api('extraits.supprimer', { id }), { ids: [id], onAnnule: () => nav(`/extraits/${id}`) })
   }
   async function telecharger() {
     setOccupe('pdf')

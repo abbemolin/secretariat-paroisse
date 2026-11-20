@@ -17,7 +17,7 @@ export default function Documents() {
   const [deplacer, setDeplacer] = useState(null)
   const [renommer, setRenommer] = useState(null)
   const input = useRef()
-  const { data, chargement, erreur, recharger } = useCharger(() => api('documents.liste', { id: dossierId }), [dossierId])
+  const { data, chargement, erreur, recharger } = useCharger(() => api('documents.liste', { id: dossierId }), [dossierId], ['documents.liste', { id: dossierId }])
 
   async function chercher(e) {
     e.preventDefault()

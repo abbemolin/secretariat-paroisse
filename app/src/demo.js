@@ -162,7 +162,19 @@ export async function demoApi(action, p) {
         dossiersOuverts: ouverts.length, mesDossiers: ouverts.filter((d) => d.responsable === moi.id).map(resume),
         nouveaux: ouverts.filter((d) => Object.keys(d.etapes).length <= 1).map(resume),
         evenements: etat.evenements.filter((e) => new Date(e.debut) < Date.now() + 7 * 864e5 && new Date(e.fin) > new Date().setHours(0, 0, 0, 0)).sort((a, b) => a.debut.localeCompare(b.debut)),
-        notifications: etat.notifications }
+        notifications: etat.notifications,
+        afaire: [
+          { cle: 'mails', nombre: 3, texte: 'mails à traiter', lien: '/courrier?filtre=atraiter' },
+          { cle: 'demandes', nombre: 2, texte: 'nouvelles demandes à prendre en charge', lien: '/dossiers' },
+          { cle: 'bapteme', nombre: 1, texte: 'confirmand dont le baptême est à trouver', lien: '/dossiers?type=confirmand' },
+          { cle: 'cor', nombre: 3, texte: 'inscrits Cor Unum à répartir', lien: '/cor-unum?vue=repartir' },
+          { cle: 'impayes', nombre: 4, texte: 'inscriptions au catéchisme non réglées (185 €)', lien: '/catechisme?impayes=1' }]}
+    }
+    case 'notifications.prefs': {
+      const CAT = [['demandes', 'Nouvelles demandes'], ['courrier', 'Courrier et mails attribués'], ['dossiers', 'Dossiers'], ['catechisme', 'Catéchisme'], ['confirmands', 'Confirmands'], ['cor_unum', 'Cor Unum (messages des chefs)']].map(([cle, nom]) => ({ cle, nom }))
+      if (p.ecrire) etat.prefs = { coupees: p.coupees, calme: p.calme }
+      const r = etat.prefs || { coupees: [], calme: { actif: false, de: '21:30', a: '07:30' } }
+      return { categories: CAT, ...r }
     }
     case 'notifications.liste': return etat.notifications.filter((n) => !p.nonLues || !n.lu).slice(0, p.limite || 50)
     case 'notifications.lues': etat.notifications.forEach((n) => { if (!p.ids || p.ids.includes(n.id)) n.lu = true }); return true

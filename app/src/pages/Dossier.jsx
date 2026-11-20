@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Check, Upload, Loader2, Mail, Printer, FileText, Download, ExternalLink, Globe, Plus, Trash2, Save, History, Send, Church, AlertCircle } from 'lucide-react'
-import { api, fichierEnBase64, telechargerBase64 } from '../api.js'
+import { api, fichierEnBase64, telechargerBase64, enCache } from '../api.js'
 import { useApp } from '../App.jsx'
 import { estOptionnel, ALERTES, TYPES, ETATS, documentsManquants, PAR_ANNEE, anneeSacrements, choixAnnees, etapesDe, documentsDe, TITRES_COLLECTIFS, choixAnneesScolaires, lieuPreparation, libelleAnnee } from '../types.js'
 import { IMPRIMABLES } from '../imprimables.js'
-import { Chargement, Erreur, Modale, useNotif, useConfirmer, dateHeure, dateRelative, dateCourte, versLocal, jourLong, heure } from '../ui.jsx'
+import { Chargement, Erreur, Modale, useNotif, useConfirmer, useDifferer, useAutoEnregistrement, EtatEnregistrement, Aide, dateHeure, dateRelative, dateCourte, versLocal, jourLong, heure } from '../ui.jsx'
 import { Redaction } from './Courrier.jsx'
 import { htmlVersPdf } from '../pdf.js'
 import { creerExtrait, PadSignature, chargerSceau } from './Extraits.jsx'
@@ -22,8 +22,11 @@ export default function Dossier() {
   const confirmer = useConfirmer()
   const notifier = useNotif()
   const app = useApp()
-  const [d, setD] = useState(null)
-  const [b, setB] = useState(null)           // brouillon
+  const differer = useDifferer()
+  const [d, setD] = useState(() => enCache('dossiers.lire', { id }) || null)
+  const [b, setB] = useState(() => { const x = enCache('dossiers.lire', { id }); return x ? champsEditables(x) : null })           // brouillon
+  const bActuel = useRef(b)
+  bActuel.current = b
   const [erreur, setErreur] = useState(null)
   const [sauvegarde, setSauvegarde] = useState(false)
   const [mail, setMail] = useState(null)
@@ -32,7 +35,17 @@ export default function Dossier() {
   const fichierRef = useRef()
   const docCible = useRef(null)
 
-  useEffect(() => { setD(null); api('dossiers.lire', { id }).then((x) => { setD(x); setB(champsEditables(x)) }).catch(setErreur) }, [id])
+  useEffect(() => {
+    const c = enCache('dossiers.lire', { id })
+    setD(c || null); setB(c ? champsEditables(c) : null)
+    api('dossiers.lire', { id }).then((x) => { setD(x); setB(champsEditables(x)) }).catch(setErreur)
+  }, [id])
+  // Enregistrement automatique : 1 s après la dernière modification
+  const etatAuto = useAutoEnregistrement(b, d && champsEditables(d), async (val) => {
+    const x = await api('dossiers.modifier', { id: d.id, ...val })
+    setD(x)
+    if (JSON.stringify(bActuel.current) === JSON.stringify(val)) setB(champsEditables(x))
+  })
   const [promotions, setPromotions] = useState({})
   useEffect(() => { api('promotions.liste').then(setPromotions).catch(() => {}) }, [])
   const modifie = useMemo(() => d && b && JSON.stringify(champsEditables(d)) !== JSON.stringify(b), [d, b])
@@ -43,9 +56,10 @@ export default function Dossier() {
   const t = TYPES[d.type]
   const dossierCourant = { ...d, ...b, nom: d.nom }
 
-  async function supprimerDossier() {
-    if (!(await confirmer({ titre: 'Supprimer le dossier', texte: `Le dossier « ${d.nom} » sera retiré de la liste, son événement retiré de l'agenda public et ses pièces mises à la corbeille du Drive.\nLes mails restent dans la boîte.`, bouton: 'Supprimer définitivement', danger: true }))) return
-    try { await api('dossiers.supprimer', { id: d.id }); notifier('Dossier supprimé'); navDossier('/dossiers') } catch (e) { notifier(e.message, 'erreur') }
+  function supprimerDossier() {
+    const cible = d.id
+    navDossier('/dossiers')
+    differer(`Dossier « ${d.nom} » supprimé`, () => api('dossiers.supprimer', { id: cible }), { ids: [cible], onAnnule: () => navDossier(`/dossiers/${cible}`) })
   }
   async function enregistrer() {
     setSauvegarde(true)
@@ -135,13 +149,7 @@ export default function Dossier() {
         </div>
       </div>
 
-      {modifie && (
-        <div className="sticky top-0 z-30 -mx-4 mb-4 flex items-center justify-between gap-3 border-b border-or/30 bg-or-50/95 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-10 lg:px-10">
-          <span className="flex items-center gap-2 text-sm text-or-600"><AlertCircle className="h-4 w-4" />Modifications non enregistrées</span>
-          <div className="flex gap-2"><button className="btn-clair py-1.5" onClick={() => setB(champsEditables(d))}>Annuler</button>
-            <button className="btn-principal py-1.5" onClick={enregistrer} disabled={sauvegarde}>{sauvegarde ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}Enregistrer</button></div>
-        </div>
-      )}
+      {(etatAuto || modifie) && <div className="-mt-3 mb-3 flex justify-end"><EtatEnregistrement etat={etatAuto === 'erreur' ? 'erreur' : modifie || sauvegarde ? 'encours' : etatAuto} /></div>}
 
       <div className="grid gap-5 lg:grid-cols-3">
         {/* Colonne de suivi */}
@@ -374,6 +382,7 @@ function Imprimer({ modele, dossier, reglages, onFermer, onArchive }) {
       pied={<><button className="btn-clair mr-auto" onClick={onFermer}>Fermer</button>
         {modele === IMPRIMABLES.B14 && <button className="btn-or" onClick={delivrer} disabled={archivage}><FileText className="h-4 w-4" />Délivrer un extrait signé</button>}
         {modele === IMPRIMABLES.B6 && <button className="btn-or" onClick={() => setEtapeSig(1)} disabled={archivage}>{archivage ? <Loader2 className="h-4 w-4 animate-spin" /> : <PenLine className="h-4 w-4" />}Faire signer</button>}
+        {modele === IMPRIMABLES.B6 && <Aide>Le prêtre ou le diacre signe, puis le catéchumène, sur le même appareil. Le PDF avec le sceau est archivé dans le Drive et l'étape cochée.</Aide>}
         <button className="btn-clair" onClick={archiver} disabled={archivage}>{archivage ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}Archiver (PDF)</button>
         <button className="btn-principal" onClick={() => cadre.current.contentWindow.print()}><Printer className="h-4 w-4" />Imprimer</button></>}>
       <div className="grid gap-4 md:grid-cols-[260px_1fr]">

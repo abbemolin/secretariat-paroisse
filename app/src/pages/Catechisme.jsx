@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, BookOpen, Check, Download, FolderHeart, FolderPlus, GraduationCap, Loader2, Mail, Plus, Printer, Search, Trash2, Wallet, BellRing, ExternalLink } from 'lucide-react'
 import { api } from '../api.js'
 import { TYPES } from '../types.js'
-import { Chargement, Erreur, Modale, Vide, useCharger, useNotif, useConfirmer, imprimerHtml, dateCourte } from '../ui.jsx'
+import { Chargement, Erreur, Modale, Vide, useCharger, useNotif, useConfirmer, useDifferer, enSuppression, Aide, imprimerHtml, dateCourte } from '../ui.jsx'
 import { Redaction } from './Courrier.jsx'
 
 /** Types de dossiers qu'une inscription peut ouvrir. */
@@ -44,10 +44,10 @@ function Liste() {
   const [importe, setImporte] = useState(false)
   const [nouveau, setNouveau] = useState(false)
   const [mail, setMail] = useState(null)
-  const { data, chargement, erreur, recharger } = useCharger(() => api('cate.liste', { annee }), [annee])
+  const { data, chargement, erreur, recharger } = useCharger(() => api('cate.liste', { annee }), [annee], ['cate.liste', { annee }])
   const changer = (p) => setParams(Object.fromEntries(Object.entries({ annee, groupe, impayes: impayes ? '1' : '', ...p }).filter(([, v]) => v)))
 
-  const toutes = data?.inscriptions || []
+  const toutes = (data?.inscriptions || []).filter((x) => !enSuppression.has(x.id))
   const duGroupe = toutes.filter((x) => !groupe || (groupe === 'aucun' ? !x.groupe : x.groupe === groupe))
   const liste = duGroupe.filter((x) => (!impayes || x.reste > 0) && (!texte || `${x.nom} ${x.prenoms} ${x.email} ${x.classe}`.toLowerCase().includes(texte.toLowerCase())))
   const somme = (k) => duGroupe.reduce((a, x) => a + (x[k] > 0 ? x[k] : 0), 0)
@@ -79,6 +79,7 @@ function Liste() {
         <div className="flex flex-wrap gap-2">
           {data && <select className="champ w-auto py-2" value={data.annee} onChange={(ev) => changer({ annee: ev.target.value, groupe: '' })}>{data.annees.map((a) => <option key={a}>{a}</option>)}</select>}
           <button className="btn-clair" onClick={importer} disabled={importe}>{importe ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}<span className="hidden sm:inline">Importer le formulaire</span></button>
+          <Aide>Lit les réponses du Google Form (Réglages → Catéchisme). Les nouvelles inscriptions sont ajoutées, celles déjà présentes mises à jour ; un dossier est créé pour chaque demande de sacrement.</Aide>
           <button className="btn-or" onClick={() => setNouveau(true)}><Plus className="h-4 w-4" />Inscrire</button>
         </div>
       </div>
@@ -177,6 +178,7 @@ function NouvelleInscription({ annee, groupes, onFermer, onCree }) {
 function Fiche({ id }) {
   const nav = useNavigate()
   const notifier = useNotif()
+  const differer = useDifferer()
   const confirmer = useConfirmer()
   const [x, setX] = useState(null)
   const [v, setV] = useState(null)
@@ -200,9 +202,9 @@ function Fiche({ id }) {
     try { const r = await api('cate.dossier', { id, type }); setX(r.inscription); notifier(`Dossier « ${TYPES[type].nom} » créé`) }
     catch (err) { notifier(err.message, 'erreur') } finally { setOccupe('') }
   }
-  async function supprimer() {
-    if (!(await confirmer({ titre: "Supprimer l'inscription", texte: `L'inscription de ${x.prenoms} ${x.nom} sera supprimée. Les dossiers de sacrements déjà créés restent.`, bouton: 'Supprimer', danger: true }))) return
-    try { await api('cate.supprimer', { id }); notifier('Inscription supprimée'); nav('/catechisme') } catch (err) { notifier(err.message, 'erreur') }
+  function supprimer() {
+    nav('/catechisme')
+    differer(`Inscription de ${x.prenoms} ${x.nom} supprimée`, () => api('cate.supprimer', { id }), { ids: [id], onAnnule: () => nav(`/catechisme/${id}`) })
   }
   const champ = ([k, l, type = 'text']) => (
     <div key={k}><label className="etiquette">{l}</label><input className="champ" type={type} value={v[k] || ''} onChange={(ev) => setV({ ...v, [k]: ev.target.value })} /></div>

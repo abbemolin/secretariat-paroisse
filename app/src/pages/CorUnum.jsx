@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { Download, HeartHandshake, Loader2, Mail, Plus, Search, Trash2, UserPlus, Users, Crown, Check, BellRing, Pencil, FolderHeart, CalendarPlus, Sparkles, Import, MessageSquare, Link2, Copy, RefreshCw, Send, CalendarDays } from 'lucide-react'
 import { api } from '../api.js'
 import { TYPES } from '../types.js'
-import { Chargement, Erreur, Modale, Vide, useCharger, useNotif, useConfirmer } from '../ui.jsx'
+import { Chargement, Erreur, Modale, Vide, useCharger, useNotif, useConfirmer, useDifferer, enSuppression, Aide } from '../ui.jsx'
 import { Redaction } from './Courrier.jsx'
 
 export const COULEURS_PROFILS = {
@@ -27,6 +27,7 @@ function Profils({ m, sansParoissien = true }) {
 
 export default function CorUnum() {
   const notifier = useNotif()
+  const differer = useDifferer()
   const confirmer = useConfirmer()
   const [params, setParams] = useSearchParams()
   const annee = params.get('annee') || ''
@@ -39,11 +40,11 @@ export default function CorUnum() {
   const [fil, setFil] = useState(null)
   const [lien, setLien] = useState(null)
   const [tousChefs, setTousChefs] = useState(false)
-  const { data, setData, chargement, erreur, recharger } = useCharger(() => api('cor.liste', { annee }), [annee])
+  const { data, setData, chargement, erreur, recharger } = useCharger(() => api('cor.liste', { annee }), [annee], ['cor.liste', { annee }])
   const changer = (p) => setParams(Object.fromEntries(Object.entries({ annee, vue: onglet, ...p }).filter(([, v]) => v)))
   useEffect(() => { const id = params.get('fiche'); if (id && data) { const m = data.membres.find((x) => x.id === id); if (m) setFiche(m) } }, [params, data])
 
-  const membres = data?.membres || []
+  const membres = (data?.membres || []).filter((m) => !enSuppression.has(m.id))
   const equipes = data?.equipes || []
   const nomEquipe = (id) => equipes.find((e) => e.id === id)?.nom || ''
   const actifs = membres.filter((m) => m.statut !== 'ancien')
@@ -114,6 +115,7 @@ export default function CorUnum() {
               <Import className="h-5 w-5 text-or" />
               <p className="flex-1 text-sm">Reprendre une fois les fraternités des onglets « Equipe … » de la feuille {data.annee} : chefs, membres (et anciens sous la ligne vide). Les fiches d'un même foyer sont regroupées.</p>
               <button className="btn-principal" disabled={!!occupe} onClick={() => action('onglets', () => api('cor.onglets', { annee: data.annee }), (r) => `${r.equipes} fraternités, ${r.membres} membres, ${r.anciens} anciens repris`)}>{occupe === 'onglets' && <Loader2 className="h-4 w-4 animate-spin" />}Reprendre les fraternités</button>
+              <Aide>Une seule fois : lit les onglets « Equipe … » de la feuille. Les personnes sous la ligne vide deviennent « anciens ». Les fiches déjà venues du formulaire sont fusionnées.</Aide>
             </div>
           )}
           <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -158,6 +160,7 @@ export default function CorUnum() {
                     <div className="mt-3 flex flex-wrap gap-1.5 border-t border-nuit-50 pt-3">
                       <button className={`btn-clair px-2.5 py-1 text-xs ${data.fils?.[e.id]?.non_lus ? 'border-or bg-or-50' : ''}`} onClick={() => setFil(e)}><MessageSquare className="h-3.5 w-3.5" />Messages{data.fils?.[e.id]?.non_lus ? <span className="rounded-full bg-or px-1.5 text-[10px] font-semibold text-white">{data.fils[e.id].non_lus}</span> : ''}</button>
                       <button className="btn-clair px-2.5 py-1 text-xs" onClick={() => setLien(e)}><Link2 className="h-3.5 w-3.5" />Lien du chef</button>
+                      <Aide>Lien secret, sans compte : le chef voit ses membres, en ajoute, note les rencontres et vous écrit. « Nouveau lien » désactive l'ancien.</Aide>
                       <button className="btn-clair px-2.5 py-1 text-xs" disabled={!chefs.some((c) => c.email)} onClick={() => mailChef(e)}><Crown className="h-3.5 w-3.5" />Liste au chef</button>
                       <button className="btn-clair px-2.5 py-1 text-xs" disabled={!ms.length} onClick={() => mailEquipe(e)}><Mail className="h-3.5 w-3.5" />Mail à l'équipe</button>
                       {anciens.length > 0 && <button className="btn-clair px-2.5 py-1 text-xs" onClick={() => relancer(e)}><BellRing className="h-3.5 w-3.5" />Relancer les anciens</button>}
@@ -214,7 +217,8 @@ export default function CorUnum() {
           )}
         </>
       )}
-      {fiche && <Fiche m={fiche} annee={data?.annee} equipes={equipes} profils={data?.profils || []} onFermer={() => { setFiche(null); if (params.get('fiche')) changer({ fiche: '' }) }} onMaj={(r) => { setData(r); setFiche(null) }} />}
+      {fiche && <Fiche m={fiche} annee={data?.annee} equipes={equipes} profils={data?.profils || []} onFermer={() => { setFiche(null); if (params.get('fiche')) changer({ fiche: '' }) }} onMaj={(r) => { setData(r); setFiche(null) }}
+        onSupprimer={(m) => { setFiche(null); differer(`${nomComplet(m)} retiré(e) des fraternités`, async () => setData(await api('cor.supprimer', { id: m.id, annee: data.annee })), { ids: [m.id], onAnnule: () => setData((d) => ({ ...d })) }); setData((d) => ({ ...d })) }} />}
       {equipeEdit && <EquipeEdit e={equipeEdit} annee={data.annee} membres={actifs} onFermer={() => setEquipeEdit(null)} onMaj={(r) => { setData(r); setEquipeEdit(null); notifier('Fraternité enregistrée') }} />}
       {fil && <Fil e={fil} annee={data.annee} onFermer={() => { setFil(null); recharger() }} />}
       {lien && <LienChef e={lien} annee={data.annee} chefs={membres.filter((m) => lien.chefs.includes(m.id))} onFermer={() => setLien(null)} onMail={(m) => { setLien(null); setMail(m) }} />}
@@ -272,7 +276,7 @@ function EquipeEdit({ e, annee, membres, onFermer, onMaj }) {
 
 const CHAMPS_FICHE = [['prenoms', 'Prénom(s) — « Paul et Marie » pour un foyer'], ['nom', 'Nom'], ['email', 'E-mail(s)'], ['telephone', 'Téléphone'], ['adresse', 'Adresse'], ['situation', 'Situation (marié, célibataire…)']]
 
-function Fiche({ m, annee, equipes, profils, onFermer, onMaj }) {
+function Fiche({ m, annee, equipes, profils, onFermer, onMaj, onSupprimer }) {
   const confirmer = useConfirmer()
   const nouveau = !!m.nouveau && !m.id
   const [v, setV] = useState(nouveau ? { prenoms: '', nom: '', email: '', telephone: '', adresse: '', situation: '', profils: [], equipe_id: '', statut: 'actif', note: '', souhait: '', chef_possible: false } : { ...m })
@@ -286,10 +290,7 @@ function Fiche({ m, annee, equipes, profils, onFermer, onMaj }) {
       onMaj(await api(nouveau ? 'cor.creer' : 'cor.modifier', { ...champs, id: m.id, annee }))
     } catch (err) { setErreur(err); setEnvoi(false) }
   }
-  async function supprimer() {
-    if (!(await confirmer({ titre: 'Supprimer la fiche', texte: `${nomComplet(m)} sera retiré(e) des fraternités ${annee}.`, bouton: 'Supprimer', danger: true }))) return
-    try { onMaj(await api('cor.supprimer', { id: m.id, annee })) } catch (err) { setErreur(err) }
-  }
+  function supprimer() { onSupprimer(m) }
   return (
     <Modale large titre={nouveau ? 'Ajouter une personne' : nomComplet(m)} onFermer={onFermer}
       pied={<>{!nouveau && <button className="btn-clair mr-auto text-red-700" onClick={supprimer}><Trash2 className="h-4 w-4" />Supprimer</button>}<button className="btn-clair" onClick={onFermer}>Annuler</button><button className="btn-principal" disabled={envoi || !(v.nom || v.prenoms)} onClick={enregistrer}>{envoi && <Loader2 className="h-4 w-4 animate-spin" />}Enregistrer</button></>}>

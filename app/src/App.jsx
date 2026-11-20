@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
-import { NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
-import { Home, Mail, CalendarDays, FolderHeart, FolderOpen, Users, Settings, UserCircle, LogOut, Bell, ScrollText, GraduationCap, HeartHandshake } from 'lucide-react'
+import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { Home, Mail, CalendarDays, FolderHeart, FolderOpen, Users, Settings, UserCircle, LogOut, Bell, ScrollText, GraduationCap, HeartHandshake, Flame, LifeBuoy, MoreHorizontal, X } from 'lucide-react'
 import { api, ecrireToken, lireToken, quandSessionExpire, estDemo } from './api.js'
 import { Chargement, FournisseurNotif, ROLES, dateRelative } from './ui.jsx'
 import Connexion from './pages/Connexion.jsx'
@@ -16,23 +16,71 @@ import Compte from './pages/Compte.jsx'
 import Extraits from './pages/Extraits.jsx'
 import Catechisme from './pages/Catechisme.jsx'
 import CorUnum from './pages/CorUnum.jsx'
+import Aide from './pages/Aide.jsx'
 
 const CtxApp = createContext(null)
 export const useApp = () => useContext(CtxApp)
 export const useAuth = useApp
 
+// Menu regroupé (Sacrements, Catéchèse) ; sur téléphone : 4 entrées principales + « Plus »
 const MENU = [
-  { to: '/', label: 'Accueil', icone: Home },
-  { to: '/courrier', label: 'Courrier', icone: Mail, droit: 'mail' },
-  { to: '/agenda', label: 'Agenda', icone: CalendarDays, droit: 'agenda' },
-  { to: '/dossiers', label: 'Dossiers', icone: FolderHeart, droit: 'dossiers' },
-  { to: '/catechisme', label: 'Catéchisme', icone: GraduationCap, droit: 'dossiers' },
-  { to: '/cor-unum', label: 'Cor Unum', icone: HeartHandshake, droit: 'dossiers' },
+  { to: '/', label: 'Accueil', icone: Home, bas: true },
+  { to: '/courrier', label: 'Courrier', icone: Mail, droit: 'mail', bas: true },
+  { to: '/agenda', label: 'Agenda', icone: CalendarDays, droit: 'agenda', bas: true },
+  { groupe: 'Sacrements', items: [
+    { to: '/dossiers', label: 'Dossiers', icone: FolderHeart, droit: 'dossiers', bas: true },
+    { to: '/extraits', label: 'Extraits de baptême', icone: ScrollText, droit: 'dossiers' }
+  ] },
+  { groupe: 'Catéchèse', items: [
+    { to: '/catechisme', label: 'Catéchisme', icone: GraduationCap, droit: 'dossiers' },
+    { to: '/dossiers?type=confirmand', label: 'Confirmands', icone: Flame, droit: 'dossiers' },
+    { to: '/cor-unum', label: 'Cor Unum', icone: HeartHandshake, droit: 'dossiers' }
+  ] },
   { to: '/documents', label: 'Documents', icone: FolderOpen, droit: 'documents' },
-  { to: '/extraits', label: 'Extraits de baptême', icone: ScrollText, droit: 'dossiers', secondaire: true },
-  { to: '/utilisateurs', label: 'Utilisateurs', icone: Users, droit: 'utilisateurs', secondaire: true },
-  { to: '/reglages', label: 'Réglages', icone: Settings, droit: 'reglages', secondaire: true }
+  { groupe: '', secondaire: true, items: [
+    { to: '/aide', label: 'Aide', icone: LifeBuoy },
+    { to: '/utilisateurs', label: 'Utilisateurs', icone: Users, droit: 'utilisateurs' },
+    { to: '/reglages', label: 'Réglages', icone: Settings, droit: 'reglages' }
+  ] }
 ]
+const aplatir = (m) => m.flatMap((x) => (x.items ? x.items : [x]))
+
+/** Lien de menu : tient compte de « ?type=… » (Confirmands est une vue de Dossiers). */
+function LienMenu({ to, label, icone: I, mobile, onClick }) {
+  const loc = useLocation()
+  const [chemin, requete] = to.split('?')
+  const typeLien = new URLSearchParams(requete || '').get('type')
+  const typeActuel = new URLSearchParams(loc.search).get('type')
+  const actif = chemin === '/' ? loc.pathname === '/' : (loc.pathname === chemin || loc.pathname.startsWith(chemin + '/')) && (typeLien ? typeActuel === typeLien : !(chemin === '/dossiers' && typeActuel === 'confirmand'))
+  if (mobile) return <NavLink to={to} onClick={onClick} className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] ${actif ? 'text-or-600' : 'text-nuit-600/70'}`}><I className="h-5 w-5" />{label}</NavLink>
+  return (
+    <NavLink to={to} onClick={onClick} className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${actif ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white'}`}>
+      <I className="h-4 w-4" />{label}
+    </NavLink>
+  )
+}
+
+/** Sur téléphone : toutes les rubriques, regroupées. */
+function MenuPlus({ menu, onFermer }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-end bg-nuit-800/40" onClick={onFermer}>
+      <div className="carte w-full rounded-b-none p-4 safe-bottom" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-2 flex items-center justify-between"><span className="font-titre text-xl font-semibold">Toutes les rubriques</span><button className="btn-icone" onClick={onFermer}><X className="h-5 w-5" /></button></div>
+        {menu.map((m, i) => m.items ? (
+          <div key={i} className="mt-2">
+            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-or-600">{m.groupe || 'Paramètres et aide'}</div>
+            <div className="grid grid-cols-3 gap-2">{m.items.map((x) => <TuileMenu key={x.to} {...x} onClick={onFermer} />)}</div>
+          </div>
+        ) : null)}
+        <div className="mb-1 mt-3 text-xs font-semibold uppercase tracking-wide text-or-600">Autres</div>
+        <div className="grid grid-cols-3 gap-2">{menu.filter((m) => !m.items && !m.bas).map((x) => <TuileMenu key={x.to} {...x} onClick={onFermer} />)}<TuileMenu to="/compte" label="Mon compte" icone={UserCircle} onClick={onFermer} /></div>
+      </div>
+    </div>
+  )
+}
+function TuileMenu({ to, label, icone: I, onClick }) {
+  return <NavLink to={to} onClick={onClick} className="flex flex-col items-center gap-1 rounded-xl border border-nuit-100 p-3 text-center text-xs text-nuit-700 hover:bg-nuit-50"><I className="h-5 w-5 text-or" />{label}</NavLink>
+}
 
 export default function App() {
   const [donnees, setDonnees] = useState(null)
@@ -118,7 +166,9 @@ function Cloche() {
 
 function Cadre() {
   const { utilisateur, peut, deconnecter } = useApp()
-  const menu = MENU.filter((m) => peut(m.droit))
+  const [plus, setPlus] = useState(false)
+  const menu = MENU.map((m) => (m.items ? { ...m, items: m.items.filter((x) => peut(x.droit)) } : m)).filter((m) => (m.items ? m.items.length : peut(m.droit)))
+  const bas = aplatir(menu).filter((m) => m.bas)
   return (
     <div className="flex h-full">
       <aside className="hidden w-60 shrink-0 flex-col bg-nuit text-white lg:flex">
@@ -126,13 +176,13 @@ function Cadre() {
           <img src="./logo-128.png" alt="" className="h-12 w-12 rounded-full" />
           <div className="leading-tight"><div className="font-titre text-lg font-semibold">La Croix glorieuse</div><div className="text-xs text-white/60">Secrétariat paroissial</div></div>
         </div>
-        <nav className="flex-1 space-y-1 px-3">
-          {menu.map(({ to, label, icone: I, secondaire }) => (
-            <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) =>
-              `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${secondaire ? 'mt-0' : ''} ${isActive ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white'}`}>
-              <I className="h-4 w-4" />{label}
-            </NavLink>
-          ))}
+        <nav className="flex-1 space-y-1 overflow-y-auto px-3">
+          {menu.map((m, i) => m.items ? (
+            <div key={i} className={m.secondaire ? 'border-t border-white/10 pt-2' : 'pt-2'}>
+              {m.groupe && <div className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-white/40">{m.groupe}</div>}
+              {m.items.map((x) => <LienMenu key={x.to} {...x} />)}
+            </div>
+          ) : <LienMenu key={m.to} {...m} />)}
         </nav>
         <div className="border-t border-white/10 p-3">
           <div className="flex items-center gap-1">
@@ -169,6 +219,7 @@ function Cadre() {
               {peut('dossiers') && <Route path="/extraits/:id" element={<Extraits />} />}
               {peut('utilisateurs') && <Route path="/utilisateurs" element={<Utilisateurs />} />}
               {peut('reglages') && <Route path="/reglages" element={<Reglages />} />}
+              <Route path="/aide" element={<Aide />} />
               <Route path="/compte" element={<Compte />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
@@ -176,12 +227,10 @@ function Cadre() {
         </main>
 
         <nav className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-nuit-100 bg-white safe-bottom lg:hidden">
-          {menu.filter((m) => !m.secondaire).map(({ to, label, icone: I }) => (
-            <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => `flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] ${isActive ? 'text-or-600' : 'text-nuit-600/70'}`}>
-              <I className="h-5 w-5" />{label}
-            </NavLink>
-          ))}
+          {bas.map((x) => <LienMenu key={x.to} {...x} mobile />)}
+          <button onClick={() => setPlus(true)} className="flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] text-nuit-600/70"><MoreHorizontal className="h-5 w-5" />Plus</button>
         </nav>
+        {plus && <MenuPlus menu={menu} onFermer={() => setPlus(false)} />}
       </div>
     </div>
   )

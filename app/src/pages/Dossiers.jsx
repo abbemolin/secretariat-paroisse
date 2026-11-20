@@ -5,7 +5,7 @@ import { Redaction } from './Courrier.jsx'
 import { api } from '../api.js'
 import { useApp } from '../App.jsx'
 import { TYPES, ORDRE_TYPES, ETATS, prochaineEtape, documentsManquants, PAR_ANNEE, anneeSacrements, etapesDe, libelleAnnee, TITRES_COLLECTIFS, lieuPreparation, anneeScolaireActuelle, estOptionnel, ALERTES } from '../types.js'
-import { Chargement, Erreur, Modale, Vide, useCharger, useNotif, imprimerHtml, dateCourte, initiales, versLocal, jourLong, heure, COULEURS_STATUT } from '../ui.jsx'
+import { Chargement, Erreur, Modale, Vide, useCharger, enSuppression, Aide, useNotif, imprimerHtml, dateCourte, initiales, versLocal, jourLong, heure, COULEURS_STATUT } from '../ui.jsx'
 
 export default function Dossiers() {
   const nav = useNavigate()
@@ -18,9 +18,9 @@ export default function Dossiers() {
   const [texte, setTexte] = useState('')
   const [nouveau, setNouveau] = useState(false)
   const [envoiForm, setEnvoiForm] = useState(false)
-  const { data, chargement, erreur, recharger } = useCharger(() => api('dossiers.liste', {}), [])
+  const { data, chargement, erreur, recharger } = useCharger(() => api('dossiers.liste', {}), [], ['dossiers.liste', {}])
 
-  const tous = data || []
+  const tous = (data || []).filter((d) => !enSuppression.has(d.id))
   const liste = tous.filter((d) => (!type || d.type === type) && (etat === 'tous' || d.etat === etat) &&
     (!parAnnee || !annee || (annee === 'aucune' ? !anneeSacrements(d) : anneeSacrements(d) === annee)) &&
     (!texte || `${d.nom} ${d.email} ${d.telephone}`.toLowerCase().includes(texte.toLowerCase())))
@@ -34,6 +34,7 @@ export default function Dossiers() {
         <div className="flex gap-2">
           {type === 'confirmand' && <ImportConfirmands dossiers={tous} onFait={recharger} />}
           <button className="btn-clair" onClick={() => setEnvoiForm(true)}><Send className="h-4 w-4" /><span className="hidden sm:inline">Envoyer un formulaire</span></button>
+          <Aide>Envoie par mail, à un parent ou à une école, un bouton vers le formulaire de Première Communion ou de Profession de foi. Les réponses créent les dossiers ; l'acte de baptême est demandé.</Aide>
           <button className="btn-clair" onClick={() => nav('/extraits')}><ScrollText className="h-4 w-4" />Extraits</button>
           <button className="btn-or" onClick={() => setNouveau(true)}><Plus className="h-4 w-4" />Nouveau dossier</button>
         </div>

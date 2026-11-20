@@ -12,7 +12,7 @@ export const urlApiFixe = () => !!URL_BUILD
 export function definirUrlApi(url) { localStorage.setItem(CLE_URL, url.trim()); kvEcrire('apiUrl', url.trim()) }
 export const lireToken = () => localStorage.getItem(CLE_TOKEN)
 export function ecrireToken(t) {
-  if (t) localStorage.setItem(CLE_TOKEN, t); else localStorage.removeItem(CLE_TOKEN)
+  if (t) localStorage.setItem(CLE_TOKEN, t); else { localStorage.removeItem(CLE_TOKEN); viderCache() }
   kvEcrire('token', t || '')
   kvEcrire('apiUrl', urlApi())
 }
@@ -22,7 +22,39 @@ export class ErreurApi extends Error { constructor(code, message) { super(messag
 let surSessionExpiree = () => {}
 export function quandSessionExpire(fn) { surSessionExpiree = fn }
 
+// ─── Affichage instantané : dernière réponse connue des lectures, gardée sur l'appareil ───
+const LECTURES = ['accueil.resume', 'dossiers.liste', 'dossiers.lire', 'cate.liste', 'cate.lire', 'cor.liste', 'extraits.liste', 'mail.liste', 'promotions.liste', 'agenda.evenements', 'documents.liste']
+const CACHE = new Map()
+const cleCache = (action, payload) => 'cache:' + action + ':' + JSON.stringify(payload || {})
+/** Dernière réponse connue (ou undefined). */
+export function enCache(action, payload) {
+  const k = cleCache(action, payload)
+  if (CACHE.has(k)) return CACHE.get(k)
+  try { const v = sessionStorage.getItem(k) ?? localStorage.getItem(k); if (v) { const x = JSON.parse(v); CACHE.set(k, x); return x } } catch { /* ignore */ }
+  return undefined
+}
+function memoriser(action, payload, data) {
+  const k = cleCache(action, payload)
+  CACHE.set(k, data)
+  try {
+    localStorage.setItem(k, JSON.stringify(data))
+    const index = JSON.parse(localStorage.getItem('cache:index') || '[]').filter((x) => x !== k).concat([k])
+    while (index.length > 60) localStorage.removeItem(index.shift())
+    localStorage.setItem('cache:index', JSON.stringify(index))
+  } catch { /* stockage plein : tant pis */ }
+}
+export function viderCache() {
+  CACHE.clear()
+  try { JSON.parse(localStorage.getItem('cache:index') || '[]').forEach((k) => localStorage.removeItem(k)); localStorage.removeItem('cache:index') } catch { /* ignore */ }
+}
+
 export async function api(action, payload = {}) {
+  const data = await appel(action, payload)
+  if (LECTURES.includes(action)) memoriser(action, payload, data)
+  return data
+}
+
+async function appel(action, payload) {
   if (estDemo()) return demoApi(action, payload)
   const url = urlApi()
   if (!url) throw new ErreurApi('CONFIG', "L'adresse du serveur n'est pas configurée.")
