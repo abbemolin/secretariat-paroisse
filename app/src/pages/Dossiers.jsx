@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Plus, Search, FolderHeart, Loader2, Globe, Printer, CalendarCheck, ScrollText, Send } from 'lucide-react'
+import { Plus, Search, FolderHeart, Loader2, Globe, Printer, CalendarCheck, ScrollText, Send, Download, BellRing } from 'lucide-react'
 import { Redaction } from './Courrier.jsx'
 import { api } from '../api.js'
 import { useApp } from '../App.jsx'
-import { TYPES, ORDRE_TYPES, ETATS, prochaineEtape, documentsManquants, PAR_ANNEE, anneeSacrements, etapesDe, libelleAnnee, TITRES_COLLECTIFS, lieuPreparation, anneeScolaireActuelle } from '../types.js'
+import { TYPES, ORDRE_TYPES, ETATS, prochaineEtape, documentsManquants, PAR_ANNEE, anneeSacrements, etapesDe, libelleAnnee, TITRES_COLLECTIFS, lieuPreparation, anneeScolaireActuelle, estOptionnel, ALERTES } from '../types.js'
 import { Chargement, Erreur, Modale, Vide, useCharger, useNotif, imprimerHtml, dateCourte, initiales, versLocal, jourLong, heure, COULEURS_STATUT } from '../ui.jsx'
 
 export default function Dossiers() {
@@ -32,6 +32,7 @@ export default function Dossiers() {
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div><h1 className="text-3xl font-semibold">Dossiers</h1><p className="text-sm text-nuit-600/80">Sacrements et célébrations</p></div>
         <div className="flex gap-2">
+          {type === 'confirmand' && <ImportConfirmands dossiers={tous} onFait={recharger} />}
           <button className="btn-clair" onClick={() => setEnvoiForm(true)}><Send className="h-4 w-4" /><span className="hidden sm:inline">Envoyer un formulaire</span></button>
           <button className="btn-clair" onClick={() => nav('/extraits')}><ScrollText className="h-4 w-4" />Extraits</button>
           <button className="btn-or" onClick={() => setNouveau(true)}><Plus className="h-4 w-4" />Nouveau dossier</button>
@@ -76,7 +77,7 @@ export default function Dossiers() {
               {(parAnnee && !annee ? [...liste].sort((x, y) => (anneeSacrements(x) || '9999').localeCompare(anneeSacrements(y) || '9999')) : liste).map((d, i, arr) => {
                 const entete = parAnnee && !annee && (i === 0 || anneeSacrements(arr[i - 1]) !== anneeSacrements(d))
                 const t = TYPES[d.type], prochaine = prochaineEtape(d.type, d.etapes, d), manquants = documentsManquants(d.type, d.documents, d).length
-                const et = etapesDe(d.type, d), total = et.filter((e) => !e.optionnel).length, faites = et.filter((e) => !e.optionnel && d.etapes.includes(e.cle)).length
+                const et = etapesDe(d.type, d), total = et.filter((e) => !estOptionnel(e, d)).length, faites = et.filter((e) => !estOptionnel(e, d) && d.etapes.includes(e.cle)).length
                 return (
                   <div key={d.id}>
                   {entete && <div className="bg-or-50 px-4 py-1.5 font-titre text-lg font-semibold text-or-600">{anneeSacrements(d) ? libelleAnnee(type) + anneeSacrements(d) : 'Année non fixée'}</div>}
@@ -85,6 +86,7 @@ export default function Dossiers() {
                       {PAR_ANNEE.includes(d.type) && !parAnnee && anneeSacrements(d) && <span className="pastille w-fit border border-or/40 py-0 text-[10px] text-or-600">{anneeSacrements(d)}</span>}</span>
                     <span className="min-w-0"><span className="block truncate font-medium">{d.nom}</span>
                       <span className="block truncate text-xs text-nuit-600/60">{d.etat !== 'ouvert' ? <span className={`pastille py-0 ${COULEURS_STATUT[d.etat]}`}>{ETATS[d.etat]}</span> : prochaine ? '→ ' + prochaine.label : 'Toutes les étapes faites'}{manquants > 0 && d.etat === 'ouvert' && ` · ${manquants} document${manquants > 1 ? 's' : ''} manquant${manquants > 1 ? 's' : ''}`}</span>
+                      {d.alertes?.length > 0 && <span className="mt-0.5 flex flex-wrap gap-1">{d.alertes.map((a) => <span key={a} className={`pastille py-0 text-[10px] ${ALERTES[a]?.classe}`}>{ALERTES[a]?.nom}</span>)}</span>}
                       {t.collectif && d.preparation && <span className="mt-0.5 flex flex-wrap gap-1"><span className="pastille py-0 text-[10px] border border-nuit-100 text-nuit-600">{d.preparation}</span>{d.preparation !== 'Paroisse' && !d.etapes.includes('validation') && <span className="pastille bg-amber-100 py-0 text-[10px] text-amber-900">à valider par le curé</span>}</span>}</span>
                     <span className="hidden md:block"><span className="block h-1.5 overflow-hidden rounded-full bg-nuit-50"><span className="block h-full rounded-full" style={{ width: `${(faites / total) * 100}%`, background: t.couleur }} /></span><span className="text-[11px] text-nuit-600/60">{faites}/{total} étapes</span></span>
                     <span className="text-right text-xs text-nuit-600/70 md:text-left">{d.date_celebration ? <span className="inline-flex items-center gap-1 font-medium text-nuit"><Globe className="h-3 w-3 text-or" />{dateCourte(d.date_celebration)}</span> : d.date_souhaitee ? 'souhaité ' + dateCourte(d.date_souhaitee) : '—'}</span>
@@ -255,5 +257,33 @@ function EnvoiFormulaire({ onFermer }) {
         {type === 'profession_foi' && vers === 'ecole' && ecole === 'Herrade de Landsberg' && <p className="rounded-lg bg-amber-50 p-2 text-xs text-amber-900">La profession de foi se fait en 3e : Herrade de Landsberg n'est pas proposée dans ce formulaire.</p>}
       </div>
     </Modale>
+  )
+}
+
+/** Confirmands : import du formulaire Google et relance des baptêmes à trouver. */
+function ImportConfirmands({ dossiers, onFait }) {
+  const notifier = useNotif()
+  const [occupe, setOccupe] = useState(false)
+  const [relance, setRelance] = useState(false)
+  const aTrouver = dossiers.filter((d) => d.etat === 'ouvert' && d.alertes?.includes('bapteme_a_trouver') && d.email)
+  async function importer() {
+    setOccupe(true)
+    try {
+      const r = await api('conf.importer')
+      notifier(r.nouveaux || r.completes ? `${r.nouveaux} nouveau(x), ${r.completes} complété(s)${r.accuses ? `, ${r.accuses} accusé(s) envoyé(s)` : ''}` : 'Aucune nouvelle inscription')
+      if (r.erreurs?.length) notifier(r.erreurs.slice(0, 2).join(' · '), 'erreur')
+      onFait()
+    } catch (e) { notifier(e.message, 'erreur') } finally { setOccupe(false) }
+  }
+  return (
+    <>
+      <button className="btn-clair" onClick={importer} disabled={occupe}>{occupe ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}<span className="hidden sm:inline">Importer le formulaire</span></button>
+      {aTrouver.length > 0 && <button className="btn-clair" onClick={() => setRelance(true)}><BellRing className="h-4 w-4" /><span className="hidden sm:inline">Baptêmes à trouver ({aTrouver.length})</span></button>}
+      {relance && <Redaction mode="nouveau" sujet="Votre baptême – préparation à la confirmation"
+        corps={"Bonjour {prenom},\n\nPour pouvoir recevoir le sacrement de confirmation, nous avons besoin de connaître la date et le lieu (paroisse et commune) de votre baptême.\n\nVos parents ou votre parrain et votre marraine pourront sans doute vous aider ; le livret de famille catholique l'indique aussi. Merci de nous répondre simplement par retour de mail.\n\nAvec l'assurance de nos prières à toutes vos intentions,"}
+        destinataires={`Un mail personnel à chacun des ${aTrouver.length} confirmands dont le baptême est à trouver ({prenom} est rempli pour chacun)`}
+        envoiPersonnalise={({ sujet, corps, signature }) => api('conf.relancer', { ids: aTrouver.map((d) => d.id), sujet, corps, signature })}
+        onFermer={() => setRelance(false)} onEnvoye={(r) => { setRelance(false); notifier(`Envoyé à ${r?.nb} confirmand(s)`); onFait() }} />}
+    </>
   )
 }

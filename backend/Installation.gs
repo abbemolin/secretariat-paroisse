@@ -38,6 +38,10 @@ var REPONSES_DEFAUT = [
   { cle: 'horaires', titre: 'Horaires de la paroisse', sujet: 'Horaires de la paroisse La Croix glorieuse',
     corps: 'Bonjour,\n\nVous trouverez les horaires des messes, des confessions et des permanences, toujours à jour, sur notre site :\n{url_horaires}\n\n' +
       'Avec l\'assurance de nos prières à toutes vos intentions,' },
+  { cle: 'accuse_confirmation', titre: 'Accusé de réception – confirmation', sujet: 'Votre inscription à la préparation à la confirmation',
+    corps: 'Bonjour {prenom},\n\nNous avons bien reçu votre inscription à la préparation au sacrement de confirmation pour l\'année {annee}, et nous nous en réjouissons avec vous.\n\n' +
+      'Pour recevoir la confirmation, un acte de baptême récent est indispensable : merci de le demander dès maintenant à la paroisse de votre baptême et de nous le transmettre.\n\n' +
+      'Nous vous recontacterons prochainement pour la suite de la préparation.\n\nAvec l\'assurance de nos prières à toutes vos intentions,' },
   { cle: 'document_manquant', titre: 'Document manquant', sujet: 'Dossier de {type} – document(s) à fournir',
     corps: 'Bonjour,\n\nPour compléter le dossier de {type} ({nom}), il nous manque encore :\n{documents_manquants}\n\n' +
       'Vous pouvez nous les envoyer en réponse à ce message ou les déposer au secrétariat.\n\n' +

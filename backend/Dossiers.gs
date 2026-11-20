@@ -74,8 +74,24 @@ function dossierResume_(d) {
     documents: Object.keys(docs).filter(function (k) { return docs[k] && docs[k].recu; }),
     date_souhaitee: (don.infos || {}).date_souhaitee || '',
     annee: (don.infos || {}).annee_sacrements || (don.infos || {}).annee_scolaire || '',
+    autre_confession: (don.infos || {}).autre_confession || '',
+    alertes: alertesDossier_(d.type, don.infos || {}),
     preparation: (don.infos || {}).preparation === 'Autre école' ? ((don.infos || {}).ecole_autre || 'Autre école') : ((don.infos || {}).preparation || '')
   };
+}
+
+/** Signalements affichés dans la liste et le dossier. */
+function alertesDossier_(type, i) {
+  var a = [];
+  if (['confirmand', 'confirmation_jeune', 'catechumene'].indexOf(type) === -1) return a;
+  if (i.bapteme_inconnu === 'oui' && !i.bapteme_date && !i.bapteme_paroisse) a.push('bapteme_a_trouver');
+  if (i.autre_confession === 'oui') a.push('autre_confession');
+  var n = i.naissance_date || i.enfant_naissance_date;
+  if (type === 'confirmand' && n) {
+    var age = (new Date() - new Date(n + 'T12:00:00')) / (365.25 * 86400000);
+    if (age < 18) a.push('mineur');
+  }
+  return a;
 }
 
 function trouverDossier_(id) {

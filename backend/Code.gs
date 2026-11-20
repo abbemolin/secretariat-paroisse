@@ -11,6 +11,7 @@
  *   Push.gs       notifications sur téléphone (Web Push, VAPID)
  *   Extraits.gs   extraits de baptême signés (registre, PDF, envoi)
  *   Catechisme.gs inscriptions au catéchisme (formulaire Google), groupes, paiements
+ *   Confirmands.gs formulaire Google des confirmands adultes
  *   CorUnum.gs    fraternités Cor Unum (formulaire Google, équipes, chefs, anciens)
  *   Tri.gs        tri automatique des mails entrants (mots-clés, réponse auto horaires)
  *   Installation.gs  installer() à lancer une fois
@@ -149,6 +150,11 @@ var ROUTES = {
   'cate.envoyer':          { fn: envoyerCate_, droit: 'dossiers' },
   'cate.reglages':         { fn: lireCateReglages_, droit: 'dossiers' },
   'cate.reglagesEcrire':   { fn: ecrireCateReglages_, droit: 'reglages' },
+  'conf.importer':         { fn: importerConf_, droit: 'dossiers' },
+  'conf.relancer':         { fn: relancerConf_, droit: 'dossiers' },
+  'conf.reglages':         { fn: lireConfReglages_, droit: 'dossiers' },
+  'conf.reglagesEcrire':   { fn: ecrireConfReglages_, droit: 'reglages' },
+  'dossiers.changerType':  { fn: changerTypeConf_, droit: 'dossiers' },
   'cor.liste':             { fn: listerCor_, droit: 'dossiers' },
   'cor.modifier':          { fn: modifierCor_, droit: 'dossiers' },
   'cor.creer':             { fn: creerCor_, droit: 'dossiers' },
@@ -446,6 +452,9 @@ function listerReponses_() {
     props_().setProperty('REPONSES', JSON.stringify(l));
     props_().setProperty('FORMULE_FIN_OK', '1');
   }
+  // Réponses types ajoutées après l'installation
+  var ajout = REPONSES_DEFAUT.filter(function (r) { return r.cle === 'accuse_confirmation' && !l.some(function (x) { return x.cle === r.cle; }); });
+  if (ajout.length) { l = l.concat(ajout); props_().setProperty('REPONSES', JSON.stringify(l)); }
   return l;
 }
 function ecrireReponses_(p, s) {

@@ -3,13 +3,13 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Check, Upload, Loader2, Mail, Printer, FileText, Download, ExternalLink, Globe, Plus, Trash2, Save, History, Send, Church, AlertCircle } from 'lucide-react'
 import { api, fichierEnBase64, telechargerBase64 } from '../api.js'
 import { useApp } from '../App.jsx'
-import { TYPES, ETATS, documentsManquants, PAR_ANNEE, anneeSacrements, choixAnnees, etapesDe, documentsDe, TITRES_COLLECTIFS, choixAnneesScolaires, lieuPreparation, libelleAnnee } from '../types.js'
+import { estOptionnel, ALERTES, TYPES, ETATS, documentsManquants, PAR_ANNEE, anneeSacrements, choixAnnees, etapesDe, documentsDe, TITRES_COLLECTIFS, choixAnneesScolaires, lieuPreparation, libelleAnnee } from '../types.js'
 import { IMPRIMABLES } from '../imprimables.js'
 import { Chargement, Erreur, Modale, useNotif, useConfirmer, dateHeure, dateRelative, dateCourte, versLocal, jourLong, heure } from '../ui.jsx'
 import { Redaction } from './Courrier.jsx'
 import { htmlVersPdf } from '../pdf.js'
 import { creerExtrait, PadSignature, chargerSceau } from './Extraits.jsx'
-import { PenLine } from 'lucide-react'
+import { PenLine, RefreshCw } from 'lucide-react'
 
 const champsEditables = (d) => ({
   infos: d.infos, etapes: d.etapes, documents: d.documents, rencontres: d.rencontres,
@@ -91,6 +91,16 @@ export default function Dossier() {
   const manquants = documentsManquants(d.type, Object.keys(b.documents).filter((k) => b.documents[k]?.recu), b.infos)
   const contexteMail = { documents_manquants: manquants.map((m) => '- ' + m.label).join('\n') }
 
+  function mailActeBapteme() {
+    const i = b.infos, prenom = i.prenoms || i.enfant_prenoms || ''
+    ouvrirMail({ sujet: 'Votre acte de baptême – préparation à la confirmation',
+      corps: `Bonjour ${prenom},\n\nPour recevoir le sacrement de confirmation, un acte de baptême récent est indispensable. Merci de le demander dès maintenant à la paroisse de votre baptême${i.bapteme_paroisse ? ` (${i.bapteme_paroisse}${i.bapteme_date ? ', baptême du ' + dateCourte(i.bapteme_date) : ''})` : ''} et de nous le transmettre par retour de mail ou au secrétariat.\n\nPour faciliter la recherche, indiquez à la paroisse vos nom et prénoms, votre date de naissance et le nom de vos parents.\n\nAvec l'assurance de nos prières à toutes vos intentions,` })
+  }
+  async function changerTypeConf() {
+    const vers = d.type === 'confirmand' ? 'confirmation_jeune' : 'confirmand'
+    if (!(await confirmer({ titre: vers === 'confirmation_jeune' ? 'Passer en Confirmation (jeunes)' : 'Repasser en Confirmand adulte', texte: vers === 'confirmation_jeune' ? `${d.nom} rejoindra la célébration commune des jeunes de l'année scolaire. Les informations, étapes et pièces sont conservées.` : `${d.nom} redevient un dossier « Confirmand adulte ». Les informations, étapes et pièces sont conservées.`, bouton: 'Changer' }))) return
+    try { await avantAction(); const x = await api('dossiers.changerType', { id: d.id, type: vers }); setD(x); setB(champsEditables(x)); notifier('Dossier changé') } catch (e) { notifier(e.message, 'erreur') }
+  }
   function mailNotificationParoisse() {
     const i = b.infos
     const quand = b.date_celebration ? `le ${dateCourte(b.date_celebration)}` : ''
@@ -110,6 +120,7 @@ export default function Dossier() {
             {PAR_ANNEE.includes(d.type) && <span className="pastille border border-or bg-or-50 text-or-600">{anneeSacrements({ ...d, ...b, annee: '' }) ? libelleAnnee(d.type) + anneeSacrements({ ...d, ...b, annee: '' }) : 'Année non fixée'}</span>}
             {t.collectif && b.infos.preparation && <span className="pastille border border-nuit-100 bg-white text-nuit-600">Préparation : {lieuPreparation(b.infos)}</span>}
             {t.collectif && b.infos.preparation && b.infos.preparation !== 'Paroisse' && !b.etapes.validation?.fait && <span className="pastille bg-amber-100 text-amber-900">En attente de validation du curé</span>}</span>
+          {d.alertes?.length > 0 && <span className="mb-1 flex flex-wrap gap-1.5">{d.alertes.map((a) => <span key={a} className={`pastille ${ALERTES[a]?.classe}`}>{ALERTES[a]?.nom}{a === 'autre_confession' && b.infos.confession_origine ? ` : ${b.infos.confession_origine}` : ''}</span>)}</span>}
           <h1 className="text-3xl font-semibold leading-tight">{d.nom || 'Sans nom'}</h1>
           <p className="text-xs text-nuit-600/70">Créé le {dateCourte(d.cree_le)} · {d.source}{t.note ? ` · ${t.note}` : ''}{b.infos.inscription_catechisme && <> · <Link to={`/catechisme/${b.infos.inscription_catechisme}`} className="text-or-600 hover:underline">Inscription au catéchisme →</Link></>}{d.fraternite && <> · <Link to={`/cor-unum?annee=${d.fraternite.annee}&vue=tous&fiche=${d.fraternite.id}`} className="text-or-600 hover:underline">Fraternité Cor Unum{d.fraternite.equipe ? ' ' + d.fraternite.equipe : ' (à répartir)'} →</Link></>}</p>
         </div>
@@ -143,7 +154,7 @@ export default function Dossier() {
                 return (
                   <li key={e.cle}><button onClick={() => basculerEtape(e)} className="flex w-full items-start gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-nuit-50">
                     <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] ${fait ? 'border-transparent text-white' : 'border-nuit-100 text-nuit-600/60'}`} style={fait ? { background: t.couleur } : {}}>{fait ? <Check className="h-3 w-3" /> : i + 1}</span>
-                    <span className="min-w-0"><span className={fait ? 'text-nuit-600/70' : 'font-medium'}>{e.label}</span>{e.optionnel && <span className="ml-1 text-[11px] italic text-nuit-600/50">facultatif</span>}
+                    <span className="min-w-0"><span className={fait ? 'text-nuit-600/70' : 'font-medium'}>{e.label}</span>{estOptionnel(e, b.infos) && <span className="ml-1 text-[11px] italic text-nuit-600/50">facultatif</span>}
                       {fait && <span className="block text-[11px] text-nuit-600/50">{dateCourte(b.etapes[e.cle].date)} · {b.etapes[e.cle].par}</span>}</span>
                   </button></li>
                 )
@@ -228,6 +239,8 @@ export default function Dossier() {
               <button className="btn-clair" disabled={!d.email} onClick={() => ouvrirMail({})}><Mail className="h-4 w-4" />Écrire{d.email ? '' : ' (pas d\'e-mail)'}</button>
               {t.generer.map((g) => <button key={g} className="btn-or" onClick={async () => { try { await avantAction(); setImprimer(g) } catch { /* */ } }}><Printer className="h-4 w-4" />{IMPRIMABLES[g].titre}</button>)}
               {(t.actions || []).includes('notifier_paroisses') && <button className="btn-clair" onClick={mailNotificationParoisse}><Church className="h-4 w-4" />Notifier les paroisses de baptême</button>}
+              {['confirmand', 'confirmation_jeune'].includes(d.type) && <button className="btn-clair" onClick={mailActeBapteme}><Mail className="h-4 w-4" />Demander l'acte de baptême</button>}
+              {(d.alertes?.includes('mineur') || (d.type === 'confirmation_jeune' && b.infos.form_cles?.length)) && <button className="btn-clair" onClick={changerTypeConf}><RefreshCw className="h-4 w-4" />{d.type === 'confirmand' ? 'Passer en Confirmation (jeunes)' : 'Repasser en Confirmand adulte'}</button>}
               {(t.actions || []).includes('notifier_paroisse_bapteme') && <button className="btn-clair" onClick={mailNotificationParoisse}><Church className="h-4 w-4" />Notifier la paroisse de baptême</button>}
               {(t.actions || []).includes('intention_messe') && <button className="btn-clair" disabled title="Liaison avec l'AppMESSE à venir"><Church className="h-4 w-4" />Intention de messe (AppMESSE, bientôt)</button>}
             </div>

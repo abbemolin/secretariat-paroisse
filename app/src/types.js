@@ -184,15 +184,16 @@ export const TYPES = {
     nom: 'Confirmand adulte', pluriel: 'Confirmands', couleur: '#d1495b', rencontres: true,
     etapes: [
       T('accueil', 'Accueil'), T('parcours', 'Parcours de préparation'),
-      T('profession_foi', 'Profession de foi (venant d\'une autre confession chrétienne)', 'texte', { optionnel: true }),
+      T('profession_foi', 'Profession de foi (venant d\'une autre confession chrétienne)', 'texte', { optionnel: (i) => i?.autre_confession !== 'oui' }),
       T('lettre', "Lettre à l'évêque"), T('retraite', 'Retraite'), T('confirmation', 'Confirmation'),
       T('registre', 'Inscription au registre'), T('notification', 'Notification à la paroisse de baptême')
     ],
     sections: [
       { titre: 'Identité', champs: [T('prenoms', 'Prénoms'), T('nom', 'Nom'), T('naissance_date', 'Né(e) le', 'date'), T('naissance_lieu', 'À'),
         T('adresse', 'Adresse'), T('telephone', 'Téléphone', 'tel'), T('email', 'E-mail', 'email')] },
-      { titre: 'Baptême', champs: [T('bapteme_paroisse', 'Paroisse du baptême'), T('bapteme_date', 'Date du baptême', 'date'),
-        T('premiere_communion', 'Première communion'), T('confession_origine', "Confession d'origine (si autre confession chrétienne)")] },
+      { titre: 'Parents', champs: [T('pere', 'Père (prénom et nom)'), T('mere', 'Mère (prénom et nom)')] },
+      { titre: 'Baptême', champs: [T('bapteme_paroisse', 'Paroisse / lieu du baptême'), T('bapteme_date', 'Date du baptême', 'date'),
+        T('premiere_communion', 'Première communion'), T('autre_confession', 'Baptisé(e) dans une autre confession', 'choix', { choix: ['', 'oui'] }), T('confession_origine', "Confession d'origine (si autre confession chrétienne)")] },
       { titre: 'Parrain / marraine', champs: [T('parrain_marraine', 'Nom'), T('parrain_contact', 'Coordonnées')] },
       { titre: 'Confirmation', champs: [T('celebrant', 'Célébrant'), T('lieu_celebration', 'Lieu'), T('registre_annee', 'Année du registre'), T('acte_numero', 'Acte n°')] },
       MESSAGE
@@ -212,6 +213,13 @@ export const anneeSacrements = (d) => String(d.annee || d.infos?.annee_sacrement
 export const libelleAnnee = (type) => ({ confirmand: 'Confirmations ', catechumene: 'Sacrements ', premiere_communion: 'Année ', profession_foi: 'Année ', confirmation_jeune: 'Année ' })[type] || ''
 export const choixAnnees = () => { const a = new Date().getFullYear(); return Array.from({ length: 7 }, (_, i) => String(a - 2 + i)) }
 
+/** Signalements calculés par le serveur (liste et dossier). */
+export const ALERTES = {
+  bapteme_a_trouver: { nom: 'Baptême à trouver', classe: 'bg-amber-100 text-amber-900' },
+  autre_confession: { nom: 'Autre confession', classe: 'bg-violet-100 text-violet-900' },
+  mineur: { nom: 'Mineur', classe: 'bg-sky-100 text-sky-900' }
+}
+
 export const ETATS = { ouvert: 'En cours', clos: 'Clos', annule: 'Annulé' }
 
 /** L'élément (étape, document) s'applique-t-il à ce dossier ? (ex. validation du curé seulement hors paroisse) */
@@ -220,8 +228,10 @@ export const etapesDe = (type, infos) => (TYPES[type]?.etapes || []).filter((e) 
 export const documentsDe = (type, infos) => (TYPES[type]?.documents || []).filter((d) => applicable(d, infos))
 
 /** Prochaine étape non franchie (hors étapes facultatives). infos : au moins { preparation }. */
+/** Étape facultative ? (peut dépendre du dossier, ex. profession de foi si baptisé dans une autre confession) */
+export const estOptionnel = (e, infos) => (typeof e.optionnel === 'function' ? e.optionnel(infos || {}) : !!e.optionnel)
 export function prochaineEtape(type, faites, infos) {
-  return etapesDe(type, infos).find((e) => !e.optionnel && !faites.includes(e.cle))
+  return etapesDe(type, infos).find((e) => !estOptionnel(e, infos) && !faites.includes(e.cle))
 }
 
 export function documentsManquants(type, recus, infos) {

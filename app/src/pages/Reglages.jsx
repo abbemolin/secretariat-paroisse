@@ -6,7 +6,7 @@ import { useApp } from '../App.jsx'
 import { Chargement, Erreur, useCharger, useNotif, dateHeure, Interrupteur } from '../ui.jsx'
 import { ApercuSignature } from './Courrier.jsx'
 
-const ONGLETS = ['Paroisse', 'Signatures', 'Réponses types', 'Tri automatique', 'Catéchisme', 'Cor Unum', 'Journal']
+const ONGLETS = ['Paroisse', 'Signatures', 'Réponses types', 'Tri automatique', 'Catéchisme', 'Confirmands', 'Cor Unum', 'Journal']
 
 export default function Reglages() {
   const [onglet, setOnglet] = useState('Paroisse')
@@ -21,6 +21,7 @@ export default function Reglages() {
       {onglet === 'Réponses types' && <Reponses />}
       {onglet === 'Tri automatique' && <TriAutomatique />}
       {onglet === 'Catéchisme' && <CatechismeReglages />}
+      {onglet === 'Confirmands' && <ConfirmandsReglages />}
       {onglet === 'Cor Unum' && <CorUnumReglages />}
       {onglet === 'Journal' && <Journal />}
     </>
@@ -426,6 +427,57 @@ function CorUnumReglages() {
           <input className="champ" placeholder="https://forms.gle/…" value={f.lien_formulaire || ''} onChange={(e) => setF({ ...f, lien_formulaire: e.target.value })} />
         </div>
         <button className="btn-principal" onClick={() => enregistrer()} disabled={envoi}>{envoi && <Loader2 className="h-4 w-4 animate-spin" />}Enregistrer</button>
+      </div>
+    </div>
+  )
+}
+
+function ConfirmandsReglages() {
+  const notifier = useNotif()
+  const { data, chargement, erreur } = useCharger(() => api('conf.reglages'), [])
+  const [f, setF] = useState(null)
+  const [envoi, setEnvoi] = useState(false)
+  const [importe, setImporte] = useState(false)
+  useEffect(() => { if (data) setF({ ...data, feuilles: data.feuilles.map((x) => ({ ...x })) }) }, [data])
+  if (chargement || !f) return <><Erreur erreur={erreur} />{!erreur && <Chargement />}</>
+  async function enregistrer(modif = {}) {
+    const g = { ...f, ...modif }
+    setF(g); setEnvoi(true)
+    try {
+      const r = await api('conf.reglagesEcrire', { feuilles: g.feuilles.map(({ id, annee, annee_confirmation }) => ({ id, annee, annee_confirmation })), import_auto: g.import_auto })
+      setF(r); notifier(modif.import_auto !== undefined ? (g.import_auto ? 'Import automatique activé' : 'Import automatique désactivé') : 'Réglages enregistrés')
+    } catch (e) { notifier(e.message, 'erreur') } finally { setEnvoi(false) }
+  }
+  async function importer() {
+    setImporte(true)
+    try { const r = await api('conf.importer'); notifier(r.nouveaux || r.completes ? `${r.nouveaux} nouveau(x), ${r.completes} complété(s)` : 'Aucune nouvelle inscription') } catch (e) { notifier(e.message, 'erreur') } finally { setImporte(false) }
+  }
+  const majF = (i, k, v) => setF({ ...f, feuilles: f.feuilles.map((x, j) => (j === i ? { ...x, [k]: v } : x)) })
+  return (
+    <div className="max-w-3xl space-y-5">
+      <div className="carte space-y-3 p-5">
+        <h2 className="text-xl font-semibold">Formulaire « Confirmation adultes »</h2>
+        <p className="text-sm text-nuit-600">Chaque réponse crée un dossier « Confirmand adulte » (ou complète le dossier existant de la même personne), classé dans l'année de confirmation choisie. Les réponses en double sont fusionnées.</p>
+        {f.feuilles.map((x, i) => (
+          <div key={i} className="space-y-1 rounded-lg border border-nuit-100 p-3">
+            <div className="grid grid-cols-[110px_110px_1fr_auto] items-end gap-2">
+              <div><label className="etiquette">Année scolaire</label><input className="champ py-1.5" placeholder="2027-2028" value={x.annee || ''} onChange={(e) => majF(i, 'annee', e.target.value)} /></div>
+              <div><label className="etiquette">Confirmation</label><input className="champ py-1.5" placeholder="2028" value={x.annee_confirmation || ''} onChange={(e) => majF(i, 'annee_confirmation', e.target.value)} /></div>
+              <div><label className="etiquette">Feuille de réponses (adresse)</label><input className="champ py-1.5 text-xs" value={x.id} onChange={(e) => majF(i, 'id', e.target.value)} /></div>
+              <button className="btn-icone text-red-700" onClick={() => setF({ ...f, feuilles: f.feuilles.filter((_, j) => j !== i) })}><Trash2 className="h-4 w-4" /></button>
+            </div>
+            {x.nom ? <p className="text-xs text-emerald-700">✓ {x.nom}</p> : x.erreur ? <p className="text-xs text-red-700">{x.erreur}</p> : null}
+          </div>
+        ))}
+        <button className="text-sm text-or-600 hover:underline" onClick={() => setF({ ...f, feuilles: [...f.feuilles, { id: '', annee: '', annee_confirmation: '' }] })}><Plus className="mr-1 inline h-3.5 w-3.5" />Ajouter l'année suivante</button>
+        <div className="flex items-center gap-3 rounded-lg bg-or-50/60 p-3">
+          <div className="flex-1 text-sm"><strong>Import automatique</strong><br /><span className="text-xs text-nuit-600">Toutes les 15 minutes. Un accusé de réception (réponse type « Accusé de réception – confirmation ») part pour chaque nouvelle inscription reçue après la mise en service{f.accuse_depuis ? ` (${new Date(f.accuse_depuis).toLocaleDateString('fr-FR')})` : ''}.</span></div>
+          <Interrupteur actif={f.import_auto} onChange={(v) => enregistrer({ import_auto: v })} />
+        </div>
+        <div className="flex gap-2">
+          <button className="btn-clair flex-1" onClick={importer} disabled={importe}>{importe ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}Importer maintenant</button>
+          <button className="btn-principal" onClick={() => enregistrer()} disabled={envoi}>{envoi && <Loader2 className="h-4 w-4 animate-spin" />}Enregistrer</button>
+        </div>
       </div>
     </div>
   )
