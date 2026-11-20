@@ -141,6 +141,7 @@ export const TYPES = {
       { titre: 'Identité', champs: [T('prenoms', 'Prénoms'), T('nom', 'Nom'), T('sexe', 'Homme ou femme', 'choix', { choix: ['', 'Homme', 'Femme'] }), T('nom_jeune_fille', 'Nom de jeune fille'), T('naissance_date', 'Né(e) le', 'date'),
         T('naissance_lieu', 'À'), T('adresse', 'Domicilié(e) à'), T('nationalite', 'Nationalité'), T('profession', 'Profession'),
         T('telephone', 'Téléphone', 'tel'), T('email', 'E-mail', 'email')] },
+      { titre: 'Parents', champs: [T('pere_prenom', 'Prénom du père'), T('pere_nom', 'Nom du père'), T('mere_prenom', 'Prénom de la mère'), T('mere_nom_jeune_fille', 'Nom de jeune fille de la mère')] },
       { titre: 'Situation familiale', champs: [T('situation', 'Situation', 'choix', { choix: ['', 'Célibataire', 'Marié(e)', 'Pacsé(e)', 'Vie maritale', 'Divorcé(e)', 'Veuf / veuve'] }),
         T('conjoint', 'Époux / épouse de'), T('conjoint_baptise', 'Conjoint baptisé ?'), T('enfants', 'Enfants')] },
       { titre: 'Parcours', champs: [T('religion_origine', "Religion d'origine"), T('motivations', 'Motivations', 'paragraphe'), T('accompagnateurs', 'Accompagnateurs')] },
