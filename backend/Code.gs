@@ -262,9 +262,20 @@ function lignes_(nom) {
   var entetes = valeurs.shift();
   return valeurs.map(function (r, i) {
     var o = { _ligne: i + 2 };
-    entetes.forEach(function (h, j) { o[h] = r[j] instanceof Date ? r[j].toISOString() : r[j]; });
+    entetes.forEach(function (h, j) { o[h] = r[j] instanceof Date ? dateCellule_(r[j]) : r[j]; });
     return o;
   }).filter(function (o) { return o[entetes[0]] !== ''; });
+}
+/**
+ * Une cellule que Google Sheets a convertie en date : « 30/12/1899 hh:mm » était une heure saisie (« 15:00 »),
+ * minuit pile était une date seule (« 2027-02-21 ») ; le reste est un horodatage.
+ */
+var TZ_FEUILLE_ = null;
+function dateCellule_(d) {
+  var tz = TZ_FEUILLE_ || (TZ_FEUILLE_ = (function () { try { return db_().getSpreadsheetTimeZone(); } catch (e) { return Session.getScriptTimeZone(); } })());
+  if (d.getFullYear() < 1901) return Utilities.formatDate(d, tz, 'HH:mm');
+  if (Utilities.formatDate(d, tz, 'HH:mm:ss') === '00:00:00') return Utilities.formatDate(d, tz, 'yyyy-MM-dd');
+  return d.toISOString();
 }
 function ecrireLigne_(nom, obj) {
   var f = feuille_(nom);
@@ -274,8 +285,15 @@ function ecrireLigne_(nom, obj) {
     if (v === undefined || v === null) return '';
     return typeof v === 'object' ? JSON.stringify(v) : String(v);
   });
-  if (obj._ligne) f.getRange(obj._ligne, 1, 1, row.length).setValues([row]);
-  else { f.appendRow(row); obj._ligne = f.getLastRow(); }
+  // Cellules forcées en texte avant l'écriture : « 2027-02-21 » ou « 15:00 » ne deviennent jamais des dates.
+  if (!obj._ligne) {
+    f.appendRow(row);   // ajout atomique (deux écritures simultanées ne se marchent pas dessus)
+    var n = f.getLastRow(), debut = Math.max(2, n - 20);
+    var ids = f.getRange(debut, 1, n - debut + 1, 1).getValues();
+    for (var k = ids.length - 1; k >= 0; k--) if (String(ids[k][0]) === String(row[0])) { n = debut + k; break; }
+    obj._ligne = n;
+  }
+  f.getRange(obj._ligne, 1, 1, row.length).setNumberFormat('@').setValues([row]);
   return obj;
 }
 function journaliser_(session, action, detail) {

@@ -19,6 +19,38 @@ function feuilleEsp_(nom, colonnes) {
   if (!f) { f = db_().insertSheet(nom); f.getRange('A:Z').setNumberFormat('@'); f.appendRow(colonnes); f.setFrozenRows(1); }
   return f;
 }
+/**
+ * Lit le calendrier en remettant au propre les dates et heures que Google Sheets aurait converties
+ * (« 2027-02-21 » → date, « 15:00 » → 30/12/1899 15:00) ; les lignes touchées sont réécrites en texte.
+ */
+function lignesCal_() {
+  var f = db_().getSheetByName('CalendrierCate');
+  if (!f) return [];
+  var tz = db_().getSpreadsheetTimeZone() || Session.getScriptTimeZone();
+  var valeurs = f.getDataRange().getValues(), entetes = valeurs.shift(), res = [], aReparer = false;
+  valeurs.forEach(function (r, i) {
+    var o = { _ligne: i + 2 }, abime = false;
+    entetes.forEach(function (h, j) {
+      var v = r[j];
+      if (v instanceof Date) {
+        abime = true;
+        v = (h === 'heure_debut' || h === 'heure_fin' || v.getFullYear() < 1901)
+          ? Utilities.formatDate(v, tz, 'HH:mm') : Utilities.formatDate(v, tz, 'yyyy-MM-dd');
+      }
+      o[h] = v === null || v === undefined ? '' : String(v);
+    });
+    if (o[entetes[0]] === '') return;
+    if (abime) { o._abime = true; aReparer = true; }
+    res.push(o);
+  });
+  if (aReparer) {
+    try {
+      f.getRange('A:Z').setNumberFormat('@');
+      res.forEach(function (o) { if (o._abime) { delete o._abime; ecrireLigne_('CalendrierCate', o); } });
+    } catch (e) {}
+  }
+  return res;
+}
 function feuillesEspace_() { feuilleEsp_('Espaces', COLONNES_ESPACES); feuilleEsp_('Textes', COLONNES_TEXTES); feuilleEsp_('CalendrierCate', COLONNES_CALENDRIER); }
 function urlEspace_(jeton) { return 'https://app.croix-glorieuse.org/?c=' + jeton; }
 
@@ -218,7 +250,7 @@ function vueEspace_(d) {
   var don = json2_(d.donnees, {}), i = don.infos || {}, pr = profilEspace_(d);
   var docs = don.documents || {};
   var auj = maintenant_().slice(0, 10);
-  var cal = lignes_('CalendrierCate').filter(function (e) { return cibleConcerne_(e.cible, pr) && e.date >= auj; })
+  var cal = lignesCal_().filter(function (e) { return cibleConcerne_(e.cible, pr) && e.date >= auj; })
     .map(function (e) { return { date: e.date, heure_debut: e.heure_debut, heure_fin: e.heure_fin, titre: e.titre, lieu: e.lieu, note: e.note }; });
   if (!pr.neo && pr.annee) {
     try {
@@ -331,7 +363,7 @@ function listerTextes_() {
                fichiers: json2_(t.fichiers, []), liens: json2_(t.liens, []), nb_dest: dest.length, nb_lus: dest.filter(function (d) { return lus[d.id]; }).length,
                lus: dest.map(function (d) { return { nom: d.nom, lu: lus[d.id] || '' }; }) };
     }),
-    calendrier: lignes_('CalendrierCate').sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); })
+    calendrier: lignesCal_().sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); })
       .map(function (e) { var o = {}; COLONNES_CALENDRIER.forEach(function (k) { o[k] = e[k]; }); o.cible_nom = libelleCible_(e.cible); return o; })
   };
 }
@@ -376,14 +408,15 @@ function ecrireCalendrier_(p, s) {
   feuillesEspace_();
   verrou_(function () {
     if (p.supprimer) {
-      var y = lignes_('CalendrierCate').filter(function (z) { return z.id === p.supprimer; })[0];
+      var y = lignesCal_().filter(function (z) { return z.id === p.supprimer; })[0];
       if (y) db_().getSheetByName('CalendrierCate').deleteRow(y._ligne);
       return;
     }
     var e = p.evenement || {};
     if (!e.date || !String(e.titre || '').trim() || !e.cible) throw erreur_('INVALIDE', 'Date, titre et destinataires obligatoires.');
-    var x = e.id ? lignes_('CalendrierCate').filter(function (z) { return z.id === e.id; })[0] : { id: uid_() };
+    var x = e.id ? lignesCal_().filter(function (z) { return z.id === e.id; })[0] : { id: uid_() };
     COLONNES_CALENDRIER.forEach(function (k) { if (k !== 'id' && e[k] !== undefined) x[k] = String(e[k]).slice(0, 500); });
+    db_().getSheetByName('CalendrierCate').getRange('A:Z').setNumberFormat('@');
     ecrireLigne_('CalendrierCate', x);
   });
   return listerTextes_();
