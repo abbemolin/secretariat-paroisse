@@ -70,6 +70,7 @@ function doPost(e) {
     if (action === 'auth.login') return json_({ ok: true, data: login_(p) });
     if (action === 'public.demande') return json_({ ok: true, data: recevoirDemandePublique_(p) });
     if (action === 'public.infos') return json_({ ok: true, data: infosPubliques_(p) });
+    if (/^rej\./.test(action)) return json_({ ok: true, data: actionRejoindre_(action, p) });
     if (/^chef\./.test(action)) return json_({ ok: true, data: actionChef_(action, p) });
     if (/^ret\./.test(action)) return json_({ ok: true, data: actionRetraitePublique_(action, p) });
     if (/^esp\./.test(action)) return json_({ ok: true, data: actionEspace_(action, p) });
@@ -167,6 +168,9 @@ var ROUTES = {
   'espace.etat':           { fn: etatEspace_, droit: 'dossiers' },
   'espace.lien':           { fn: lienEspace_, droit: 'dossiers' },
   'espace.lettre':         { fn: lettreEspace_, droit: 'dossiers' },
+  'cor.equipesCourantes':  { fn: equipesCorCourantes_, droit: 'dossiers' },
+  'cor.placer':            { fn: placerCor_, droit: 'dossiers' },
+  'cor.lienInscription':   { fn: lienInscriptionCor_, droit: 'dossiers' },
   'espace.signalement':    { fn: signalementEspace_, droit: 'dossiers' },
   'textes.liste':          { fn: listerTextes_, droit: 'dossiers' },
   'textes.ecrire':         { fn: ecrireTexte_, droit: 'dossiers' },

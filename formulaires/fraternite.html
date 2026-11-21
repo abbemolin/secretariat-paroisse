@@ -37,6 +37,8 @@ label{display:block;font-size:13px;color:#6b5b55;margin:8px 0 3px}
 .ok{background:#e8f5ec;color:#1d5e33;border-radius:6px;padding:10px 12px;margin:10px 0}
 details summary{cursor:pointer;color:#7a6a64;font-size:14px}
 .cache{display:none}
+.qr{display:block;margin:10px auto;width:220px;height:220px;image-rendering:pixelated}
+.lienbox{display:flex;gap:6px;align-items:center}.lienbox input{flex:1;font-size:13px}
 .connexion{max-width:420px;margin:20px auto}
 .lien{background:none;border:0;color:#a8662e;text-decoration:underline;cursor:pointer;font-size:14px;padding:8px 0;margin-top:6px}
 .sortie{margin-left:auto;background:none;border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:8px;padding:6px 10px;font-size:12.5px;cursor:pointer}
@@ -52,13 +54,16 @@ details summary{cursor:pointer;color:#7a6a64;font-size:14px}
       <button data-v="rencontres">Rencontres</button>
       <button data-v="messages">Messages <span id="nbm"></span></button>
       <button data-v="ecrire">Écrire à l'équipe</button>
+      <button data-v="inviter">Inviter</button>
     </div>
     <section id="v-membres"></section>
     <section id="v-rencontres" class="cache"></section>
     <section id="v-messages" class="cache"></section>
     <section id="v-ecrire" class="cache"></section>
+    <section id="v-inviter" class="cache"></section>
   </div>
 </main>
+<script>__QRCODE_JS__</script>
 <script>
 (function () {
   var URL_SCRIPT = __URL_SCRIPT__;
@@ -90,7 +95,7 @@ details summary{cursor:pointer;color:#7a6a64;font-size:14px}
   Array.prototype.forEach.call(document.querySelectorAll('.onglets button'), function (b) {
     b.addEventListener('click', function () {
       Array.prototype.forEach.call(document.querySelectorAll('.onglets button'), function (x) { x.classList.toggle('actif', x === b); });
-      ['membres', 'rencontres', 'messages', 'ecrire'].forEach(function (v) { $('v-' + v).classList.toggle('cache', v !== b.dataset.v); });
+      ['membres', 'rencontres', 'messages', 'ecrire', 'inviter'].forEach(function (v) { $('v-' + v).classList.toggle('cache', v !== b.dataset.v); });
       if (b.dataset.v === 'messages') { var f = $('fil'); if (f) f.scrollTop = f.scrollHeight; }
     });
   });
@@ -142,10 +147,39 @@ details summary{cursor:pointer;color:#7a6a64;font-size:14px}
       (d.messages.length ? d.messages.map(function (m) { return '<div class="message ' + (m.cote === 'chef' ? 'm-chef' : 'm-par') + '"><div class="m-qui">' + e(m.cote === 'chef' ? 'Vous' : m.auteur) + ' · ' + e(dateHeure(m.date)) + '</div>' + e(m.texte) + '</div>'; }).join('') : '<p class="petit">Aucun message. Écrivez ici au curé et au secrétariat.</p>') +
       '</div><label>Votre message</label><textarea id="msg"></textarea><button class="bouton principal" data-act="message">Envoyer</button><div id="z-msg" style="display:none"></div>' +
       '<p class="petit">Revenez sur cette page pour voir les réponses.</p></div>';
+    // Inviter : lien d'inscription
+    rendreInviter();
     // Écrire à l'équipe
     if (!$('e-sujet')) $('v-ecrire').innerHTML = '<div class="carte"><h2>Écrire à toute l\'équipe</h2><p class="petit">Le message part de l\'adresse de la paroisse, en copie cachée à tous les membres ; leurs réponses vous arrivent directement.</p>' +
       '<label>Objet</label><input id="e-sujet" placeholder="Prochaine rencontre"><label>Message</label><textarea id="e-corps" style="min-height:180px"></textarea>' +
       '<div id="z-e" style="display:none"></div><div id="e-conf"></div><button class="bouton principal" data-act="mail">Envoyer à l\'équipe</button></div>';
+  }
+
+  function rendreInviter() {
+    var L = d.lien_inscription, z = $('v-inviter');
+    if (!L) { z.innerHTML = '<div class="carte"><h2>Inviter dans la fraternité</h2><p class="petit">Le lien d\'inscription n\'est disponible que pour l\'année en cours.</p></div>'; return; }
+    var qr = '';
+    try { var q = qrcode(0, 'M'); q.addData(L); q.make(); qr = q.createDataURL(8, 4); } catch (x) {}
+    var gardes = { inv_mails: ($('inv-mails') || {}).value || '', inv_mot: ($('inv-mot') || {}).value || '' };
+    z.innerHTML = '<div class="carte"><h2>Inviter dans la fraternité</h2><p class="petit">Envoyez ce lien aux personnes que vous souhaitez accueillir : elles remplissent un court formulaire et sont inscrites directement dans votre fraternité. Vous et la paroisse êtes prévenus, et elles reçoivent vos coordonnées par mail.</p>' +
+      '<div class="lienbox"><input id="inv-lien" readonly value="' + e(L) + '"><button class="bouton" data-act="inv-copier" style="margin:0">Copier</button></div>' +
+      (navigator.share ? '<button class="bouton" data-act="inv-partager">Partager (SMS, WhatsApp…)</button>' : '') + '<div id="z-inv-l" style="display:none"></div></div>' +
+      '<div class="carte"><h2>Envoyer par mail</h2><label>Adresse(s) e-mail (séparées par une virgule)</label><input id="inv-mails" type="email" multiple placeholder="paul@exemple.fr, marie@exemple.fr" value="' + e(gardes.inv_mails) + '">' +
+      '<label>Un mot personnel (facultatif)</label><textarea id="inv-mot" style="min-height:80px" placeholder="Nous serions heureux de vous accueillir à notre prochaine rencontre…">' + e(gardes.inv_mot) + '</textarea>' +
+      '<p class="petit">Le mail part de l\'adresse de la paroisse, avec un bouton « Rejoindre la fraternité » ; les réponses vous arrivent directement.</p>' +
+      '<button class="bouton principal" data-act="inv-envoyer">Envoyer l\'invitation</button><div id="z-inv" style="display:none"></div></div>' +
+      (qr ? '<div class="carte"><h2>QR code</h2><p class="petit">À montrer sur votre téléphone ou à imprimer : il ouvre le formulaire d\'inscription.</p><img class="qr" src="' + qr + '" alt="QR code d\'inscription">' +
+        '<a class="bouton" href="' + qr + '" download="QR-fraternite-' + e(d.nom) + '.gif">Télécharger</a><button class="bouton" data-act="inv-imprimer">Imprimer</button></div>' : '') +
+      '<div class="carte"><details><summary>Changer de lien</summary><p class="petit">Si le lien a circulé trop largement, créez-en un nouveau : l\'ancien ne fonctionnera plus.</p>' +
+      (ouvert.nouveauLien ? '<button class="bouton danger" data-act="inv-nouveau-ok">Oui, créer un nouveau lien</button><button class="bouton" data-act="inv-nouveau-non">Annuler</button>' : '<button class="bouton" data-act="inv-nouveau">Créer un nouveau lien</button>') + '</details></div>';
+  }
+  function imprimerQr() {
+    var src = document.querySelector('.qr').src;
+    var w = document.createElement('iframe'); w.style.cssText = 'position:fixed;width:0;height:0;border:0';
+    document.body.appendChild(w);
+    w.contentDocument.write('<html><body style="text-align:center;font-family:Georgia,serif;padding-top:40px"><h1 style="color:#521a22">Fraternité Cor Unum ' + e(d.nom) + '</h1><p style="font-family:Arial;font-size:18px">Scannez pour vous inscrire</p><img src="' + src + '" style="width:320px;height:320px;image-rendering:pixelated"><p style="font-family:Arial;color:#7a6a64">' + e(d.paroisse) + '</p></body></html>');
+    w.contentDocument.close();
+    setTimeout(function () { w.contentWindow.focus(); w.contentWindow.print(); setTimeout(function () { w.remove(); }, 1000); }, 300);
   }
 
   document.addEventListener('click', function (ev) {
@@ -156,6 +190,26 @@ details summary{cursor:pointer;color:#7a6a64;font-size:14px}
       return pr.then(function (r) { if (r && r.membres) { d = r; rendre(); } return r; })
         .catch(function (err) { b.disabled = false; b.textContent = t; message(zone, err.message); });
     };
+    if (act === 'inv-copier') {
+      var inp = $('inv-lien'); inp.select();
+      (navigator.clipboard ? navigator.clipboard.writeText(inp.value) : Promise.reject()).then(function () { message('z-inv-l', 'Lien copié.', true); })
+        .catch(function () { try { document.execCommand('copy'); message('z-inv-l', 'Lien copié.', true); } catch (x) { message('z-inv-l', 'Copie impossible : sélectionnez le lien et copiez-le.'); } });
+      return;
+    }
+    if (act === 'inv-partager') { navigator.share({ title: 'Fraternité Cor Unum ' + d.nom, text: 'Rejoignez notre fraternité Cor Unum ' + d.nom + ' :', url: d.lien_inscription }).catch(function () {}); return; }
+    if (act === 'inv-imprimer') { imprimerQr(); return; }
+    if (act === 'inv-nouveau') { ouvert.nouveauLien = 1; rendreInviter(); return; }
+    if (act === 'inv-nouveau-non') { delete ouvert.nouveauLien; rendreInviter(); return; }
+    if (act === 'inv-nouveau-ok') { delete ouvert.nouveauLien; occuper(appel('chef.lienInscription')).then(function (r) { if (r && r.membres) message('z-inv-l', 'Nouveau lien créé : l\'ancien ne fonctionne plus.', true); }); return; }
+    if (act === 'inv-envoyer') {
+      if (!$('inv-mails').value.trim()) { message('z-inv', 'Indiquez au moins une adresse e-mail.'); return; }
+      b.disabled = true; b.textContent = 'Envoi…';
+      appel('chef.inviter', { emails: $('inv-mails').value, mot: $('inv-mot').value }).then(function (r) {
+        $('inv-mails').value = ''; $('inv-mot').value = ''; b.disabled = false; b.textContent = 'Envoyer l\'invitation';
+        message('z-inv', 'Invitation envoyée à ' + r.nb + ' adresse' + (r.nb > 1 ? 's' : '') + '.', true);
+      }).catch(function (err) { b.disabled = false; b.textContent = 'Envoyer l\'invitation'; message('z-inv', err.message); });
+      return;
+    }
     if (act === 'corriger' || act === 'depart') { ouvert[id] = act; rendre(); return; }
     if (act === 'fermer') { delete ouvert[id]; rendre(); return; }
     if (act === 'enregistrer') { delete ouvert[id]; occuper(appel('chef.modifier', { id: id, telephone: $('t-' + id).value, email: $('m-' + id).value, adresse: $('a-' + id).value })); return; }

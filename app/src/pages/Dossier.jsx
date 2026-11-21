@@ -7,6 +7,7 @@ import { estOptionnel, ALERTES, TYPES, ETATS, documentsManquants, PAR_ANNEE, ann
 import { IMPRIMABLES } from '../imprimables.js'
 import { Chargement, Erreur, Modale, useNotif, useConfirmer, useDifferer, useAutoEnregistrement, EtatEnregistrement, Aide, dateHeure, dateRelative, dateCourte, versLocal, jourLong, heure } from '../ui.jsx'
 import { Redaction } from './Courrier.jsx'
+import ChoixFraternite from './ChoixFraternite.jsx'
 import { htmlVersPdf } from '../pdf.js'
 import { creerExtrait, PadSignature, chargerSceau } from './Extraits.jsx'
 import { PenLine, RefreshCw, HeartHandshake, Link2, Smartphone, Copy } from 'lucide-react'
@@ -478,7 +479,22 @@ function RendezVousCure({ infos, email, onChoix, onRappel }) {
 function FraterniteDossier({ d, onMaj }) {
   const notifier = useNotif()
   const [choix, setChoix] = useState(false)
+  const [placer, setPlacer] = useState(false)
   const f = d.fraternite
+  async function placerDans(equipeId) {
+    const avant = f
+    try {
+      const r = await api('cor.placer', { dossiers: [d.id], equipe_id: equipeId }); onMaj(r.fraternite); setPlacer(false)
+      notifier(equipeId ? `Placé(e) dans la fraternité ${r.fraternite?.equipe || ''}` : 'Retiré(e) de sa fraternité', 'ok',
+        avant?.equipe && !avant.ancien ? { action: { label: 'Annuler', fn: () => remettre(avant) } } : undefined)
+    } catch (e) { notifier(e.message, 'erreur') }
+  }
+  async function remettre(avant) {
+    try {
+      const E = await api('cor.equipesCourantes', {}); const eq = E.equipes.find((x) => x.nom === avant.equipe)
+      const r = await api('cor.placer', { dossiers: [d.id], equipe_id: eq?.id || '' }); onMaj(r.fraternite); notifier('Fraternité rétablie')
+    } catch (e) { notifier(e.message, 'erreur') }
+  }
   async function relier(ficheId, message = 'Fiche Cor Unum reliée') {
     try { const r = await api('cor.relier', { fiche_id: ficheId, dossier_id: d.id }); onMaj(r.fraternite); notifier(message) } catch (e) { notifier(e.message, 'erreur') }
   }
@@ -497,11 +513,15 @@ function FraterniteDossier({ d, onMaj }) {
           {f.chefs?.length > 0 && <span className="text-nuit-600/70"> · chef : {f.chefs.join(', ')}</span>}
           {f.ancien && <span className="pastille ml-1.5 bg-nuit-100 py-0 text-[10px] text-nuit-600">ancien membre</span>}
           {f.mode === 'auto' && <span className="ml-1.5 text-[11px] text-nuit-600/60">(reconnu par le nom)</span>}</span>
-        <span className="flex gap-1.5"><button className="btn-clair px-2.5 py-1 text-xs" onClick={() => setChoix(true)}>Changer</button><button className="btn-clair px-2.5 py-1 text-xs" onClick={delier}>Délier</button></span>
+        <span className="flex flex-wrap gap-1.5"><button className="btn-or px-2.5 py-1 text-xs" onClick={() => setPlacer(true)}><HeartHandshake className="h-3.5 w-3.5" />{f.equipe && !f.ancien ? 'Changer de fraternité' : 'Placer dans une fraternité'}</button>
+          <button className="btn-clair px-2.5 py-1 text-xs" title="Relier le dossier à une autre fiche Cor Unum" onClick={() => setChoix(true)}>Autre fiche</button><button className="btn-clair px-2.5 py-1 text-xs" onClick={delier}>Délier</button></span>
       </> : <>
-        <span className="flex-1 text-nuit-600">Pas de fraternité Cor Unum trouvée.</span>
-        <button className="btn-clair px-2.5 py-1 text-xs" onClick={() => setChoix(true)}><Link2 className="h-3.5 w-3.5" />Relier à une fiche Cor Unum</button>
+        <span className="flex-1 text-nuit-600">Pas encore dans une fraternité Cor Unum.</span>
+        <span className="flex flex-wrap gap-1.5"><button className="btn-or px-2.5 py-1 text-xs" onClick={() => setPlacer(true)}><HeartHandshake className="h-3.5 w-3.5" />Placer dans une fraternité</button>
+          <button className="btn-clair px-2.5 py-1 text-xs" title="Si la personne a déjà une fiche Cor Unum sous un autre nom" onClick={() => setChoix(true)}><Link2 className="h-3.5 w-3.5" />Relier à une fiche existante</button></span>
       </>}
+      {placer && <ChoixFraternite titre={`Fraternité de ${d.nom}`} sousTitre={f ? 'Sa fiche Cor Unum sera déplacée.' : 'Une fiche Cor Unum sera créée avec ses coordonnées et reliée au dossier.'}
+        actuelle={f && !f.ancien ? f.equipe : ''} retirer={!!(f && f.equipe && !f.ancien)} onFermer={() => setPlacer(false)} onChoisir={placerDans} />}
       {choix && <ChoixFicheCor d={d} actuelle={f?.id} onFermer={() => setChoix(false)} onChoisir={(id) => { setChoix(false); relier(id) }} />}
     </div>
   )

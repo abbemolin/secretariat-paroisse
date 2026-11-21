@@ -6,7 +6,7 @@ self.skipWaiting()
 cleanupOutdatedCaches()
 precacheAndRoute(self.__WB_MANIFEST)
 // Les formulaires publics (formulaires/*.html) ne passent pas par l'appli
-registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html'), { denylist: [/\/(formulaires|premiere-communion|profession-de-foi|fraternite|retraite|paiement|livres)\//] }))
+registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html'), { denylist: [/\/(formulaires|premiere-communion|profession-de-foi|fraternite|rejoindre|retraite|paiement|livres)\//] }))
 self.addEventListener('activate', () => self.clients.claim())
 
 function lire(cle) {

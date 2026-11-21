@@ -777,7 +777,7 @@ function vueChef_(ctx) {
   };
   var fil = elementsFil_(e.fil);
   return {
-    annee: ctx.annee, nom: e.nom, paroisse: reglages_().paroisse,
+    annee: ctx.annee, nom: e.nom, paroisse: reglages_().paroisse, lien_inscription: e.jeton_inscr && ctx.annee === anneeCorCourante_(ctx.r) ? urlRejoindre_(e.jeton_inscr) : '',
     membres: membres.filter(function (x) { return x.statut !== 'ancien'; }).map(pub),
     anciens: membres.filter(function (x) { return x.statut === 'ancien'; }).map(pub),
     rencontres: fil.filter(function (x) { return x.type === 'rencontre'; }).map(rencontrePublique_),
@@ -816,7 +816,36 @@ function actionChef_(action, p) {
   };
   var court = function (t, max) { return String(t || '').trim().slice(0, max || 300); };
 
-  if (action === 'chef.lire') return vueChef_(ctx);
+  if (action === 'chef.lire') {
+    if (ctx.annee === anneeCorCourante_(ctx.r)) ctx.equipe.jeton_inscr = jetonInscription_(ctx.annee, e.id, false);
+    return vueChef_(ctx);
+  }
+  if (action === 'chef.lienInscription') {
+    if (ctx.annee !== anneeCorCourante_(ctx.r)) throw erreur_('ANNEE', 'Lien indisponible.');
+    ctx.equipe.jeton_inscr = jetonInscription_(ctx.annee, e.id, true);
+    journaliser_(s, 'Cor Unum : nouveau lien d\'inscription (chef)', e.nom);
+    return vueChef_(ctx);
+  }
+  if (action === 'chef.inviter') {
+    if (!e.jeton_inscr || ctx.annee !== anneeCorCourante_(ctx.r)) throw erreur_('ANNEE', 'Lien indisponible.');
+    var dest = String(p.emails || '').toLowerCase().split(/[\s,;]+/).filter(function (m) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m); });
+    dest = dest.filter(function (m, k) { return dest.indexOf(m) === k; });
+    if (!dest.length) throw erreur_('INVALIDE', 'Indiquez au moins une adresse e-mail valable.');
+    if (dest.length > 10) throw erreur_('INVALIDE', '10 adresses au plus par envoi.');
+    if (dest.length > MailApp.getRemainingDailyQuota()) throw erreur_('QUOTA', 'Envoi impossible aujourd\'hui (quota de la paroisse atteint). Réessayez demain.');
+    var chefsI = nomsChefs_(ctx), nomsI = chefsI.map(function (x) { return (x.prenoms + ' ' + x.nom).trim(); }).join(' et ') || 'Le chef de la fraternité';
+    var repI = chefsI.map(function (x) { return String(x.email || '').split(/[\s,;]+/)[0]; }).filter(function (m) { return /@/.test(m); });
+    var mot = court(p.mot, 2000);
+    var tI = 'Bonjour,\n\n' + nomsI + (chefsI.length > 1 || /\s(et|&)\s/i.test(nomsI) ? ' vous invitent' : ' vous invite') + ' à rejoindre la fraternité Cor Unum ' + e.nom + ' de la paroisse La Croix glorieuse.' +
+      (mot ? '\n\n' + mot : '') + '\n\nPour vous inscrire, il suffit de remplir ce court formulaire :\n[Bouton : Rejoindre la fraternité]\n\nAvec l\'assurance de nos prières à toutes vos intentions,\n' + nomsI;
+    var bI = [{ texte: 'Rejoindre la fraternité', url: urlRejoindre_(e.jeton_inscr) }];
+    var oI = optionsEnvoi_();
+    var optI = { name: 'Fraternité Cor Unum ' + e.nom, from: oI.from, htmlBody: corpsHtml_(tI, '', bI) };
+    if (repI.length) optI.replyTo = repI.join(',');
+    dest.forEach(function (m) { GmailApp.sendEmail(m, 'Invitation à rejoindre la fraternité Cor Unum ' + e.nom, corpsTexte_(tI, '', bI), optI); });
+    journaliser_(s, 'Cor Unum : invitation envoyée par le chef', dest.join(', '));
+    return { nb: dest.length };
+  }
 
   if (action === 'chef.ajouter') {
     if (!court(p.nom) && !court(p.prenoms)) throw erreur_('INVALIDE', 'Nom ou prénom manquant.');
@@ -924,7 +953,9 @@ function lienChefCor_(p, s) {
   if (p.nouveau) journaliser_(s, 'Cor Unum : nouveau lien de chef', res.nom);
   var base = String(reglages_().url_formulaires || 'https://secretariat.croix-glorieuse.org/').replace(/\/?$/, '/');
   var m = mdpChefs_()[res.fil];
-  return { lien: base + 'fraternite/?c=' + res.jeton, mot_de_passe: m ? m.maj : '', mails: mailsChefs_({ equipe: res }) };
+  var li = '';
+  try { if (p.annee === anneeCorCourante_(corReglages_())) li = urlRejoindre_(jetonInscription_(p.annee, p.equipe, false)); } catch (er) {}
+  return { lien: base + 'fraternite/?c=' + res.jeton, lien_inscription: li, mot_de_passe: m ? m.maj : '', mails: mailsChefs_({ equipe: res }) };
 }
 
 function filCor_(p, s) {
@@ -969,4 +1000,190 @@ function resumeFils_(equipes) {
   var res = {};
   equipes.forEach(function (e) { if (e.fil && parFil[e.fil]) res[e.id] = parFil[e.fil]; });
   return res;
+}
+
+// ─── Placer un adulte (dossier) dans une fraternité ───
+
+/** Année Cor Unum en cours : celle des fraternités les plus récentes (comme la page des chefs). */
+function anneeCorCourante_(r) {
+  return Object.keys(r.equipes).filter(function (a) { return (r.equipes[a] || []).length; }).sort().reverse()[0]
+    || r.feuilles.map(function (f) { return f.annee; }).sort().reverse()[0] || anneeScolaire_();
+}
+function nomsChefsEquipe_(e, toutes) {
+  return toutes.filter(function (y) { return (e.chefs || []).indexOf(y.id) > -1; }).map(function (y) { return (y.prenoms + ' ' + y.nom).trim(); });
+}
+/** Fraternités de l'année en cours (pour choisir où placer quelqu'un). */
+function equipesCorCourantes_(p) {
+  feuilleCor_();
+  var r = corReglages_(), annee = anneeCorCourante_(r), toutes = lignes_('CorUnum');
+  return { annee: annee, equipes: equipesDe_(r, annee).map(function (e) {
+    return { id: e.id, nom: e.nom, chefs: nomsChefsEquipe_(e, toutes),
+             membres: toutes.filter(function (x) { return x.annee === annee && x.equipe_id === e.id && x.statut !== 'ancien'; }).length };
+  }).sort(function (a, b) { return a.nom.localeCompare(b.nom, 'fr'); }) };
+}
+/**
+ * Place des dossiers (catéchumènes, néophytes, confirmands) dans une fraternité de l'année en cours.
+ * Fiche Cor Unum de l'année reliée → déplacée ; sinon fiche créée (coordonnées et profil du dossier) et reliée.
+ * equipe_id vide : la personne est retirée de sa fraternité (fiche gardée, « à répartir »).
+ */
+function placerCor_(p, s) {
+  var ids = (p.dossiers || []).filter(String), equipeId = String(p.equipe_id || '');
+  if (!ids.length) throw erreur_('PARAMETRE', 'Aucun dossier choisi.');
+  var r = corReglages_(), annee = anneeCorCourante_(r);
+  var e = equipesDe_(r, annee).filter(function (y) { return y.id === equipeId; })[0];
+  if (equipeId && !e) throw erreur_('INTROUVABLE', 'Fraternité introuvable pour ' + annee + '.');
+  var noms = [];
+  verrou_(function () {
+    feuilleCor_();
+    var toutes = lignes_('CorUnum'), doss = dossiersLies_(), liens = liensCor_(toutes, doss);
+    ids.forEach(function (id) {
+      var d = doss.filter(function (z) { return z.id === id; })[0];
+      if (!d) throw erreur_('INTROUVABLE', 'Seuls les catéchumènes, néophytes et confirmands peuvent être placés.');
+      var i = d.infos || {};
+      noms.push(d.nom);
+      var l = (liens.parDossier[id] || []).filter(function (z) { return z.x.annee === annee; });
+      var x = l.length ? l[0].x : null;
+      if (!x) {
+        if (!equipeId) return;
+        ecrireLigne_('CorUnum', {
+          id: uid_(), annee: annee, cree_le: maintenant_(), sources: '["dossier"]', nom: i.nom || d.nom, prenoms: i.prenoms || '',
+          email: i.email || d.email || '', telephone: i.telephone || '', adresse: i.adresse || '',
+          profils: JSON.stringify(profilsDossier_([{ d: d }])), situation: '', deja_participe: 'Non', rester: '', chef_indique: '', chef_possible: '',
+          souhait: '', groupe_service: '', equipe_id: equipeId, equipe_proposee: '', statut: 'actif', note: '', maj_le: maintenant_(), maj_par: s.nom,
+          dossiers_lies: JSON.stringify([id]), dossiers_exclus: '[]'
+        });
+        return;
+      }
+      x.equipe_id = equipeId; x.equipe_proposee = '';
+      if (equipeId) x.statut = 'actif';
+      var lies = json2_(x.dossiers_lies, []);
+      if (lies.indexOf(id) === -1) x.dossiers_lies = JSON.stringify(lies.concat([id]));   // le lien tient même si le nom change
+      x.maj_le = maintenant_(); x.maj_par = s.nom;
+      ecrireLigne_('CorUnum', x);
+    });
+  });
+  journaliser_(s, equipeId ? 'Cor Unum : placé(s) dans ' + e.nom : 'Cor Unum : retiré(s) de leur fraternité', noms.join(', '));
+  return { fraternites: fraternitesDesDossiers_(), fraternite: ids.length === 1 ? fraterniteDuDossier_(trouverDossier_(ids[0])) : null };
+}
+
+// ─── Lien d'inscription d'une fraternité (envoyé par le chef) ───
+// Valable pour l'année en cours : la préparation de l'année suivante crée de nouvelles fraternités, sans ce lien.
+
+function urlRejoindre_(j) {
+  return String(reglages_().url_formulaires || 'https://secretariat.croix-glorieuse.org/').replace(/\/?$/, '/') + 'rejoindre/?i=' + j;
+}
+/** Jeton d'inscription de la fraternité (créé au besoin, ou renouvelé). */
+function jetonInscription_(annee, equipeId, nouveau) {
+  return verrou_(function () {
+    var r = corReglages_();
+    var e = (r.equipes[annee] || []).filter(function (y) { return y.id === equipeId; })[0];
+    if (!e) throw erreur_('INTROUVABLE', 'Fraternité introuvable.');
+    if (!e.jeton_inscr || nouveau) { e.jeton_inscr = jeton_(); ecrireCorReglages_(r); }
+    return e.jeton_inscr;
+  });
+}
+function lienInscriptionCor_(p, s) {
+  var r = corReglages_();
+  if (p.annee !== anneeCorCourante_(r)) throw erreur_('ANNEE', 'Le lien d\'inscription n\'existe que pour l\'année en cours (' + anneeCorCourante_(r) + ').');
+  var j = jetonInscription_(p.annee, p.equipe, !!p.nouveau);
+  if (p.nouveau) journaliser_(s, 'Cor Unum : nouveau lien d\'inscription', p.equipe);
+  return { lien: urlRejoindre_(j) };
+}
+function equipeParInscription_(i) {
+  if (!/^[a-f0-9]{32}$/.test(String(i || ''))) throw erreur_('LIEN', 'Ce lien n\'est pas valable.');
+  var r = corReglages_(), annee = anneeCorCourante_(r);
+  var e = (r.equipes[annee] || []).filter(function (y) { return y.jeton_inscr === i; })[0];
+  if (!e) throw erreur_('LIEN', 'Ce lien d\'inscription n\'est plus valable. Demandez-en un nouveau au chef de la fraternité.');
+  return { r: r, annee: annee, equipe: e };
+}
+function chefsInfos_(e, toutes) {
+  return toutes.filter(function (y) { return (e.chefs || []).indexOf(y.id) > -1; }).map(function (y) {
+    return { nom: (y.prenoms + ' ' + y.nom).trim(), email: String(y.email || '').split(/[\s,;]+/).filter(function (m) { return /@/.test(m); })[0] || '',
+             telephone: String(y.telephone || '').split('/')[0].trim() };
+  });
+}
+
+/** Pages publiques « rejoindre » (doPost, sans session). */
+function actionRejoindre_(action, p) {
+  var cache = CacheService.getScriptCache(), cle = 'rej_' + String(p.i || '').slice(0, 32);
+  var n = Number(cache.get(cle) || 0);
+  if (n > 60) throw erreur_('LIMITE', 'Trop de demandes en peu de temps. Réessayez dans une heure.');
+  cache.put(cle, String(n + 1), 3600);
+  var ctx = equipeParInscription_(p.i), e = ctx.equipe;
+  feuilleCor_();
+  var toutes = lignes_('CorUnum'), chefs = chefsInfos_(e, toutes);
+  if (action === 'rej.public') {
+    return { equipe: e.nom, annee: ctx.annee, chefs: chefs.map(function (c) { return c.nom; }), profils: PROFILS_COR, paroisse: reglages_().paroisse };
+  }
+  if (action !== 'rej.inscrire') throw erreur_('ACTION', 'Action inconnue.');
+
+  var court = function (t, max) { return String(t || '').trim().replace(/\s+/g, ' ').slice(0, max || 100); };
+  var personne = function (x, qui) {
+    var o = { prenoms: court(x.prenoms, 60), nom: court(x.nom, 60), email: court(x.email, 120).toLowerCase(), telephone: court(x.telephone, 30) };
+    if (!o.prenoms || !o.nom) throw erreur_('INVALIDE', 'Prénom et nom' + (qui ? ' ' + qui : '') + ' obligatoires.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(o.email)) throw erreur_('INVALIDE', 'Adresse e-mail' + (qui ? ' ' + qui : '') + ' invalide.');
+    return o;
+  };
+  var p1 = personne(p, ''), p2 = p.couple ? personne(p.conjoint || {}, 'du conjoint') : null;
+  var profils = (p.profils || []).filter(function (y) { return PROFILS_COR.indexOf(y) > -1; });
+  // Couple au même nom : une fiche foyer ; noms différents : deux fiches
+  var foyers = p2 && memeNom_(p1.nom, p2.nom)
+    ? [{ prenoms: p1.prenoms + ' et ' + p2.prenoms, nom: p1.nom, emails: [p1.email, p2.email], tels: [p1.telephone, p2.telephone], gens: [p1, p2] }]
+    : [p1].concat(p2 ? [p2] : []).map(function (x) { return { prenoms: x.prenoms, nom: x.nom, emails: [x.email], tels: [x.telephone], gens: [x] }; });
+  var uniq = function (l) { return l.filter(function (v, k) { return v && l.indexOf(v) === k; }); };
+  var qui = 'Inscription – lien du chef';
+  verrou_(function () {
+    var fiches = lignes_('CorUnum').filter(function (x) { return x.annee === ctx.annee; });
+    foyers.forEach(function (f) {
+      var x = fiches.filter(function (y) { return f.gens.some(function (g) { return correspond_(y, g.nom, g.prenoms, g.email); }); })[0];
+      if (x) {
+        var ancienneEquipe = x.equipe_id;
+        x.equipe_id = e.id; x.equipe_proposee = ''; x.statut = 'actif';
+        x.email = uniq(String(x.email || '').split(/[\s,;]+/).concat(f.emails).map(function (m) { return m.toLowerCase(); })).join(', ');
+        if (!x.telephone) x.telephone = uniq(f.tels).join(' / ');
+        x.profils = JSON.stringify(uniq(json2_(x.profils, []).concat(profils)));
+        x.sources = JSON.stringify(uniq(json2_(x.sources, []).concat(['lien_chef'])));
+        if (ancienneEquipe && ancienneEquipe !== e.id) x.deja_participe = 'Non';
+        x.note = [x.note, 'Inscrit(e) par le lien du chef le ' + maintenant_().slice(0, 10)].filter(String).join(' ; ');
+        x.maj_le = maintenant_(); x.maj_par = qui;
+        ecrireLigne_('CorUnum', x);
+      } else {
+        ecrireLigne_('CorUnum', {
+          id: uid_(), annee: ctx.annee, cree_le: maintenant_(), sources: '["lien_chef"]', nom: f.nom, prenoms: f.prenoms,
+          email: uniq(f.emails).join(', '), telephone: uniq(f.tels).join(' / '), adresse: '', profils: JSON.stringify(profils), situation: p2 ? 'En couple' : '',
+          deja_participe: 'Non', rester: '', chef_indique: '', chef_possible: '', souhait: '', groupe_service: '', equipe_id: e.id, equipe_proposee: '',
+          statut: 'actif', note: 'Inscrit(e) par le lien du chef', maj_le: maintenant_(), maj_par: qui, dossiers_lies: '[]', dossiers_exclus: '[]'
+        });
+      }
+    });
+  });
+  var noms = foyers.map(function (f) { return f.prenoms + ' ' + f.nom; }).join(', ');
+  journaliser_({ nom: qui }, 'Cor Unum : inscription par le lien du chef (' + e.nom + ')', noms);
+  prevenirEquipeParoisse_('Fraternité ' + e.nom + ' : nouvelle inscription', noms + ' (lien du chef)', ctx.annee);
+  try { mailsInscriptionRejoindre_(e, chefs, [p1].concat(p2 ? [p2] : []), profils); } catch (er) { console.error('mail rejoindre', er); }
+  return { equipe: e.nom, chefs: chefs };
+}
+
+function mailsInscriptionRejoindre_(e, chefs, gens, profils) {
+  var opts = optionsEnvoi_(), fin = '\n\nAvec l\'assurance de nos prières à toutes vos intentions,';
+  var mailsChefs = chefs.map(function (c) { return c.email; }).filter(String);
+  // À la personne (et au conjoint) : bienvenue + coordonnées du chef
+  var coord = chefs.length ? chefs.map(function (c) { return '• ' + c.nom + (c.telephone ? ' – ' + c.telephone : '') + (c.email ? ' – ' + c.email : ''); }).join('\n')
+    : '• le secrétariat de la paroisse vous mettra en relation avec l\'équipe.';
+  var prenoms = gens.map(function (g) { return g.prenoms; }).join(' et ');
+  var plur = chefs.length > 1 || chefs.some(function (c) { return /\s(et|&)\s/i.test(c.nom); });
+  var t = 'Bonjour ' + prenoms + ',\n\nVotre inscription dans la fraternité Cor Unum ' + e.nom + ' est bien enregistrée. Bienvenue !\n\n' +
+    (plur ? 'Vos chefs de fraternité :' : 'Votre chef de fraternité :') + '\n' + coord + '\n\n' +
+    (chefs.length ? (plur ? 'Ils vous contacteront pour la prochaine rencontre ; n\'hésitez pas à les joindre d\'ici là.' : 'Votre chef vous contactera pour la prochaine rencontre ; n\'hésitez pas à le joindre d\'ici là.') : '') + fin;
+  var o = { name: opts.name, from: opts.from, htmlBody: corpsHtml_(t, 'paroisse') };
+  if (mailsChefs.length) o.replyTo = mailsChefs.join(',');
+  GmailApp.sendEmail(gens.map(function (g) { return g.email; }).filter(function (m, k, l) { return l.indexOf(m) === k; }).join(','), 'Bienvenue dans la fraternité Cor Unum ' + e.nom, corpsTexte_(t, 'paroisse'), o);
+  // Aux chefs : la nouvelle inscription
+  if (mailsChefs.length) {
+    var t2 = 'Bonjour,\n\nNouvelle inscription dans votre fraternité Cor Unum ' + e.nom + ' :\n' +
+      gens.map(function (g) { return '• ' + g.prenoms + ' ' + g.nom + (g.telephone ? ' – ' + g.telephone : '') + ' – ' + g.email; }).join('\n') +
+      (profils.length ? '\nProfil : ' + profils.join(', ') : '') + '\n\nElle apparaît désormais sur la page de votre fraternité.' + fin;
+    GmailApp.sendEmail(mailsChefs.join(','), 'Nouvelle inscription dans votre fraternité', corpsTexte_(t2, 'paroisse'),
+      { name: opts.name, from: opts.from, htmlBody: corpsHtml_(t2, 'paroisse'), replyTo: gens[0].email });
+  }
 }

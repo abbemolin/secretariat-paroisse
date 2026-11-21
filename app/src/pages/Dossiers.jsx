@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Plus, Search, FolderHeart, Loader2, Globe, Printer, CalendarCheck, ScrollText, Send, Download, BellRing, HeartHandshake, FileSpreadsheet } from 'lucide-react'
 import { Redaction } from './Courrier.jsx'
+import ChoixFraternite from './ChoixFraternite.jsx'
 import { api } from '../api.js'
 import { analyserClasseur, lireClasseur, STATUTS_IMPORT } from '../importCatechumenes.js'
 import { useApp } from '../App.jsx'
@@ -19,6 +20,10 @@ export default function Dossiers() {
   const [texte, setTexte] = useState('')
   const [nouveau, setNouveau] = useState(false)
   const [envoiForm, setEnvoiForm] = useState(false)
+  const [sel, setSel] = useState(null)          // sélection pour placer dans une fraternité (null = pas en mode sélection)
+  const [choixFrat, setChoixFrat] = useState(false)
+  const notifier = useNotif()
+  const placable = ['catechumene', 'confirmand'].includes(type)
   const { data, chargement, erreur, recharger } = useCharger(() => api('dossiers.liste', {}), [], ['dossiers.liste', {}])
 
   const tous = (data || []).filter((d) => !enSuppression.has(d.id))
@@ -35,6 +40,7 @@ export default function Dossiers() {
         <div className="flex gap-2">
           {type === 'confirmand' && <ImportConfirmands dossiers={tous} onFait={recharger} />}
           {type === 'catechumene' && <ImportCatechumenes onFait={recharger} />}
+          {placable && <button className={sel ? 'btn-principal' : 'btn-clair'} onClick={() => setSel(sel ? null : new Set())}><HeartHandshake className="h-4 w-4" /><span className="hidden sm:inline">{sel ? 'Terminer' : 'Placer dans une fraternité'}</span></button>}
           <button className="btn-clair" onClick={() => setEnvoiForm(true)}><Send className="h-4 w-4" /><span className="hidden sm:inline">Envoyer un formulaire</span></button>
           <Aide>Envoie par mail, à un parent ou à une école, un bouton vers le formulaire de Première Communion ou de Profession de foi. Les réponses créent les dossiers ; l'acte de baptême est demandé.</Aide>
           <button className="btn-clair" onClick={() => nav('/extraits')}><ScrollText className="h-4 w-4" />Extraits</button>
@@ -84,8 +90,8 @@ export default function Dossiers() {
                 return (
                   <div key={d.id}>
                   {entete && <div className="bg-or-50 px-4 py-1.5 font-titre text-lg font-semibold text-or-600">{anneeSacrements(d) ? libelleAnnee(type) + anneeSacrements(d) : 'Année non fixée'}</div>}
-                  <button onClick={() => nav(`/dossiers/${d.id}`)} className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-1 px-4 py-3 text-left text-sm hover:bg-nuit-50/50 md:grid-cols-[150px_1fr_200px_120px_40px]">
-                    <span className="flex flex-col gap-0.5"><span className="pastille w-fit text-white" style={{ background: t.couleur }}>{t.nom}</span>
+                  <button onClick={() => sel ? setSel((x) => { const n = new Set(x); n.has(d.id) ? n.delete(d.id) : n.add(d.id); return n }) : nav(`/dossiers/${d.id}`)} className={`${sel?.has(d.id) ? 'bg-or-50 ' : ''}grid w-full grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-1 px-4 py-3 text-left text-sm hover:bg-nuit-50/50 md:grid-cols-[150px_1fr_200px_120px_40px]`}>
+                    <span className="flex flex-col gap-0.5">{sel && <input type="checkbox" readOnly checked={sel.has(d.id)} className="mb-1 h-4 w-4 accent-[#521a22]" aria-label={`Choisir ${d.nom}`} />}<span className="pastille w-fit text-white" style={{ background: t.couleur }}>{t.nom}</span>
                       {PAR_ANNEE.includes(d.type) && !parAnnee && anneeSacrements(d) && <span className="pastille w-fit border border-or/40 py-0 text-[10px] text-or-600">{anneeSacrements(d)}</span>}</span>
                     <span className="min-w-0"><span className="block truncate font-medium">{d.nom}</span>
                       <span className="block truncate text-xs text-nuit-600/60">{d.etat !== 'ouvert' ? <span className={`pastille py-0 ${COULEURS_STATUT[d.etat]}`}>{ETATS[d.etat]}</span> : prochaine ? '→ ' + prochaine.label : 'Toutes les étapes faites'}{manquants > 0 && d.etat === 'ouvert' && ` · ${manquants} document${manquants > 1 ? 's' : ''} manquant${manquants > 1 ? 's' : ''}`}</span>
@@ -103,6 +109,25 @@ export default function Dossiers() {
           )}
         </div>
       )}
+      {sel && (
+        <div className="sticky bottom-20 z-20 mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-or/40 bg-white px-3 py-2 text-sm shadow-lg md:bottom-4">
+          <span className="font-medium">{sel.size} sélectionné{sel.size > 1 ? 's' : ''}</span>
+          <button className="text-xs text-or-600 underline" onClick={() => setSel(new Set(liste.filter((d) => !d.fraternite?.equipe || d.fraternite?.ancien).map((d) => d.id)))}>Cocher ceux sans fraternité</button>
+          <button className="text-xs text-or-600 underline" onClick={() => setSel(new Set(liste.map((d) => d.id)))}>Tout cocher</button>
+          {sel.size > 0 && <button className="text-xs text-nuit-600 underline" onClick={() => setSel(new Set())}>Tout décocher</button>}
+          <span className="ml-auto flex gap-2"><button className="btn-clair py-1.5 text-xs" onClick={() => setSel(null)}>Annuler</button>
+            <button className="btn-or py-1.5 text-xs" disabled={!sel.size} onClick={() => setChoixFrat(true)}><HeartHandshake className="h-3.5 w-3.5" />Choisir la fraternité</button></span>
+        </div>
+      )}
+      {choixFrat && sel && <ChoixFraternite titre={`Placer ${sel.size} personne${sel.size > 1 ? 's' : ''}`} sousTitre="Les fiches Cor Unum manquantes seront créées et reliées aux dossiers ; les autres seront déplacées."
+        onFermer={() => setChoixFrat(false)} onChoisir={async (id) => {
+          try {
+            const r = await api('cor.placer', { dossiers: [...sel], equipe_id: id })
+            const nom = r.fraternites[[...sel][0]]?.equipe || ''
+            notifier(`${sel.size} personne${sel.size > 1 ? 's' : ''} placée${sel.size > 1 ? 's' : ''} dans ${nom || 'la fraternité'}`)
+            setChoixFrat(false); setSel(null); recharger()
+          } catch (e) { notifier(e.message, 'erreur') }
+        }} />}
       {envoiForm && <EnvoiFormulaire onFermer={() => setEnvoiForm(false)} />}
       {nouveau && <NouveauDossier typeInitial={type || 'bapteme'} onFermer={() => setNouveau(false)} onCree={(d) => nav(`/dossiers/${d.id}`)} />}
     </>

@@ -436,7 +436,7 @@ function LienChef({ e, annee, chefs, onFermer, onMail }) {
   function envoyer() {
     const B = 'Ouvrir la page de ma fraternité'
     onMail({ a: chefs.map((c) => String(c.email || '').split(/[\s,;]+/)[0]).filter(Boolean).join(', '), sujet: `Fraternité Cor Unum ${e.nom} – votre page de chef`,
-      corps: `Bonjour ${chefs.map((c) => c.prenoms).join(' et ')},\n\nVoici le lien personnel de votre fraternité Cor Unum. Il vous permet de voir les membres et leurs coordonnées, d'ajouter un membre, de corriger un téléphone ou une adresse, de signaler un départ, de noter vos rencontres, d'écrire à toute l'équipe et d'échanger avec le curé et le secrétariat.\n[Bouton : ${B}]\n\nLa page est protégée par un mot de passe que vous choisissez vous-même : à votre première visite, cliquez sur « Choisir mon mot de passe » ; un code vous sera envoyé par mail. Vous resterez ensuite connecté(e) 90 jours sur cet appareil.\n\nConseil : ajoutez cette page à vos favoris ou à l'écran d'accueil de votre téléphone. Ce lien est personnel : merci de ne pas le transférer.\n\nAvec l'assurance de nos prières à toutes vos intentions,`,
+      corps: `Bonjour ${chefs.map((c) => c.prenoms).join(' et ')},\n\nVoici le lien personnel de votre fraternité Cor Unum. Il vous permet de voir les membres et leurs coordonnées, d'ajouter un membre, de corriger un téléphone ou une adresse, de signaler un départ, de noter vos rencontres, d'écrire à toute l'équipe, d'échanger avec le curé et le secrétariat, et d'inviter de nouvelles personnes à rejoindre la fraternité (onglet « Inviter » : lien, mail ou QR code).\n[Bouton : ${B}]\n\nLa page est protégée par un mot de passe que vous choisissez vous-même : à votre première visite, cliquez sur « Choisir mon mot de passe » ; un code vous sera envoyé par mail. Vous resterez ensuite connecté(e) 90 jours sur cet appareil.\n\nConseil : ajoutez cette page à vos favoris ou à l'écran d'accueil de votre téléphone. Ce lien est personnel : merci de ne pas le transférer.\n\nAvec l'assurance de nos prières à toutes vos intentions,`,
       boutons: [{ texte: B, url: lien }] })
   }
   return (
@@ -449,6 +449,17 @@ function LienChef({ e, annee, chefs, onFermer, onMail }) {
       {infos && <p className={`mt-3 rounded-lg px-3 py-2 text-sm ${infos.mot_de_passe ? 'bg-emerald-50 text-emerald-900' : 'bg-amber-50 text-amber-900'}`}>
         {infos.mot_de_passe ? `Mot de passe choisi par le chef le ${new Date(infos.mot_de_passe).toLocaleDateString('fr-FR')}.` : 'Le chef n\'a pas encore choisi son mot de passe.'}
         {!infos.mails?.length && <><br /><strong>Aucune adresse e-mail connue pour le chef</strong> : ajoutez-la dans sa fiche, sinon il ne pourra pas recevoir le code.</>}</p>}
+      {infos && (infos.lien_inscription ? <div className="mt-4 border-t border-nuit-100 pt-3">
+        <p className="mb-1.5 text-sm font-medium">Lien d'inscription dans la fraternité</p>
+        <p className="mb-2 text-xs text-nuit-600/80">À donner aux nouveaux : court formulaire, inscription directe dans la fraternité, mail de bienvenue avec les coordonnées du chef. Le chef le trouve aussi sur sa page (onglet « Inviter », avec QR code). Valable toute l'année {annee}.</p>
+        <div className="flex gap-2"><input className="champ text-xs" readOnly value={infos.lien_inscription} onFocus={(ev) => ev.target.select()} />
+          <button className="btn-clair" title="Copier" onClick={() => navigator.clipboard?.writeText(infos.lien_inscription).then(() => notifier('Lien copié'), () => notifier('Copie impossible', 'erreur'))}><Copy className="h-4 w-4" /></button>
+          <button className="btn-clair" title="Nouveau lien d'inscription (l'ancien ne fonctionnera plus)" disabled={occupe} onClick={async () => {
+            if (!(await confirmer({ titre: "Nouveau lien d'inscription", texte: "L'ancien lien d'inscription ne fonctionnera plus.", bouton: 'Créer un nouveau lien', danger: true }))) return
+            setOccupe(true)
+            try { const r = await api('cor.lienInscription', { annee, equipe: e.id, nouveau: true }); setInfos((x) => ({ ...x, lien_inscription: r.lien })); notifier("Nouveau lien d'inscription créé") } catch (err) { notifier(err.message, 'erreur') } finally { setOccupe(false) }
+          }}><RefreshCw className="h-4 w-4" /></button></div>
+      </div> : <p className="mt-3 text-xs text-nuit-600/70">Le lien d'inscription n'existe que pour l'année en cours.</p>)}
       <p className="mt-2 text-xs text-nuit-600/70">Le lien seul ne suffit pas : la page demande aussi le mot de passe de la fraternité, choisi par le chef grâce à un code reçu par mail (aussi en cas d'oubli). « Nouveau lien » désactive immédiatement l'ancien lien ; le mot de passe reste le même.</p>
     </Modale>
   )

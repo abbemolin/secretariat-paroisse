@@ -249,7 +249,18 @@ export async function demoApi(action, p) {
     case 'cor.supprimer': etat.cor.membres = etat.cor.membres.filter((x) => x.id !== p.id); return corListe(p.annee)
     case 'cor.equipe': { const l = etat.cor.equipes[p.annee] ||= []; if (p.supprimer) { etat.cor.equipes[p.annee] = l.filter((e) => e.id !== p.supprimer); etat.cor.membres.forEach((m) => { if (m.equipe_id === p.supprimer) m.equipe_id = '' }) } else { const e = l.find((x) => x.id === p.equipe.id); if (e) Object.assign(e, p.equipe); else { const n = { ...p.equipe, id: 'q' + Date.now() }; l.push(n); n.chefs.forEach((c) => { const m = etat.cor.membres.find((x) => x.id === c); if (m) m.equipe_id = n.id }) } } return corListe(p.annee) }
     case 'cor.nouvelleAnnee': etat.cor.equipes[p.vers] = (etat.cor.equipes[p.de] || []).map((e) => ({ ...e, id: e.id + 'b' })); etat.cor.membres.filter((m) => m.annee === p.de && m.statut !== 'ancien' && m.equipe_id).forEach((m) => etat.cor.membres.push({ ...m, id: m.id + 'b', annee: p.vers, equipe_id: m.equipe_id + 'b', statut: 'ancien' })); etat.cor.equipes[p.vers].forEach((e) => { e.chefs = e.chefs.map((c) => c + 'b') }); return corListe(p.vers)
-    case 'cor.lienChef': return { lien: 'https://secretariat.croix-glorieuse.org/fraternite/?c=' + (p.nouveau ? 'b' : 'a').repeat(32), mot_de_passe: p.equipe === 'q1' ? '2026-11-02T10:00:00Z' : '', mails: ['claire.martin@example.fr'] }
+    case 'cor.equipesCourantes': return { annee: '2026-2027', equipes: (etat.cor.equipes['2026-2027'] || []).map((e) => ({ id: e.id, nom: e.nom, chefs: (e.chefs || []).map((c) => { const x = etat.cor.membres.find((y) => y.id === c); return x ? x.prenoms + ' ' + x.nom.toUpperCase() : '' }).filter(Boolean), membres: etat.cor.membres.filter((m) => m.annee === '2026-2027' && m.equipe_id === e.id && m.statut !== 'ancien').length })) }
+    case 'cor.placer': {
+      p.dossiers.forEach((id) => {
+        const d = etat.dossiers.find((x) => x.id === id)
+        let m = etat.cor.membres.find((x) => x.annee === '2026-2027' && x.dossiers.some((y) => y.id === id))
+        if (!m && p.equipe_id) { m = cor('c' + Date.now() + id, d.infos.prenoms || '', d.infos.nom || nomDe(d), p.equipe_id, { annee: '2026-2027', email: d.email || '', telephone: d.telephone || '', dossiers: [{ id, mode: 'manuel' }], deja_participe: 'Non' }); etat.cor.membres.push(m) }
+        else if (m) { m.equipe_id = p.equipe_id; if (p.equipe_id) m.statut = 'actif'; const l = m.dossiers.find((y) => y.id === id); l.mode = 'manuel' }
+      })
+      return { fraternites: Object.fromEntries(p.dossiers.map((id) => [id, fratDemo(id)])), fraternite: p.dossiers.length === 1 ? fratDemo(p.dossiers[0]) : null }
+    }
+    case 'cor.lienInscription': return { lien: 'https://secretariat.croix-glorieuse.org/rejoindre/?i=' + 'd'.repeat(32) }
+    case 'cor.lienChef': return { lien_inscription: 'https://secretariat.croix-glorieuse.org/rejoindre/?i=' + 'c'.repeat(32), lien: 'https://secretariat.croix-glorieuse.org/fraternite/?c=' + (p.nouveau ? 'b' : 'a').repeat(32), mot_de_passe: p.equipe === 'q1' ? '2026-11-02T10:00:00Z' : '', mails: ['claire.martin@example.fr'] }
     case 'cor.fil': { const f = etat.cor.fils[p.equipe] ||= { messages: [], rencontres: [] }; if (p.texte) f.messages.push({ id: 'x' + Date.now(), date: new Date().toISOString(), auteur: moi.nom, cote: 'paroisse', texte: p.texte }); f.lu = true; return f }
     case 'cor.tousChefs': (etat.cor.equipes[p.annee] || []).forEach((e) => { (etat.cor.fils[e.id] ||= { messages: [], rencontres: [] }).messages.push({ id: 'x' + Date.now() + e.id, date: new Date().toISOString(), auteur: moi.nom, cote: 'paroisse', texte: p.texte }) }); return { nb: (etat.cor.equipes[p.annee] || []).length }
     case 'cor.envoyer': return { nb: new Set(etat.cor.membres.filter((m) => p.ids.includes(m.id)).map((m) => m.email)).size }

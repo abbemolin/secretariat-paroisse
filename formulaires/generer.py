@@ -250,7 +250,10 @@ ACCUEIL = '<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Par
 (SITE / "404.html").write_text(ACCUEIL, encoding="utf-8")
 import shutil
 (SITE / 'fraternite').mkdir(exist_ok=True)
-(SITE / 'fraternite' / 'index.html').write_text((sortie / 'fraternite.html').read_text(encoding='utf-8').replace('__URL_SCRIPT__', json.dumps(URL)), encoding='utf-8')
+QRCODE_JS = (sortie / 'qrcode.min.js').read_text(encoding='utf-8')
+(SITE / 'fraternite' / 'index.html').write_text((sortie / 'fraternite.html').read_text(encoding='utf-8').replace('__URL_SCRIPT__', json.dumps(URL)).replace('__QRCODE_JS__', QRCODE_JS), encoding='utf-8')
+(SITE / 'rejoindre').mkdir(exist_ok=True)
+(SITE / 'rejoindre' / 'index.html').write_text((sortie / 'rejoindre.html').read_text(encoding='utf-8').replace('__URL_SCRIPT__', json.dumps(URL)), encoding='utf-8')
 for nom in ('paiement', 'livres'):
     (SITE / nom).mkdir(exist_ok=True)
     (SITE / nom / 'index.html').write_text((sortie / (nom + '.html')).read_text(encoding='utf-8').replace('__URL_SCRIPT__', json.dumps(URL)), encoding='utf-8')
@@ -281,7 +284,7 @@ for type_, f in FORMULAIRES.items():
 
 # ─── Les pages publiques sont aussi servies par l'appli du secrétariat (secretariat.croix-glorieuse.org) ───
 APP_PUBLIC = sortie.parent / "app" / "public"
-for nom in ('premiere-communion', 'profession-de-foi', 'fraternite', 'retraite', 'paiement', 'livres'):
+for nom in ('premiere-communion', 'profession-de-foi', 'fraternite', 'rejoindre', 'retraite', 'paiement', 'livres'):
     if (SITE / nom / 'index.html').exists():
         (APP_PUBLIC / nom).mkdir(exist_ok=True)
         shutil.copy(SITE / nom / 'index.html', APP_PUBLIC / nom / 'index.html')
