@@ -141,7 +141,7 @@ function fratDemo(id) {
   return { id: m.id, annee: m.annee, equipe: e?.nom || '', chefs: (e?.chefs || []).map((c) => { const x = etat.cor.membres.find((y) => y.id === c); return x ? x.prenoms + ' ' + x.nom.toUpperCase() : '' }).filter(Boolean), ancien: m.statut === 'ancien', mode: m.dossiers.find((y) => y.id === id).mode || 'auto' }
 }
 const pub = (u) => ({ ...u, droits: DROITS[u.role] })
-const alertesDemo = (d) => { const i = d.infos, a = []; if (!['confirmand', 'confirmation_jeune', 'catechumene'].includes(d.type)) return a; if (i.bapteme_inconnu === 'oui' && !i.bapteme_date && !i.bapteme_paroisse) a.push('bapteme_a_trouver'); if (i.autre_confession === 'oui') a.push('autre_confession'); if (d.type === 'confirmand' && i.naissance_date && (Date.now() - new Date(i.naissance_date)) / 3.156e10 < 18) a.push('mineur'); return a }
+const alertesDemo = (d) => { const i = d.infos, a = []; if (!['confirmand', 'confirmation_jeune', 'catechumene'].includes(d.type)) return a; if (i.bapteme_inconnu === 'oui' && !i.bapteme_date && !i.bapteme_paroisse) a.push('bapteme_a_trouver'); if (i.autre_confession === 'oui') a.push('autre_confession'); if (d.type === 'catechumene' && i.en_attente === 'oui' && !i.annee_sacrements) a.push('en_attente'); if (d.type === 'confirmand' && i.naissance_date && (Date.now() - new Date(i.naissance_date)) / 3.156e10 < 18) a.push('mineur'); return a }
 const resume = (d) => ({ ...d, alertes: alertesDemo(d), autre_confession: d.infos.autre_confession || '', nom: nomDe(d), preparation: d.infos.preparation === 'Autre école' ? d.infos.ecole_autre : d.infos.preparation || '', etapes: Object.keys(d.etapes).filter((k) => d.etapes[k]?.fait), documents: Object.keys(d.documents).filter((k) => d.documents[k]?.recu), date_souhaitee: d.infos.date_souhaitee || '', annee: d.infos.annee_sacrements || d.infos.annee_scolaire || '' })
 const complet = (d) => ({ ...d, alertes: alertesDemo(d), nom: nomDe(d), historique: [...d.historique].reverse(), fils: d.fils.map((id) => etat.fils.find((f) => f.id === id)).filter(Boolean).map((f) => ({ id: f.id, sujet: f.sujet, date: f.date })) })
 function nomDe(d) {
@@ -264,6 +264,21 @@ export async function demoApi(action, p) {
     case 'agenda.supprimer': { const e = etat.evenements.find((x) => x.id === p.id); if (e?.dossier) etat.dossiers.find((d) => d.id === e.dossier).date_celebration = ''; etat.evenements = etat.evenements.filter((x) => x.id !== p.id); return true }
     case 'dossiers.liste': return etat.dossiers.map((d) => ({ ...resume(d), fraternite: fratDemo(d.id) || undefined })).sort((a, b) => b.maj_le.localeCompare(a.maj_le))
     case 'dossiers.lire': { const d = complet(etat.dossiers.find((x) => x.id === p.id)); return { ...d, fraternite: fratDemo(d.id) } }
+    case 'dossiers.importerCatechumenes': {
+      const trouve = (x) => etat.dossiers.find((d) => d.type === 'catechumene' && String(d.infos.nom || '').toLowerCase() === String(x.nom).toLowerCase() && String(d.infos.prenoms || '').split(' ')[0].toLowerCase() === String(x.prenoms).split(' ')[0].toLowerCase())
+      if (p.simuler) return p.personnes.map((x) => { const d = trouve(x); return { cle: x.cle, existant: d ? { id: d.id, nom: nomDe(d), etat: d.etat } : null } })
+      let nouveaux = 0, completes = 0
+      p.personnes.forEach((x) => {
+        const b = /^bapt(\d{4})$/.exec(x.statut), an = b ? b[1] : /^\d{4}$/.test(x.statut) ? x.statut : ''
+        let d = trouve(x)
+        if (!d) { d = { id: 'i' + Math.random().toString(36).slice(2, 8), type: 'catechumene', etat: 'ouvert', cree_le: new Date().toISOString(), maj_le: new Date().toISOString(), source: 'Fichier « Baptisés adultes »', responsable: '', infos: {}, etapes: {}, documents: {}, rencontres: [], pieces: [], historique: [], fils: [] }; etat.dossiers.push(d); nouveaux++ } else completes++
+        Object.assign(d.infos, Object.fromEntries(Object.entries({ prenoms: x.prenoms, nom: x.nom, email: x.email, telephone: x.telephone, naissance_date: x.naissance_date, annee_sacrements: an, en_attente: x.statut === 'attente' ? 'oui' : '', remarques: x.notes.join('\n') }).filter(([k, v]) => v && !d.infos[k])))
+        d.email = d.email || x.email
+        const t = (k, l) => { d.etapes[k] = d.etapes[k] || { fait: true, date: new Date().toISOString(), par: 'Import', libelle: l } }
+        t('accueil', 'Premier accueil'); if (x.entree_date || x.b6) t('entree', 'Entrée en catéchuménat'); if (b) { t('sacrements', 'Baptême, confirmation, eucharistie'); d.etat = 'clos' }
+      })
+      return { nouveaux, completes, ignores: 0 }
+    }
     case 'cor.relier': {
       const m = etat.cor.membres.find((x) => x.id === p.fiche_id)
       if (p.delier) m.dossiers = m.dossiers.filter((y) => y.id !== p.dossier_id)

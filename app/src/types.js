@@ -167,7 +167,9 @@ export const TYPES = {
       { titre: 'Parents', champs: [T('pere_prenom', 'Prénom du père'), T('pere_nom', 'Nom du père'), T('mere_prenom', 'Prénom de la mère'), T('mere_nom_jeune_fille', 'Nom de jeune fille de la mère')] },
       { titre: 'Situation familiale', champs: [T('situation', 'Situation', 'choix', { choix: ['', 'Célibataire', 'Marié(e)', 'Pacsé(e)', 'Vie maritale', 'Divorcé(e)', 'Veuf / veuve'] }),
         T('conjoint', 'Époux / épouse de'), T('conjoint_baptise', 'Conjoint baptisé ?'), T('enfants', 'Enfants')] },
-      { titre: 'Parcours', champs: [T('religion_origine', "Religion d'origine"), T('motivations', 'Motivations', 'paragraphe'), T('accompagnateurs', 'Accompagnateurs')] },
+      { titre: 'Parcours', champs: [T('religion_origine', "Religion d'origine"), T('motivations', 'Motivations', 'paragraphe'), T('accompagnateurs', 'Accompagnateurs'),
+        T('disponibilite', 'Disponibilités'), T('en_attente', 'En attente (année non fixée)', 'choix', { choix: ['', 'oui'] }), T('remarques', 'Remarques', 'paragraphe')] },
+      { titre: 'Service diocésain du catéchuménat', champs: [T('diocese_inscription', 'Inscrit(e) en ligne', 'choix', { choix: ['', 'oui', 'non'] }), T('diocese_mail', 'Mail envoyé au service', 'choix', { choix: ['', 'oui', 'non'] })] },
       { titre: 'Parrain / marraine', champs: [T('parrain_marraine', 'Nom'), T('parrain_contact', 'Coordonnées')] },
       { titre: 'Entrée en catéchuménat (B6)', champs: [T('entree_date', "Date de l'accueil", 'date'), T('entree_ministre', 'Prêtre ou diacre'),
         T('service_diocesain', 'Membres du service diocésain présents', 'paragraphe'), T('b6_annee', 'Année (registre diocésain)'), T('b6_acte', 'Acte n° (B6)')] },
@@ -217,7 +219,8 @@ export const choixAnnees = () => { const a = new Date().getFullYear(); return Ar
 export const ALERTES = {
   bapteme_a_trouver: { nom: 'Baptême à trouver', classe: 'bg-amber-100 text-amber-900' },
   autre_confession: { nom: 'Autre confession', classe: 'bg-violet-100 text-violet-900' },
-  mineur: { nom: 'Mineur', classe: 'bg-sky-100 text-sky-900' }
+  mineur: { nom: 'Mineur', classe: 'bg-sky-100 text-sky-900' },
+  en_attente: { nom: 'En attente', classe: 'bg-slate-200 text-slate-800' }
 }
 
 export const ETATS = { ouvert: 'En cours', clos: 'Clos', annule: 'Annulé' }

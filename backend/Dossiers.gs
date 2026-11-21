@@ -86,6 +86,7 @@ function alertesDossier_(type, i) {
   if (['confirmand', 'confirmation_jeune', 'catechumene'].indexOf(type) === -1) return a;
   if (i.bapteme_inconnu === 'oui' && !i.bapteme_date && !i.bapteme_paroisse) a.push('bapteme_a_trouver');
   if (i.autre_confession === 'oui') a.push('autre_confession');
+  if (type === 'catechumene' && i.en_attente === 'oui' && !i.annee_sacrements) a.push('en_attente');
   var n = i.naissance_date || i.enfant_naissance_date;
   if (type === 'confirmand' && n) {
     var age = (new Date() - new Date(n + 'T12:00:00')) / (365.25 * 86400000);

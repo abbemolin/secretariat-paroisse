@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Plus, Search, FolderHeart, Loader2, Globe, Printer, CalendarCheck, ScrollText, Send, Download, BellRing, HeartHandshake } from 'lucide-react'
+import { Plus, Search, FolderHeart, Loader2, Globe, Printer, CalendarCheck, ScrollText, Send, Download, BellRing, HeartHandshake, FileSpreadsheet } from 'lucide-react'
 import { Redaction } from './Courrier.jsx'
 import { api } from '../api.js'
+import { analyserClasseur, lireClasseur, STATUTS_IMPORT } from '../importCatechumenes.js'
 import { useApp } from '../App.jsx'
 import { TYPES, ORDRE_TYPES, ETATS, prochaineEtape, documentsManquants, PAR_ANNEE, anneeSacrements, etapesDe, libelleAnnee, TITRES_COLLECTIFS, lieuPreparation, anneeScolaireActuelle, estOptionnel, ALERTES } from '../types.js'
 import { Chargement, Erreur, Modale, Vide, useCharger, enSuppression, Aide, useNotif, imprimerHtml, dateCourte, initiales, versLocal, jourLong, heure, COULEURS_STATUT } from '../ui.jsx'
@@ -33,6 +34,7 @@ export default function Dossiers() {
         <div><h1 className="text-3xl font-semibold">Dossiers</h1><p className="text-sm text-nuit-600/80">Sacrements et célébrations</p></div>
         <div className="flex gap-2">
           {type === 'confirmand' && <ImportConfirmands dossiers={tous} onFait={recharger} />}
+          {type === 'catechumene' && <ImportCatechumenes onFait={recharger} />}
           <button className="btn-clair" onClick={() => setEnvoiForm(true)}><Send className="h-4 w-4" /><span className="hidden sm:inline">Envoyer un formulaire</span></button>
           <Aide>Envoie par mail, à un parent ou à une école, un bouton vers le formulaire de Première Communion ou de Profession de foi. Les réponses créent les dossiers ; l'acte de baptême est demandé.</Aide>
           <button className="btn-clair" onClick={() => nav('/extraits')}><ScrollText className="h-4 w-4" />Extraits</button>
@@ -287,5 +289,78 @@ function ImportConfirmands({ dossiers, onFait }) {
         envoiPersonnalise={({ sujet, corps, signature }) => api('conf.relancer', { ids: aTrouver.map((d) => d.id), sujet, corps, signature })}
         onFermer={() => setRelance(false)} onEnvoye={(r) => { setRelance(false); notifier(`Envoyé à ${r?.nb} confirmand(s)`); onFait() }} />}
     </>
+  )
+}
+
+/** Import du tableau Excel des catéchumènes : aperçu, statut corrigeable par personne, puis import. */
+function ImportCatechumenes({ onFait }) {
+  const notifier = useNotif()
+  const fichier = useRef(null)
+  const [occupe, setOccupe] = useState(false)
+  const [apercu, setApercu] = useState(null)
+  async function choisi(e) {
+    const f = e.target.files?.[0]; e.target.value = ''
+    if (!f) return
+    setOccupe(true)
+    try {
+      const { personnes, onglets } = analyserClasseur(await lireClasseur(f))
+      if (!personnes.length) throw new Error('Aucune personne trouvée : le tableau doit avoir des colonnes « Prénom » et « Nom ».')
+      const sim = await api('dossiers.importerCatechumenes', { simuler: true, personnes })
+      const ex = Object.fromEntries(sim.map((x) => [x.cle, x.existant]))
+      setApercu({ fichier: f.name, onglets, personnes: personnes.map((p) => ({ ...p, existant: ex[p.cle] })) })
+    } catch (err) { notifier(err.message, 'erreur') } finally { setOccupe(false) }
+  }
+  return (
+    <>
+      <input ref={fichier} type="file" accept=".xlsx" className="hidden" onChange={choisi} />
+      <button className="btn-clair" onClick={() => fichier.current?.click()} disabled={occupe}>{occupe ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}<span className="hidden sm:inline">Importer un tableau</span></button>
+      <Aide>Choisissez le fichier Excel des catéchumènes (un onglet par année). Un aperçu s'ouvre : chaque personne a un statut proposé que vous pouvez corriger avant d'importer. Un dossier qui existe déjà n'est que complété.</Aide>
+      {apercu && <ApercuImport apercu={apercu} onFermer={() => setApercu(null)} onFait={(r) => { setApercu(null); notifier(`${r.nouveaux} dossier(s) créé(s), ${r.completes} complété(s)`); onFait() }} />}
+    </>
+  )
+}
+
+function ApercuImport({ apercu, onFermer, onFait }) {
+  const notifier = useNotif()
+  const [personnes, setPersonnes] = useState(apercu.personnes)
+  const [filtre, setFiltre] = useState('')
+  const [envoi, setEnvoi] = useState(false)
+  const nb = (s) => personnes.filter((p) => p.statut === s).length
+  const vus = personnes.filter((p) => !filtre || p.statut === filtre)
+  const changer = (cle, statut) => setPersonnes((l) => l.map((p) => (p.cle === cle ? { ...p, statut } : p)))
+  const aImporter = personnes.filter((p) => p.statut !== 'ignorer')
+  async function importer() {
+    setEnvoi(true)
+    try { onFait(await api('dossiers.importerCatechumenes', { personnes: aImporter.map(({ existant, ...p }) => p) })) }
+    catch (e) { notifier(e.message, 'erreur'); setEnvoi(false) }
+  }
+  return (
+    <Modale large titre={`Importer « ${apercu.fichier} »`} onFermer={onFermer}
+      pied={<><span className="mr-auto text-xs text-nuit-600">{aImporter.filter((p) => !p.existant).length} nouveaux dossiers · {aImporter.filter((p) => p.existant).length} à compléter</span>
+        <button className="btn-clair" onClick={onFermer}>Annuler</button>
+        <button className="btn-principal" disabled={envoi || !aImporter.length} onClick={importer}>{envoi && <Loader2 className="h-4 w-4 animate-spin" />}Importer {aImporter.length} personne{aImporter.length > 1 ? 's' : ''}</button></>}>
+      <p className="mb-3 text-sm text-nuit-600">Onglets lus : {apercu.onglets.join(', ')}. Vérifiez le statut de chacun, surtout les baptisés de 2025 et 2026. Une personne présente dans plusieurs onglets n'apparaît qu'une fois.</p>
+      <div className="mb-3 flex flex-wrap gap-1.5">
+        <button className={`pastille border ${!filtre ? 'border-or bg-or text-white' : 'border-nuit-100 bg-white text-nuit-600'}`} onClick={() => setFiltre('')}>Tous {personnes.length}</button>
+        {STATUTS_IMPORT.filter(([s]) => nb(s)).map(([s, l]) => <button key={s} className={`pastille border ${filtre === s ? 'border-or bg-or text-white' : 'border-nuit-100 bg-white text-nuit-600'}`} onClick={() => setFiltre(s)}>{l} {nb(s)}</button>)}
+      </div>
+      <ul className="divide-y divide-nuit-100">
+        {vus.map((p) => (
+          <li key={p.cle} className="grid gap-2 py-2.5 text-sm sm:grid-cols-[1fr_200px]">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-1.5"><span className="font-medium">{p.prenoms} {String(p.nom).toUpperCase()}</span>
+                <span className="text-[11px] text-nuit-600/60">{p.onglets.join(' · ')}</span>
+                {p.existant ? <span className="pastille bg-sky-100 py-0 text-[10px] text-sky-900">complète le dossier existant</span> : <span className="pastille bg-emerald-100 py-0 text-[10px] text-emerald-900">nouveau</span>}
+                {p.accompagnateur && <span className="text-[11px] text-nuit-600/70">· {p.accompagnateur}</span>}</div>
+              {p.notes.length > 0 && <div className="mt-0.5 text-xs italic text-amber-800">{p.notes.join(' · ')}</div>}
+              <div className="text-[11px] text-nuit-600/60">{[p.naissance_date && 'né(e) le ' + p.naissance_date.split('-').reverse().join('/'), p.email, p.telephone, p.entree_date && 'entrée ' + p.entree_date.split('-').reverse().join('/')].filter(Boolean).join(' · ')}</div>
+            </div>
+            <select className={`champ py-1.5 text-sm ${p.statut === 'ignorer' ? 'text-nuit-600/50' : ''}`} value={p.statut} onChange={(e) => changer(p.cle, e.target.value)}>
+              {STATUTS_IMPORT.map(([s, l]) => <option key={s} value={s}>{l}</option>)}
+            </select>
+          </li>
+        ))}
+      </ul>
+    </Modale>
   )
 }

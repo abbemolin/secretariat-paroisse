@@ -156,6 +156,7 @@ var ROUTES = {
   'conf.reglages':         { fn: lireConfReglages_, droit: 'dossiers' },
   'conf.reglagesEcrire':   { fn: ecrireConfReglages_, droit: 'reglages' },
   'dossiers.changerType':  { fn: changerTypeConf_, droit: 'dossiers' },
+  'dossiers.importerCatechumenes': { fn: importerCatechumenes_, droit: 'dossiers' },
   'cor.liste':             { fn: listerCor_, droit: 'dossiers' },
   'cor.relier':            { fn: relierCor_, droit: 'dossiers' },
   'cor.modifier':          { fn: modifierCor_, droit: 'dossiers' },
