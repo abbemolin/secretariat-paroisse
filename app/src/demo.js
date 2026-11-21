@@ -313,10 +313,12 @@ export async function demoApi(action, p) {
         { id: 'k2', cree_le: '2026-11-20T15:00:00Z', nom: 'Jean Dupont', email: 'jean@example.fr', telephone: '', lignes: [{ titre: 'Bible des enfants', prix: 20, qte: 2 }], total: 40, statut: 'payee', remis: false, source: 'Boutique', reste: 0, paiements: [{ id: 'q', date: '2026-11-20', montant: 40, mode: 'HelloAsso', par: 'Paiement en ligne' }] }] }
     case 'livres.catalogue': etat.livres.livres = p.livres.map((l, i) => ({ ...l, id: l.id || 'n' + i, prix: Number(l.prix) || 0, stock: l.stock === '' ? null : Number(l.stock) })); return etat.livres
     case 'livres.commande': { const c = etat.livres.commandes.find((x) => x.id === p.id); if (p.remis !== undefined) c.remis = p.remis; if (p.statut) c.statut = p.statut; if (p.ajouter) { c.paiements.push({ id: 'q' + Date.now(), date: new Date().toISOString(), montant: Number(p.ajouter.montant), mode: p.ajouter.mode, par: moi.nom }); c.reste = c.total - c.paiements.reduce((a, x) => a + x.montant, 0); if (c.reste <= 0) c.statut = 'payee' } return etat.livres }
-    case 'espace.etat': case 'espace.lien': case 'espace.lettre': {
+    case 'espace.etat': case 'espace.lien': case 'espace.lettre': case 'espace.signalement': {
       etat.esp ||= {}
       const e = etat.esp[p.id] ||= { existe: p.id === 'd2', lien: 'https://app.croix-glorieuse.org/?c=' + 'f'.repeat(32), mot_de_passe: p.id === 'd2' ? '2026-11-20T10:00:00Z' : '', derniere_visite: p.id === 'd2' ? new Date(Date.now() - 3 * 3600e3).toISOString() : '', mail: 'sarah.k@example.fr',
         lettre: p.id === 'd2' ? { texte: 'Monseigneur,\n\nJe m\'appelle Sarah, j\'ai 32 ans. Depuis deux ans je découvre le Christ à la paroisse La Croix glorieuse…\n\nJe vous demande humblement le baptême.\n\nSarah Kessler', statut: 'envoyee', remarque: '' } : { texte: '', statut: '' } }
+      e.signalements ||= p.id === 'd2' ? [{ id: 's1', date: '2026-11-21T09:00:00Z', sujet: 'Mon parcours', texte: "L'étape « Entrée en catéchuménat » est cochée mais je ne l'ai pas encore vécue.", statut: 'ouvert' }] : []
+      if (action === 'espace.signalement') { const z = e.signalements.find((x) => x.id === p.signalement); if (p.rouvrir) Object.assign(z, { statut: 'ouvert', traite_le: '' }); else Object.assign(z, { statut: 'traite', traite_le: new Date().toISOString(), traite_par: moi.nom, reponse: p.reponse }) }
       if (action === 'espace.lien') e.existe = true
       if (p.corriger) { e.lettre.statut = 'a_corriger'; e.lettre.remarque = p.remarque }
       if (p.valider) e.lettre.statut = 'validee'

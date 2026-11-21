@@ -167,6 +167,7 @@ var ROUTES = {
   'espace.etat':           { fn: etatEspace_, droit: 'dossiers' },
   'espace.lien':           { fn: lienEspace_, droit: 'dossiers' },
   'espace.lettre':         { fn: lettreEspace_, droit: 'dossiers' },
+  'espace.signalement':    { fn: signalementEspace_, droit: 'dossiers' },
   'textes.liste':          { fn: listerTextes_, droit: 'dossiers' },
   'textes.ecrire':         { fn: ecrireTexte_, droit: 'dossiers' },
   'textes.supprimer':      { fn: supprimerTexte_, droit: 'dossiers' },

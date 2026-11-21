@@ -537,6 +537,36 @@ function ChoixFicheCor({ d, actuelle, onFermer, onChoisir }) {
 }
 
 /** Espace personnel (app « Croix glorieuse ») du catéchumène / néophyte : lien, envoi, lettre à l'évêque. */
+/** Erreurs signalées par la personne depuis son espace : répondre et marquer comme corrigé. */
+function Signalements({ liste, occupe, action }) {
+  const [reponse, setReponse] = useState({})
+  const [voirTraites, setVoirTraites] = useState(false)
+  const ouverts = liste.filter((z) => z.statut === 'ouvert'), traites = liste.filter((z) => z.statut !== 'ouvert')
+  return (
+    <div className="mt-2 border-t border-nuit-100 pt-2">
+      <div className="flex flex-wrap items-center gap-2"><span className="font-medium">Erreurs signalées</span>
+        {ouverts.length > 0 ? <span className="pastille bg-amber-100 py-0 text-[11px] text-amber-900">{ouverts.length} à traiter</span> : <span className="text-xs text-nuit-600/70">tout est traité</span>}
+        {traites.length > 0 && <button className="text-xs text-or-600 underline" onClick={() => setVoirTraites(!voirTraites)}>{voirTraites ? 'Masquer les traitées' : `Voir les traitées (${traites.length})`}</button>}
+      </div>
+      {[...ouverts, ...(voirTraites ? traites : [])].map((z) => (
+        <div key={z.id} className={`mt-2 rounded-lg p-2.5 ${z.statut === 'ouvert' ? 'bg-amber-50/70' : 'bg-nuit-50/60'}`}>
+          <div className="text-xs text-nuit-600/70"><b className="text-nuit-800">{z.sujet}</b> · {dateCourte(z.date)}{z.statut !== 'ouvert' && ` · corrigé le ${dateCourte(z.traite_le)}${z.traite_par ? ' par ' + z.traite_par : ''}`}</div>
+          <p className="mt-1 whitespace-pre-wrap">{z.texte}</p>
+          {z.statut === 'ouvert' ? (
+            <div className="mt-2 flex flex-wrap gap-2">
+              <input className="champ min-w-48 flex-1 py-1.5" placeholder="Réponse (facultative, elle la verra dans son espace)" value={reponse[z.id] || ''} onChange={(ev) => setReponse({ ...reponse, [z.id]: ev.target.value })} />
+              <button className="btn-or px-2.5 py-1 text-xs" disabled={occupe} onClick={() => action('espace.signalement', { signalement: z.id, reponse: reponse[z.id] || '' }, 'Marqué comme corrigé')}><Check className="h-3.5 w-3.5" />Marquer comme corrigé</button>
+            </div>
+          ) : (
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">{z.reponse && <span className="text-nuit-600/80">Réponse : {z.reponse}</span>}
+              <button className="text-or-600 underline" disabled={occupe} onClick={() => action('espace.signalement', { signalement: z.id, rouvrir: true }, 'Signalement rouvert')}>Rouvrir</button></div>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function EspaceDossier({ d }) {
   const notifier = useNotif()
   const confirmer = useConfirmer()
@@ -584,6 +614,7 @@ function EspaceDossier({ d }) {
           {l.statut === 'a_corriger' && l.remarque && <p className="mt-1 text-xs text-nuit-600/70">Demandé : {l.remarque}</p>}
         </div>
       )}
+      {e.signalements?.length > 0 && <Signalements liste={e.signalements} occupe={occupe} action={action} />}
       {mail && <Redaction mode="nouveau" a={e.mail} sujet="Votre espace personnel – paroisse La Croix glorieuse"
         corps={`Bonjour ${d.infos?.prenoms || ''},\n\nVoici le lien de votre espace personnel « Croix glorieuse ». Vous y trouverez votre parcours vers le baptême, le calendrier, les textes que nous vous enverrons, et vous pourrez compléter votre dossier (informations, pièces, lettre à l'évêque).\n[Bouton : ${B}]\n\nÀ la première visite, choisissez votre mot de passe : un code vous sera envoyé par mail. Vous pourrez ensuite installer l'application sur votre téléphone pour être prévenu(e) des nouveaux textes.\n\nAvec l'assurance de nos prières à toutes vos intentions,`}
         boutons={[{ texte: B, url: e.lien }]} dossier={d} onFermer={() => setMail(false)} onEnvoye={() => { setMail(false); notifier('Lien envoyé') }} />}

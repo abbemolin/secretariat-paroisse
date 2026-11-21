@@ -217,6 +217,22 @@ function actionEspace_(action, p) {
     });
     return vueEspace_(trouverDossier_(d.id));
   }
+  if (action === 'esp.signaler') {
+    var texteS = String(p.texte || '').trim().slice(0, 3000);
+    if (texteS.length < 3) throw erreur_('VIDE', 'Décrivez l\'erreur en quelques mots.');
+    verrou_(function () {
+      var x = trouverDossier_(d.id), don = json2_(x.donnees, {});
+      don.signalements = don.signalements || [];
+      if (don.signalements.filter(function (z) { return z.statut === 'ouvert'; }).length >= 20) throw erreur_('LIMITE', 'Vous avez déjà beaucoup de signalements en attente : la paroisse va les traiter.');
+      var sujet = String(p.sujet || 'Autre').slice(0, 120);
+      don.signalements.push({ id: uid_(), date: maintenant_(), sujet: sujet, texte: texteS, statut: 'ouvert' });
+      x.donnees = JSON.stringify(don);
+      ajouterHistorique_(x, 'Espace personnel', 'Erreur signalée (' + sujet + ') : ' + texteS.slice(0, 200));
+      x.maj_le = maintenant_(); x.maj_par = 'Espace personnel';
+      ecrireLigne_('Dossiers', x);   // visible dans l'encadré « Espace personnel » du dossier (pas de notification)
+    });
+    return vueEspace_(trouverDossier_(d.id));
+  }
   if (action === 'esp.lu') {
     verrou_(function () {
       var t = lignes_('Textes').filter(function (y) { return y.id === p.texte; })[0];
@@ -271,6 +287,7 @@ function vueEspace_(d) {
     etapes: don.etapes || {}, infos: infos,
     pieces: Object.keys(PIECES_ESPACE).map(function (k) { return { cle: k, nom: PIECES_ESPACE[k], recu: !!(docs[k] && docs[k].recu) }; }),
     lettre: { texte: l.texte || '', statut: l.statut || '', remarque: l.remarque || '', validee_le: l.validee_le || '' },
+    signalements: (don.signalements || []).slice(-30).reverse().map(function (z) { return { id: z.id, date: z.date, sujet: z.sujet, texte: z.texte, statut: z.statut, reponse: z.reponse || '', traite_le: z.traite_le || '' }; }),
     calendrier: cal, textes: textes, paroisse: reglages_().paroisse
   };
 }
@@ -284,8 +301,8 @@ function espaceDuDossier_(id) {
 function etatEspace_(p) {
   var d = trouverDossier_(p.id);
   var x = espaceDuDossier_(d.id);
-  var l = json2_(d.donnees, {}).lettre || {};
-  return { existe: !!x, lien: x ? urlEspace_(x.jeton) : '', mot_de_passe: x ? x.mdp_maj : '', derniere_visite: x ? x.derniere_visite : '', mail: mailDossier_(d),
+  var don0 = json2_(d.donnees, {}), l = don0.lettre || {};
+  return { signalements: (don0.signalements || []).slice().reverse(), existe: !!x, lien: x ? urlEspace_(x.jeton) : '', mot_de_passe: x ? x.mdp_maj : '', derniere_visite: x ? x.derniere_visite : '', mail: mailDossier_(d),
            lettre: { texte: l.texte || '', statut: l.statut || '', remarque: l.remarque || '', envoyee_le: l.envoyee_le || '', validee_le: l.validee_le || '' } };
 }
 function lienEspace_(p, s) {
@@ -297,6 +314,25 @@ function lienEspace_(p, s) {
     if (p.nouveau) { x.jeton = jeton_(); ecrireLigne_('Espaces', x); }
   });
   if (p.nouveau) journaliser_(s, 'Espace personnel : nouveau lien', d.nom);
+  return etatEspace_(p);
+}
+/** Erreur signalée par la personne : marquer comme corrigée (avec une réponse qu'elle verra) ou la rouvrir. */
+function signalementEspace_(p, s) {
+  verrou_(function () {
+    var d = trouverDossier_(p.id), don = json2_(d.donnees, {});
+    var z = (don.signalements || []).filter(function (y) { return y.id === p.signalement; })[0];
+    if (!z) throw erreur_('INTROUVABLE', 'Signalement introuvable.');
+    if (p.rouvrir) { z.statut = 'ouvert'; z.traite_le = ''; z.traite_par = ''; }
+    else {
+      z.statut = 'traite'; z.traite_le = maintenant_(); z.traite_par = s.nom;
+      z.reponse = String(p.reponse || '').trim().slice(0, 2000);
+      ajouterHistorique_(d, s.nom, 'Erreur signalée traitée (' + z.sujet + ')' + (z.reponse ? ' : ' + z.reponse.slice(0, 200) : ''));
+      var aPrevenir = true;
+    }
+    d.donnees = JSON.stringify(don); d.maj_le = maintenant_(); d.maj_par = s.nom;
+    ecrireLigne_('Dossiers', d);
+    if (aPrevenir) try { envoyerPush_('esp:' + d.id); } catch (e) {}   // « Du nouveau dans votre espace » sur son téléphone
+  });
   return etatEspace_(p);
 }
 /** Lettre à l'évêque : demander une correction, ou valider (PDF rangé dans le dossier, étape et document cochés). */

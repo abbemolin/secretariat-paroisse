@@ -11,7 +11,7 @@ self.addEventListener('fetch', (e) => {
     .catch(() => caches.match(e.request).then((r) => r || caches.match('index.html'))))
 })
 self.addEventListener('push', (e) => {
-  e.waitUntil(self.registration.showNotification('Croix glorieuse', { body: 'Un nouveau texte vous attend.', icon: 'icon-192.png', badge: 'icon-192.png', tag: 'texte' }))
+  e.waitUntil(self.registration.showNotification('Croix glorieuse', { body: 'Du nouveau dans votre espace : un texte ou une réponse de la paroisse.', icon: 'icon-192.png', badge: 'icon-192.png', tag: 'espace' }))
 })
 self.addEventListener('notificationclick', (e) => {
   e.notification.close()

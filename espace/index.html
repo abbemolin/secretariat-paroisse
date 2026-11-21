@@ -45,6 +45,11 @@ label{display:block;font-size:13px;color:#6b5b55;margin:10px 0 4px}
 .piece{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid #f1e8e1}.piece:first-of-type{border-top:0}
 .piece span{flex:1}
 .cache{display:none}
+.signaler{margin-top:6px;border-top:1px dashed #eee2d8;padding-top:4px}
+.sig{border-top:1px solid #f1e8e1;padding:10px 0}.sig:first-of-type{border-top:0}
+.statut{display:inline-block;border-radius:999px;font-size:11.5px;padding:1px 8px;margin-left:6px}
+.statut.ouvert{background:#faf3ea;color:#a8662e}.statut.traite{background:#e8f5ec;color:#1d5e33}
+.reponse{background:#f6f1ec;border-radius:8px;padding:8px 10px;margin-top:6px;font-size:14.5px}
 </style></head>
 <body>
 <div class="entete"><img src="icon-192.png" alt=""><div><b>Croix glorieuse</b><span id="sous">Paroisse personnelle La Croix glorieuse</span></div></div>
@@ -67,7 +72,7 @@ label{display:block;font-size:13px;color:#6b5b55;margin:10px 0 4px}
     ['Parrain ou marraine', [['parrain_marraine', 'Prénom et nom'], ['parrain_contact', 'Téléphone ou e-mail']]]];
   var q = new URLSearchParams(location.search), c = q.get('c') || '';
   try { if (c) { localStorage.setItem('esp_c', c); history.replaceState(null, '', location.pathname); } else c = localStorage.getItem('esp_c') || ''; } catch (x) {}
-  var d = null, vue = 'accueil', ouvert = null, acces = null, etape = 'mdp', mailCode = '', brouillon = null, installer = null;
+  var d = null, vue = 'accueil', ouvert = null, acces = null, etape = 'mdp', mailCode = '', brouillon = null, installer = null, signale = null, sigTexte = '', lettreB = null;
   function $(id) { return document.getElementById(id); }
   function e(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   function liens(t) { return e(t).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>'); }
@@ -116,6 +121,21 @@ label{display:block;font-size:13px;color:#6b5b55;margin:10px 0 4px}
       (ev.lieu ? '<div class="petit">' + e(ev.lieu) + '</div>' : '') + (ev.note ? '<div class="petit">' + e(ev.note) + '</div>' : '') +
       (ev.lien ? '<a class="bouton" href="' + e(ev.lien) + '" target="_blank" rel="noopener">S\'inscrire</a>' : '') + '</div></div>';
   }
+  // ─── Signaler une erreur ───
+  function blocSignaler(sujet) {
+    if (signale !== sujet) return '<div class="signaler"><button class="lien" data-a="signaler" data-sujet="' + e(sujet) + '">Signaler une erreur</button></div>';
+    return '<div class="signaler"><label>Quelle erreur avez-vous remarquée ? (' + e(sujet) + ')</label><textarea id="sigtexte" style="min-height:90px" placeholder="Ex. : l\'étape « Entrée en catéchuménat » est cochée mais je ne l\'ai pas encore vécue.">' + e(sigTexte) + '</textarea>' +
+      '<div id="zs" style="display:none"></div><button class="bouton principal" data-a="signaler-envoyer" data-sujet="' + e(sujet) + '">Envoyer</button><button class="bouton" data-a="signaler-annuler">Annuler</button></div>';
+  }
+  function blocSignalements() {
+    var l = d.signalements || [];
+    if (!l.length) return '';
+    return '<div class="carte"><h2>Mes signalements</h2>' + l.map(function (z) {
+      return '<div class="sig"><b>' + e(z.sujet) + '</b><span class="statut ' + (z.statut === 'traite' ? 'traite">Corrigé' : 'ouvert">Envoyé') + '</span>' +
+        '<div class="petit">' + e(jour(z.date, { day: 'numeric', month: 'long', year: 'numeric' })) + '</div><div style="margin-top:4px;white-space:pre-wrap">' + e(z.texte) + '</div>' +
+        (z.statut === 'traite' ? '<div class="reponse"><b>Réponse de la paroisse</b>' + (z.traite_le ? ' <span class="petit">(' + e(jour(z.traite_le, { day: 'numeric', month: 'long' })) + ')</span>' : '') + '<br>' + (z.reponse ? e(z.reponse) : 'C\'est corrigé. Merci !') + '</div>' : '') + '</div>';
+    }).join('') + '</div>';
+  }
   function pageAccueil() {
     var i = prochaineEtape(), nouveaux = d.textes.filter(function (t) { return !t.lu; });
     var h = '<div class="carte"><h1>Bonjour ' + e(d.prenom) + '</h1>' +
@@ -132,7 +152,7 @@ label{display:block;font-size:13px;color:#6b5b55;margin:10px 0 4px}
     if (!d.neophyte) h += '<div class="carte"><h2>Mon parcours</h2>' + ETAPES.map(function (x, k) {
       var f = d.etapes[x[0]] && d.etapes[x[0]].fait;
       return '<div class="etape"><div class="rond ' + (f ? 'fait' : k === i ? 'prochaine' : '') + '">' + (f ? '✓' : k + 1) + '</div><div>' + e(x[1]) + (f && d.etapes[x[0]].date ? '<div class="petit">' + e(jour(d.etapes[x[0]].date, { day: 'numeric', month: 'long', year: 'numeric' })) + '</div>' : '') + '</div></div>';
-    }).join('') + '</div>';
+    }).join('') + blocSignaler('Mon parcours') + '</div>';
     h += blocApp();
     return h;
   }
@@ -162,19 +182,20 @@ label{display:block;font-size:13px;color:#6b5b55;margin:10px 0 4px}
           if (Array.isArray(ch[2])) return '<label>' + e(ch[1]) + '</label><select data-k="' + ch[0] + '">' + ch[2].map(function (o) { return '<option' + (o === v ? ' selected' : '') + '>' + e(o) + '</option>'; }).join('') + '</select>';
           return '<label>' + e(ch[1]) + '</label><input data-k="' + ch[0] + '" type="' + (ch[2] || 'text') + '" value="' + e(v) + '">';
         }).join('');
-      }).join('') + '<div id="zi" style="display:none"></div><button class="bouton principal" data-a="infos">Enregistrer</button></div>';
+      }).join('') + '<div id="zi" style="display:none"></div><button class="bouton principal" data-a="infos">Enregistrer</button>' + blocSignaler('Mes informations') + '</div>';
     h += '<div class="carte"><h2>Pièces à déposer</h2><p class="petit">Une photo nette ou un PDF (10 Mo au plus).</p>' + d.pieces.map(function (p) {
       return '<div class="piece"><span>' + (p.recu ? '✅ ' : '◻️ ') + e(p.nom) + '</span>' + (p.recu ? '<span class="petit" style="flex:none">reçu</span>' : '<label class="bouton" style="margin:0">Déposer<input type="file" accept="image/*,application/pdf" data-piece="' + p.cle + '" style="display:none"></label>') + '</div>';
-    }).join('') + '<div id="zp" style="display:none"></div></div>';
+    }).join('') + '<div id="zp" style="display:none"></div>' + blocSignaler('Pièces à déposer') + '</div>';
     if (!d.neophyte || d.lettre.texte) {
       var l = d.lettre, fini = l.statut === 'validee', envoyee = l.statut === 'envoyee';
       h += '<div class="carte"><h2>Lettre à l\'évêque</h2>' +
         (fini ? '<div class="ok">Votre lettre a été relue et transmise. Merci !</div><div class="corps">' + e(l.texte) + '</div>' :
           (l.statut === 'a_corriger' ? '<div class="info"><b>À revoir :</b> ' + e(l.remarque || 'merci de reprendre votre lettre.') + '</div>' : '') +
           (envoyee ? '<div class="ok">Lettre envoyée : elle va être relue. Vous pouvez encore la modifier.</div>' : '<p class="petit">Écrivez à l\'archevêque de Strasbourg pour lui demander le baptême : qui vous êtes, votre chemin vers le Christ, ce que vous attendez de l\'Église. Commencez par « Monseigneur, ».</p>') +
-          '<textarea id="lettre" style="min-height:260px" placeholder="Monseigneur,">' + e(l.texte) + '</textarea><div id="zl" style="display:none"></div>' +
-          '<button class="bouton" data-a="lettre">Enregistrer le brouillon</button><button class="bouton principal" data-a="lettre-envoyer">Envoyer pour relecture</button>') + '</div>';
+          '<textarea id="lettre" style="min-height:260px" placeholder="Monseigneur,">' + e(lettreB !== null ? lettreB : l.texte) + '</textarea><div id="zl" style="display:none"></div>' +
+          '<button class="bouton" data-a="lettre">Enregistrer le brouillon</button><button class="bouton principal" data-a="lettre-envoyer">Envoyer pour relecture</button>') + blocSignaler('Lettre à l\'évêque') + '</div>';
     }
+    h += blocSignalements();
     h += '<div class="carte"><button class="lien" data-a="sortir">Se déconnecter</button></div>';
     return h;
   }
@@ -199,7 +220,7 @@ label{display:block;font-size:13px;color:#6b5b55;margin:10px 0 4px}
   // ─── Actions ───
   document.addEventListener('click', function (ev) {
     var b = ev.target.closest('[data-vue],[data-a],[data-texte],[data-fichier]'); if (!b) return;
-    if (b.dataset.vue) { vue = b.dataset.vue; ouvert = null; rendre(); window.scrollTo(0, 0); return; }
+    if (b.dataset.vue) { vue = b.dataset.vue; ouvert = null; signale = null; rendre(); window.scrollTo(0, 0); return; }
     if (b.dataset.texte) {
       vue = 'textes'; ouvert = b.dataset.texte;
       var t = d.textes.filter(function (x) { return x.id === ouvert; })[0];
@@ -219,6 +240,19 @@ label{display:block;font-size:13px;color:#6b5b55;margin:10px 0 4px}
     var a = b.dataset.a;
     if (a === 'code') { b.disabled = true; appel('esp.code').then(function (r) { mailCode = r.mail; etape = 'code'; ecranConnexion(); }).catch(function (er) { b.disabled = false; message('zc', er.message); }); return; }
     if (a === 'retour') { ouvert = null; rendre(); return; }
+    if (a === 'signaler') { signale = b.dataset.sujet; sigTexte = ''; rendre(); var ta = $('sigtexte'); if (ta) ta.focus(); return; }
+    if (a === 'signaler-annuler') { signale = null; sigTexte = ''; rendre(); return; }
+    if (a === 'signaler-envoyer') {
+      sigTexte = $('sigtexte').value;
+      if (sigTexte.trim().length < 3) { message('zs', 'Décrivez l\'erreur en quelques mots.'); return; }
+      b.disabled = true;
+      appel('esp.signaler', { sujet: b.dataset.sujet, texte: sigTexte }).then(function (r) {
+        d = r; signale = null; sigTexte = ''; rendre();
+        var el = document.querySelector('[data-sujet="' + b.dataset.sujet.replace(/"/g, '') + '"]');
+        if (el) { el.insertAdjacentHTML('afterend', '<div class="ok">Merci ! La paroisse va vérifier. Vous suivrez la réponse dans Mon dossier → Mes signalements.</div>'); }
+      }).catch(function (er) { b.disabled = false; message('zs', er.message); });
+      return;
+    }
     if (a === 'sortir') { ecrireSession(''); d = null; demarrer(); return; }
     if (a === 'infos') {
       b.disabled = true;
@@ -228,14 +262,14 @@ label{display:block;font-size:13px;color:#6b5b55;margin:10px 0 4px}
     }
     if (a === 'lettre' || a === 'lettre-envoyer') {
       b.disabled = true;
-      appel('esp.lettre', { texte: $('lettre').value, envoyer: a === 'lettre-envoyer' }).then(function (r) { d = r; rendre(); message('zl', a === 'lettre' ? 'Brouillon enregistré.' : 'Lettre envoyée pour relecture. Merci !', true); })
+      appel('esp.lettre', { texte: $('lettre').value, envoyer: a === 'lettre-envoyer' }).then(function (r) { d = r; lettreB = null; rendre(); message('zl', a === 'lettre' ? 'Brouillon enregistré.' : 'Lettre envoyée pour relecture. Merci !', true); })
         .catch(function (er) { b.disabled = false; message('zl', er.message); });
       return;
     }
     if (a === 'installer' && installer) { installer.prompt(); installer = null; return; }
     if (a === 'notifs') { activerNotifications(); return; }
   });
-  document.addEventListener('input', function (ev) { var k = ev.target.dataset && ev.target.dataset.k; if (k && brouillon) brouillon[k] = ev.target.value; });
+  document.addEventListener('input', function (ev) { if (ev.target.id === 'sigtexte') sigTexte = ev.target.value; if (ev.target.id === 'lettre') lettreB = ev.target.value; var k = ev.target.dataset && ev.target.dataset.k; if (k && brouillon) brouillon[k] = ev.target.value; });
   document.addEventListener('change', function (ev) {
     var k = ev.target.dataset && ev.target.dataset.k; if (k && brouillon) brouillon[k] = ev.target.value;
     var piece = ev.target.dataset && ev.target.dataset.piece; if (!piece) return;
