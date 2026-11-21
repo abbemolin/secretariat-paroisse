@@ -8,7 +8,7 @@
 
 var COLONNES_ESPACES = ['dossier_id', 'jeton', 'hash', 'sel', 'mdp_maj', 'cree_le', 'derniere_visite'];
 var COLONNES_TEXTES = ['id', 'cree_le', 'auteur', 'titre', 'corps', 'cible', 'fichiers', 'liens', 'lus', 'maj_le'];
-var COLONNES_CALENDRIER = ['id', 'date', 'heure_debut', 'heure_fin', 'titre', 'lieu', 'cible', 'note'];
+var COLONNES_CALENDRIER = ['id', 'date', 'heure_debut', 'heure_fin', 'titre', 'lieu', 'cible', 'note', 'parrains'];
 var ESPACE_SESSION_JOURS = 90;
 var CHAMPS_ESPACE = ['prenom_bapteme', 'prenoms', 'nom', 'sexe', 'nom_jeune_fille', 'naissance_date', 'naissance_lieu', 'adresse', 'nationalite', 'profession', 'telephone', 'email',
   'pere_prenom', 'pere_nom', 'mere_prenom', 'mere_nom_jeune_fille', 'situation', 'conjoint', 'parrain_marraine', 'parrain_contact'];
@@ -51,7 +51,7 @@ function lignesCal_() {
   }
   return res;
 }
-function feuillesEspace_() { feuilleEsp_('Espaces', COLONNES_ESPACES); feuilleEsp_('Textes', COLONNES_TEXTES); feuilleEsp_('CalendrierCate', COLONNES_CALENDRIER); }
+function feuillesEspace_() { feuilleEsp_('Espaces', COLONNES_ESPACES); feuilleEsp_('Textes', COLONNES_TEXTES); completerColonnes_(feuilleEsp_('CalendrierCate', COLONNES_CALENDRIER), COLONNES_CALENDRIER); }
 function urlEspace_(jeton) { return 'https://app.croix-glorieuse.org/?c=' + jeton; }
 
 // ─── Promotion d'un dossier (pour les textes et le calendrier) ───
@@ -235,6 +235,19 @@ function actionEspace_(action, p) {
     });
     return vueEspace_(trouverDossier_(d.id));
   }
+  if (action === 'esp.parrain') {
+    if (profilEspace_(d).neo) throw erreur_('FINI', 'Le baptême a déjà été célébré.');
+    verrou_(function () { ecrireParrain_(trouverDossier_(d.id), p.parrain, 'Espace personnel'); });
+    return vueEspace_(trouverDossier_(d.id));
+  }
+  if (action === 'esp.parrainEnvoyer') {
+    verrou_(function () { envoyerLienParrain_(trouverDossier_(d.id), p.parrain_id, 'Espace personnel'); });
+    return vueEspace_(trouverDossier_(d.id));
+  }
+  if (action === 'esp.corDemande') {
+    demandeCorEspace_(d, p.preferences);
+    return vueEspace_(trouverDossier_(d.id));
+  }
   if (action === 'esp.lu') {
     verrou_(function () {
       var t = lignes_('Textes').filter(function (y) { return y.id === p.texte; })[0];
@@ -277,6 +290,9 @@ function vueEspace_(d) {
       });
     } catch (e) { /* pas encore de retraites */ }
   }
+  var frat = { etat: 'aucune' };
+  try { frat = fraterniteEspace_(d); } catch (er) { console.error('fraterniteEspace_', er); }
+  (frat.rencontres || []).forEach(function (r) { cal.push({ date: r.date, heure_debut: '', titre: 'Fraternité Cor Unum ' + frat.equipe, lieu: r.lieu, note: r.note }); });
   cal.sort(function (a, b) { return String(a.date + a.heure_debut).localeCompare(String(b.date + b.heure_debut)); });
   var textes = lignes_('Textes').filter(function (t) { return cibleConcerne_(t.cible, pr); })
     .sort(function (a, b) { return String(b.cree_le).localeCompare(String(a.cree_le)); })
@@ -290,8 +306,174 @@ function vueEspace_(d) {
     pieces: Object.keys(PIECES_ESPACE).map(function (k) { return { cle: k, nom: PIECES_ESPACE[k], recu: !!(docs[k] && docs[k].recu) }; }),
     lettre: { texte: l.texte || '', statut: l.statut || '', remarque: l.remarque || '', validee_le: l.validee_le || '' },
     signalements: (don.signalements || []).slice(-30).reverse().map(function (z) { return { id: z.id, date: z.date, sujet: z.sujet, texte: z.texte, statut: z.statut, reponse: z.reponse || '', traite_le: z.traite_le || '' }; }),
+    parrains: (don.parrains || []).map(function (z) { return parrainVue_(z, true); }), fraternite: frat,
     calendrier: cal, textes: textes, paroisse: reglages_().paroisse
   };
+}
+
+// ─── Parrain / marraine : jusqu'à deux, chacun avec son lien (dépôt du certificat, dates importantes) ───
+
+var ROLES_PARRAIN = { parrain: 'Parrain', marraine: 'Marraine' };
+function urlParrain_(j) { return 'https://app.croix-glorieuse.org/parrain/?p=' + j; }
+function parrainVue_(z, avecLien) {
+  return { id: z.id, role: z.role, nom: z.nom, email: z.email, envoye_le: z.envoye_le || '', cert_le: (z.cert && z.cert.date) || '', lien: avecLien ? urlParrain_(z.jeton) : undefined };
+}
+/** Reporte la liste dans les champs « Parrain / marraine » du dossier. */
+function syncParrains_(don) {
+  var l = don.parrains || [];
+  don.infos = don.infos || {};
+  if (!l.length) return;
+  don.infos.parrain_marraine = l.map(function (z) { return z.nom + ' (' + ROLES_PARRAIN[z.role].toLowerCase() + ')'; }).join(' et ');
+  don.infos.parrain_contact = l.map(function (z) { return z.email; }).filter(String).join(', ');
+}
+/** Ajoute, modifie ou retire un parrain (x : ligne du dossier, modifiée en place). */
+function ecrireParrain_(x, v, qui) {
+  var don = json2_(x.donnees, {});
+  var l = don.parrains = don.parrains || [];
+  v = v || {};
+  if (v.supprimer) {
+    don.parrains = l.filter(function (z) { return z.id !== v.supprimer; });
+    if (!don.parrains.length) { don.infos = don.infos || {}; don.infos.parrain_marraine = ''; don.infos.parrain_contact = ''; }
+    else if (don.parrains.every(function (y) { return y.cert && y.cert.date; })) { don.documents = don.documents || {}; if (!(don.documents.cert_parrain || {}).recu) don.documents.cert_parrain = { recu: true, date: maintenant_() }; }
+  } else {
+    var role = ROLES_PARRAIN[v.role] ? v.role : '';
+    var nom = String(v.nom || '').trim().replace(/\s+/g, ' ').slice(0, 80), email = String(v.email || '').trim().toLowerCase().slice(0, 120);
+    if (!role) throw erreur_('INVALIDE', 'Parrain ou marraine ?');
+    if (!nom) throw erreur_('INVALIDE', 'Prénom et nom obligatoires.');
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw erreur_('INVALIDE', 'Adresse e-mail invalide.');
+    var z = v.id ? l.filter(function (y) { return y.id === v.id; })[0] : null;
+    if (v.id && !z) throw erreur_('INTROUVABLE', 'Parrain introuvable.');
+    if (!z) {
+      if (l.length >= 2) throw erreur_('LIMITE', 'Deux personnes au plus : un parrain et/ou une marraine.');
+      z = { id: uid_(), jeton: jeton_(), cree_le: maintenant_() }; l.push(z);
+    }
+    z.role = role; z.nom = nom; z.email = email;
+  }
+  syncParrains_(don);
+  x.donnees = JSON.stringify(don);
+  ajouterHistorique_(x, qui, v.supprimer ? 'Parrain / marraine retiré(e)' : 'Parrain / marraine : ' + String(v.nom || '').trim());
+  x.maj_le = maintenant_(); x.maj_par = qui;
+  ecrireLigne_('Dossiers', x);
+}
+/** Envoie au parrain son lien personnel. */
+function envoyerLienParrain_(x, pid, qui) {
+  var don = json2_(x.donnees, {}), i = don.infos || {};
+  var z = (don.parrains || []).filter(function (y) { return y.id === pid; })[0];
+  if (!z) throw erreur_('INTROUVABLE', 'Parrain introuvable.');
+  if (!z.email) throw erreur_('INVALIDE', 'Indiquez d\'abord son adresse e-mail.');
+  var r = z.role === 'marraine', filleul = [i.prenoms, i.nom].filter(Boolean).join(' ');
+  var B = r ? 'Ma page de marraine' : 'Ma page de parrain';
+  var t = 'Bonjour ' + z.nom + ',\n\n' + filleul + ' vous a choisi' + (r ? 'e comme marraine' : ' comme parrain') + ' pour ' + (i.sexe === 'Femme' ? 'sa' : 'son') + ' baptême à la paroisse La Croix glorieuse. Merci d\'accepter cette belle mission !\n\n' +
+    'Pour le dossier, nous avons besoin de votre certificat de baptême et de confirmation : demandez-le à la paroisse où vous avez été baptisé' + (r ? 'e' : '') + ', puis déposez-le sur votre page (photo ou PDF). Vous y trouverez aussi les dates importantes de la préparation.\n[Bouton : ' + B + ']\n\nAvec l\'assurance de nos prières à toutes vos intentions,';
+  var bs = [{ texte: B, url: urlParrain_(z.jeton) }], o = optionsEnvoi_();
+  GmailApp.sendEmail(z.email, (r ? 'Marraine' : 'Parrain') + ' de ' + filleul + ' – paroisse La Croix glorieuse', corpsTexte_(t, 'paroisse', bs), { name: o.name, from: o.from, htmlBody: corpsHtml_(t, 'paroisse', bs) });
+  z.envoye_le = maintenant_();
+  x.donnees = JSON.stringify(don);
+  ajouterHistorique_(x, qui, 'Lien envoyé ' + (r ? 'à la marraine' : 'au parrain') + ' (' + z.email + ')');
+  ecrireLigne_('Dossiers', x);
+}
+function parrainEcrireRoute_(p, s) { verrou_(function () { ecrireParrain_(trouverDossier_(p.id), p.parrain, s.nom); }); return etatEspace_(p); }
+function parrainEnvoyerRoute_(p, s) { verrou_(function () { envoyerLienParrain_(trouverDossier_(p.id), p.parrain_id, s.nom); }); return etatEspace_(p); }
+
+/** Dossier + parrain correspondant au lien. */
+function parrainParJeton_(j) {
+  if (!/^[a-f0-9]{32}$/.test(String(j || ''))) throw erreur_('LIEN', 'Ce lien n\'est pas valable.');
+  var ds = lignes_('Dossiers').filter(function (d) { return d.type === 'catechumene' && String(d.donnees).indexOf(j) > -1; });
+  for (var k = 0; k < ds.length; k++) {
+    var z = (json2_(ds[k].donnees, {}).parrains || []).filter(function (y) { return y.jeton === j; })[0];
+    if (z) return { d: ds[k], z: z };
+  }
+  throw erreur_('LIEN', 'Ce lien n\'est plus valable. Demandez-en un nouveau à votre filleul(e) ou à la paroisse.');
+}
+function vueParrain_(ctx) {
+  var d = ctx.d, z = ctx.z, i = json2_(d.donnees, {}).infos || {}, pr = profilEspace_(d), auj = maintenant_().slice(0, 10);
+  var dates = lignesCal_().filter(function (e) { return e.parrains === 'oui' && cibleConcerne_(e.cible, pr) && e.date >= auj; })
+    .sort(function (a, b) { return String(a.date + a.heure_debut).localeCompare(String(b.date + b.heure_debut)); })
+    .map(function (e) { return { date: e.date, heure_debut: e.heure_debut, heure_fin: e.heure_fin, titre: e.titre, lieu: e.lieu, note: e.note }; });
+  return { role: z.role, nom: z.nom, filleul: i.prenoms || '', filleul_nom: i.nom || '', annee: pr.annee, baptise: pr.neo, cert_le: (z.cert && z.cert.date) || '', dates: dates, paroisse: reglages_().paroisse };
+}
+/** Page publique du parrain (doPost, sans session). */
+function actionParrain_(action, p) {
+  var cache = CacheService.getScriptCache(), cle = 'par_' + String(p.p || '').slice(0, 32);
+  var n = Number(cache.get(cle) || 0);
+  if (n > 60) throw erreur_('LIMITE', 'Trop d\'actions en peu de temps. Réessayez dans une heure.');
+  cache.put(cle, String(n + 1), 3600);
+  feuillesEspace_();
+  var ctx = parrainParJeton_(p.p);
+  if (action === 'par.lire') return vueParrain_(ctx);
+  if (action !== 'par.certificat') throw erreur_('ACTION', 'Action inconnue.');
+  if (profilEspace_(ctx.d).neo) throw erreur_('FINI', 'Le baptême a déjà été célébré : plus rien à déposer. Merci !');
+  if (!/^(application\/pdf|image\/(jpeg|png|heic|heif|webp))$/.test(String(p.type || ''))) throw erreur_('INVALIDE', 'Envoyez une photo ou un PDF.');
+  if (String(p.base64 || '').length > 14000000) throw erreur_('TROP_GROS', 'Fichier trop lourd (10 Mo au plus).');
+  var qui = '';
+  verrou_(function () {
+    var x = trouverDossier_(ctx.d.id), don = json2_(x.donnees, {});
+    var z = (don.parrains || []).filter(function (y) { return y.id === ctx.z.id; })[0];
+    if (!z) throw erreur_('LIEN', 'Ce lien n\'est plus valable.');
+    qui = ROLES_PARRAIN[z.role] + ' ' + z.nom;
+    var ext = (String(p.nom || '').match(/\.([a-z0-9]{1,5})$/i) || [])[1] || (p.type === 'application/pdf' ? 'pdf' : 'jpg');
+    var libelle = 'Certificat de baptême et de confirmation – ' + qui;
+    var f = dossierDriveDe_(x).createFile(Utilities.newBlob(Utilities.base64Decode(p.base64), p.type, nomFichierDossier_(x, libelle, ext)));
+    z.cert = { date: maintenant_(), fichier: f.getId() };
+    x.donnees = JSON.stringify(don);
+    var tous = (don.parrains || []).every(function (y) { return y.cert && y.cert.date; });
+    enregistrerPiece_(x, f, libelle, tous ? 'cert_parrain' : '', { nom: qui }, false);
+    prevenirEspace_(x, 'Certificat déposé par ' + (z.role === 'marraine' ? 'la marraine' : 'le parrain'));
+  });
+  return vueParrain_(parrainParJeton_(p.p));
+}
+
+// ─── Fraternité Cor Unum de la personne ───
+
+function fraterniteEspace_(d) {
+  if (!db_().getSheetByName('CorUnum')) return { etat: 'aucune' };
+  feuilleCor_();
+  var r = corReglages_(), annee = anneeCorCourante_(r), toutes = lignes_('CorUnum');
+  var liens = liensCor_(toutes.filter(function (x) { return x.annee === annee; }), dossiersLies_());
+  var l = liens.parDossier[d.id] || [], x = l.length ? l[0].x : null;
+  if (!x || x.statut === 'ancien') return { etat: 'aucune', annee: annee };
+  var e = x.equipe_id ? equipesDe_(r, annee).filter(function (y) { return y.id === x.equipe_id; })[0] : null;
+  if (!e) return { etat: 'demande', annee: annee };
+  var auj = maintenant_().slice(0, 10);
+  return {
+    etat: 'membre', annee: annee, equipe: e.nom, chefs: chefsInfos_(e, toutes),
+    membres: toutes.filter(function (y) { return y.annee === annee && y.equipe_id === e.id && y.statut !== 'ancien'; })
+      .map(function (y) { return { prenoms: y.prenoms, chef: (e.chefs || []).indexOf(y.id) > -1 }; })
+      .sort(function (a, b) { return (b.chef - a.chef) || String(a.prenoms).localeCompare(String(b.prenoms), 'fr'); }),
+    rencontres: elementsFil_(e.fil).filter(function (y) { return y.type === 'rencontre' && String(y.texte) >= auj; }).map(rencontrePublique_)
+      .sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); })
+  };
+}
+/** « Je veux rejoindre une fraternité » : fiche Cor Unum « à répartir », reliée au dossier ; la paroisse est notifiée. */
+function demandeCorEspace_(d, preferences) {
+  var f = fraterniteEspace_(d);
+  if (f.etat === 'membre') throw erreur_('DEJA', 'Vous êtes déjà dans une fraternité.');
+  if (f.etat === 'demande') return;
+  var prefs = String(preferences || '').trim().slice(0, 500);
+  verrou_(function () {
+    feuilleCor_();
+    var r = corReglages_(), annee = anneeCorCourante_(r), toutes = lignes_('CorUnum');
+    var doss = dossiersLies_(), dd = doss.filter(function (z) { return z.id === d.id; })[0];
+    var l = (liensCor_(toutes.filter(function (x) { return x.annee === annee; }), doss).parDossier[d.id] || []);
+    var x = l.length ? l[0].x : null, i = dd.infos || {};
+    var note = 'Demande depuis l\'espace personnel le ' + maintenant_().slice(0, 10);
+    if (x) {
+      x.statut = 'actif'; x.equipe_id = ''; x.equipe_proposee = '';
+      if (prefs) x.souhait = [x.souhait, prefs].filter(String).join(' ; ');
+      x.note = [x.note, note].filter(String).join(' ; ');
+      var lies = json2_(x.dossiers_lies, []); if (lies.indexOf(d.id) === -1) x.dossiers_lies = JSON.stringify(lies.concat([d.id]));
+      x.maj_le = maintenant_(); x.maj_par = 'Espace personnel';
+      ecrireLigne_('CorUnum', x);
+    } else {
+      ecrireLigne_('CorUnum', {
+        id: uid_(), annee: annee, cree_le: maintenant_(), sources: '["espace"]', nom: i.nom || dd.nom, prenoms: i.prenoms || '',
+        email: i.email || dd.email || '', telephone: i.telephone || '', adresse: i.adresse || '', profils: JSON.stringify(profilsDossier_([{ d: dd }])),
+        situation: '', deja_participe: 'Non', rester: '', chef_indique: '', chef_possible: '', souhait: prefs, groupe_service: '', equipe_id: '', equipe_proposee: '',
+        statut: 'actif', note: note, maj_le: maintenant_(), maj_par: 'Espace personnel', dossiers_lies: JSON.stringify([d.id]), dossiers_exclus: '[]'
+      });
+    }
+    prevenirEquipeParoisse_('Cor Unum : demande pour rejoindre une fraternité', d.nom + (prefs ? ' – ' + prefs.slice(0, 100) : ''), annee);
+  });
 }
 
 // ─── Administration (appli) ───
@@ -304,7 +486,7 @@ function etatEspace_(p) {
   var d = trouverDossier_(p.id);
   var x = espaceDuDossier_(d.id);
   var don0 = json2_(d.donnees, {}), l = don0.lettre || {};
-  return { signalements: (don0.signalements || []).slice().reverse(), existe: !!x, lien: x ? urlEspace_(x.jeton) : '', mot_de_passe: x ? x.mdp_maj : '', derniere_visite: x ? x.derniere_visite : '', mail: mailDossier_(d),
+  return { parrains: (don0.parrains || []).map(function (z) { return parrainVue_(z, true); }), signalements: (don0.signalements || []).slice().reverse(), existe: !!x, lien: x ? urlEspace_(x.jeton) : '', mot_de_passe: x ? x.mdp_maj : '', derniere_visite: x ? x.derniere_visite : '', mail: mailDossier_(d),
            lettre: { texte: l.texte || '', statut: l.statut || '', remarque: l.remarque || '', envoyee_le: l.envoyee_le || '', validee_le: l.validee_le || '' } };
 }
 function lienEspace_(p, s) {

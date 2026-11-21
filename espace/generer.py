@@ -7,6 +7,8 @@ ici = pathlib.Path(__file__).parent
 site = ici / "site"
 site.mkdir(exist_ok=True)
 (site / "index.html").write_text((ici / "index.html").read_text(encoding="utf-8").replace("__URL_SCRIPT__", json.dumps(URL)), encoding="utf-8")
+(site / "parrain").mkdir(exist_ok=True)
+(site / "parrain" / "index.html").write_text((ici / "parrain.html").read_text(encoding="utf-8").replace("__URL_SCRIPT__", json.dumps(URL)), encoding="utf-8")
 for f in ("sw.js", "manifest.webmanifest"):
     shutil.copy(ici / f, site / f)
 for f in ("icon-192.png", "icon-512.png", "icon-maskable.png", "apple-touch-icon.png"):

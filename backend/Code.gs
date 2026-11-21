@@ -70,6 +70,7 @@ function doPost(e) {
     if (action === 'auth.login') return json_({ ok: true, data: login_(p) });
     if (action === 'public.demande') return json_({ ok: true, data: recevoirDemandePublique_(p) });
     if (action === 'public.infos') return json_({ ok: true, data: infosPubliques_(p) });
+    if (/^par\./.test(action)) return json_({ ok: true, data: actionParrain_(action, p) });
     if (/^rej\./.test(action)) return json_({ ok: true, data: actionRejoindre_(action, p) });
     if (/^chef\./.test(action)) return json_({ ok: true, data: actionChef_(action, p) });
     if (/^ret\./.test(action)) return json_({ ok: true, data: actionRetraitePublique_(action, p) });
@@ -171,6 +172,8 @@ var ROUTES = {
   'cor.equipesCourantes':  { fn: function (p, s) { return equipesCorCourantes_(p, s); }, droit: 'dossiers' },
   'cor.placer':            { fn: function (p, s) { return placerCor_(p, s); }, droit: 'dossiers' },
   'cor.lienInscription':   { fn: function (p, s) { return lienInscriptionCor_(p, s); }, droit: 'dossiers' },
+  'parrain.ecrire':        { fn: function (p, s) { return parrainEcrireRoute_(p, s); }, droit: 'dossiers' },
+  'parrain.envoyer':       { fn: function (p, s) { return parrainEnvoyerRoute_(p, s); }, droit: 'dossiers' },
   'espace.signalement':    { fn: function (p, s) { return signalementEspace_(p, s); }, droit: 'dossiers' },
   'textes.liste':          { fn: function (p, s) { return listerTextes_(p, s); }, droit: 'dossiers' },
   'textes.ecrire':         { fn: function (p, s) { return ecrireTexte_(p, s); }, droit: 'dossiers' },

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
+<title>Parrain et marraine – Croix glorieuse</title>
+<link rel="icon" href="../icon-192.png"><meta name="theme-color" content="#521a22">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#faf7f2;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:#2b2224;font-size:16px}
+.entete{background:#521a22;color:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px}
+.entete img{width:40px;height:40px;border-radius:50%;background:#fff}
+.entete b{font-family:Georgia,serif;font-size:19px;display:block}.entete span{font-size:12.5px;color:#e8c9a8}
+main{max-width:600px;margin:0 auto;padding:14px}
+.carte{background:#fff;border-radius:14px;box-shadow:0 1px 8px rgba(82,26,34,.07);padding:16px;margin-bottom:14px}
+h1{font-family:Georgia,serif;color:#521a22;font-size:23px;margin:2px 0 8px}
+h2{font-family:Georgia,serif;color:#521a22;font-size:19px;margin:0 0 10px}
+.petit{font-size:13.5px;color:#7a6a64;line-height:1.45}
+.bouton{display:inline-block;border:0;background:#521a22;color:#fff;border-radius:10px;padding:12px 18px;font-size:15px;font-weight:600;cursor:pointer;margin-top:10px}
+.info{background:#faf3ea;border-left:4px solid #d08c4c;border-radius:8px;padding:10px 12px;font-size:14.5px;margin:10px 0;line-height:1.45}
+.erreur{background:#fdeceb;color:#8a1f17;border-radius:8px;padding:10px 12px;margin:10px 0}
+.ok{background:#e8f5ec;color:#1d5e33;border-radius:8px;padding:10px 12px;margin:10px 0;line-height:1.45}
+.evenement{display:flex;gap:12px;padding:10px 0;border-top:1px solid #f1e8e1}.evenement:first-of-type{border-top:0}
+.date{width:52px;flex:none;text-align:center;background:#faf3ea;border-radius:10px;padding:6px 0;color:#521a22}
+.date b{display:block;font-size:20px;line-height:1}.date span{font-size:11.5px;text-transform:uppercase}
+</style></head>
+<body>
+<div class="entete"><img src="../icon-192.png" alt=""><div><b>Croix glorieuse</b><span id="sous">Paroisse personnelle La Croix glorieuse</span></div></div>
+<main><div id="etat" class="info">Chargement…</div><div id="page"></div></main>
+<script>
+(function () {
+  var URL_SCRIPT = __URL_SCRIPT__;
+  var j = new URLSearchParams(location.search).get('p') || '';
+  var d = null;
+  function $(id) { return document.getElementById(id); }
+  function e(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function appel(action, p) {
+    p = p || {}; p.p = j;
+    return fetch(URL_SCRIPT, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: action, payload: p }) })
+      .then(function (r) { return r.json(); }).then(function (r) { if (!r.ok) throw new Error(r.message || 'Erreur'); return r.data; });
+  }
+  function jour(iso, o) { try { return new Date(String(iso).slice(0, 10) + 'T12:00:00').toLocaleDateString('fr-FR', o || { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); } catch (x) { return iso; } }
+  function message(t, ok) { var z = $('z'); z.className = ok ? 'ok' : 'erreur'; z.textContent = t; z.style.display = 'block'; }
+  function rendre() {
+    var m = d.role === 'marraine';
+    var h = '<div class="carte"><h1>Bonjour ' + e(d.nom) + '</h1><p>Vous êtes ' + (m ? 'la marraine' : 'le parrain') + ' de <b>' + e(d.filleul) + '</b>' +
+      (d.baptise ? ', baptisé(e) à la paroisse La Croix glorieuse. Merci de l\'accompagner sur ce chemin !' : (d.annee ? ', qui sera baptisé(e) lors de la Vigile pascale ' + e(d.annee) + '.' : ', qui se prépare au baptême.')) + '</p>' +
+      (d.baptise ? '' : '<p class="petit">Votre rôle : accompagner ' + e(d.filleul) + ' par la prière et l\'amitié, être présent' + (m ? 'e' : '') + ' aux grandes étapes, et l\'aider ensuite à vivre en chrétien.</p>') + '</div>';
+    if (!d.baptise) {
+      h += '<div class="carte"><h2>Votre certificat de baptême et de confirmation</h2>' +
+        (d.cert_le ? '<div class="ok">Certificat reçu le ' + e(jour(d.cert_le, { day: 'numeric', month: 'long', year: 'numeric' })) + '. Merci !</div><p class="petit">Vous pouvez en déposer un nouveau si besoin.</p>'
+          : '<p class="petit">Demandez-le à la paroisse où vous avez été baptisé' + (m ? 'e' : '') + ' (il doit mentionner votre confirmation), puis déposez-le ici : une photo nette ou un PDF, 10 Mo au plus.</p>') +
+        '<label class="bouton">' + (d.cert_le ? 'Déposer un autre fichier' : 'Déposer mon certificat') + '<input id="fichier" type="file" accept="image/*,application/pdf" style="display:none"></label><div id="z" style="display:none"></div></div>';
+    }
+    h += '<div class="carte"><h2>Dates importantes</h2>' + (d.dates.length ? d.dates.map(function (ev) {
+      var dt = new Date(String(ev.date).slice(0, 10) + 'T12:00:00');
+      return '<div class="evenement"><div class="date"><b>' + dt.getDate() + '</b><span>' + dt.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '') + '</span></div><div style="flex:1"><b>' + e(ev.titre) + '</b>' +
+        '<div class="petit" style="text-transform:capitalize">' + e(jour(ev.date, { weekday: 'long', day: 'numeric', month: 'long' })) + (ev.heure_debut ? ', ' + e(ev.heure_debut) + (ev.heure_fin ? ' – ' + e(ev.heure_fin) : '') : '') + '</div>' +
+        (ev.lieu ? '<div class="petit">' + e(ev.lieu) + '</div>' : '') + (ev.note ? '<div class="petit">' + e(ev.note) + '</div>' : '') + '</div></div>';
+    }).join('') : '<p class="petit">Les dates vous seront communiquées ici dès qu\'elles seront fixées.</p>') + '</div>';
+    $('page').innerHTML = h;
+    var f = $('fichier');
+    if (f) f.onchange = function () {
+      var x = f.files[0]; if (!x) return;
+      if (x.size > 10 * 1024 * 1024) { message('Fichier trop lourd (10 Mo au plus).'); return; }
+      message('Envoi en cours…', true);
+      var rd = new FileReader();
+      rd.onload = function () {
+        appel('par.certificat', { nom: x.name, type: x.type || 'image/jpeg', base64: String(rd.result).split(',')[1] })
+          .then(function (r) { d = r; rendre(); message('Certificat bien reçu. Merci !', true); }).catch(function (er) { message(er.message); });
+      };
+      rd.readAsDataURL(x);
+    };
+  }
+  if (!j) { $('etat').className = 'erreur'; $('etat').textContent = 'Lien incomplet. Utilisez le lien reçu par mail.'; return; }
+  appel('par.lire').then(function (r) { d = r; $('etat').style.display = 'none'; if (r.paroisse) $('sous').textContent = r.paroisse; rendre(); })
+    .catch(function (er) { $('etat').className = 'erreur'; $('etat').textContent = er.message; });
+})();
+</script>
+</body></html>

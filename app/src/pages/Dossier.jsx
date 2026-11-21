@@ -557,6 +557,40 @@ function ChoixFicheCor({ d, actuelle, onFermer, onChoisir }) {
 }
 
 /** Espace personnel (app « Croix glorieuse ») du catéchumène / néophyte : lien, envoi, lettre à l'évêque. */
+/** Parrain et marraine : chacun a son lien (dépôt du certificat, dates importantes). */
+function ParrainsEspace({ d, liste, occupe, action }) {
+  const notifier = useNotif()
+  const [ajout, setAjout] = useState(null)
+  const ROLE = { parrain: 'Parrain', marraine: 'Marraine' }
+  const copier = (l) => navigator.clipboard?.writeText(l).then(() => notifier('Lien copié'), () => notifier('Copie impossible', 'erreur'))
+  return (
+    <div className="mt-2 border-t border-nuit-100 pt-2">
+      <div className="flex flex-wrap items-center gap-2"><span className="font-medium">Parrain et marraine</span>
+        <span className="text-xs text-nuit-600/70">chacun reçoit un lien pour déposer son certificat et voir les dates « parrains »</span>
+        {liste.length < 2 && !ajout && <button className="ml-auto text-xs text-or-600 underline" onClick={() => setAjout({ role: liste.some((z) => z.role === 'parrain') ? 'marraine' : 'parrain', nom: '', email: '' })}>Ajouter</button>}</div>
+      {liste.map((z) => (
+        <div key={z.id} className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="min-w-0 flex-1"><b>{ROLE[z.role]}</b> : {z.nom}{z.email && <span className="text-nuit-600/70"> · {z.email}</span>}
+            <span className={`pastille ml-2 py-0 text-[11px] ${z.cert_le ? 'bg-emerald-100 text-emerald-900' : 'bg-amber-100 text-amber-900'}`}>{z.cert_le ? `certificat reçu le ${dateCourte(z.cert_le)}` : z.envoye_le ? `lien envoyé le ${dateCourte(z.envoye_le)}` : 'lien pas envoyé'}</span></span>
+          <span className="flex gap-1.5">
+            {z.email && !z.cert_le && <button className="btn-clair px-2.5 py-1 text-xs" disabled={occupe} onClick={() => action('parrain.envoyer', { parrain_id: z.id }, 'Lien envoyé')}><Mail className="h-3.5 w-3.5" />{z.envoye_le ? 'Renvoyer' : 'Envoyer le lien'}</button>}
+            <button className="btn-clair px-2.5 py-1 text-xs" onClick={() => copier(z.lien)}><Copy className="h-3.5 w-3.5" /></button>
+            <button className="btn-clair px-2.5 py-1 text-xs text-red-700" disabled={occupe} onClick={() => action('parrain.ecrire', { parrain: { supprimer: z.id } }, 'Retiré(e)')}><Trash2 className="h-3.5 w-3.5" /></button>
+          </span>
+        </div>
+      ))}
+      {!liste.length && !ajout && <p className="mt-1 text-xs text-nuit-600/70">Pas encore indiqué{d.infos?.parrain_marraine ? ` (fiche : ${d.infos.parrain_marraine})` : ''}.</p>}
+      {ajout && <div className="mt-2 flex flex-wrap gap-2">
+        <select className="champ w-auto py-1.5" value={ajout.role} onChange={(ev) => setAjout({ ...ajout, role: ev.target.value })}><option value="parrain">Parrain</option><option value="marraine">Marraine</option></select>
+        <input className="champ min-w-40 flex-1 py-1.5" placeholder="Prénom et nom" value={ajout.nom} onChange={(ev) => setAjout({ ...ajout, nom: ev.target.value })} />
+        <input className="champ min-w-48 flex-1 py-1.5" type="email" placeholder="E-mail" value={ajout.email} onChange={(ev) => setAjout({ ...ajout, email: ev.target.value })} />
+        <button className="btn-principal py-1.5 text-xs" disabled={occupe || !ajout.nom.trim()} onClick={() => action('parrain.ecrire', { parrain: ajout }, 'Enregistré').then(() => setAjout(null))}>Enregistrer</button>
+        <button className="btn-clair py-1.5 text-xs" onClick={() => setAjout(null)}>Annuler</button>
+      </div>}
+    </div>
+  )
+}
+
 /** Erreurs signalées par la personne depuis son espace : répondre et marquer comme corrigé. */
 function Signalements({ liste, occupe, action }) {
   const [reponse, setReponse] = useState({})
@@ -634,6 +668,7 @@ function EspaceDossier({ d }) {
           {l.statut === 'a_corriger' && l.remarque && <p className="mt-1 text-xs text-nuit-600/70">Demandé : {l.remarque}</p>}
         </div>
       )}
+      <ParrainsEspace d={d} liste={e.parrains || []} occupe={occupe} action={action} />
       {e.signalements?.length > 0 && <Signalements liste={e.signalements} occupe={occupe} action={action} />}
       {mail && <Redaction mode="nouveau" a={e.mail} sujet="Votre espace personnel – paroisse La Croix glorieuse"
         corps={`Bonjour ${d.infos?.prenoms || ''},\n\nVoici le lien de votre espace personnel « Croix glorieuse ». Vous y trouverez votre parcours vers le baptême, le calendrier, les textes que nous vous enverrons, et vous pourrez compléter votre dossier (informations, pièces, lettre à l'évêque).\n[Bouton : ${B}]\n\nÀ la première visite, choisissez votre mot de passe : un code vous sera envoyé par mail. Vous pourrez ensuite installer l'application sur votre téléphone pour être prévenu(e) des nouveaux textes.\n\nAvec l'assurance de nos prières à toutes vos intentions,`}

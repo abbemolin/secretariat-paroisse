@@ -42,7 +42,7 @@ export default function Catechumenat() {
             {data.calendrier.map((ev) => (
               <button key={ev.id} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-nuit-50/50" onClick={() => setEvt(ev)}>
                 <span className="w-28 shrink-0 text-sm font-medium">{new Date(ev.date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                <span className="flex-1"><span className="block font-medium">{ev.titre}</span><span className="text-xs text-nuit-600/70">{[ev.heure_debut && ev.heure_debut + (ev.heure_fin ? '–' + ev.heure_fin : ''), ev.lieu, ev.cible_nom].filter(Boolean).join(' · ')}</span></span>
+                <span className="flex-1"><span className="block font-medium">{ev.titre}</span><span className="text-xs text-nuit-600/70">{[ev.heure_debut && ev.heure_debut + (ev.heure_fin ? '–' + ev.heure_fin : ''), ev.lieu, ev.cible_nom, ev.parrains === 'oui' && 'parrains et marraines'].filter(Boolean).join(' · ')}</span></span>
               </button>
             ))}
           </div>
@@ -153,6 +153,7 @@ function EditionDate({ ev, data, onFermer, onFait }) {
         <div className="grid grid-cols-3 gap-2">{champ('date', 'Date', 'date')}{champ('heure_debut', 'De', 'time')}{champ('heure_fin', 'À', 'time')}</div>
         {champ('lieu', 'Lieu')}
         {champ('note', 'Note (facultatif)')}
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-[#521a22]" checked={v.parrains === 'oui'} onChange={(e) => maj('parrains', e.target.checked ? 'oui' : '')} />Visible aussi par les parrains et marraines (sur leur page)</label>
         <p className="text-xs text-nuit-600/70">La retraite de confirmation de leur année s'ajoute toute seule à leur calendrier.</p>
         <Erreur erreur={erreur} />
       </div>
