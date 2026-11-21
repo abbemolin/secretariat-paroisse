@@ -654,6 +654,95 @@ function assurerJetons_(r) {
   return change;
 }
 
+// ─── Mot de passe des chefs (sans compte dans l'appli) ───
+// Le lien secret reste nécessaire ; la page demande en plus le mot de passe de la fraternité.
+// Le chef le choisit lui-même après avoir reçu un code par mail (première fois ou oubli).
+// Rangé par fraternité (clé « fil », stable d'une année à l'autre et quand le lien change).
+
+var CHEF_SESSION_JOURS = 90;
+function mdpChefs_() { return json2_(props_().getProperty('CHEFS_MDP'), {}); }
+function secretChef_() {
+  var p = props_(), x = p.getProperty('CHEF_SECRET');
+  if (!x) { x = jeton_() + jeton_(); p.setProperty('CHEF_SECRET', x); }
+  return x;
+}
+function signatureChef_(fil, exp, hash) {
+  return hex_(Utilities.computeHmacSha256Signature(fil + '|' + exp + '|' + String(hash).slice(0, 16), secretChef_())).slice(0, 40);
+}
+function nouvelleSessionChef_(fil, m) {
+  var exp = Date.now() + CHEF_SESSION_JOURS * 86400000;
+  return exp + '.' + signatureChef_(fil, exp, m.hash);
+}
+function sessionChefValide_(fil, session) {
+  var m = mdpChefs_()[fil];
+  var x = String(session || '').split('.');
+  if (!m || x.length !== 2 || Number(x[0]) < Date.now()) return false;
+  return x[1] === signatureChef_(fil, x[0], m.hash);
+}
+/** Adresses e-mail des chefs de la fraternité. */
+function mailsChefs_(ctx) {
+  var ids = ctx.equipe.chefs || [];
+  var l = [];
+  lignes_('CorUnum').forEach(function (y) {
+    if (ids.indexOf(y.id) === -1) return;
+    String(y.email || '').split(/[\s,;]+/).forEach(function (m) { if (/@/.test(m) && l.indexOf(m.toLowerCase()) === -1) l.push(m.toLowerCase()); });
+  });
+  return l;
+}
+function masquerMail_(m) { var x = String(m).split('@'); return x[0].slice(0, 2) + '…@' + x[1]; }
+function compteurChef_(cle, max, secondes, message) {
+  var cache = CacheService.getScriptCache(), n = Number(cache.get(cle) || 0);
+  if (n >= max) throw erreur_('LIMITE', message);
+  cache.put(cle, String(n + 1), secondes);
+}
+
+/** Actions d'accès (état, connexion, code, choix du mot de passe) ; vérifie la session pour toutes les autres. */
+function accesChef_(action, p, ctx) {
+  var e = ctx.equipe, fil = e.fil;
+  var tous = mdpChefs_(), m = tous[fil];
+  if (action === 'chef.etat') {
+    return { nom: e.nom, mot_de_passe: !!m, mails: mailsChefs_(ctx).map(masquerMail_), session: sessionChefValide_(fil, p.session) };
+  }
+  if (action === 'chef.connexion') {
+    if (!m) throw erreur_('MDP', 'Aucun mot de passe n\'est encore choisi : utilisez « Choisir mon mot de passe ».');
+    compteurChef_('chefmdp_' + fil, 10, 900, 'Trop d\'essais. Réessayez dans un quart d\'heure, ou utilisez « Mot de passe oublié ».');
+    if (hacher_(String(p.mdp || ''), m.sel) !== m.hash) throw erreur_('MDP', 'Mot de passe incorrect.');
+    return { session: nouvelleSessionChef_(fil, m) };
+  }
+  if (action === 'chef.code') {
+    var mails = mailsChefs_(ctx);
+    if (!mails.length) throw erreur_('MAIL', 'Aucune adresse e-mail n\'est connue pour le chef de cette fraternité. Contactez le secrétariat.');
+    compteurChef_('chefenvoi_' + fil, 5, 3600, 'Trop de codes envoyés. Réessayez dans une heure.');
+    var code = String(Math.floor(100000 + Math.random() * 900000));
+    CacheService.getScriptCache().put('chefcode_' + fil, JSON.stringify({ code: code, essais: 0 }), 900);
+    var texte = 'Bonjour,\n\nVoici le code pour choisir le mot de passe de la page de votre fraternité Cor Unum (' + e.nom + ') :\n\n' + code +
+      '\n\nIl est valable 15 minutes. Si vous n\'avez rien demandé, ignorez ce message.\n\nAvec l\'assurance de nos prières à toutes vos intentions,';
+    var opts = optionsEnvoi_();
+    opts.htmlBody = corpsHtml_(texte, 'paroisse');
+    GmailApp.sendEmail(mails.join(','), 'Fraternité Cor Unum – votre code : ' + code, corpsTexte_(texte, 'paroisse'), opts);
+    return { mails: mails.map(masquerMail_) };
+  }
+  if (action === 'chef.definir') {
+    var cache = CacheService.getScriptCache();
+    var c = json2_(cache.get('chefcode_' + fil), null);
+    if (!c) throw erreur_('CODE', 'Code expiré. Demandez un nouveau code.');
+    if (String(p.code || '').replace(/\s/g, '') !== c.code) {
+      c.essais++;
+      if (c.essais >= 5) cache.remove('chefcode_' + fil); else cache.put('chefcode_' + fil, JSON.stringify(c), 900);
+      throw erreur_('CODE', c.essais >= 5 ? 'Trop d\'essais. Demandez un nouveau code.' : 'Code incorrect.');
+    }
+    if (String(p.mdp || '').length < 8) throw erreur_('MDP', 'Le mot de passe doit contenir au moins 8 caractères.');
+    var sel = jeton_().slice(0, 16);
+    var nv = { hash: hacher_(String(p.mdp), sel), sel: sel, maj: maintenant_() };
+    verrou_(function () { var t = mdpChefs_(); t[fil] = nv; props_().setProperty('CHEFS_MDP', JSON.stringify(t)); });
+    cache.remove('chefcode_' + fil);
+    journaliser_({ nom: 'Chef – ' + e.nom, uid: '' }, 'Cor Unum : mot de passe du chef ' + (m ? 'changé' : 'choisi'), e.nom);
+    return { session: nouvelleSessionChef_(fil, nv) };
+  }
+  if (!sessionChefValide_(fil, p.session)) throw erreur_('SESSION', 'Connectez-vous avec le mot de passe de votre fraternité.');
+  return null;
+}
+
 /** Fraternité (année la plus récente) correspondant au jeton. */
 function equipeParJeton_(c) {
   if (!/^[a-f0-9]{32}$/.test(String(c || ''))) throw erreur_('LIEN', 'Ce lien n\'est pas valable. Demandez un nouveau lien au secrétariat.');
@@ -715,6 +804,8 @@ function actionChef_(action, p) {
 
   var ctx = equipeParJeton_(p.c);
   var e = ctx.equipe;
+  var acces = accesChef_(action, p, ctx);
+  if (acces) return acces;
   var qui = 'Chef – ' + e.nom;
   var s = { nom: qui, uid: '' };
   feuilleCor_();
@@ -832,7 +923,8 @@ function lienChefCor_(p, s) {
   });
   if (p.nouveau) journaliser_(s, 'Cor Unum : nouveau lien de chef', res.nom);
   var base = String(reglages_().url_formulaires || 'https://secretariat.croix-glorieuse.org/').replace(/\/?$/, '/');
-  return { lien: base + 'fraternite/?c=' + res.jeton };
+  var m = mdpChefs_()[res.fil];
+  return { lien: base + 'fraternite/?c=' + res.jeton, mot_de_passe: m ? m.maj : '', mails: mailsChefs_({ equipe: res }) };
 }
 
 function filCor_(p, s) {

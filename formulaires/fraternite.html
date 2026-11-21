@@ -37,11 +37,15 @@ label{display:block;font-size:13px;color:#6b5b55;margin:8px 0 3px}
 .ok{background:#e8f5ec;color:#1d5e33;border-radius:6px;padding:10px 12px;margin:10px 0}
 details summary{cursor:pointer;color:#7a6a64;font-size:14px}
 .cache{display:none}
+.connexion{max-width:420px;margin:20px auto}
+.lien{background:none;border:0;color:#a8662e;text-decoration:underline;cursor:pointer;font-size:14px;padding:8px 0;margin-top:6px}
+.sortie{margin-left:auto;background:none;border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:8px;padding:6px 10px;font-size:12.5px;cursor:pointer}
 </style></head>
 <body>
-<div class="entete"><img src="../logo-128.png" alt=""><div><b id="titre">Ma fraternité Cor Unum</b><span id="sous">Paroisse La Croix glorieuse</span></div></div>
+<div class="entete"><img src="../logo-128.png" alt=""><div><b id="titre">Ma fraternité Cor Unum</b><span id="sous">Paroisse La Croix glorieuse</span></div><button id="sortie" class="sortie cache">Se déconnecter</button></div>
 <main>
   <div id="etat" class="info">Chargement…</div>
+  <div id="connexion" class="carte connexion cache"></div>
   <div id="appli" class="cache">
     <div class="onglets">
       <button data-v="membres" class="actif">Membres</button>
@@ -61,13 +65,22 @@ details summary{cursor:pointer;color:#7a6a64;font-size:14px}
   var PROFILS = { 'Catéchumène': 'p-cat', 'Confirmand': 'p-conf', 'Néophyte': 'p-neo', 'Nouveau à la paroisse': 'p-nouv', 'Recommençant': 'p-rec', 'Paroissien': '' };
   var q = new URLSearchParams(location.search), c = q.get('c') || '';
   try { if (c) localStorage.setItem('cor_c', c); else c = localStorage.getItem('cor_c') || ''; } catch (e) {}
-  var d = null, ouvert = {};
+  var d = null, ouvert = {}, etatAcces = null;
+  var CLE_S = 'cor_s_' + c;
+  function lireSession() { try { return localStorage.getItem(CLE_S) || ''; } catch (x) { return ''; } }
+  function ecrireSession(v) { try { if (v) localStorage.setItem(CLE_S, v); else localStorage.removeItem(CLE_S); } catch (x) {} }
   function $(id) { return document.getElementById(id); }
   function e(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   function appel(action, p) {
-    p = p || {}; p.c = c;
+    p = p || {}; p.c = c; p.session = lireSession();
     return fetch(URL_SCRIPT, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: action, payload: p }) })
-      .then(function (r) { return r.json(); }).then(function (r) { if (!r.ok) throw new Error(r.message || 'Erreur'); return r.data; });
+      .then(function (r) { return r.json(); }).then(function (r) {
+        if (!r.ok) {
+          if (r.code === 'SESSION') { ecrireSession(''); demarrer(); }
+          var er = new Error(r.message || 'Erreur'); er.code = r.code; throw er;
+        }
+        return r.data;
+      });
   }
   function dateLongue(s) { try { return new Date(String(s).slice(0, 10) + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); } catch (x) { return s; } }
   function dateHeure(s) { try { return new Date(s).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); } catch (x) { return s; } }
@@ -174,9 +187,72 @@ details summary{cursor:pointer;color:#7a6a64;font-size:14px}
     }
   });
 
+  // ─── Connexion : lien + mot de passe de la fraternité ───
+  var etape = 'mdp', mailsCode = [];
+  function ecranConnexion() {
+    $('appli').classList.add('cache'); $('sortie').classList.add('cache'); $('etat').style.display = 'none';
+    var z = $('connexion'); z.classList.remove('cache');
+    var a = etatAcces || {};
+    var h = '<h2>Fraternité ' + e(a.nom || '') + '</h2>';
+    if (etape === 'mdp' && a.mot_de_passe) {
+      h += '<form id="f-mdp"><label>Mot de passe de la fraternité</label><input id="c-mdp" type="password" autocomplete="current-password" required>' +
+        '<button class="bouton principal" type="submit">Se connecter</button></form><div id="z-c" style="display:none"></div>' +
+        '<button class="lien" data-act="code">Mot de passe oublié ?</button>';
+    } else if (etape === 'mdp') {
+      h += '<p>Pour protéger les coordonnées des membres, cette page demande un mot de passe que vous choisissez vous-même.</p>' +
+        '<p class="petit">Un code va être envoyé ' + (a.mails && a.mails.length ? 'à ' + e(a.mails.join(', ')) : 'à l\'adresse e-mail du chef') + '.</p>' +
+        '<button class="bouton principal" data-act="code">Choisir mon mot de passe</button><div id="z-c" style="display:none"></div>';
+    } else {
+      h += '<p class="petit">Un code à 6 chiffres vient d\'être envoyé à ' + e(mailsCode.join(', ')) + '. Il est valable 15 minutes.</p>' +
+        '<form id="f-code"><label>Code reçu par mail</label><input id="c-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required>' +
+        '<label>Nouveau mot de passe (8 caractères au moins)</label><input id="c-n1" type="password" autocomplete="new-password" minlength="8" required>' +
+        '<label>Le même, une seconde fois</label><input id="c-n2" type="password" autocomplete="new-password" minlength="8" required>' +
+        '<button class="bouton principal" type="submit">Valider</button></form><div id="z-c" style="display:none"></div>' +
+        '<button class="lien" data-act="code">Renvoyer un code</button> · <button class="lien" data-act="retour-mdp">Retour</button>';
+    }
+    z.innerHTML = h;
+    var f1 = $('f-mdp'), f2 = $('f-code');
+    if (f1) f1.addEventListener('submit', function (ev) {
+      ev.preventDefault(); var b = f1.querySelector('button'); b.disabled = true;
+      appel('chef.connexion', { mdp: $('c-mdp').value }).then(function (r) { ecrireSession(r.session); charger(); })
+        .catch(function (err) { b.disabled = false; message('z-c', err.message); });
+    });
+    if (f2) f2.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      if ($('c-n1').value !== $('c-n2').value) { message('z-c', 'Les deux mots de passe ne sont pas identiques.'); return; }
+      var b = f2.querySelector('button'); b.disabled = true;
+      appel('chef.definir', { code: $('c-code').value, mdp: $('c-n1').value }).then(function (r) { ecrireSession(r.session); etape = 'mdp'; charger(); })
+        .catch(function (err) { b.disabled = false; message('z-c', err.message); });
+    });
+    var p = z.querySelector('input'); if (p) p.focus();
+  }
+  $('connexion').addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-act]'); if (!b) return;
+    ev.stopPropagation();
+    if (b.dataset.act === 'retour-mdp') { etape = 'mdp'; ecranConnexion(); return; }
+    if (b.dataset.act === 'code') {
+      b.disabled = true;
+      appel('chef.code').then(function (r) { mailsCode = r.mails; etape = 'code'; ecranConnexion(); })
+        .catch(function (err) { b.disabled = false; message('z-c', err.message); });
+    }
+  }, true);
+  $('sortie').addEventListener('click', function () { ecrireSession(''); d = null; demarrer(); });
+
+  function charger() {
+    $('connexion').classList.add('cache');
+    $('etat').style.display = 'block'; $('etat').className = 'info'; $('etat').textContent = 'Chargement…';
+    appel('chef.lire').then(function (r) { d = r; $('etat').style.display = 'none'; $('appli').classList.remove('cache'); $('sortie').classList.remove('cache'); rendre(); })
+      .catch(function (err) { if (err.code !== 'SESSION') { $('etat').className = 'erreur'; $('etat').textContent = err.message; } });
+  }
+  function demarrer() {
+    appel('chef.etat').then(function (r) {
+      etatAcces = r; $('titre').textContent = 'Fraternité Cor Unum ' + r.nom;
+      if (r.session) charger(); else { etape = 'mdp'; ecranConnexion(); }
+    }).catch(function (err) { $('etat').style.display = 'block'; $('etat').className = 'erreur'; $('etat').textContent = err.message; });
+  }
+
   if (!c) { $('etat').className = 'erreur'; $('etat').textContent = 'Lien incomplet. Ouvrez le lien reçu par mail de la paroisse.'; return; }
-  appel('chef.lire').then(function (r) { d = r; $('etat').style.display = 'none'; $('appli').classList.remove('cache'); rendre(); })
-    .catch(function (err) { $('etat').className = 'erreur'; $('etat').textContent = err.message; });
+  demarrer();
 })();
 </script>
 </body></html>

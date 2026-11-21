@@ -424,8 +424,9 @@ function LienChef({ e, annee, chefs, onFermer, onMail }) {
   const notifier = useNotif()
   const confirmer = useConfirmer()
   const [lien, setLien] = useState('')
+  const [infos, setInfos] = useState(null)
   const [occupe, setOccupe] = useState(false)
-  useEffect(() => { api('cor.lienChef', { annee, equipe: e.id }).then((r) => setLien(r.lien)).catch((err) => notifier(err.message, 'erreur')) }, [annee, e.id, notifier])
+  useEffect(() => { api('cor.lienChef', { annee, equipe: e.id }).then((r) => { setLien(r.lien); setInfos(r) }).catch((err) => notifier(err.message, 'erreur')) }, [annee, e.id, notifier])
   async function nouveau() {
     if (!(await confirmer({ titre: 'Nouveau lien', texte: "L'ancien lien ne fonctionnera plus. Il faudra envoyer le nouveau au chef.", bouton: 'Créer un nouveau lien', danger: true }))) return
     setOccupe(true)
@@ -435,17 +436,20 @@ function LienChef({ e, annee, chefs, onFermer, onMail }) {
   function envoyer() {
     const B = 'Ouvrir la page de ma fraternité'
     onMail({ a: chefs.map((c) => String(c.email || '').split(/[\s,;]+/)[0]).filter(Boolean).join(', '), sujet: `Fraternité Cor Unum ${e.nom} – votre page de chef`,
-      corps: `Bonjour ${chefs.map((c) => c.prenoms).join(' et ')},\n\nVoici le lien personnel de votre fraternité Cor Unum. Il vous permet, sans mot de passe, de voir les membres et leurs coordonnées, d'ajouter un membre, de corriger un téléphone ou une adresse, de signaler un départ, de noter vos rencontres, d'écrire à toute l'équipe et d'échanger avec le curé et le secrétariat.\n[Bouton : ${B}]\n\nConseil : ajoutez cette page à vos favoris ou à l'écran d'accueil de votre téléphone. Ce lien est personnel : merci de ne pas le transférer.\n\nAvec l'assurance de nos prières à toutes vos intentions,`,
+      corps: `Bonjour ${chefs.map((c) => c.prenoms).join(' et ')},\n\nVoici le lien personnel de votre fraternité Cor Unum. Il vous permet de voir les membres et leurs coordonnées, d'ajouter un membre, de corriger un téléphone ou une adresse, de signaler un départ, de noter vos rencontres, d'écrire à toute l'équipe et d'échanger avec le curé et le secrétariat.\n[Bouton : ${B}]\n\nLa page est protégée par un mot de passe que vous choisissez vous-même : à votre première visite, cliquez sur « Choisir mon mot de passe » ; un code vous sera envoyé par mail. Vous resterez ensuite connecté(e) 90 jours sur cet appareil.\n\nConseil : ajoutez cette page à vos favoris ou à l'écran d'accueil de votre téléphone. Ce lien est personnel : merci de ne pas le transférer.\n\nAvec l'assurance de nos prières à toutes vos intentions,`,
       boutons: [{ texte: B, url: lien }] })
   }
   return (
     <Modale titre={`Lien du chef — ${e.nom}`} onFermer={onFermer}
       pied={<><button className="btn-clair mr-auto text-red-700" disabled={occupe || !lien} onClick={nouveau}><RefreshCw className="h-4 w-4" />Nouveau lien</button><button className="btn-principal" disabled={!lien || !chefs.some((c) => c.email)} onClick={envoyer}><Mail className="h-4 w-4" />Envoyer au chef</button></>}>
-      <p className="mb-3 text-sm text-nuit-600">Page personnelle du chef, sans compte : membres, ajout, corrections, départs, rencontres, mail à l'équipe et messages avec la paroisse.</p>
+      <p className="mb-3 text-sm text-nuit-600">Page personnelle du chef, sans compte dans l'appli, protégée par un mot de passe : membres, ajout, corrections, départs, rencontres, mail à l'équipe et messages avec la paroisse.</p>
       {!lien ? <Chargement /> : (
         <div className="flex gap-2"><input className="champ text-xs" readOnly value={lien} onFocus={(ev) => ev.target.select()} /><button className="btn-clair" onClick={copier}><Copy className="h-4 w-4" /></button></div>
       )}
-      <p className="mt-2 text-xs text-nuit-600/70">« Nouveau lien » désactive immédiatement l'ancien (lien transféré par erreur, changement de chef…).</p>
+      {infos && <p className={`mt-3 rounded-lg px-3 py-2 text-sm ${infos.mot_de_passe ? 'bg-emerald-50 text-emerald-900' : 'bg-amber-50 text-amber-900'}`}>
+        {infos.mot_de_passe ? `Mot de passe choisi par le chef le ${new Date(infos.mot_de_passe).toLocaleDateString('fr-FR')}.` : 'Le chef n\'a pas encore choisi son mot de passe.'}
+        {!infos.mails?.length && <><br /><strong>Aucune adresse e-mail connue pour le chef</strong> : ajoutez-la dans sa fiche, sinon il ne pourra pas recevoir le code.</>}</p>}
+      <p className="mt-2 text-xs text-nuit-600/70">Le lien seul ne suffit pas : la page demande aussi le mot de passe de la fraternité, choisi par le chef grâce à un code reçu par mail (aussi en cas d'oubli). « Nouveau lien » désactive immédiatement l'ancien lien ; le mot de passe reste le même.</p>
     </Modale>
   )
 }
