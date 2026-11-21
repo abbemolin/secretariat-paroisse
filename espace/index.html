@@ -64,10 +64,12 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
 <nav class="nav cache" id="nav">
   <button data-vue="accueil" class="actif"><b>⌂</b>Accueil</button>
   <button data-vue="textes"><b>✎</b>Textes<span class="pastille cache" id="nbn"></span></button>
+  <button data-vue="bible"><b>✝</b>Bible</button>
   <button data-vue="calendrier"><b>▦</b>Calendrier</button>
   <button data-vue="dossier"><b>☰</b>Mon dossier</button>
 </nav>
 <script src="agenda.js"></script>
+<script src="bible.js"></script>
 <script>
 (function () {
   var URL_SCRIPT = __URL_SCRIPT__;
@@ -236,12 +238,19 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     if (ouvert) {
       var t = d.textes.filter(function (x) { return x.id === ouvert; })[0];
       if (t) return '<button class="lien" data-a="retour">← Tous les textes</button>' + blocTaille() + '<div class="carte"><h1>' + e(t.titre) + '</h1><p class="petit">' + e(jour(t.date, { day: 'numeric', month: 'long', year: 'numeric' })) + (t.auteur ? ' · ' + e(t.auteur) : '') + '</p>' +
-        '<div class="corps">' + liens(t.corps) + '</div>' +
+        '<div class="corps">' + (window.lierReferencesBibliques ? window.lierReferencesBibliques(liens(t.corps)) : liens(t.corps)) + '</div>' +
         t.fichiers.map(function (f) { return '<button class="bouton" data-fichier="' + f.id + '" data-t="' + t.id + '">📎 ' + e(f.nom) + '</button>'; }).join('') +
         t.liens.map(function (l) { return '<a class="bouton" href="' + e(l.url) + '" target="_blank" rel="noopener">↗ ' + e(l.libelle || l.url) + '</a>'; }).join('') + '<div id="zf" style="display:none"></div></div>';
     }
     return '<div class="carte"><h2>Textes</h2>' + (horsLigne ? '<p class="petit">Hors connexion : seuls les textes déjà ouverts sur ce téléphone sont disponibles.</p>' : '') + (d.textes.length ? d.textes.map(ligneTexte).join('') : '<p class="petit">' + (horsLigne ? 'Aucun texte ouvert sur ce téléphone.' : 'Les textes que la paroisse vous enverra apparaîtront ici.') + '</p>') + '</div>';
   }
+  var bible = null;
+  function placerBible() {
+    var z = $('bible-place'); if (!z || !window.creerBible) return;
+    if (!bible) bible = window.creerBible();
+    z.appendChild(bible.element);
+  }
+  function pageBible() { return blocTaille() + '<div id="bible-place"></div>'; }
   var agenda = null;
   function placerAgenda() {
     var z = $('agenda-place'); if (!z || !window.creerAgendaParoisse) return;
@@ -296,16 +305,21 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     $('nbn').textContent = n; $('nbn').classList.toggle('cache', !n);
     if (horsLigne) {
       $('page').innerHTML = '<div class="horsligne">Hors connexion. <button class="lien" data-a="reessayer" style="padding:0">Réessayer</button></div>' +
-        (vue === 'textes' ? pageTextes() : vue === 'calendrier' ? pageCalendrier() : '<div class="carte"><p>Cette page a besoin d\'une connexion internet.</p><p class="petit">Vos textes déjà ouverts et le calendrier restent consultables.</p></div>');
+        (vue === 'textes' ? pageTextes() : vue === 'calendrier' ? pageCalendrier() : vue === 'bible' ? pageBible() : '<div class="carte"><p>Cette page a besoin d\'une connexion internet.</p><p class="petit">Vos textes déjà ouverts et le calendrier restent consultables.</p></div>');
       if (vue === 'calendrier') placerAgenda();
+      if (vue === 'bible') placerBible();
       return;
     }
-    $('page').innerHTML = vue === 'textes' ? pageTextes() : vue === 'calendrier' ? pageCalendrier() : vue === 'dossier' ? pageDossier() : pageAccueil();
+    $('page').innerHTML = vue === 'textes' ? pageTextes() : vue === 'calendrier' ? pageCalendrier() : vue === 'bible' ? pageBible() : vue === 'dossier' ? pageDossier() : pageAccueil();
     if (vue === 'calendrier') placerAgenda();
+    if (vue === 'bible') placerBible();
   }
 
   // ─── Actions ───
   document.addEventListener('click', function (ev) {
+    var rb = ev.target.closest('a.bible-ref');
+    if (rb) { ev.preventDefault(); var pr = rb.dataset.bible.split('|'); vue = 'bible'; ouvert = null; rendre(); window.scrollTo(0, 0); if (bible) bible.ouvrir(pr[0], pr[1], pr[2], pr[3] || pr[2]); return; }
+    if (ev.target.closest('.bb')) return;
     var b = ev.target.closest('[data-vue],[data-a],[data-texte],[data-fichier]'); if (!b) return;
     if (b.dataset.vue) { vue = b.dataset.vue; ouvert = null; signale = null; ajoutParrain = false; retraitParrain = null; demandeCor = false; rendre(); window.scrollTo(0, 0); return; }
     if (b.dataset.texte) {

@@ -1,6 +1,6 @@
 // Service worker de l'app « Croix glorieuse » : page disponible hors ligne et notifications.
-const CACHE = 'croix-glorieuse-v2'
-const FICHIERS = ['./', 'index.html', 'agenda.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png']
+const CACHE = 'croix-glorieuse-v3'
+const FICHIERS = ['./', 'index.html', 'agenda.js', 'bible.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png']
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FICHIERS)).then(() => self.skipWaiting())) })
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((k) => Promise.all(k.filter((x) => x !== CACHE).map((x) => caches.delete(x)))).then(() => self.clients.claim())) })
 self.addEventListener('fetch', (e) => {
