@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
+<title>Livres du catéchisme – Paroisse La Croix glorieuse</title>
+<link rel="icon" href="../logo-128.png"><meta name="theme-color" content="#521a22">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#faf7f2;font-family:Arial,Helvetica,sans-serif;color:#2b2224;font-size:15px}
+.entete{background:#521a22;color:#fff;padding:14px 18px;display:flex;align-items:center;gap:12px}
+.entete img{width:44px;height:44px;border-radius:50%;background:#fff}
+.entete b{font-family:Georgia,serif;font-size:19px;display:block}.entete span{font-size:12.5px;color:#e8c9a8}
+main{max-width:680px;margin:0 auto;padding:16px}
+.carte{background:#fff;border-radius:12px;box-shadow:0 1px 8px rgba(82,26,34,.07);padding:16px;margin-bottom:14px}
+h1{font-family:Georgia,serif;color:#521a22;font-size:23px;margin:0 0 6px}
+h2{font-family:Georgia,serif;color:#521a22;font-size:19px;margin:0 0 10px}
+.petit{font-size:13px;color:#7a6a64;line-height:1.45}
+.livre{display:flex;align-items:center;gap:10px;border-top:1px solid #f1e8e1;padding:10px 0}.livre:first-of-type{border-top:0}
+.livre .t{flex:1}.livre .t b{display:block}.livre .t span{font-size:12.5px;color:#7a6a64}
+.qte{display:flex;align-items:center;gap:6px}
+.qte button{width:34px;height:34px;border-radius:50%;border:1px solid #e6d8cc;background:#fff;color:#521a22;font-size:18px;cursor:pointer}
+.qte b{min-width:18px;text-align:center}
+.epuise{font-size:12.5px;color:#a11d1d}
+input,textarea{width:100%;border:1px solid #e0d2c6;border-radius:8px;padding:10px;font:inherit;background:#fff}
+label{display:block;font-size:13px;color:#6b5b55;margin:10px 0 3px}
+.grille{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}@media(max-width:560px){.grille{grid-template-columns:1fr}}
+.total{display:flex;justify-content:space-between;font-size:17px;font-weight:bold;color:#521a22;border-top:2px solid #efe4da;padding-top:10px;margin-top:10px}
+.bouton{display:inline-block;border:1px solid #e6d8cc;background:#fff;color:#521a22;border-radius:8px;padding:11px 16px;font-size:14.5px;cursor:pointer;margin:10px 8px 0 0;text-decoration:none}
+.principal{background:#521a22;color:#fff;border-color:#521a22;font-weight:bold}
+.info{background:#faf3ea;border-left:4px solid #d08c4c;border-radius:6px;padding:10px 12px;font-size:14px;margin:10px 0}
+.erreur{background:#fdeceb;color:#8a1f17;border-radius:6px;padding:10px 12px;margin:10px 0}
+.ok{background:#e8f5ec;color:#1d5e33;border-radius:6px;padding:12px;margin:10px 0}
+.ligne{display:flex;justify-content:space-between;padding:4px 0;font-size:14.5px}
+</style></head>
+<body>
+<div class="entete"><img src="../logo-128.png" alt=""><div><b>Livres du catéchisme</b><span id="sous">Paroisse La Croix glorieuse</span></div></div>
+<main><div id="etat" class="info">Chargement…</div><div id="page"></div></main>
+<script>
+(function () {
+  var URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzSjwHZONGGz0xfWXo_u4MJRYBon8eZZzyTvWNrgo6418zkoOXpzVDx3Q8nthP5rLAleg/exec";
+  var q = new URLSearchParams(location.search), E = q.get('e') || '', K = q.get('k') || '', C = q.get('c') || '';
+  var d = null, panier = {}, f = { nom: '', email: '', telephone: '', note: '' }, fini = '';
+  function $(id) { return document.getElementById(id); }
+  function e(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function euros(n) { return (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('fr-FR') + ' €'; }
+  function appel(action, p) {
+    return fetch(URL_SCRIPT, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: action, payload: p }) })
+      .then(function (r) { return r.json(); }).then(function (r) { if (!r.ok) throw new Error(r.message || 'Erreur'); return r.data; });
+  }
+  function total() { return d.livres.reduce(function (a, l) { return a + (panier[l.id] || 0) * l.prix; }, 0); }
+  function message(t, ok) { var z = $('z'); if (z) { z.className = ok ? 'ok' : 'erreur'; z.textContent = t; z.style.display = 'block'; } }
+
+  function rendre() {
+    var z = $('page');
+    if (fini) { z.innerHTML = '<div class="carte">' + fini + '</div>'; return; }
+    if (d.commande) {
+      var c = d.commande;
+      z.innerHTML = '<div class="carte"><h1>Votre commande</h1>' + c.lignes.map(function (l) { return '<div class="ligne"><span>' + e(l.titre) + (l.qte > 1 ? ' × ' + l.qte : '') + (l.pour ? ' <span class="petit">(' + e(l.pour) + ')</span>' : '') + '</span><span>' + euros(l.prix * l.qte) + '</span></div>'; }).join('') +
+        '<div class="total"><span>Total</span><span>' + euros(c.total) + '</span></div>' +
+        (c.statut === 'payee' ? '<div class="ok">Commande réglée. Merci ! Les livres sont à retirer à la paroisse.</div>' : c.statut === 'annulee' ? '<div class="info">Commande annulée.</div>' :
+          (d.en_ligne ? '<a class="bouton principal" href="../paiement/?o=livres&c=' + e(C) + '">Payer en ligne (' + euros(c.reste) + ')</a>' : '') + '<p class="petit">' + e(d.hors_ligne || 'Vous pouvez aussi régler par chèque ou en espèces au secrétariat.') + '</p>') +
+        '<p class="petit"><a href="./' + (E ? '?e=' + encodeURIComponent(E) + '&k=' + encodeURIComponent(K) : '') + '">Voir les autres livres</a></p></div>';
+      return;
+    }
+    var dispo = d.livres;
+    var h = '<div class="carte"><h1>Commander des livres</h1><p class="petit">Les livres sont à retirer à la paroisse (secrétariat ou catéchisme).' +
+      (d.prerempli && d.prerempli.enfants ? ' Enfants inscrits : ' + d.prerempli.enfants.map(function (x) { return e(x.prenoms) + (x.groupe ? ' (' + e(x.groupe) + ')' : ''); }).join(', ') + '.' : '') + '</p>';
+    h += dispo.length ? dispo.map(function (l) {
+      var n = panier[l.id] || 0;
+      return '<div class="livre"><div class="t"><b>' + e(l.titre) + '</b><span>' + (l.groupe ? e(l.groupe) + ' · ' : '') + euros(l.prix) + '</span></div>' +
+        (l.epuise ? '<span class="epuise">Épuisé</span>' : '<div class="qte"><button type="button" data-act="moins" data-id="' + l.id + '" aria-label="moins">−</button><b>' + n + '</b><button type="button" data-act="plus" data-id="' + l.id + '" aria-label="plus">+</button></div>') + '</div>';
+    }).join('') : '<p class="petit">Aucun livre pour le moment.</p>';
+    h += '<div class="total"><span>Total</span><span id="tot">' + euros(total()) + '</span></div></div>';
+    h += '<div class="carte"><h2>Vos coordonnées</h2><label>Prénom et nom *</label><input data-k="nom" value="' + e(f.nom) + '">' +
+      '<div class="grille"><div><label>E-mail *</label><input data-k="email" type="email" value="' + e(f.email) + '"></div><div><label>Téléphone</label><input data-k="telephone" type="tel" value="' + e(f.telephone) + '"></div></div>' +
+      '<label>Remarque (pour quel enfant…)</label><input data-k="note" value="' + e(f.note) + '">' +
+      '<div id="z" style="display:none"></div>' +
+      (d.en_ligne ? '<button type="button" class="bouton principal" data-act="en-ligne">Payer en ligne</button>' : '') +
+      '<button type="button" class="bouton" data-act="hors-ligne">Commander et payer à la paroisse</button>' +
+      '<p class="petit">' + e(d.hors_ligne || 'Paiement à la paroisse : chèque ou espèces au secrétariat.') + '</p></div>';
+    z.innerHTML = h;
+  }
+  document.addEventListener('input', function (ev) { var k = ev.target.dataset.k; if (k) f[k] = ev.target.value; });
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-act]'); if (!b) return;
+    var a = b.dataset.act, id = b.dataset.id;
+    if (a === 'plus') { panier[id] = Math.min(20, (panier[id] || 0) + 1); rendre(); return; }
+    if (a === 'moins') { panier[id] = Math.max(0, (panier[id] || 0) - 1); rendre(); return; }
+    if (a === 'en-ligne' || a === 'hors-ligne') {
+      var lignes = Object.keys(panier).filter(function (k) { return panier[k] > 0; }).map(function (k) { return { id: k, qte: panier[k] }; });
+      if (!lignes.length) { message('Choisissez au moins un livre.'); return; }
+      if (!f.nom.trim() || !/@/.test(f.email)) { message('Merci d\'indiquer votre nom et votre e-mail.'); return; }
+      b.disabled = true; b.textContent = 'Un instant…';
+      appel('boutique.commander', { nom: f.nom, email: f.email, telephone: f.telephone, note: f.note, lignes: lignes, en_ligne: a === 'en-ligne', e: E, k: K }).then(function (r) {
+        if (r.url) { location.href = r.url; return; }
+        fini = '<div class="ok"><b>Commande enregistrée, merci !</b><br>Un mail récapitulatif a été envoyé à ' + e(f.email) + '.</div><div class="total"><span>Total à régler</span><span>' + euros(r.commande.total) + '</span></div><p class="petit">' + e(d.hors_ligne || 'Chèque ou espèces au secrétariat.') + '</p>';
+        rendre(); window.scrollTo(0, 0);
+      }).catch(function (err) { b.disabled = false; b.textContent = a === 'en-ligne' ? 'Payer en ligne' : 'Commander et payer à la paroisse'; message(err.message); });
+    }
+  });
+  appel('boutique.public', C ? { c: C } : E ? { e: E, k: K } : {}).then(function (r) {
+    d = r; $('sous').textContent = r.paroisse || 'Paroisse La Croix glorieuse';
+    if (r.prerempli) { f.nom = r.prerempli.nom; f.email = r.prerempli.email; f.telephone = r.prerempli.telephone; }
+    $('etat').style.display = 'none'; rendre();
+  }).catch(function (err) { $('etat').className = 'erreur'; $('etat').textContent = err.message; });
+})();
+</script>
+</body></html>

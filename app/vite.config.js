@@ -11,7 +11,7 @@ export default defineConfig({
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw.js',
-      injectManifest: { globPatterns: ['**/*.{js,css,html,svg,png}'] },
+      injectManifest: { globPatterns: ['**/*.{js,css,html,svg,png}'], globIgnores: ['{premiere-communion,profession-de-foi,fraternite,retraite,paiement,livres,formulaires}/**'] },
       includeAssets: ['logo.png', 'logo-128.png', 'apple-touch-icon.png'],
       manifest: {
         name: 'Secrétariat – La Croix glorieuse',

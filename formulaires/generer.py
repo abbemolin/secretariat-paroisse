@@ -278,3 +278,11 @@ for type_, f in FORMULAIRES.items():
         (SITE / slug).mkdir(parents=True, exist_ok=True)
         (SITE / slug / "index.html").write_text(page, encoding="utf-8")
         print("✓ site/" + slug + "/")
+
+# ─── Les pages publiques sont aussi servies par l'appli du secrétariat (secretariat.croix-glorieuse.org) ───
+APP_PUBLIC = sortie.parent / "app" / "public"
+for nom in ('premiere-communion', 'profession-de-foi', 'fraternite', 'retraite', 'paiement', 'livres'):
+    if (SITE / nom / 'index.html').exists():
+        (APP_PUBLIC / nom).mkdir(exist_ok=True)
+        shutil.copy(SITE / nom / 'index.html', APP_PUBLIC / nom / 'index.html')
+(APP_PUBLIC / "CNAME").write_text("secretariat.croix-glorieuse.org\n", encoding="utf-8")
