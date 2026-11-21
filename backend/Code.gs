@@ -63,6 +63,7 @@ function doGet() {
 function doPost(e) {
   try {
     var req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+    if (!req.action && req.eventType) return notificationHelloAsso_(req);   // notification HelloAsso
     var action = String(req.action || '');
     var p = req.payload || {};
 
@@ -71,6 +72,8 @@ function doPost(e) {
     if (action === 'public.infos') return json_({ ok: true, data: infosPubliques_(p) });
     if (/^chef\./.test(action)) return json_({ ok: true, data: actionChef_(action, p) });
     if (/^ret\./.test(action)) return json_({ ok: true, data: actionRetraitePublique_(action, p) });
+    if (/^pay\./.test(action)) return json_({ ok: true, data: actionPaiementPublique_(action, p) });
+    if (/^boutique\./.test(action)) return json_({ ok: true, data: actionBoutique_(action, p) });
 
     var session = verifierSession_(req.token);
     var route = ROUTES[action];
@@ -160,6 +163,12 @@ var ROUTES = {
   'dossiers.importerCatechumenes': { fn: importerCatechumenes_, droit: 'dossiers' },
   'cor.liste':             { fn: listerCor_, droit: 'dossiers' },
   'retraites.liste':       { fn: listerRetraites_, droit: 'dossiers' },
+  'paiements.reglages':    { fn: lireHaReglages_, droit: 'reglages' },
+  'paiements.reglagesEcrire': { fn: ecrireHaReglages_, droit: 'reglages' },
+  'paiements.tester':      { fn: testerHelloAsso_, droit: 'reglages' },
+  'livres.liste':          { fn: listerLivres_, droit: 'dossiers' },
+  'livres.catalogue':      { fn: ecrireCatalogue_, droit: 'dossiers' },
+  'livres.commande':       { fn: modifierCommande_, droit: 'dossiers' },
   'retraites.lire':        { fn: lireRetraite_, droit: 'dossiers' },
   'retraites.ecrire':      { fn: ecrireRetraite_, droit: 'dossiers' },
   'retraites.supprimer':   { fn: supprimerRetraite_, droit: 'dossiers' },

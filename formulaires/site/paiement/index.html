@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
+<title>Paiement – Paroisse La Croix glorieuse</title>
+<link rel="icon" href="../logo-128.png"><meta name="theme-color" content="#521a22">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#faf7f2;font-family:Arial,Helvetica,sans-serif;color:#2b2224;font-size:15px}
+.entete{background:#521a22;color:#fff;padding:14px 18px;display:flex;align-items:center;gap:12px}
+.entete img{width:44px;height:44px;border-radius:50%;background:#fff}
+.entete b{font-family:Georgia,serif;font-size:19px;display:block}.entete span{font-size:12.5px;color:#e8c9a8}
+main{max-width:560px;margin:0 auto;padding:20px 16px}
+.carte{background:#fff;border-radius:12px;box-shadow:0 1px 8px rgba(82,26,34,.07);padding:22px;text-align:center}
+h1{font-family:Georgia,serif;color:#521a22;font-size:23px;margin:6px 0 10px}
+.grand{font-size:44px;margin:4px 0}
+.petit{font-size:13.5px;color:#7a6a64;line-height:1.5}
+.bouton{display:inline-block;border:0;background:#521a22;color:#fff;border-radius:8px;padding:12px 20px;font-size:15px;font-weight:bold;cursor:pointer;margin-top:14px;text-decoration:none}
+.rond{width:34px;height:34px;border:4px solid #efe4da;border-top-color:#521a22;border-radius:50%;margin:10px auto;animation:t 1s linear infinite}@keyframes t{to{transform:rotate(360deg)}}
+</style></head>
+<body>
+<div class="entete"><img src="../logo-128.png" alt=""><div><b>Paiement</b><span id="sous">Paroisse La Croix glorieuse</span></div></div>
+<main><div class="carte" id="z"><div class="rond"></div><p class="petit">Un instant…</p></div></main>
+<script>
+(function () {
+  var URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzSjwHZONGGz0xfWXo_u4MJRYBon8eZZzyTvWNrgo6418zkoOXpzVDx3Q8nthP5rLAleg/exec";
+  var q = new URLSearchParams(location.search);
+  function e(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  function euros(n) { return (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('fr-FR') + ' €'; }
+  function appel(action, p) {
+    return fetch(URL_SCRIPT, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: action, payload: p }) })
+      .then(function (r) { return r.json(); }).then(function (r) { if (!r.ok) throw new Error(r.message || 'Erreur'); return r.data; });
+  }
+  function ecran(icone, titre, texte, bouton) {
+    document.getElementById('z').innerHTML = '<div class="grand">' + icone + '</div><h1>' + titre + '</h1><p class="petit">' + texte + '</p>' + (bouton || '');
+  }
+  var DEPART = 'depart_paiement';
+  // 1) Départ : ?o=cate|livres|retraite|ceremonie… → création du paiement, puis page HelloAsso
+  if (q.get('o')) {
+    var p = {}; q.forEach(function (v, k) { p[k] = v; });
+    try { sessionStorage.setItem(DEPART, location.href); } catch (x) {}
+    appel('pay.creer', p).then(function (r) {
+      if (r.rien) { ecran('✓', 'Rien à payer', e(r.message)); return; }
+      location.replace(r.url);
+    }).catch(function (err) { ecran('⚠', 'Paiement impossible', e(err.message)); });
+    return;
+  }
+  // 2) Retour de HelloAsso : ?p=…&t=retour|erreur|annule
+  var id = q.get('p'), t = q.get('t');
+  if (!id) { ecran('⚠', 'Lien incomplet', 'Utilisez le lien reçu par mail de la paroisse.'); return; }
+  var depart = ''; try { depart = sessionStorage.getItem(DEPART) || ''; } catch (x) {}
+  var reessayer = depart ? '<a class="bouton" href="' + e(depart) + '">Réessayer le paiement</a>' : '';
+  if (t === 'annule') { ecran('↩', 'Paiement interrompu', 'Aucun montant n\'a été prélevé. Vous pouvez recommencer quand vous voulez, ou régler par chèque ou en espèces auprès de la paroisse.', reessayer); return; }
+  var essais = 0;
+  (function verifier() {
+    appel('pay.verifier', { p: id }).then(function (r) {
+      if (r.statut === 'paye') {
+        ecran('🙏', 'Merci !', 'Votre paiement de <b>' + euros(r.montant) + '</b> est bien reçu.<br>' + e(r.libelle) + '<br><br>HelloAsso vous envoie un justificatif par mail.');
+      } else if (t === 'erreur') {
+        ecran('⚠', 'Le paiement n\'a pas abouti', 'Aucun montant n\'a été prélevé. Vous pouvez réessayer, ou régler par chèque ou en espèces auprès de la paroisse.', reessayer);
+      } else if (essais++ < 4) {
+        ecran('<div class="rond"></div>', 'Vérification du paiement…', 'Quelques secondes, nous attendons la confirmation de HelloAsso.');
+        setTimeout(verifier, 3000);
+      } else {
+        ecran('⏳', 'Paiement en cours de validation', 'La confirmation de HelloAsso n\'est pas encore arrivée. Si vous avez payé, c\'est enregistré automatiquement dans les minutes qui viennent ; inutile de payer une seconde fois.');
+      }
+    }).catch(function (err) { ecran('⚠', 'Vérification impossible', e(err.message)); });
+  })();
+})();
+</script>
+</body></html>

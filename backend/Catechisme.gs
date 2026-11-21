@@ -10,7 +10,7 @@
  */
 
 var COLONNES_CATE = ['id', 'annee', 'cree_le', 'source', 'nom', 'prenoms', 'naissance', 'classe', 'groupe', 'email', 'telephone',
-  'adresse', 'pere', 'mere', 'sacrement', 'demandes', 'bapteme', 'manuels', 'cotisation', 'paiements', 'notes', 'maj_le', 'maj_par'];
+  'adresse', 'pere', 'mere', 'sacrement', 'demandes', 'bapteme', 'manuels', 'cotisation', 'paiements', 'notes', 'maj_le', 'maj_par', 'commande_id'];
 
 var GROUPES_CATE = ['Maternelle-CP', 'CE1-CE2', 'CM1-CM2', '6e-5e', '4e-3e', 'Lycéens'];
 var MODES_PAIEMENT = ['Espèces', 'Chèque', 'Virement', 'Carte', 'Autre'];
@@ -30,7 +30,7 @@ function feuilleCate_() {
     f.getRange('A:Z').setNumberFormat('@');
     f.appendRow(COLONNES_CATE);
     f.setFrozenRows(1);
-  }
+  } else completerColonnes_(f, COLONNES_CATE);
   return f;
 }
 
@@ -89,7 +89,8 @@ function nombre_(v) { return Number(String(v || '0').replace(',', '.')) || 0; }
 
 function resumeInscription_(x) {
   var manuels = json2_(x.manuels, []), paiements = json2_(x.paiements, []);
-  var du = nombre_(x.cotisation) + manuels.reduce(function (a, m) { return a + nombre_(m.prix); }, 0);
+  // livres passés en commande (boutique) : payés à part, hors de l'inscription
+  var du = nombre_(x.cotisation) + (x.commande_id ? 0 : manuels.reduce(function (a, m) { return a + nombre_(m.prix); }, 0));
   var paye = paiements.reduce(function (a, p) { return a + nombre_(p.montant); }, 0);
   return {
     id: x.id, annee: x.annee, cree_le: x.cree_le, source: String(x.source).indexOf(':') > -1 ? 'Formulaire' : x.source,
@@ -386,6 +387,17 @@ function importerCate_(p, s) {
     });
   });
   nouvelles.forEach(function (x) { try { creerDemandesAuto_(x, s); } catch (e) { erreurs.push(x.prenoms + ' ' + x.nom + ' (dossier) : ' + e.message); } });
+  // paiement en ligne actif : livres choisis → commande ; mail aux parents avec les liens de paiement
+  if (nouvelles.length && haActif_()) {
+    var familles = {};
+    nouvelles.forEach(function (x) { var e = String(x.email || '').toLowerCase().split(/[\s,;]+/)[0]; if (/@/.test(e)) (familles[e] = familles[e] || []).push(x); });
+    Object.keys(familles).forEach(function (e) {
+      try {
+        var cmd = verrou_(function () { return commandeDepuisInscriptions_(e, familles[e]); });
+        mailPaiementCate_(e, familles[e], cmd);
+      } catch (err) { erreurs.push('Mail de paiement ' + e + ' : ' + err.message); }
+    });
+  }
   if (nouvelles.length) {
     journaliser_(s, 'Inscriptions catéchisme importées', String(nouvelles.length));
     var texte = nouvelles.length === 1 ? nouvelles[0].prenoms + ' ' + nouvelles[0].nom + ' (' + (nouvelles[0].classe || '') + ')' : nouvelles.length + ' nouvelles inscriptions';
@@ -427,8 +439,10 @@ function envoyerCate_(p, s) {
         detail: enfants.map(function (x) { var r = resumeInscription_(x); return '- ' + x.prenoms + ' : ' + r.reste + ' € restant (sur ' + r.du + ' €)'; }).join('\n')
       };
       var corps = remplirModeleServeur_(p.corps, ctx), sujet = remplirModeleServeur_(p.sujet, ctx);
-      var o = { name: opts.name, from: opts.from, htmlBody: corpsHtml_(corps, p.signature) };
-      GmailApp.sendEmail(e, sujet, corpsTexte_(corps, p.signature), o);
+      var boutons = /\[Bouton : Payer en ligne\]/.test(corps) && haActif_() ? [{ texte: 'Payer en ligne', url: lienPaiementCate_(e) }] : [];
+      if (!boutons.length) corps = corps.replace(/\n?\[Bouton : Payer en ligne\]\n?/, '\n');
+      var o = { name: opts.name, from: opts.from, htmlBody: corpsHtml_(corps, p.signature, boutons) };
+      GmailApp.sendEmail(e, sujet, corpsTexte_(corps, p.signature, boutons), o);
     });
   } else {
     for (var i = 0; i < emails.length; i += 90) {
@@ -438,4 +452,23 @@ function envoyerCate_(p, s) {
   }
   journaliser_(s, p.individuel ? 'Catéchisme : relance' : 'Catéchisme : mail aux parents', (p.sujet || '') + ' → ' + emails.length + ' familles');
   return { nb: emails.length };
+}
+
+/** Mail aux parents après l'inscription : cotisation (et livres) à payer en ligne, ou au secrétariat. */
+function mailPaiementCate_(email, enfants, commande) {
+  var du = enfants.reduce(function (a, x) { return a + resumeInscription_(x).du; }, 0);
+  var euro = function (v) { return (Math.round(v * 100) / 100).toLocaleString('fr-FR') + ' €'; };
+  var boutons = [], t = 'Bonjour,\n\nNous avons bien reçu l\'inscription de ' + enfants.map(function (x) { return x.prenoms; }).join(' et ') + ' au catéchisme (' + enfants[0].annee + ').';
+  if (du > 0) { t += '\n\nCotisation : ' + euro(du) + '\n[Bouton : Payer la cotisation en ligne]'; boutons.push({ texte: 'Payer la cotisation en ligne', url: lienPaiementCate_(email) }); }
+  if (commande) {
+    t += '\n\nLivres commandés :\n' + json2_(commande.lignes, []).map(function (l) { return '- ' + l.titre + (l.pour ? ' (' + l.pour + ')' : '') + ' : ' + euro(l.prix * l.qte); }).join('\n') +
+      '\nTotal des livres : ' + euro(nombre_(commande.total)) + '\n[Bouton : Payer les livres en ligne]';
+    boutons.push({ texte: 'Payer les livres en ligne', url: urlPaiement_({ o: 'livres', c: commande.jeton }) });
+  }
+  t += '\n\n' + (haReglages_().hors_ligne || 'Vous pouvez aussi régler par chèque ou en espèces au secrétariat.') +
+    '\n\nD\'autres livres sont disponibles dans notre boutique :\n[Bouton : Voir les livres]\n\nAvec l\'assurance de nos prières à toutes vos intentions,';
+  boutons.push({ texte: 'Voir les livres', url: lienBoutique_(email) });
+  if (du <= 0 && !commande) return;
+  var opts = optionsEnvoi_();
+  GmailApp.sendEmail(email, 'Inscription au catéchisme – paiement', corpsTexte_(t, 'paroisse', boutons), { name: opts.name, from: opts.from, htmlBody: corpsHtml_(t, 'paroisse', boutons) });
 }

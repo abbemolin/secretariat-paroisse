@@ -51,7 +51,7 @@ label{display:block;font-size:13px;color:#6b5b55;margin:10px 0 3px}
   var URL_SCRIPT = __URL_SCRIPT__;
   var q = new URLSearchParams(location.search);
   var R = q.get('r') || '', D = q.get('d') || '', K = q.get('k') || '', M = q.get('m') || '';
-  var ret = null, f = null, enfants = true, fini = null, confirmerAnnulation = false;
+  var ret = null, f = null, enfants = true, fini = null, confirmerAnnulation = false, montantServeur = null;
   function $(id) { return document.getElementById(id); }
   function e(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   function euros(n) { return (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('fr-FR') + ' €'; }
@@ -65,7 +65,8 @@ label{display:block;font-size:13px;color:#6b5b55;margin:10px 0 3px}
   function montant() {
     var t = 0;
     f.participants.forEach(function (p) { ret.prix.forEach(function (l) { if (l.obligatoire || p.options.indexOf(l.id) > -1) t += nb(l.montant); }); });
-    return { retraite: t, ceremonie: nb(f.ceremonie), total: t + nb(f.ceremonie) };
+    var surPlace = ret.paiement_lieu === 'sur_place' ? t : 0;
+    return { retraite: t - surPlace, sur_place: surPlace, ceremonie: nb(f.ceremonie), total: t - surPlace + nb(f.ceremonie) };
   }
   function quand() {
     var j = ret.date_fin && ret.date_fin !== ret.date_debut ? 'Du ' + jour(ret.date_debut) + ' au ' + jour(ret.date_fin) : 'Le ' + jour(ret.date_debut);
@@ -110,7 +111,7 @@ label{display:block;font-size:13px;color:#6b5b55;margin:10px 0 3px}
       return;
     }
     h += '<div class="carte">';
-    if (M) h += '<div class="info">Vous modifiez votre inscription. Pensez à enregistrer en bas de page.</div>';
+    if (M) h += '<div class="info">Vous modifiez votre inscription. Pensez à enregistrer en bas de page.</div>' + boutonsPaiement(M, montantServeur);
     if (enfants) {
       h += '<h2>Parent</h2>' + champ('contact_nom', 'Prénom et nom *') + '<div class="grille"><div>' + champ('contact_email', 'E-mail *', 'email') + '</div><div>' + champ('contact_tel', 'Téléphone *', 'tel') + '</div></div>';
       h += '<h2 style="margin-top:18px">' + (f.participants.length > 1 ? 'Enfants' : 'Enfant') + '</h2>' + f.participants.map(blocParticipant).join('') +
@@ -138,10 +139,18 @@ label{display:block;font-size:13px;color:#6b5b55;margin:10px 0 3px}
   }
   function totaux() {
     var m = montant(), z = $('totaux'); if (!z) return;
-    z.innerHTML = '<div class="compris" style="margin-top:14px"><span>Retraite</span><span>' + euros(m.retraite) + '</span></div>' +
+    z.innerHTML = (m.sur_place ? '<div class="compris" style="margin-top:14px"><span>Hébergement et repas, à régler sur place' + (ret.lieu ? ' (' + e(ret.lieu) + ')' : '') + '</span><span>' + euros(m.sur_place) + '</span></div>' : '') +
+      (m.retraite ? '<div class="compris" style="margin-top:14px"><span>Retraite</span><span>' + euros(m.retraite) + '</span></div>' : '') +
       (m.ceremonie ? '<div class="compris"><span>Participation cérémonie</span><span>' + euros(m.ceremonie) + '</span></div>' : '') +
-      '<div class="total"><span>Total</span><span>' + euros(m.total) + '</span></div>' +
+      '<div class="total"><span>' + (m.sur_place ? 'À régler à la paroisse' : 'Total') + '</span><span>' + euros(m.total) + '</span></div>' +
       (ret.paiement_texte ? '<p class="petit">Paiement : ' + e(ret.paiement_texte) + '</p>' : '');
+  }
+  function boutonsPaiement(jeton, m) {
+    if (!ret.en_ligne || !m) return '';
+    var h = '';
+    if (m.reste_retraite > 0) h += '<a class="bouton principal" style="display:inline-block;text-decoration:none" href="../paiement/?o=retraite&m=' + e(jeton) + '">Payer la retraite en ligne (' + euros(m.reste_retraite) + ')</a>';
+    if (m.reste_ceremonie > 0) h += '<a class="bouton" style="display:inline-block;text-decoration:none" href="../paiement/?o=ceremonie&m=' + e(jeton) + '">Participer aux frais de la cérémonie (' + euros(m.reste_ceremonie) + ')</a>';
+    return h ? '<div style="margin-top:10px">' + h + '<p class="petit">Paiement sécurisé par HelloAsso. Vous pouvez aussi régler autrement (voir ci-dessus).</p></div>' : '';
   }
   function message(t, ok) { var z = $('z'); if (z) { z.className = ok ? 'ok' : 'erreur'; z.textContent = t; z.style.display = 'block'; } }
 
@@ -186,7 +195,9 @@ label{display:block;font-size:13px;color:#6b5b55;margin:10px 0 3px}
         var m = r.inscription.montant;
         fini = '<div class="ok"><b>' + (M ? 'Modifications enregistrées.' : 'Inscription enregistrée, merci !') + '</b><br>Un mail de confirmation a été envoyé à ' + e(f.contact_email) + ' ; il contient un lien pour modifier ou annuler l\'inscription.</div>' +
           '<div class="compris"><span>' + r.inscription.participants.map(function (x) { return e(x.prenoms + ' ' + x.nom); }).join(', ') + '</span></div>' +
-          '<div class="total"><span>Total à régler</span><span>' + euros(m.du) + '</span></div>' + (ret.paiement_texte ? '<p class="pre">' + e(ret.paiement_texte) + '</p>' : '');
+          (m.sur_place ? '<div class="compris"><span>Hébergement et repas, à régler sur place</span><span>' + euros(m.sur_place) + '</span></div>' : '') +
+          '<div class="total"><span>Total à régler' + (m.sur_place ? ' à la paroisse' : '') + '</span><span>' + euros(m.du) + '</span></div>' + (ret.paiement_texte ? '<p class="pre">' + e(ret.paiement_texte) + '</p>' : '') +
+          boutonsPaiement(r.jeton, m);
         rendre(); window.scrollTo(0, 0);
       }).catch(function (err) { b.disabled = false; b.textContent = M ? 'Enregistrer les modifications' : 'Valider l\'inscription'; message(err.message); });
     }
@@ -198,7 +209,7 @@ label{display:block;font-size:13px;color:#6b5b55;margin:10px 0 3px}
     $('sous').textContent = (ret.paroisse || 'Paroisse La Croix glorieuse');
     document.title = ret.titre + ' – inscription';
     if (r.inscription) {
-      var x = r.inscription;
+      var x = r.inscription; montantServeur = x.montant;
       f = { contact_nom: x.contact_nom, contact_email: x.contact_email, contact_tel: x.contact_tel, ceremonie: x.ceremonie || '', urgence_nom: x.urgence_nom, urgence_tel: x.urgence_tel,
             autorisation: !!x.autorisation, covoiturage: x.covoiturage, covoit_places: x.covoit_places, remarque: x.remarque,
             participants: x.participants.map(function (p) { var n = nouveauParticipant(); for (var k in p) n[k] = p[k]; n.options = p.options || []; return n; }) };

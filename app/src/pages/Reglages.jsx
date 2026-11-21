@@ -6,7 +6,7 @@ import { useApp } from '../App.jsx'
 import { Chargement, Erreur, useCharger, useNotif, dateHeure, Interrupteur } from '../ui.jsx'
 import { ApercuSignature } from './Courrier.jsx'
 
-const ONGLETS = ['Paroisse', 'Signatures', 'Réponses types', 'Tri automatique', 'Catéchisme', 'Confirmands', 'Cor Unum', 'Journal']
+const ONGLETS = ['Paroisse', 'Signatures', 'Réponses types', 'Tri automatique', 'Catéchisme', 'Confirmands', 'Cor Unum', 'Paiements en ligne', 'Journal']
 
 export default function Reglages() {
   const [onglet, setOnglet] = useState('Paroisse')
@@ -23,6 +23,7 @@ export default function Reglages() {
       {onglet === 'Catéchisme' && <CatechismeReglages />}
       {onglet === 'Confirmands' && <ConfirmandsReglages />}
       {onglet === 'Cor Unum' && <CorUnumReglages />}
+      {onglet === 'Paiements en ligne' && <PaiementsReglages />}
       {onglet === 'Journal' && <Journal />}
     </>
   )
@@ -478,6 +479,70 @@ function ConfirmandsReglages() {
           <button className="btn-clair flex-1" onClick={importer} disabled={importe}>{importe ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}Importer maintenant</button>
           <button className="btn-principal" onClick={() => enregistrer()} disabled={envoi}>{envoi && <Loader2 className="h-4 w-4 animate-spin" />}Enregistrer</button>
         </div>
+      </div>
+    </div>
+  )
+}
+
+const STATUTS_PAIEMENT = { paye: ['Reçu', 'bg-emerald-100 text-emerald-900'], en_attente: ['En attente', 'bg-amber-100 text-amber-900'], cree: ['Préparé', 'bg-nuit-100 text-nuit-600'], abandonne: ['Abandonné', 'bg-nuit-100 text-nuit-600'] }
+
+function PaiementsReglages() {
+  const notifier = useNotif()
+  const { data, chargement, erreur } = useCharger(() => api('paiements.reglages'), [])
+  const [f, setF] = useState(null)
+  const [secret, setSecret] = useState('')
+  const [envoi, setEnvoi] = useState(false)
+  const [test, setTest] = useState(null)
+  useEffect(() => { if (data) setF(data) }, [data])
+  if (chargement || !f) return <><Erreur erreur={erreur} />{!erreur && <Chargement />}</>
+  async function enregistrer(modif = {}) {
+    const g = { ...f, ...modif }
+    setF(g); setEnvoi(true)
+    try {
+      const r = await api('paiements.reglagesEcrire', { slug: g.slug, client_id: g.client_id, client_secret: secret || undefined, sandbox: g.sandbox, actif: g.actif, hors_ligne: g.hors_ligne })
+      setF(r); setSecret(''); notifier(modif.actif !== undefined ? (g.actif ? 'Paiement en ligne activé' : 'Paiement en ligne désactivé') : 'Réglages enregistrés')
+    } catch (e) { notifier(e.message, 'erreur') } finally { setEnvoi(false) }
+  }
+  async function tester() {
+    setTest('…')
+    try { const r = await api('paiements.tester'); setTest(`✓ Connecté à « ${r.nom} »${r.ville ? ' (' + r.ville + ')' : ''} – mode ${r.mode}`) } catch (e) { setTest('✗ ' + e.message) }
+  }
+  const copier = (t) => navigator.clipboard?.writeText(t).then(() => notifier('Copié'), () => notifier('Copie impossible', 'erreur'))
+  const pret = f.slug && f.client_id && f.secret_ok
+  return (
+    <div className="max-w-3xl space-y-5">
+      <div className="carte space-y-3 p-5">
+        <h2 className="text-xl font-semibold">HelloAsso</h2>
+        <p className="text-sm text-nuit-600">Paiement en ligne de la cotisation du catéchisme (par famille), des livres et des retraites (retraite et participation à la cérémonie, séparément). L'appli calcule le montant, la personne paie sur la page sécurisée de HelloAsso, puis le paiement s'inscrit tout seul dans l'appli.</p>
+        <div><label className="etiquette">Adresse ou nom court de l'association sur HelloAsso</label><input className="champ" placeholder="https://www.helloasso.com/associations/…" value={f.slug} onChange={(e) => setF({ ...f, slug: e.target.value })} /></div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div><label className="etiquette">Identifiant de l'API (Client ID)</label><input className="champ" value={f.client_id} onChange={(e) => setF({ ...f, client_id: e.target.value })} /></div>
+          <div><label className="etiquette">Secret de l'API (Client Secret)</label><input className="champ" type="password" autoComplete="new-password" placeholder={f.secret_ok ? '•••••••• (enregistré)' : ''} value={secret} onChange={(e) => setSecret(e.target.value)} /></div>
+        </div>
+        <p className="text-xs text-nuit-600/70">Sur HelloAsso : Mon compte → Intégrations et API. Le secret n'est jamais réaffiché.</p>
+        <label className="flex items-center gap-3 text-sm"><Interrupteur actif={f.sandbox} onChange={(v) => setF({ ...f, sandbox: v })} />Mode essai (compte « sandbox » de HelloAsso, aucun vrai paiement)</label>
+        <div className="flex flex-wrap gap-2">
+          <button className="btn-principal" disabled={envoi} onClick={() => enregistrer()}>{envoi && <Loader2 className="h-4 w-4 animate-spin" />}Enregistrer</button>
+          <button className="btn-clair" disabled={!pret} onClick={tester}>Tester la connexion</button>
+        </div>
+        {test && <p className={`text-sm ${test.startsWith('✓') ? 'text-emerald-700' : test.startsWith('✗') ? 'text-red-700' : ''}`}>{test}</p>}
+      </div>
+      <div className="carte space-y-3 p-5">
+        <label className="flex items-center gap-3"><Interrupteur actif={f.actif} disabled={!pret || envoi} onChange={(v) => enregistrer({ actif: v })} /><span><strong>Paiement en ligne activé</strong><br /><span className="text-xs text-nuit-600/70">Boutons « Payer en ligne » dans les mails et les pages ; mail automatique aux parents après chaque nouvelle inscription au catéchisme ; contrôle des paiements toutes les 15 minutes.</span></span></label>
+        <div><label className="etiquette">Paiement hors ligne (rappelé dans les mails du catéchisme et de la boutique)</label><textarea className="champ min-h-[70px]" placeholder="Vous pouvez aussi régler par chèque à l'ordre de « … » ou en espèces au secrétariat." value={f.hors_ligne} onChange={(e) => setF({ ...f, hors_ligne: e.target.value })} onBlur={() => enregistrer()} /></div>
+        <div><label className="etiquette">Adresse de notification (à coller sur HelloAsso → Intégrations et API → « Mon URL de callback »)</label>
+          <div className="flex gap-2"><input className="champ text-xs" readOnly value={f.url_notification} onFocus={(e) => e.target.select()} /><button className="btn-clair" onClick={() => copier(f.url_notification)}>Copier</button></div>
+          <p className="mt-1 text-xs text-nuit-600/70">Facultatif : sans elle, les paiements sont quand même vérifiés au retour de la personne et toutes les 15 minutes.</p></div>
+        <div><label className="etiquette">Boutique de livres (lien public)</label>
+          <div className="flex gap-2"><input className="champ text-xs" readOnly value={f.url_boutique} onFocus={(e) => e.target.select()} /><button className="btn-clair" onClick={() => copier(f.url_boutique)}>Copier</button></div></div>
+      </div>
+      <div className="carte p-5">
+        <h2 className="mb-2 text-xl font-semibold">Derniers paiements en ligne</h2>
+        {!f.derniers.length ? <p className="text-sm text-nuit-600/70">Aucun pour l'instant.</p> : (
+          <ul className="divide-y divide-nuit-100 text-sm">{f.derniers.map((x) => (
+            <li key={x.id} className="flex items-center gap-3 py-2"><span className="w-24 shrink-0 text-xs text-nuit-600/70">{dateHeure(x.date)}</span><span className="flex-1">{x.libelle}<span className="block text-xs text-nuit-600/60">{x.email}</span></span>
+              <span className="font-medium">{(x.montant || 0).toLocaleString('fr-FR')} €</span><span className={`pastille ${STATUTS_PAIEMENT[x.statut]?.[1] || ''}`}>{STATUTS_PAIEMENT[x.statut]?.[0] || x.statut}</span></li>))}</ul>
+        )}
       </div>
     </div>
   )

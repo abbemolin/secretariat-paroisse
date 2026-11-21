@@ -186,6 +186,7 @@ function Inscription({ r, x, onFermer, onMaj }) {
         </div>
         <div>
           <div className="rounded-xl bg-nuit-50/60 p-3 text-sm">
+            {x.montant.sur_place > 0 && <div className="flex justify-between text-nuit-600"><span>Réglé sur place (lieu d'accueil)</span><span>{euros(x.montant.sur_place)}</span></div>}
             <div className="flex justify-between"><span>Retraite</span><span>{euros(x.montant.retraite)}</span></div>
             <div className="flex justify-between"><span>Participation cérémonie</span><span>{euros(x.montant.ceremonie)}</span></div>
             <div className="mt-1 flex justify-between border-t border-nuit-100 pt-1 font-semibold"><span>Total</span><span>{euros(x.montant.du)}</span></div>
@@ -194,7 +195,7 @@ function Inscription({ r, x, onFermer, onMaj }) {
           </div>
           <h3 className="etiquette mt-4">Paiements</h3>
           {!x.paiements.length ? <p className="text-sm text-nuit-600/70">Aucun paiement.</p> : x.paiements.map((q) => (
-            <div key={q.id} className="flex items-center gap-2 border-b border-nuit-100 py-1.5 text-sm"><span className="flex-1">{dateCourte(q.date)} · {q.mode} · {q.par}</span><span className="font-medium">{euros(q.montant)}</span>
+            <div key={q.id} className="flex items-center gap-2 border-b border-nuit-100 py-1.5 text-sm"><span className="flex-1">{dateCourte(q.date)} · {q.mode}{q.part === 'ceremonie' ? ' (cérémonie)' : q.part === 'retraite' ? ' (retraite)' : ''} · {q.par}</span><span className="font-medium">{euros(q.montant)}</span>
               <button className="btn-icone p-1 text-red-700" disabled={occupe} onClick={() => action({ retirer: q.id }, 'Paiement retiré')}><Trash2 className="h-3.5 w-3.5" /></button></div>
           ))}
           <div className="mt-3 grid grid-cols-[1fr_1fr] gap-2">
@@ -209,7 +210,7 @@ function Inscription({ r, x, onFermer, onMaj }) {
   )
 }
 
-const VIDE = { type: 'premiere_communion', titre: '', date_debut: '', date_fin: '', heure_debut: '', heure_fin: '', lieu: '', adresse: '', prix: [], ceremonie_suggestion: '', ceremonie_texte: 'Cierge, fleurs, livret de la célébration…', paiement_texte: '', programme: '', apporter: '', responsable_nom: '', responsable_tel: '', date_limite: '', ouverte: true }
+const VIDE = { type: 'premiere_communion', titre: '', date_debut: '', date_fin: '', heure_debut: '', heure_fin: '', lieu: '', adresse: '', prix: [], ceremonie_suggestion: '', ceremonie_texte: 'Cierge, fleurs, livret de la célébration…', paiement_texte: '', programme: '', apporter: '', responsable_nom: '', responsable_tel: '', date_limite: '', ouverte: true, paiement_lieu: '' }
 
 function EditionRetraite({ r, onFermer, onFait }) {
   const [v, setV] = useState(() => ({ ...VIDE, ...r, ouverte: r.ouverte !== 'non' && r.ouverte !== false, prix: (r.prix || []).map((l) => ({ ...l })) }))
@@ -255,6 +256,10 @@ function EditionRetraite({ r, onFermer, onFait }) {
             <button className="btn-clair py-1 text-xs" onClick={() => setV((w) => ({ ...w, prix: [...w.prix, { libelle: '', montant: '', obligatoire: true }] }))}><Plus className="h-3.5 w-3.5" />Ajouter une ligne</button>
             <p className="mt-1 text-xs text-nuit-600/70">« Compris » : toujours compté. « Option » : le participant la coche (ex. nuitée). Prix de base : {euros(total)}.</p>
           </div>
+          <div><label className="etiquette">Ce prix (hébergement, repas…) se règle</label>
+            <div className="flex flex-wrap gap-1.5">{[['', 'À la paroisse (en ligne ou à la main)'], ['sur_place', 'Sur place, au lieu d\'accueil']].map(([k, l]) => (
+              <button key={k} className={`pastille border py-1 ${(v.paiement_lieu || '') === k ? 'border-or bg-or text-white' : 'border-nuit-100 bg-white text-nuit-600'}`} onClick={() => maj('paiement_lieu', k)}>{l}</button>))}</div>
+            {v.paiement_lieu === 'sur_place' && <p className="mt-1 text-xs text-nuit-600/70">Le participant voit le montant à régler sur place ; la paroisse n'encaisse que la participation à la cérémonie.</p>}</div>
           <div className="grid grid-cols-[110px_1fr] gap-3">{champ('ceremonie_suggestion', 'Cérémonie : suggéré (€)', 'text', { inputMode: 'decimal' })}{champ('ceremonie_texte', 'Ce que cela couvre')}</div>
           {zone('paiement_texte', 'Modalités de paiement (dans le mail de confirmation)', 'Chèque à l\'ordre de « Paroisse La Croix glorieuse », à remettre au secrétariat ; ou virement : IBAN…')}
           {zone('programme', 'Programme / horaires détaillés')}

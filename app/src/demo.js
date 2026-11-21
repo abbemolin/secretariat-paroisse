@@ -303,6 +303,16 @@ export async function demoApi(action, p) {
       })
       return { nouveaux, completes, ignores: 0 }
     }
+    case 'paiements.reglages': return etat.ha ||= { actif: true, slug: 'paroisse-la-croix-glorieuse', client_id: 'abc123', sandbox: true, secret_ok: true, hors_ligne: 'Vous pouvez aussi régler par chèque à l\'ordre de « Paroisse La Croix glorieuse » ou en espèces au secrétariat.', url_notification: 'https://script.google.com/macros/s/…/exec', url_boutique: 'https://secretariat.croix-glorieuse.org/livres/',
+      derniers: [{ id: 'y1', date: '2026-11-20T18:12:00Z', objet: 'cate', libelle: 'Catéchisme 2026-2027 – Hugo, Lina', montant: 60, statut: 'paye', email: 'claire.w@example.fr' }, { id: 'y2', date: '2026-11-21T09:02:00Z', objet: 'retraite', libelle: 'Retraite – Première communion – Léon, Zoé', montant: 85, statut: 'en_attente', email: 'paul.martin@example.fr' }] }
+    case 'paiements.reglagesEcrire': Object.assign(etat.ha, p); return etat.ha
+    case 'paiements.tester': return { nom: 'Paroisse La Croix glorieuse', ville: 'Strasbourg', mode: 'essai (sandbox)' }
+    case 'livres.liste': return etat.livres ||= { en_ligne: true, lien_boutique: 'https://secretariat.croix-glorieuse.org/livres/', groupes: ['Maternelle-CP', 'CE1-CE2', 'CM1-CM2', '6e-5e', '4e-3e', 'Lycéens'],
+      livres: [{ id: 'l1', titre: 'Parcours « Viens, suis-moi » CM1', prix: 12, groupe: 'CM1-CM2', stock: 14 }, { id: 'l2', titre: 'Bible des enfants', prix: 20, groupe: '', stock: null }, { id: 'l3', titre: 'Cahier de première communion', prix: 8, groupe: 'CE1-CE2', stock: 0 }],
+      commandes: [{ id: 'k1', cree_le: '2026-11-19T10:00:00Z', nom: 'Claire Weber', email: 'claire.w@example.fr', telephone: '06 55 44 33 22', lignes: [{ titre: 'Parcours « Viens, suis-moi » CM1', prix: 12, qte: 1, pour: 'Hugo' }], total: 12, statut: 'en_attente', remis: false, source: 'Inscription au catéchisme', reste: 12, paiements: [], lien_paiement: 'https://secretariat.croix-glorieuse.org/paiement/?o=livres&c=…' },
+        { id: 'k2', cree_le: '2026-11-20T15:00:00Z', nom: 'Jean Dupont', email: 'jean@example.fr', telephone: '', lignes: [{ titre: 'Bible des enfants', prix: 20, qte: 2 }], total: 40, statut: 'payee', remis: false, source: 'Boutique', reste: 0, paiements: [{ id: 'q', date: '2026-11-20', montant: 40, mode: 'HelloAsso', par: 'Paiement en ligne' }] }] }
+    case 'livres.catalogue': etat.livres.livres = p.livres.map((l, i) => ({ ...l, id: l.id || 'n' + i, prix: Number(l.prix) || 0, stock: l.stock === '' ? null : Number(l.stock) })); return etat.livres
+    case 'livres.commande': { const c = etat.livres.commandes.find((x) => x.id === p.id); if (p.remis !== undefined) c.remis = p.remis; if (p.statut) c.statut = p.statut; if (p.ajouter) { c.paiements.push({ id: 'q' + Date.now(), date: new Date().toISOString(), montant: Number(p.ajouter.montant), mode: p.ajouter.mode, par: moi.nom }); c.reste = c.total - c.paiements.reduce((a, x) => a + x.montant, 0); if (c.reste <= 0) c.statut = 'payee' } return etat.livres }
     case 'retraites.liste': return { annee: p.annee || '2026-2027', annees: ['2026-2027'], retraites: etat.retraites.filter((r) => r.annee === (p.annee || '2026-2027')).map(retResume) }
     case 'retraites.lire': return retLire(p.id)
     case 'retraites.ecrire': {

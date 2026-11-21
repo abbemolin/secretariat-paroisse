@@ -15,7 +15,7 @@ var TYPES_RETRAITE = {
 };
 var COLONNES_RETRAITES = ['id', 'annee', 'type', 'titre', 'date_debut', 'date_fin', 'heure_debut', 'heure_fin', 'lieu', 'adresse',
   'prix', 'ceremonie_suggestion', 'ceremonie_texte', 'paiement_texte', 'programme', 'apporter', 'responsable_nom', 'responsable_tel',
-  'date_limite', 'ouverte', 'jeton', 'cree_le', 'maj_le', 'maj_par'];
+  'date_limite', 'ouverte', 'jeton', 'cree_le', 'maj_le', 'maj_par', 'paiement_lieu'];
 var COLONNES_RET_INSCR = ['id', 'retraite_id', 'jeton', 'statut', 'cree_le', 'maj_le', 'contact_nom', 'contact_email', 'contact_tel',
   'participants', 'ceremonie', 'urgence_nom', 'urgence_tel', 'autorisation', 'covoiturage', 'covoit_places', 'remarque', 'paiements', 'source'];
 
@@ -29,7 +29,7 @@ function feuilleRet_(nom, colonnes) {
   }
   return f;
 }
-function feuillesRetraites_() { feuilleRet_('Retraites', COLONNES_RETRAITES); feuilleRet_('RetraitesInscrits', COLONNES_RET_INSCR); }
+function feuillesRetraites_() { completerColonnes_(feuilleRet_('Retraites', COLONNES_RETRAITES), COLONNES_RETRAITES); feuilleRet_('RetraitesInscrits', COLONNES_RET_INSCR); }
 
 // ─── Calculs ───
 
@@ -44,9 +44,16 @@ function montantInscription_(r, x) {
     lignes.forEach(function (l) { if (l.obligatoire || opts.indexOf(l.id) > -1) total += nombre_(l.montant); });
   });
   var ceremonie = nombre_(x.ceremonie);
-  var paye = json2_(x.paiements, []).reduce(function (a, p) { return a + nombre_(p.montant); }, 0);
   var arr = function (v) { return Math.round(v * 100) / 100; };
-  return { retraite: arr(total), ceremonie: arr(ceremonie), du: arr(total + ceremonie), paye: arr(paye), reste: arr(total + ceremonie - paye) };
+  // hébergement et repas réglés sur place, au lieu d'accueil : la paroisse n'encaisse que la participation
+  var surPlace = r.paiement_lieu === 'sur_place' ? total : 0;
+  var retraite = total - surPlace;
+  var pc = 0, pr = 0, libre = 0;
+  json2_(x.paiements, []).forEach(function (p) { if (p.part === 'ceremonie') pc += nombre_(p.montant); else if (p.part === 'retraite') pr += nombre_(p.montant); else libre += nombre_(p.montant); });
+  var surR = Math.min(libre, Math.max(0, retraite - pr)); pr += surR; pc += libre - surR;
+  var paye = pr + pc;
+  return { retraite: arr(retraite), sur_place: arr(surPlace), ceremonie: arr(ceremonie), du: arr(retraite + ceremonie), paye: arr(paye), reste: arr(retraite + ceremonie - paye),
+           reste_retraite: arr(Math.max(0, retraite - pr)), reste_ceremonie: arr(Math.max(0, ceremonie - pc)) };
 }
 function anneeAdultes_(annee) { return String(annee || '').split('-')[1] || String(annee || ''); }
 function titreRetraite_(r) { return r.titre || ('Retraite – ' + ((TYPES_RETRAITE[r.type] || {}).nom || '')); }
@@ -67,7 +74,8 @@ function retraitePublique_(r) {
     date_debut: r.date_debut, date_fin: r.date_fin, heure_debut: r.heure_debut, heure_fin: r.heure_fin, lieu: r.lieu, adresse: r.adresse,
     prix: lignesPrix_(r), ceremonie_suggestion: nombre_(r.ceremonie_suggestion), ceremonie_texte: r.ceremonie_texte,
     programme: r.programme, apporter: r.apporter, responsable_nom: r.responsable_nom, responsable_tel: r.responsable_tel,
-    paiement_texte: r.paiement_texte, date_limite: r.date_limite, ouverte: estOuverteRet_(r), paroisse: reglages_().paroisse
+    paiement_texte: r.paiement_texte, date_limite: r.date_limite, ouverte: estOuverteRet_(r), paroisse: reglages_().paroisse,
+    paiement_lieu: r.paiement_lieu || '', en_ligne: haActif_()
   };
 }
 function estOuverteRet_(r) {
@@ -145,7 +153,7 @@ function ecrireRetraite_(p, s) {
   var id = verrou_(function () {
     var r = v.id ? trouverRetraite_(v.id) : { id: uid_(), jeton: jeton_(), cree_le: maintenant_() };
     ['annee', 'type', 'titre', 'date_debut', 'date_fin', 'heure_debut', 'heure_fin', 'lieu', 'adresse', 'ceremonie_suggestion', 'ceremonie_texte',
-     'paiement_texte', 'programme', 'apporter', 'responsable_nom', 'responsable_tel', 'date_limite'].forEach(function (k) {
+     'paiement_texte', 'programme', 'apporter', 'responsable_nom', 'responsable_tel', 'date_limite', 'paiement_lieu'].forEach(function (k) {
       if (v[k] !== undefined) r[k] = String(v[k] == null ? '' : v[k]).slice(0, 4000);
     });
     if (!r.annee) r.annee = anneeScolaire_(r.date_debut);
@@ -371,14 +379,21 @@ function mailConfirmationRetraite_(r, x, modif) {
   var t = 'Bonjour,\n\n' + (modif ? 'Votre inscription a bien été modifiée' : 'Nous avons bien reçu votre inscription') + ' à ' + nomTexte +
     ', ' + quandRetraite_(r) + (r.lieu ? ', ' + r.lieu + (r.adresse ? ' (' + r.adresse + ')' : '') : '') + '.\n\n' +
     'Participant(s) :\n' + det + '\n\n' +
-    'Retraite : ' + euro(m.retraite) + (m.ceremonie ? '\nParticipation aux frais de la cérémonie : ' + euro(m.ceremonie) : '') + '\nTotal : ' + euro(m.du) +
+    (m.sur_place ? 'Hébergement et repas : ' + euro(m.sur_place) + ', à régler sur place' + (r.lieu ? ' (' + r.lieu + ')' : '') + '.\n' : '') +
+    (m.retraite ? 'Retraite : ' + euro(m.retraite) + '\n' : '') + (m.ceremonie ? 'Participation aux frais de la cérémonie : ' + euro(m.ceremonie) + '\n' : '') +
+    (m.du ? 'Total à régler à la paroisse : ' + euro(m.du) : '') +
+    (haActif_() && m.reste_retraite > 0 ? '\n[Bouton : Payer la retraite en ligne]' : '') +
+    (haActif_() && m.reste_ceremonie > 0 ? '\n[Bouton : Participer aux frais de la cérémonie]' : '') +
     (r.paiement_texte ? '\n\nPaiement : ' + r.paiement_texte : '') +
     (r.programme ? '\n\nProgramme :\n' + r.programme : '') +
     (r.apporter ? '\n\nÀ apporter :\n' + r.apporter : '') +
     (r.responsable_nom ? '\n\nResponsable : ' + r.responsable_nom + (r.responsable_tel ? ' – ' + r.responsable_tel : '') : '') +
     '\n\nPour modifier ou annuler votre inscription' + (r.date_limite ? ' (jusqu\'au ' + dateFr_(r.date_limite) + ')' : '') + ' :\n[Bouton : Modifier mon inscription]' +
     '\n\nAvec l\'assurance de nos prières à toutes vos intentions,';
-  var boutons = [{ texte: 'Modifier mon inscription', url: urlRetraite_({ m: x.jeton }) }];
+  var boutons = [{ texte: 'Modifier mon inscription', url: urlRetraite_({ m: x.jeton }) },
+    { texte: 'Payer la retraite en ligne', url: urlPaiement_({ o: 'retraite', m: x.jeton }) },
+    { texte: 'Participer aux frais de la cérémonie', url: urlPaiement_({ o: 'ceremonie', m: x.jeton }) }];
+  boutons = boutons.filter(function (b) { return t.indexOf('[Bouton : ' + b.texte + ']') > -1; });
   var opts = optionsEnvoi_();
   GmailApp.sendEmail(x.contact_email, (modif ? 'Inscription modifiée – ' : 'Inscription reçue – ') + titreRetraite_(r), corpsTexte_(t, 'paroisse', boutons),
     { name: opts.name, from: opts.from, htmlBody: corpsHtml_(t, 'paroisse', boutons) });
