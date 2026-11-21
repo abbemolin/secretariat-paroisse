@@ -72,6 +72,7 @@ function doPost(e) {
     if (action === 'public.infos') return json_({ ok: true, data: infosPubliques_(p) });
     if (/^chef\./.test(action)) return json_({ ok: true, data: actionChef_(action, p) });
     if (/^ret\./.test(action)) return json_({ ok: true, data: actionRetraitePublique_(action, p) });
+    if (/^esp\./.test(action)) return json_({ ok: true, data: actionEspace_(action, p) });
     if (/^pay\./.test(action)) return json_({ ok: true, data: actionPaiementPublique_(action, p) });
     if (/^boutique\./.test(action)) return json_({ ok: true, data: actionBoutique_(action, p) });
 
@@ -163,6 +164,13 @@ var ROUTES = {
   'dossiers.importerCatechumenes': { fn: importerCatechumenes_, droit: 'dossiers' },
   'cor.liste':             { fn: listerCor_, droit: 'dossiers' },
   'retraites.liste':       { fn: listerRetraites_, droit: 'dossiers' },
+  'espace.etat':           { fn: etatEspace_, droit: 'dossiers' },
+  'espace.lien':           { fn: lienEspace_, droit: 'dossiers' },
+  'espace.lettre':         { fn: lettreEspace_, droit: 'dossiers' },
+  'textes.liste':          { fn: listerTextes_, droit: 'dossiers' },
+  'textes.ecrire':         { fn: ecrireTexte_, droit: 'dossiers' },
+  'textes.supprimer':      { fn: supprimerTexte_, droit: 'dossiers' },
+  'calendrier.ecrire':     { fn: ecrireCalendrier_, droit: 'dossiers' },
   'paiements.reglages':    { fn: lireHaReglages_, droit: 'reglages' },
   'paiements.reglagesEcrire': { fn: ecrireHaReglages_, droit: 'reglages' },
   'paiements.tester':      { fn: testerHelloAsso_, droit: 'reglages' },

@@ -9,7 +9,7 @@ import { Chargement, Erreur, Modale, useNotif, useConfirmer, useDifferer, useAut
 import { Redaction } from './Courrier.jsx'
 import { htmlVersPdf } from '../pdf.js'
 import { creerExtrait, PadSignature, chargerSceau } from './Extraits.jsx'
-import { PenLine, RefreshCw, HeartHandshake, Link2 } from 'lucide-react'
+import { PenLine, RefreshCw, HeartHandshake, Link2, Smartphone, Copy } from 'lucide-react'
 
 const champsEditables = (d) => ({
   infos: d.infos, etapes: d.etapes, documents: d.documents, rencontres: d.rencontres,
@@ -138,6 +138,7 @@ export default function Dossier() {
           <h1 className="text-3xl font-semibold leading-tight">{d.nom || 'Sans nom'}</h1>
           <p className="text-xs text-nuit-600/70">Créé le {dateCourte(d.cree_le)} · {d.source}{t.note ? ` · ${t.note}` : ''}{b.infos.inscription_catechisme && <> · <Link to={`/catechisme/${b.infos.inscription_catechisme}`} className="text-or-600 hover:underline">Inscription au catéchisme →</Link></>}</p>
           {['catechumene', 'confirmand'].includes(d.type) && <FraterniteDossier d={d} onMaj={(f) => setD((x) => ({ ...x, fraternite: f }))} />}
+          {d.type === 'catechumene' && <EspaceDossier d={d} />}
         </div>
         <div className="flex flex-wrap gap-2">
           <select className="champ w-auto" value={b.responsable} onChange={(e) => setB({ ...b, responsable: e.target.value })}>
@@ -532,5 +533,60 @@ function ChoixFicheCor({ d, actuelle, onFermer, onChoisir }) {
         )}
       </>}
     </Modale>
+  )
+}
+
+/** Espace personnel (app « Croix glorieuse ») du catéchumène / néophyte : lien, envoi, lettre à l'évêque. */
+function EspaceDossier({ d }) {
+  const notifier = useNotif()
+  const confirmer = useConfirmer()
+  const [e, setE] = useState(null)
+  const [mail, setMail] = useState(false)
+  const [remarque, setRemarque] = useState(null)
+  const [occupe, setOccupe] = useState(false)
+  const [voirLettre, setVoirLettre] = useState(false)
+  useEffect(() => { api('espace.etat', { id: d.id }).then(setE).catch(() => setE(false)) }, [d.id])
+  if (!e) return null
+  async function action(nom, params, msg) {
+    setOccupe(true)
+    try { setE(await api(nom, { id: d.id, ...params })); if (msg) notifier(msg) } catch (err) { notifier(err.message, 'erreur') } finally { setOccupe(false) }
+  }
+  async function nouveau() {
+    if (!(await confirmer({ titre: 'Nouveau lien', texte: "L'ancien lien ne fonctionnera plus. Le mot de passe reste le même.", bouton: 'Créer un nouveau lien', danger: true }))) return
+    action('espace.lien', { nouveau: true }, 'Nouveau lien créé')
+  }
+  const copier = () => navigator.clipboard?.writeText(e.lien).then(() => notifier('Lien copié'), () => notifier('Copie impossible', 'erreur'))
+  const l = e.lettre
+  const STATUTS = { brouillon: ['Brouillon en cours', 'bg-nuit-100 text-nuit-600'], envoyee: ['À relire', 'bg-amber-100 text-amber-900'], a_corriger: ['Correction demandée', 'bg-sky-100 text-sky-900'], validee: ['Validée', 'bg-emerald-100 text-emerald-900'] }
+  const B = 'Ouvrir mon espace'
+  return (
+    <div className="mt-2 rounded-xl border border-nuit-100 bg-white px-3 py-2 text-sm">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <Smartphone className="h-4 w-4 shrink-0 text-or" />
+        <span className="min-w-0 flex-1"><b>Espace personnel</b> <span className="text-nuit-600/70">(app « Croix glorieuse »)</span>
+          {e.existe && <span className="block text-xs text-nuit-600/70">{e.mot_de_passe ? `Mot de passe choisi le ${dateCourte(e.mot_de_passe)}` : 'Mot de passe pas encore choisi'}{e.derniere_visite ? ` · dernière visite ${dateRelative(e.derniere_visite)}` : ''}{!e.mail ? ' · aucune adresse e-mail dans le dossier' : ''}</span>}</span>
+        {!e.existe ? <button className="btn-clair px-2.5 py-1 text-xs" disabled={occupe} onClick={() => action('espace.lien', {}, 'Espace personnel créé')}>Créer son espace</button> : <span className="flex flex-wrap gap-1.5">
+          <button className="btn-or px-2.5 py-1 text-xs" disabled={!e.mail} onClick={() => setMail(true)}><Mail className="h-3.5 w-3.5" />Envoyer le lien</button>
+          <button className="btn-clair px-2.5 py-1 text-xs" onClick={copier}><Copy className="h-3.5 w-3.5" />Copier</button>
+          <button className="btn-clair px-2.5 py-1 text-xs" disabled={occupe} onClick={nouveau}><RefreshCw className="h-3.5 w-3.5" />Nouveau lien</button></span>}
+      </div>
+      {l.texte && (
+        <div className="mt-2 border-t border-nuit-100 pt-2">
+          <div className="flex flex-wrap items-center gap-2"><span className="font-medium">Lettre à l'évêque</span><span className={`pastille py-0 text-[11px] ${STATUTS[l.statut]?.[1] || ''}`}>{STATUTS[l.statut]?.[0] || l.statut}</span>
+            <button className="text-xs text-or-600 underline" onClick={() => setVoirLettre(!voirLettre)}>{voirLettre ? 'Masquer' : 'Lire'}</button>
+            {l.statut !== 'validee' && <span className="ml-auto flex gap-1.5">
+              <button className="btn-clair px-2.5 py-1 text-xs" disabled={occupe} onClick={() => setRemarque(remarque === null ? '' : null)}>Demander une correction</button>
+              <button className="btn-or px-2.5 py-1 text-xs" disabled={occupe || l.statut === 'brouillon'} title={l.statut === 'brouillon' ? 'Pas encore envoyée par la personne' : ''} onClick={() => action('espace.lettre', { valider: true }, 'Lettre validée : PDF rangé dans le dossier')}>{occupe ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}Valider</button></span>}
+          </div>
+          {voirLettre && <div className="mt-2 whitespace-pre-wrap rounded-lg bg-nuit-50/60 p-3 font-serif leading-relaxed">{l.texte}</div>}
+          {remarque !== null && <div className="mt-2 flex gap-2"><input className="champ flex-1 py-1.5" placeholder="Ce qu'il faudrait revoir (s'affichera sur sa page)" value={remarque} onChange={(ev) => setRemarque(ev.target.value)} />
+            <button className="btn-principal py-1.5 text-xs" disabled={occupe || !remarque.trim()} onClick={() => action('espace.lettre', { corriger: true, remarque }, 'Correction demandée').then(() => setRemarque(null))}>Envoyer</button></div>}
+          {l.statut === 'a_corriger' && l.remarque && <p className="mt-1 text-xs text-nuit-600/70">Demandé : {l.remarque}</p>}
+        </div>
+      )}
+      {mail && <Redaction mode="nouveau" a={e.mail} sujet="Votre espace personnel – paroisse La Croix glorieuse"
+        corps={`Bonjour ${d.infos?.prenoms || ''},\n\nVoici le lien de votre espace personnel « Croix glorieuse ». Vous y trouverez votre parcours vers le baptême, le calendrier, les textes que nous vous enverrons, et vous pourrez compléter votre dossier (informations, pièces, lettre à l'évêque).\n[Bouton : ${B}]\n\nÀ la première visite, choisissez votre mot de passe : un code vous sera envoyé par mail. Vous pourrez ensuite installer l'application sur votre téléphone pour être prévenu(e) des nouveaux textes.\n\nAvec l'assurance de nos prières à toutes vos intentions,`}
+        boutons={[{ texte: B, url: e.lien }]} dossier={d} onFermer={() => setMail(false)} onEnvoye={() => { setMail(false); notifier('Lien envoyé') }} />}
+    </div>
   )
 }

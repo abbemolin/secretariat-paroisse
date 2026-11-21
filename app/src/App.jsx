@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { Home, Mail, CalendarDays, FolderHeart, FolderOpen, Users, Settings, UserCircle, LogOut, Bell, ScrollText, GraduationCap, HeartHandshake, Mountain, Flame, LifeBuoy, MoreHorizontal, X } from 'lucide-react'
+import { Home, Mail, CalendarDays, FolderHeart, FolderOpen, Users, Settings, UserCircle, LogOut, Bell, ScrollText, GraduationCap, HeartHandshake, Mountain, Flame, BookOpen, LifeBuoy, MoreHorizontal, X } from 'lucide-react'
 import { api, ecrireToken, lireToken, quandSessionExpire, estDemo } from './api.js'
 import { Chargement, FournisseurNotif, ROLES, dateRelative } from './ui.jsx'
 import Connexion from './pages/Connexion.jsx'
@@ -17,6 +17,7 @@ import Extraits from './pages/Extraits.jsx'
 import Catechisme from './pages/Catechisme.jsx'
 import CorUnum from './pages/CorUnum.jsx'
 import Retraites from './pages/Retraites.jsx'
+import Catechumenat from './pages/Catechumenat.jsx'
 import Aide from './pages/Aide.jsx'
 
 const CtxApp = createContext(null)
@@ -34,6 +35,7 @@ const MENU = [
   ] },
   { groupe: 'Catéchèse', items: [
     { to: '/catechisme', label: 'Catéchisme', icone: GraduationCap, droit: 'dossiers' },
+    { to: '/catechumenat', label: 'Catéchuménat', icone: BookOpen, droit: 'dossiers' },
     { to: '/dossiers?type=confirmand', label: 'Confirmands', icone: Flame, droit: 'dossiers' },
     { to: '/cor-unum', label: 'Cor Unum', icone: HeartHandshake, droit: 'dossiers' },
     { to: '/retraites', label: 'Retraites', icone: Mountain, droit: 'dossiers' }
@@ -217,6 +219,7 @@ function Cadre() {
               {peut('dossiers') && <Route path="/catechisme" element={<Catechisme />} />}
               {peut('dossiers') && <Route path="/cor-unum" element={<CorUnum />} />}
               {peut('dossiers') && <Route path="/retraites" element={<Retraites />} />}
+              {peut('dossiers') && <Route path="/catechumenat" element={<Catechumenat />} />}
               {peut('dossiers') && <Route path="/retraites/:id" element={<Retraites />} />}
               {peut('dossiers') && <Route path="/catechisme/:id" element={<Catechisme />} />}
               {peut('dossiers') && <Route path="/extraits" element={<Extraits />} />}

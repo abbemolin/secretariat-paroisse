@@ -313,6 +313,22 @@ export async function demoApi(action, p) {
         { id: 'k2', cree_le: '2026-11-20T15:00:00Z', nom: 'Jean Dupont', email: 'jean@example.fr', telephone: '', lignes: [{ titre: 'Bible des enfants', prix: 20, qte: 2 }], total: 40, statut: 'payee', remis: false, source: 'Boutique', reste: 0, paiements: [{ id: 'q', date: '2026-11-20', montant: 40, mode: 'HelloAsso', par: 'Paiement en ligne' }] }] }
     case 'livres.catalogue': etat.livres.livres = p.livres.map((l, i) => ({ ...l, id: l.id || 'n' + i, prix: Number(l.prix) || 0, stock: l.stock === '' ? null : Number(l.stock) })); return etat.livres
     case 'livres.commande': { const c = etat.livres.commandes.find((x) => x.id === p.id); if (p.remis !== undefined) c.remis = p.remis; if (p.statut) c.statut = p.statut; if (p.ajouter) { c.paiements.push({ id: 'q' + Date.now(), date: new Date().toISOString(), montant: Number(p.ajouter.montant), mode: p.ajouter.mode, par: moi.nom }); c.reste = c.total - c.paiements.reduce((a, x) => a + x.montant, 0); if (c.reste <= 0) c.statut = 'payee' } return etat.livres }
+    case 'espace.etat': case 'espace.lien': case 'espace.lettre': {
+      etat.esp ||= {}
+      const e = etat.esp[p.id] ||= { existe: p.id === 'd2', lien: 'https://app.croix-glorieuse.org/?c=' + 'f'.repeat(32), mot_de_passe: p.id === 'd2' ? '2026-11-20T10:00:00Z' : '', derniere_visite: p.id === 'd2' ? new Date(Date.now() - 3 * 3600e3).toISOString() : '', mail: 'sarah.k@example.fr',
+        lettre: p.id === 'd2' ? { texte: 'Monseigneur,\n\nJe m\'appelle Sarah, j\'ai 32 ans. Depuis deux ans je découvre le Christ à la paroisse La Croix glorieuse…\n\nJe vous demande humblement le baptême.\n\nSarah Kessler', statut: 'envoyee', remarque: '' } : { texte: '', statut: '' } }
+      if (action === 'espace.lien') e.existe = true
+      if (p.corriger) { e.lettre.statut = 'a_corriger'; e.lettre.remarque = p.remarque }
+      if (p.valider) e.lettre.statut = 'validee'
+      return e
+    }
+    case 'textes.liste': return etat.textes ||= { promotions: [{ cle: 'tous', nom: 'Tous (catéchumènes et néophytes)' }, { cle: 'cat:2027', nom: 'Catéchumènes – baptême 2027' }, { cle: 'cat:attente', nom: 'Catéchumènes en attente' }, { cle: 'neo:2026', nom: 'Néophytes – baptisés en 2026' }, { cle: 'neo:tous', nom: 'Tous les néophytes' }],
+      personnes: [{ id: 'd2', nom: 'Sarah KESSLER', espace: true }, { id: 'd4', nom: 'Tom BECKER', espace: false }],
+      textes: [{ id: 't1', cree_le: '2026-11-18T09:00:00Z', auteur: 'abbé Florent Molin', titre: 'Le Notre Père – 3e rencontre', corps: 'Relisez Matthieu 6, 9-13…', cible: 'cat:2027', cible_nom: 'Catéchumènes – baptême 2027', fichiers: [{ id: 'f1', nom: 'Notre-Pere.pdf' }], liens: [{ url: 'https://youtu.be/x', libelle: 'Vidéo' }], nb_dest: 19, nb_lus: 7, lus: [{ nom: 'Sarah KESSLER', lu: '2026-11-18T20:00:00Z' }, { nom: 'Tom BECKER', lu: '' }] }],
+      calendrier: [{ id: 'c1', date: '2027-02-14', heure_debut: '10:30', heure_fin: '', titre: 'Appel décisif', lieu: 'Cathédrale de Strasbourg', cible: 'cat:2027', cible_nom: 'Catéchumènes – baptême 2027', note: '' }] }
+    case 'textes.ecrire': { const v = p.texte; if (v.id) Object.assign(etat.textes.textes.find((t) => t.id === v.id), v); else etat.textes.textes.unshift({ ...v, id: 't' + Date.now(), cree_le: new Date().toISOString(), auteur: moi.nom, cible_nom: etat.textes.promotions.find((x) => x.cle === v.cible)?.nom || 'Une personne', fichiers: (v.nouveaux || []).map((f, i) => ({ id: 'n' + i, nom: f.nom })), nb_dest: 3, nb_lus: 0, lus: [] }); return etat.textes }
+    case 'textes.supprimer': etat.textes.textes = etat.textes.textes.filter((t) => t.id !== p.id); return etat.textes
+    case 'calendrier.ecrire': { if (p.supprimer) etat.textes.calendrier = etat.textes.calendrier.filter((x) => x.id !== p.supprimer); else { const e = p.evenement; const x = etat.textes.calendrier.find((y) => y.id === e.id); if (x) Object.assign(x, e); else etat.textes.calendrier.push({ ...e, id: 'c' + Date.now(), cible_nom: etat.textes.promotions.find((y) => y.cle === e.cible)?.nom }) } return etat.textes }
     case 'retraites.liste': return { annee: p.annee || '2026-2027', annees: ['2026-2027'], retraites: etat.retraites.filter((r) => r.annee === (p.annee || '2026-2027')).map(retResume) }
     case 'retraites.lire': return retLire(p.id)
     case 'retraites.ecrire': {
