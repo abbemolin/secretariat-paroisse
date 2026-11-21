@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
+<title>Inscription à la retraite – Paroisse La Croix glorieuse</title>
+<link rel="icon" href="../logo-128.png"><link rel="apple-touch-icon" href="../logo-128.png">
+<meta name="theme-color" content="#521a22">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#faf7f2;font-family:Arial,Helvetica,sans-serif;color:#2b2224;font-size:15px}
+.entete{background:#521a22;color:#fff;padding:14px 18px;display:flex;align-items:center;gap:12px}
+.entete img{width:44px;height:44px;border-radius:50%;background:#fff}
+.entete b{font-family:Georgia,serif;font-size:19px;display:block}.entete span{font-size:12.5px;color:#e8c9a8}
+main{max-width:720px;margin:0 auto;padding:16px}
+.carte{background:#fff;border-radius:12px;box-shadow:0 1px 8px rgba(82,26,34,.07);padding:16px;margin-bottom:14px}
+h1{font-family:Georgia,serif;color:#521a22;font-size:24px;margin:0 0 6px}
+h2{font-family:Georgia,serif;color:#521a22;font-size:19px;margin:0 0 10px}
+.petit{font-size:13px;color:#7a6a64}
+.ligne{display:flex;gap:8px;margin:4px 0;font-size:14.5px}.ligne b{min-width:22px;color:#d08c4c}
+.pre{white-space:pre-wrap;line-height:1.45;font-size:14px}
+a{color:#a8662e}
+input,textarea{width:100%;border:1px solid #e0d2c6;border-radius:8px;padding:10px;font:inherit;background:#fff}
+textarea{min-height:80px}
+label{display:block;font-size:13px;color:#6b5b55;margin:10px 0 3px}
+.grille{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}@media(max-width:560px){.grille{grid-template-columns:1fr}}
+.enfant{border:1px solid #efe4da;border-radius:10px;padding:12px;margin:10px 0;background:#fffdfb}
+.enfant-titre{display:flex;justify-content:space-between;align-items:center;font-weight:bold;color:#521a22}
+.choix{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.choix button,.opt{border:1px solid #e6d8cc;background:#fff;color:#521a22;border-radius:999px;padding:7px 13px;font-size:14px;cursor:pointer}
+.choix button.actif,.opt.actif{background:#521a22;color:#fff;border-color:#521a22}
+.opt{display:flex;justify-content:space-between;width:100%;border-radius:8px;margin:5px 0;text-align:left}
+.compris{display:flex;justify-content:space-between;font-size:14px;padding:4px 2px;color:#5b4a45}
+.bouton{border:1px solid #e6d8cc;background:#fff;color:#521a22;border-radius:8px;padding:9px 14px;font-size:14px;cursor:pointer;margin:8px 8px 0 0}
+.principal{background:#521a22;color:#fff;border-color:#521a22;font-weight:bold;padding:12px 18px;font-size:15px}
+.lien{background:none;border:0;color:#a11d1d;text-decoration:underline;cursor:pointer;font-size:13px;padding:4px 0}
+.coche{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.4;margin:10px 0;cursor:pointer}
+.coche input{width:20px;height:20px;flex:none;margin-top:1px}
+.total{display:flex;justify-content:space-between;font-size:17px;font-weight:bold;color:#521a22;border-top:2px solid #efe4da;padding-top:10px;margin-top:10px}
+.info{background:#faf3ea;border-left:4px solid #d08c4c;border-radius:6px;padding:10px 12px;font-size:14px;margin:10px 0}
+.erreur{background:#fdeceb;color:#8a1f17;border-radius:6px;padding:10px 12px;margin:10px 0}
+.ok{background:#e8f5ec;color:#1d5e33;border-radius:6px;padding:12px;margin:10px 0}
+.cache{display:none}
+</style></head>
+<body>
+<div class="entete"><img src="../logo-128.png" alt=""><div><b>Inscription à la retraite</b><span id="sous">Paroisse La Croix glorieuse</span></div></div>
+<main>
+  <div id="etat" class="info">Chargement…</div>
+  <div id="page" class="cache"></div>
+</main>
+<script>
+(function () {
+  var URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzSjwHZONGGz0xfWXo_u4MJRYBon8eZZzyTvWNrgo6418zkoOXpzVDx3Q8nthP5rLAleg/exec";
+  var q = new URLSearchParams(location.search);
+  var R = q.get('r') || '', D = q.get('d') || '', K = q.get('k') || '', M = q.get('m') || '';
+  var ret = null, f = null, enfants = true, fini = null, confirmerAnnulation = false;
+  function $(id) { return document.getElementById(id); }
+  function e(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function euros(n) { return (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('fr-FR') + ' €'; }
+  function nb(v) { return Number(String(v == null ? '' : v).replace(',', '.')) || 0; }
+  function jour(iso) { try { return new Date(String(iso).slice(0, 10) + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); } catch (x) { return iso; } }
+  function appel(action, p) {
+    return fetch(URL_SCRIPT, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: action, payload: p }) })
+      .then(function (r) { return r.json(); }).then(function (r) { if (!r.ok) throw new Error(r.message || 'Erreur'); return r.data; });
+  }
+  function nouveauParticipant() { return { prenoms: '', nom: '', classe: '', allergies: '', image: 'oui', options: [], dossier_id: '' }; }
+  function montant() {
+    var t = 0;
+    f.participants.forEach(function (p) { ret.prix.forEach(function (l) { if (l.obligatoire || p.options.indexOf(l.id) > -1) t += nb(l.montant); }); });
+    return { retraite: t, ceremonie: nb(f.ceremonie), total: t + nb(f.ceremonie) };
+  }
+  function quand() {
+    var j = ret.date_fin && ret.date_fin !== ret.date_debut ? 'Du ' + jour(ret.date_debut) + ' au ' + jour(ret.date_fin) : 'Le ' + jour(ret.date_debut);
+    return j + (ret.heure_debut ? ', de ' + ret.heure_debut + (ret.heure_fin ? ' à ' + ret.heure_fin : '') : '');
+  }
+
+  function blocInfos() {
+    var h = '<div class="carte"><h1>' + e(ret.titre) + '</h1>' +
+      '<div class="ligne"><b>📅</b><span>' + e(quand()) + '</span></div>' +
+      (ret.lieu ? '<div class="ligne"><b>📍</b><span>' + e(ret.lieu) + (ret.adresse ? ' – ' + e(ret.adresse) : '') + '</span></div>' : '') +
+      (ret.responsable_nom ? '<div class="ligne"><b>☎</b><span>Responsable : ' + e(ret.responsable_nom) + (ret.responsable_tel ? ' – <a href="tel:' + e(String(ret.responsable_tel).replace(/\s/g, '')) + '">' + e(ret.responsable_tel) + '</a>' : '') + '</span></div>' : '') +
+      (ret.date_limite ? '<p class="petit">Inscription avant le ' + e(jour(ret.date_limite)) + '.</p>' : '');
+    if (ret.programme) h += '<h2 style="margin-top:14px">Programme</h2><div class="pre">' + e(ret.programme) + '</div>';
+    if (ret.apporter) h += '<h2 style="margin-top:14px">À apporter</h2><div class="pre">' + e(ret.apporter) + '</div>';
+    return h + '</div>';
+  }
+
+  function champ(k, l, type, extra) { return '<label>' + l + '</label><input data-k="' + k + '" type="' + (type || 'text') + '" value="' + e(f[k]) + '"' + (extra || '') + '>'; }
+  function champP(i, k, l, ph) { return '<label>' + l + '</label><input data-p="' + i + '" data-k="' + k + '" value="' + e(f.participants[i][k]) + '"' + (ph ? ' placeholder="' + e(ph) + '"' : '') + '>'; }
+
+  function blocParticipant(p, i) {
+    var compris = ret.prix.filter(function (l) { return l.obligatoire; }), options = ret.prix.filter(function (l) { return !l.obligatoire; });
+    var h = '<div class="enfant"><div class="enfant-titre"><span>' + (enfants ? 'Enfant ' + (f.participants.length > 1 ? i + 1 : '') : 'Participant') + '</span>' +
+      (enfants && f.participants.length > 1 ? '<button class="lien" data-act="retirer" data-i="' + i + '">Retirer</button>' : '') + '</div>' +
+      '<div class="grille"><div>' + champP(i, 'prenoms', 'Prénom *') + '</div><div>' + champP(i, 'nom', 'Nom *') + '</div></div>' +
+      (enfants ? champP(i, 'classe', 'Classe', 'CM1, 5e…') : '') +
+      champP(i, 'allergies', 'Allergies, régime alimentaire, traitement', 'Rien à signaler');
+    if (compris.length || options.length) {
+      h += '<label>Formule</label>' + compris.map(function (l) { return '<div class="compris"><span>✓ ' + e(l.libelle) + '</span><span>' + euros(l.montant) + '</span></div>'; }).join('') +
+        options.map(function (l) { var a = p.options.indexOf(l.id) > -1; return '<button type="button" class="opt' + (a ? ' actif' : '') + '" data-act="option" data-i="' + i + '" data-o="' + l.id + '"><span>' + (a ? '☑ ' : '☐ ') + e(l.libelle) + '</span><span>' + euros(l.montant) + '</span></button>'; }).join('');
+    }
+    if (enfants) h += '<label>Photos de la retraite (site et documents de la paroisse)</label><div class="choix"><button type="button" data-act="image" data-i="' + i + '" data-v="oui" class="' + (p.image !== 'non' ? 'actif' : '') + '">J\'accepte</button><button type="button" data-act="image" data-i="' + i + '" data-v="non" class="' + (p.image === 'non' ? 'actif' : '') + '">Je refuse</button></div>';
+    return h + '</div>';
+  }
+
+  function rendre() {
+    var z = $('page');
+    if (fini) { z.innerHTML = blocInfos() + '<div class="carte">' + fini + '</div>'; return; }
+    var h = blocInfos();
+    if (!ret.ouverte) {
+      z.innerHTML = h + '<div class="carte"><div class="info">Les inscriptions à cette retraite sont closes. Pour toute question, contactez la paroisse' + (ret.responsable_tel ? ' ou le responsable' : '') + '.</div></div>';
+      return;
+    }
+    h += '<div class="carte">';
+    if (M) h += '<div class="info">Vous modifiez votre inscription. Pensez à enregistrer en bas de page.</div>';
+    if (enfants) {
+      h += '<h2>Parent</h2>' + champ('contact_nom', 'Prénom et nom *') + '<div class="grille"><div>' + champ('contact_email', 'E-mail *', 'email') + '</div><div>' + champ('contact_tel', 'Téléphone *', 'tel') + '</div></div>';
+      h += '<h2 style="margin-top:18px">' + (f.participants.length > 1 ? 'Enfants' : 'Enfant') + '</h2>' + f.participants.map(blocParticipant).join('') +
+        '<button type="button" class="bouton" data-act="ajouter">+ Inscrire un autre enfant (frère, sœur)</button>';
+      h += '<h2 style="margin-top:18px">Contact d\'urgence pendant la retraite</h2><div class="grille"><div>' + champ('urgence_nom', 'Nom *') + '</div><div>' + champ('urgence_tel', 'Téléphone *', 'tel') + '</div></div>';
+      h += '<label class="coche"><input type="checkbox" data-k="autorisation"' + (f.autorisation ? ' checked' : '') + '><span>J\'autorise mon enfant à participer à la retraite et, en cas d\'urgence, les responsables à prendre toute mesure nécessaire (soins, hospitalisation). *</span></label>';
+    } else {
+      h += '<h2>Vos coordonnées</h2>' + blocParticipant(f.participants[0], 0) +
+        '<div class="grille"><div>' + champ('contact_email', 'E-mail *', 'email') + '</div><div>' + champ('contact_tel', 'Téléphone *', 'tel') + '</div></div>';
+      h += '<h2 style="margin-top:18px">Covoiturage</h2><div class="choix">' + [['', 'Non merci'], ['propose', 'Je propose des places'], ['cherche', 'Je cherche une place']].map(function (c) {
+        return '<button type="button" data-act="covoit" data-v="' + c[0] + '" class="' + ((f.covoiturage || '') === c[0] ? 'actif' : '') + '">' + c[1] + '</button>'; }).join('') + '</div>' +
+        (f.covoiturage === 'propose' ? champ('covoit_places', 'Nombre de places', 'number', ' min="1" max="9" style="max-width:120px"') : '');
+      h += '<label>Remarque</label><textarea data-k="remarque">' + e(f.remarque) + '</textarea>';
+    }
+    h += '<h2 style="margin-top:18px">Participation aux frais de la cérémonie</h2>' +
+      (ret.ceremonie_texte ? '<p class="petit">' + e(ret.ceremonie_texte) + '</p>' : '') +
+      '<label>Montant libre' + (ret.ceremonie_suggestion ? ' (suggéré : ' + euros(ret.ceremonie_suggestion) + ')' : '') + '</label><input data-k="ceremonie" inputmode="decimal" value="' + e(f.ceremonie) + '" style="max-width:160px">';
+    h += '<div id="totaux"></div><div id="z" style="display:none"></div>' +
+      '<button type="button" class="bouton principal" data-act="envoyer">' + (M ? 'Enregistrer les modifications' : 'Valider l\'inscription') + '</button>';
+    if (M) h += '<div style="margin-top:14px">' + (confirmerAnnulation
+      ? '<div class="erreur">Annuler l\'inscription ? <button type="button" class="bouton" data-act="annuler-ok">Oui, annuler</button><button type="button" class="bouton" data-act="annuler-non">Non</button></div>'
+      : '<button type="button" class="lien" data-act="annuler">Annuler mon inscription</button>') + '</div>';
+    z.innerHTML = h + '</div>';
+    totaux();
+  }
+  function totaux() {
+    var m = montant(), z = $('totaux'); if (!z) return;
+    z.innerHTML = '<div class="compris" style="margin-top:14px"><span>Retraite</span><span>' + euros(m.retraite) + '</span></div>' +
+      (m.ceremonie ? '<div class="compris"><span>Participation cérémonie</span><span>' + euros(m.ceremonie) + '</span></div>' : '') +
+      '<div class="total"><span>Total</span><span>' + euros(m.total) + '</span></div>' +
+      (ret.paiement_texte ? '<p class="petit">Paiement : ' + e(ret.paiement_texte) + '</p>' : '');
+  }
+  function message(t, ok) { var z = $('z'); if (z) { z.className = ok ? 'ok' : 'erreur'; z.textContent = t; z.style.display = 'block'; } }
+
+  document.addEventListener('input', function (ev) {
+    var x = ev.target, k = x.dataset.k; if (!k || !f) return;
+    var v = x.type === 'checkbox' ? x.checked : x.value;
+    if (x.dataset.p != null) f.participants[Number(x.dataset.p)][k] = v; else f[k] = v;
+    if (k === 'ceremonie') totaux();
+  });
+  document.addEventListener('change', function (ev) { var x = ev.target; if (x.type === 'checkbox' && x.dataset.k) f[x.dataset.k] = x.checked; });
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-act]'); if (!b) return;
+    var act = b.dataset.act, i = Number(b.dataset.i);
+    if (act === 'ajouter') { var n = nouveauParticipant(); n.nom = f.participants[0].nom; f.participants.push(n); rendre(); return; }
+    if (act === 'retirer') { f.participants.splice(i, 1); rendre(); return; }
+    if (act === 'option') { var o = f.participants[i].options, id = b.dataset.o, j = o.indexOf(id); if (j > -1) o.splice(j, 1); else o.push(id); rendre(); return; }
+    if (act === 'image') { f.participants[i].image = b.dataset.v; rendre(); return; }
+    if (act === 'covoit') { f.covoiturage = b.dataset.v; if (f.covoiturage === 'propose' && !f.covoit_places) f.covoit_places = '3'; rendre(); return; }
+    if (act === 'annuler') { confirmerAnnulation = true; rendre(); return; }
+    if (act === 'annuler-non') { confirmerAnnulation = false; rendre(); return; }
+    if (act === 'annuler-ok') {
+      b.disabled = true;
+      appel('ret.annuler', { m: M }).then(function () { fini = '<div class="ok">Votre inscription est annulée. Le secrétariat en est prévenu.</div>'; rendre(); })
+        .catch(function (err) { b.disabled = false; message(err.message); });
+      return;
+    }
+    if (act === 'envoyer') {
+      var manque = [];
+      if (!/@/.test(f.contact_email || '')) manque.push('l\'e-mail');
+      if (!String(f.contact_tel || '').trim()) manque.push('le téléphone');
+      if (f.participants.some(function (p) { return !String(p.prenoms).trim() || !String(p.nom).trim(); })) manque.push('le prénom et le nom de chaque participant');
+      if (enfants) {
+        if (!String(f.contact_nom || '').trim()) manque.push('le nom du parent');
+        if (!String(f.urgence_nom || '').trim() || !String(f.urgence_tel || '').trim()) manque.push('le contact d\'urgence');
+        if (!f.autorisation) manque.push('l\'autorisation parentale');
+      }
+      if (manque.length) { message('Merci d\'indiquer ' + manque.join(', ') + '.'); return; }
+      if (!enfants) f.contact_nom = (f.participants[0].prenoms + ' ' + f.participants[0].nom).trim();
+      b.disabled = true; b.textContent = 'Envoi…';
+      var p = M ? { m: M, inscription: f } : { r: R, d: D, k: K, inscription: f };
+      appel('ret.inscrire', p).then(function (r) {
+        var m = r.inscription.montant;
+        fini = '<div class="ok"><b>' + (M ? 'Modifications enregistrées.' : 'Inscription enregistrée, merci !') + '</b><br>Un mail de confirmation a été envoyé à ' + e(f.contact_email) + ' ; il contient un lien pour modifier ou annuler l\'inscription.</div>' +
+          '<div class="compris"><span>' + r.inscription.participants.map(function (x) { return e(x.prenoms + ' ' + x.nom); }).join(', ') + '</span></div>' +
+          '<div class="total"><span>Total à régler</span><span>' + euros(m.du) + '</span></div>' + (ret.paiement_texte ? '<p class="pre">' + e(ret.paiement_texte) + '</p>' : '');
+        rendre(); window.scrollTo(0, 0);
+      }).catch(function (err) { b.disabled = false; b.textContent = M ? 'Enregistrer les modifications' : 'Valider l\'inscription'; message(err.message); });
+    }
+  });
+
+  if (!R && !M) { $('etat').className = 'erreur'; $('etat').textContent = 'Lien incomplet. Utilisez le lien reçu de la paroisse.'; return; }
+  appel('ret.public', M ? { m: M } : { r: R, d: D, k: K }).then(function (r) {
+    ret = r.retraite; enfants = ret.public === 'enfants';
+    $('sous').textContent = (ret.paroisse || 'Paroisse La Croix glorieuse');
+    document.title = ret.titre + ' – inscription';
+    if (r.inscription) {
+      var x = r.inscription;
+      f = { contact_nom: x.contact_nom, contact_email: x.contact_email, contact_tel: x.contact_tel, ceremonie: x.ceremonie || '', urgence_nom: x.urgence_nom, urgence_tel: x.urgence_tel,
+            autorisation: !!x.autorisation, covoiturage: x.covoiturage, covoit_places: x.covoit_places, remarque: x.remarque,
+            participants: x.participants.map(function (p) { var n = nouveauParticipant(); for (var k in p) n[k] = p[k]; n.options = p.options || []; return n; }) };
+      if (x.statut === 'annule') fini = '<div class="info">Cette inscription a été annulée. Pour vous réinscrire, contactez la paroisse ou utilisez le lien d\'inscription.</div>';
+    } else {
+      var pr = r.prerempli || {};
+      f = { contact_nom: pr.contact_nom || '', contact_email: pr.contact_email || '', contact_tel: pr.contact_tel || '', ceremonie: ret.ceremonie_suggestion ? String(ret.ceremonie_suggestion) : '',
+            urgence_nom: '', urgence_tel: '', autorisation: false, covoiturage: '', covoit_places: '', remarque: '',
+            participants: (pr.participants && pr.participants.length ? pr.participants : [{}]).map(function (p) { var n = nouveauParticipant(); for (var k in p) n[k] = p[k]; return n; }) };
+    }
+    $('etat').style.display = 'none'; $('page').classList.remove('cache'); rendre();
+  }).catch(function (err) { $('etat').className = 'erreur'; $('etat').textContent = err.message; });
+})();
+</script>
+</body></html>

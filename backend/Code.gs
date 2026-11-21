@@ -70,6 +70,7 @@ function doPost(e) {
     if (action === 'public.demande') return json_({ ok: true, data: recevoirDemandePublique_(p) });
     if (action === 'public.infos') return json_({ ok: true, data: infosPubliques_(p) });
     if (/^chef\./.test(action)) return json_({ ok: true, data: actionChef_(action, p) });
+    if (/^ret\./.test(action)) return json_({ ok: true, data: actionRetraitePublique_(action, p) });
 
     var session = verifierSession_(req.token);
     var route = ROUTES[action];
@@ -158,6 +159,13 @@ var ROUTES = {
   'dossiers.changerType':  { fn: changerTypeConf_, droit: 'dossiers' },
   'dossiers.importerCatechumenes': { fn: importerCatechumenes_, droit: 'dossiers' },
   'cor.liste':             { fn: listerCor_, droit: 'dossiers' },
+  'retraites.liste':       { fn: listerRetraites_, droit: 'dossiers' },
+  'retraites.lire':        { fn: lireRetraite_, droit: 'dossiers' },
+  'retraites.ecrire':      { fn: ecrireRetraite_, droit: 'dossiers' },
+  'retraites.supprimer':   { fn: supprimerRetraite_, droit: 'dossiers' },
+  'retraites.inscription': { fn: modifierInscriptionRet_, droit: 'dossiers' },
+  'retraites.invites':     { fn: invitesRetraite_, droit: 'dossiers' },
+  'retraites.inviter':     { fn: inviterRetraite_, droit: 'dossiers' },
   'cor.relier':            { fn: relierCor_, droit: 'dossiers' },
   'cor.modifier':          { fn: modifierCor_, droit: 'dossiers' },
   'cor.creer':             { fn: creerCor_, droit: 'dossiers' },

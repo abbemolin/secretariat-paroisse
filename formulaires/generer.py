@@ -251,6 +251,8 @@ ACCUEIL = '<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Par
 import shutil
 (SITE / 'fraternite').mkdir(exist_ok=True)
 (SITE / 'fraternite' / 'index.html').write_text((sortie / 'fraternite.html').read_text(encoding='utf-8').replace('__URL_SCRIPT__', json.dumps(URL)), encoding='utf-8')
+(SITE / 'retraite').mkdir(exist_ok=True)
+(SITE / 'retraite' / 'index.html').write_text((sortie / 'retraite.html').read_text(encoding='utf-8').replace('__URL_SCRIPT__', json.dumps(URL)), encoding='utf-8')
 shutil.copy(sortie.parent / "app" / "public" / "logo-128.png", SITE / "logo-128.png")
 for type_, f in FORMULAIRES.items():
     groupes = "\n".join(

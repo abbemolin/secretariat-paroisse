@@ -9,6 +9,16 @@ const ins = (id, prenoms, nom, classe, groupe, email, extra = {}) => ({ id, anne
 const cor = (id, prenoms, nom, equipe_id, extra = {}) => ({ id, annee: '2026-2027', prenoms, nom, email: cleDemo(nom) + '@example.fr', telephone: '06 11 22 33 ' + id.slice(1).padStart(2, '0'), adresse: 'Strasbourg', profils: ['Paroissien'], situation: 'Marié(e)', deja_participe: 'Oui', rester: 'Oui', chef_indique: '', chef_possible: false, souhait: '', groupe_service: 'Non', equipe_id, equipe_proposee: '', statut: 'actif', note: '', dossiers: [], ...extra })
 function cleDemo(t) { return String(t).toLowerCase().normalize('NFD').replace(/[^a-z]/g, '') }
 const etat = {
+  retraites: [
+    { id: 'r1', annee: '2026-2027', type: 'premiere_communion', titre: '', date_debut: '2027-05-15', date_fin: '2027-05-16', heure_debut: '09:30', heure_fin: '16:00', lieu: 'Mont Sainte-Odile', adresse: '67530 Ottrott',
+      prix: [{ id: 'a', libelle: 'Repas (3)', montant: 30, obligatoire: true }, { id: 'b', libelle: 'Nuit au Mont (chambre partagée)', montant: 25, obligatoire: false }], ceremonie_suggestion: '15', ceremonie_texte: 'Cierge, fleurs, livret de la célébration',
+      paiement_texte: 'Chèque à l\'ordre de « Paroisse La Croix glorieuse », à remettre au secrétariat.', programme: 'Samedi 9h30 : accueil\nDimanche 16h : messe avec les familles', apporter: 'Sac de couchage, Bible, tenue chaude', responsable_nom: 'Abbé Le Gall', responsable_tel: '06 12 34 56 78', date_limite: '2027-05-01', ouverte: 'oui', jeton: 'a'.repeat(32),
+      inscriptions: [
+        { id: 'i1', jeton: 'c'.repeat(32), statut: 'inscrit', cree_le: '2026-11-18T10:00:00Z', maj_le: '2026-11-18T10:00:00Z', contact_nom: 'Paul Martin', contact_email: 'paul.martin@example.fr', contact_tel: '06 11 22 33 44', participants: [{ prenoms: 'Léon', nom: 'Martin', classe: 'CM1', allergies: 'Arachide', image: 'oui', options: ['b'], dossier_id: 'd5' }, { prenoms: 'Zoé', nom: 'Martin', classe: 'CE2', allergies: '', image: 'non', options: [] }], ceremonie: 15, urgence_nom: 'Mamie Martin', urgence_tel: '06 99 88 77 66', autorisation: 'oui – Paul Martin – 2026-11-18', covoiturage: '', covoit_places: '', remarque: '', paiements: [{ id: 'p1', date: '2026-11-19', montant: 50, mode: 'Chèque', par: 'Bertille Bauer' }], source: 'Lien personnel' },
+        { id: 'i2', jeton: 'd'.repeat(32), statut: 'inscrit', cree_le: '2026-11-19T18:00:00Z', maj_le: '2026-11-19T18:00:00Z', contact_nom: 'Claire Weber', contact_email: 'claire.w@example.fr', contact_tel: '06 55 44 33 22', participants: [{ prenoms: 'Hugo', nom: 'Weber', classe: 'CM1', allergies: '', image: 'oui', options: [] }], ceremonie: 10, urgence_nom: 'Marc Weber', urgence_tel: '06 10 20 30 40', autorisation: 'oui – Claire Weber – 2026-11-19', covoiturage: '', covoit_places: '', remarque: '', paiements: [], source: 'Lien public' }] },
+    { id: 'r2', annee: '2026-2027', type: 'confirmation_adultes', titre: '', date_debut: '2027-03-06', date_fin: '2027-03-07', heure_debut: '09:00', heure_fin: '17:00', lieu: 'Abbaye de Marienthal', adresse: '', prix: [{ id: 'a', libelle: 'Pension complète', montant: 60, obligatoire: true }], ceremonie_suggestion: '20', ceremonie_texte: 'Cierge et fleurs', paiement_texte: 'Virement : IBAN FR76…', programme: '', apporter: '', responsable_nom: 'Abbé Molin', responsable_tel: '', date_limite: '2027-02-20', ouverte: 'oui', jeton: 'b'.repeat(32),
+      inscriptions: [{ id: 'i3', jeton: 'e'.repeat(32), statut: 'inscrit', cree_le: '2026-11-20T09:00:00Z', maj_le: '2026-11-20T09:00:00Z', contact_nom: 'Léa Fischer', contact_email: 'fischer@example.fr', contact_tel: '06 11 22 33 06', participants: [{ prenoms: 'Léa', nom: 'Fischer', allergies: 'Végétarienne', options: [], dossier_id: 'd7' }], ceremonie: 20, urgence_nom: '', urgence_tel: '', autorisation: '', covoiturage: 'propose', covoit_places: '3', remarque: '', paiements: [], source: 'Lien personnel' }] }
+  ],
   cor: {
     fils: { q1: { messages: [{ id: 'x1', date: '2026-11-18T19:02:00Z', auteur: 'Claire et Antoine Martin', cote: 'chef', texte: 'Bonjour Monsieur le Curé, pourriez-vous venir bénir notre prochaine rencontre du 4 décembre ? Merci !' }], rencontres: [{ id: 'r1', date: '2026-12-04', lieu: 'Chez les Martin, 5 rue des Juifs', note: 'Repas partagé' }, { id: 'r2', date: '2026-11-06', lieu: 'Chez Inès', note: '' }] } },
     reglages: { feuilles: [{ id: '1KbA5BV_qx7_nC_4G76fjN7TujtjabmLsVy8hHq1xafE', annee: '2026-2027', nom: 'Fraternité Cor Unum 2026-2027 (Strasbourg) (réponses)', onglets_repris: true }], lien_formulaire: 'https://forms.gle/exemple', import_auto: true, profils: ['Catéchumène', 'Confirmand', 'Néophyte', 'Nouveau à la paroisse', 'Recommençant', 'Paroissien'] },
@@ -140,6 +150,20 @@ function fratDemo(id) {
   const e = (etat.cor.equipes[m.annee] || []).find((q) => q.id === m.equipe_id)
   return { id: m.id, annee: m.annee, equipe: e?.nom || '', chefs: (e?.chefs || []).map((c) => { const x = etat.cor.membres.find((y) => y.id === c); return x ? x.prenoms + ' ' + x.nom.toUpperCase() : '' }).filter(Boolean), ancien: m.statut === 'ancien', mode: m.dossiers.find((y) => y.id === id).mode || 'auto' }
 }
+
+const RET_TYPES = { premiere_communion: 'Première communion', profession_foi: 'Profession de foi', confirmation_jeunes: 'Confirmation (jeunes)', confirmation_adultes: 'Confirmation (adultes et catéchumènes)' }
+function retMontant(r, x) {
+  let t = 0; x.participants.forEach((p) => r.prix.forEach((l) => { if (l.obligatoire || (p.options || []).includes(l.id)) t += Number(l.montant) || 0 }))
+  const c = Number(x.ceremonie) || 0, paye = x.paiements.reduce((a, p) => a + Number(p.montant), 0)
+  return { retraite: t, ceremonie: c, du: t + c, paye, reste: t + c - paye }
+}
+function retResume(r) {
+  const act = r.inscriptions.filter((x) => x.statut !== 'annule'); const m = act.map((x) => retMontant(r, x))
+  const { inscriptions, ...o } = r
+  return { ...o, titre: r.titre || 'Retraite – ' + RET_TYPES[r.type], ouverte_maintenant: r.ouverte !== 'non', nb_participants: act.reduce((a, x) => a + x.participants.length, 0), nb_inscriptions: act.length,
+    du: m.reduce((a, x) => a + x.du, 0), paye: m.reduce((a, x) => a + x.paye, 0), reste: m.reduce((a, x) => a + x.reste, 0), lien: 'https://secretariat.croix-glorieuse.org/retraite/?r=' + r.jeton }
+}
+const retLire = (id) => { const r = etat.retraites.find((x) => x.id === id); return { ...retResume(r), inscriptions: r.inscriptions.map((x) => ({ ...x, montant: retMontant(r, x) })) } }
 const pub = (u) => ({ ...u, droits: DROITS[u.role] })
 const alertesDemo = (d) => { const i = d.infos, a = []; if (!['confirmand', 'confirmation_jeune', 'catechumene'].includes(d.type)) return a; if (i.bapteme_inconnu === 'oui' && !i.bapteme_date && !i.bapteme_paroisse) a.push('bapteme_a_trouver'); if (i.autre_confession === 'oui') a.push('autre_confession'); if (d.type === 'catechumene' && i.en_attente === 'oui' && !i.annee_sacrements) a.push('en_attente'); if (d.type === 'confirmand' && i.naissance_date && (Date.now() - new Date(i.naissance_date)) / 3.156e10 < 18) a.push('mineur'); return a }
 const resume = (d) => ({ ...d, alertes: alertesDemo(d), autre_confession: d.infos.autre_confession || '', nom: nomDe(d), preparation: d.infos.preparation === 'Autre école' ? d.infos.ecole_autre : d.infos.preparation || '', etapes: Object.keys(d.etapes).filter((k) => d.etapes[k]?.fait), documents: Object.keys(d.documents).filter((k) => d.documents[k]?.recu), date_souhaitee: d.infos.date_souhaitee || '', annee: d.infos.annee_sacrements || d.infos.annee_scolaire || '' })
@@ -279,6 +303,29 @@ export async function demoApi(action, p) {
       })
       return { nouveaux, completes, ignores: 0 }
     }
+    case 'retraites.liste': return { annee: p.annee || '2026-2027', annees: ['2026-2027'], retraites: etat.retraites.filter((r) => r.annee === (p.annee || '2026-2027')).map(retResume) }
+    case 'retraites.lire': return retLire(p.id)
+    case 'retraites.ecrire': {
+      const v = p.retraite; let r = etat.retraites.find((x) => x.id === v.id)
+      if (!r) { r = { id: 'r' + Date.now(), jeton: Math.random().toString(16).slice(2).padEnd(32, '0'), inscriptions: [] }; etat.retraites.push(r) }
+      Object.assign(r, v, { ouverte: v.ouverte ? 'oui' : 'non', annee: v.annee || '2026-2027', date_fin: v.date_fin || v.date_debut, prix: v.prix.filter((l) => l.libelle).map((l, i) => ({ ...l, id: l.id || 'l' + i + Date.now(), montant: Number(l.montant) || 0 })) })
+      return retLire(r.id)
+    }
+    case 'retraites.supprimer': etat.retraites = etat.retraites.filter((r) => r.id !== p.id); return true
+    case 'retraites.inscription': {
+      const r = etat.retraites.find((y) => y.inscriptions.some((x) => x.id === p.id)), x = r.inscriptions.find((y) => y.id === p.id)
+      if (p.ajouter) x.paiements.push({ id: 'p' + Date.now(), date: p.ajouter.date, montant: Number(p.ajouter.montant), mode: p.ajouter.mode, par: moi.nom })
+      if (p.retirer) x.paiements = x.paiements.filter((y) => y.id !== p.retirer)
+      if (p.statut) x.statut = p.statut
+      return retLire(r.id)
+    }
+    case 'retraites.invites': {
+      const r = etat.retraites.find((x) => x.id === p.id)
+      const types = r.type === 'confirmation_adultes' ? ['confirmand', 'catechumene'] : [{ premiere_communion: 'premiere_communion', profession_foi: 'profession_foi', confirmation_jeunes: 'confirmation_jeune' }[r.type]]
+      const inscrits = r.inscriptions.flatMap((x) => x.participants.map((q) => q.dossier_id)).filter(Boolean)
+      return etat.dossiers.filter((d) => types.includes(d.type) && d.etat === 'ouvert').map((d) => ({ id: d.id, type: d.type, nom: nomDe(d), email: d.email, inscrit: inscrits.includes(d.id) }))
+    }
+    case 'retraites.inviter': return { nb: p.ids.length }
     case 'cor.relier': {
       const m = etat.cor.membres.find((x) => x.id === p.fiche_id)
       if (p.delier) m.dossiers = m.dossiers.filter((y) => y.id !== p.dossier_id)
