@@ -67,6 +67,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
   <button data-vue="calendrier"><b>▦</b>Calendrier</button>
   <button data-vue="dossier"><b>☰</b>Mon dossier</button>
 </nav>
+<script src="agenda.js"></script>
 <script>
 (function () {
   var URL_SCRIPT = __URL_SCRIPT__;
@@ -241,8 +242,14 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     }
     return '<div class="carte"><h2>Textes</h2>' + (horsLigne ? '<p class="petit">Hors connexion : seuls les textes déjà ouverts sur ce téléphone sont disponibles.</p>' : '') + (d.textes.length ? d.textes.map(ligneTexte).join('') : '<p class="petit">' + (horsLigne ? 'Aucun texte ouvert sur ce téléphone.' : 'Les textes que la paroisse vous enverra apparaîtront ici.') + '</p>') + '</div>';
   }
+  var agenda = null;
+  function placerAgenda() {
+    var z = $('agenda-place'); if (!z || !window.creerAgendaParoisse) return;
+    if (!agenda) agenda = window.creerAgendaParoisse({ mesDates: function () { return d ? d.calendrier : []; } });
+    z.appendChild(agenda.element);
+  }
   function pageCalendrier() {
-    return '<div class="carte"><h2>Calendrier</h2>' + (d.calendrier.length ? d.calendrier.map(carteEvenement).join('') : '<p class="petit">Aucune date pour le moment.</p>') + '</div>';
+    return '<div id="agenda-place"></div><div class="carte"><h2>Mes dates</h2>' + (d.calendrier.length ? d.calendrier.map(carteEvenement).join('') : '<p class="petit">Aucune date pour le moment.</p>') + '</div>';
   }
   function pageDossier() {
     var b = brouillon || (brouillon = JSON.parse(JSON.stringify(d.infos)));
@@ -289,10 +296,12 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     $('nbn').textContent = n; $('nbn').classList.toggle('cache', !n);
     if (horsLigne) {
       $('page').innerHTML = '<div class="horsligne">Hors connexion. <button class="lien" data-a="reessayer" style="padding:0">Réessayer</button></div>' +
-        (vue === 'textes' ? pageTextes() : '<div class="carte"><p>Cette page a besoin d\'une connexion internet.</p><p class="petit">Vos textes déjà ouverts restent lisibles dans l\'onglet Textes.</p></div>');
+        (vue === 'textes' ? pageTextes() : vue === 'calendrier' ? pageCalendrier() : '<div class="carte"><p>Cette page a besoin d\'une connexion internet.</p><p class="petit">Vos textes déjà ouverts et le calendrier restent consultables.</p></div>');
+      if (vue === 'calendrier') placerAgenda();
       return;
     }
     $('page').innerHTML = vue === 'textes' ? pageTextes() : vue === 'calendrier' ? pageCalendrier() : vue === 'dossier' ? pageDossier() : pageAccueil();
+    if (vue === 'calendrier') placerAgenda();
   }
 
   // ─── Actions ───
