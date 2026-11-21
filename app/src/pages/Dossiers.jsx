@@ -11,7 +11,7 @@ import { Chargement, Erreur, Modale, Vide, useCharger, enSuppression, Aide, useN
 
 export default function Dossiers() {
   const nav = useNavigate()
-  const { nomUtilisateur } = useApp()
+  const { nomUtilisateur, reglages: reglagesApp } = useApp()
   const [params, setParams] = useSearchParams()
   const type = params.get('type') || ''
   const etat = params.get('etat') || 'ouvert'
@@ -40,6 +40,7 @@ export default function Dossiers() {
         <div className="flex gap-2">
           {type === 'confirmand' && <ImportConfirmands dossiers={tous} onFait={recharger} />}
           {type === 'catechumene' && <ImportCatechumenes onFait={recharger} />}
+          {type === 'catechumene' && data && <button className="btn-clair" onClick={() => imprimerCatechumenes(liste, annee, reglagesApp.paroisse)}><Printer className="h-4 w-4" /><span className="hidden sm:inline">Imprimer la liste</span></button>}
           {placable && <button className={sel ? 'btn-principal' : 'btn-clair'} onClick={() => setSel(sel ? null : new Set())}><HeartHandshake className="h-4 w-4" /><span className="hidden sm:inline">{sel ? 'Terminer' : 'Placer dans une fraternité'}</span></button>}
           <button className="btn-clair" onClick={() => setEnvoiForm(true)}><Send className="h-4 w-4" /><span className="hidden sm:inline">Envoyer un formulaire</span></button>
           <Aide>Envoie par mail, à un parent ou à une école, un bouton vers le formulaire de Première Communion ou de Profession de foi. Les réponses créent les dossiers ; l'acte de baptême est demandé.</Aide>
@@ -388,4 +389,30 @@ function ApercuImport({ apercu, onFermer, onFait }) {
       </ul>
     </Modale>
   )
+}
+
+/** Liste imprimable des catéchumènes (année choisie ou toutes) : prénom de baptême, parrain / marraine, accompagnateur. */
+function imprimerCatechumenes(liste, annee, paroisse) {
+  const e = (t) => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+  const tries = liste.filter((d) => d.etat !== 'annule').slice().sort((a, b) => (anneeSacrements(a) || '9999').localeCompare(anneeSacrements(b) || '9999') || a.nom.localeCompare(b.nom, 'fr'))
+  let n = 0, prec = null
+  const lignes = tries.map((d) => {
+    const prenoms = d.nom.split(' ').filter((m) => m !== m.toUpperCase()).join(' ')
+    const nom = d.nom.split(' ').filter((m) => m === m.toUpperCase()).join(' ')
+    const a = anneeSacrements(d) || ''
+    const tete = !annee && a !== prec ? `<tr><td colspan="6" class="annee">${a ? 'Baptême ' + e(a) : 'Année non fixée'}</td></tr>` : ''
+    prec = a
+    if (tete) n = 0
+    n++
+    return `${tete}<tr><td>${n}</td><td><b>${e(nom)}</b></td><td>${e(prenoms)}</td><td>${e(d.liste?.prenom_bapteme)}</td><td>${e(d.liste?.parrain)}</td><td>${e(d.liste?.accompagnateur)}</td></tr>`
+  }).join('')
+  const titre = annee && annee !== 'aucune' ? `Catéchumènes – baptême ${annee}` : annee === 'aucune' ? 'Catéchumènes – année non fixée' : 'Catéchumènes'
+  imprimerHtml(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${titre}</title><style>
+    @page{size:A4 landscape;margin:14mm} body{font-family:Arial,sans-serif;color:#222} h1{color:#521a22;font-size:19pt;margin:0 0 2mm}
+    .sous{color:#666;margin:0 0 7mm} table{width:100%;border-collapse:collapse;font-size:10.5pt} th{text-align:left;border-bottom:2px solid #521a22;padding:2mm}
+    td{border-bottom:1px solid #ddd;padding:2mm} td:first-child{color:#888;width:7mm} td.annee{font-weight:bold;color:#a8662e;padding-top:5mm;border-bottom:1px solid #a8662e}
+    .total{margin-top:5mm;color:#666;font-size:10pt}</style></head><body>
+    <h1>${titre}</h1><p class="sous">${e(paroisse)}</p>
+    <table><thead><tr><th>N°</th><th>Nom</th><th>Prénom(s)</th><th>Prénom de baptême</th><th>Parrain / marraine</th><th>Accompagnateur</th></tr></thead><tbody>${lignes}</tbody></table>
+    <p class="total">${tries.length} catéchumène${tries.length > 1 ? 's' : ''}</p></body></html>`)
 }

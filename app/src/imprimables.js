@@ -30,6 +30,13 @@ const doc = (corps) => `<!doctype html><html lang="fr"><head><meta charset="utf-
 const ligne = (label, valeur, cls = '') => `<div class="l"><span>${label}</span><span class="v ${cls}">${e(valeur)}</span></div>`
 
 // ─── B14 – Extrait de baptême ───
+// Catéchumène : le prénom de baptême s'ajoute aux prénoms (sauf s'il y figure déjà)
+const sansAcc = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+function avecPrenomBapteme(i) {
+  const p = String(i.prenoms || '').trim(), b = String(i.prenom_bapteme || '').trim()
+  if (!b || sansAcc(p).split(/[\s,-]+/).includes(sansAcc(b))) return p
+  return [p, b].filter(Boolean).join(' ')
+}
 export const B14 = {
   titre: 'Extrait de baptême (B14)',
   champs: [
@@ -48,7 +55,7 @@ export const B14 = {
       sexe: i.sexe || '',
       confirme_le: d.type === 'catechumene' ? '' : dateLongue(i.confirmation_date),
       confirme_a: d.type === 'catechumene' ? [i.lieu_celebration, i.commune_celebration].filter(Boolean).join(', ') : i.confirmation_lieu || '',
-      prenoms: enfant ? i.enfant_prenoms : i.prenoms, nom: String((enfant ? i.enfant_nom : i.nom) || '').toUpperCase(),
+      prenoms: enfant ? i.enfant_prenoms : avecPrenomBapteme(i), nom: String((enfant ? i.enfant_nom : i.nom) || '').toUpperCase(),
       ne_le: dateLongue(enfant ? i.enfant_naissance_date : i.naissance_date), ne_a: enfant ? i.enfant_naissance_lieu : i.naissance_lieu,
       baptise_le: d.type === 'catechumene' ? '' : dateLongue(d.date_celebration), eglise: i.lieu_celebration || r.eglise, de: i.commune_celebration || r.commune,
       diocese_de: i.diocese_celebration || r.diocese,

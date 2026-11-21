@@ -170,6 +170,7 @@ export const TYPES = {
       { titre: 'Parcours', champs: [T('religion_origine', "Religion d'origine"), T('motivations', 'Motivations', 'paragraphe'), T('accompagnateurs', 'Accompagnateurs'),
         T('disponibilite', 'Disponibilités'), T('en_attente', 'En attente (année non fixée)', 'choix', { choix: ['', 'oui'] }), T('remarques', 'Remarques', 'paragraphe')] },
       { titre: 'Service diocésain du catéchuménat', champs: [T('diocese_inscription', 'Inscrit(e) en ligne', 'choix', { choix: ['', 'oui', 'non'] }), T('diocese_mail', 'Mail envoyé au service', 'choix', { choix: ['', 'oui', 'non'] })] },
+      { titre: 'Prénom de baptême', champs: [T('prenom_bapteme', 'Prénom de baptême (facultatif)')] },
       { titre: 'Parrain / marraine', champs: [T('parrain_marraine', 'Nom'), T('parrain_contact', 'Coordonnées')] },
       { titre: 'Entrée en catéchuménat (B6)', champs: [T('entree_date', "Date de l'accueil", 'date'), T('entree_ministre', 'Prêtre ou diacre'),
         T('service_diocesain', 'Membres du service diocésain présents', 'paragraphe'), T('b6_annee', 'Année (registre diocésain)'), T('b6_acte', 'Acte n° (B6)')] },

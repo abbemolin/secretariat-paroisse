@@ -10,7 +10,7 @@ var COLONNES_ESPACES = ['dossier_id', 'jeton', 'hash', 'sel', 'mdp_maj', 'cree_l
 var COLONNES_TEXTES = ['id', 'cree_le', 'auteur', 'titre', 'corps', 'cible', 'fichiers', 'liens', 'lus', 'maj_le'];
 var COLONNES_CALENDRIER = ['id', 'date', 'heure_debut', 'heure_fin', 'titre', 'lieu', 'cible', 'note'];
 var ESPACE_SESSION_JOURS = 90;
-var CHAMPS_ESPACE = ['prenoms', 'nom', 'sexe', 'nom_jeune_fille', 'naissance_date', 'naissance_lieu', 'adresse', 'nationalite', 'profession', 'telephone', 'email',
+var CHAMPS_ESPACE = ['prenom_bapteme', 'prenoms', 'nom', 'sexe', 'nom_jeune_fille', 'naissance_date', 'naissance_lieu', 'adresse', 'nationalite', 'profession', 'telephone', 'email',
   'pere_prenom', 'pere_nom', 'mere_prenom', 'mere_nom_jeune_fille', 'situation', 'conjoint', 'parrain_marraine', 'parrain_contact'];
 var PIECES_ESPACE = { acte_naissance: 'Acte de naissance', photo: 'Photo d\'identité', cert_parrain: 'Certificat du parrain / de la marraine' };
 
@@ -167,7 +167,9 @@ function actionEspace_(action, p) {
       var x = trouverDossier_(d.id), don = json2_(x.donnees, {});
       don.infos = don.infos || {};
       var changes = [];
+      var neo = profilEspace_(x).neo;
       CHAMPS_ESPACE.forEach(function (k) {
+        if (k === 'prenom_bapteme' && neo) return;   // après le baptême : lecture seule
         if (p.infos && p.infos[k] !== undefined) {
           var v = String(p.infos[k] == null ? '' : p.infos[k]).trim().slice(0, 300);
           if (v !== String(don.infos[k] || '')) { don.infos[k] = v; changes.push(k); }

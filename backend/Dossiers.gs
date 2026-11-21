@@ -76,6 +76,7 @@ function dossierResume_(d) {
     annee: (don.infos || {}).annee_sacrements || (don.infos || {}).annee_scolaire || '',
     autre_confession: (don.infos || {}).autre_confession || '',
     alertes: alertesDossier_(d.type, don.infos || {}),
+    liste: d.type === 'catechumene' ? { prenom_bapteme: (don.infos || {}).prenom_bapteme || '', parrain: (don.infos || {}).parrain_marraine || '', accompagnateur: (don.infos || {}).accompagnateurs || '' } : undefined,
     preparation: (don.infos || {}).preparation === 'Autre école' ? ((don.infos || {}).ecole_autre || 'Autre école') : ((don.infos || {}).preparation || '')
   };
 }
