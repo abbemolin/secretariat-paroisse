@@ -11,7 +11,7 @@ import { Chargement, Erreur, EnTete, Modale, useNotif, heure, jourLong, dateRela
 let promesseAppMesse = null
 const appMesse = () => (promesseAppMesse ||= chargerAppMesse(7).catch((e) => { promesseAppMesse = null; throw e }))
 
-const BLOCS = { chiffres: 'Chiffres (mails, dossiers, agenda)', afaire: 'À faire', fete: 'Fête du jour et intentions de messe', demandes: 'Nouvelles demandes et mes dossiers', notifications: 'Notifications', agenda: 'Les 7 prochains jours' }
+const BLOCS = { chiffres: 'Chiffres (mails, dossiers, agenda)', afaire: 'À faire', fete: 'Intentions de messe', demandes: 'Nouvelles demandes et mes dossiers', notifications: 'Notifications', agenda: 'Les 7 prochains jours' }
 const LARGES = ['chiffres', 'afaire', 'fete']
 
 export default function Accueil() {
@@ -98,10 +98,17 @@ export default function Accueil() {
 
   return (
     <>
-      <EnTete titre={`${salut}, ${utilisateur.nom}`}
-        sousTitre={<span className="flex flex-wrap items-center gap-x-2"><span className="first-letter:uppercase">{jourLong(new Date())}</span>
-          {fete && <span className="flex items-center gap-1.5 text-nuit-600/80"><span className="h-2.5 w-2.5 rounded-full border border-nuit-100" style={{ background: COULEURS_LITURGIQUES[fete.couleur] || '#ddd' }} />{fete.fete}</span>}</span>}
-        actions={<button className="btn-clair py-1.5 text-xs" onClick={() => setPerso(true)}><SlidersHorizontal className="h-3.5 w-3.5" />Personnaliser</button>} />
+      <div className="mb-5">
+        <div className="flex items-start gap-2">
+          <h1 className="min-w-0 flex-1 text-2xl font-semibold leading-tight sm:text-3xl">{salut}, {utilisateur.nom}</h1>
+          <button className="btn-clair shrink-0 px-2 py-1.5" title="Personnaliser mon accueil" aria-label="Personnaliser mon accueil" onClick={() => setPerso(true)}><SlidersHorizontal className="h-4 w-4" /></button>
+        </div>
+        <p className="mt-1 flex min-w-0 items-center gap-1.5 text-sm text-nuit-600/80">
+          <span className="shrink-0 first-letter:uppercase sm:hidden">{new Date().toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
+          <span className="hidden shrink-0 first-letter:uppercase sm:inline">{jourLong(new Date())}</span>
+          {fete && <><span className="shrink-0">·</span><span className="h-2.5 w-2.5 shrink-0 rounded-full border border-nuit-100" style={{ background: COULEURS_LITURGIQUES[fete.couleur] || '#ddd' }} title={`Couleur liturgique : ${fete.couleur}`} /><span className="truncate" title={fete.fete}>{fete.fete}</span></>}
+        </p>
+      </div>
       <Erreur erreur={erreur} reessayer={recharger} />
       {chargement && !data ? <Chargement /> : data && (
         <div className="space-y-5">
@@ -189,22 +196,13 @@ function FeteEtIntentions() {
   const o = ordoDu(auj)
   return (
     <section className="carte overflow-hidden">
-      <div className="flex flex-wrap items-center gap-3 border-b border-nuit-50 px-5 py-4" style={{ background: o ? `linear-gradient(90deg, ${COULEURS_LITURGIQUES[o.couleur] || '#fff'}22, transparent 60%)` : undefined }}>
-        {o && <span title={`Couleur liturgique : ${o.couleur}`} className="h-9 w-9 shrink-0 rounded-full border border-nuit-100 shadow-inner" style={{ background: COULEURS_LITURGIQUES[o.couleur] }} />}
-        <div className="min-w-0 flex-1">
-          <div className="text-xs uppercase tracking-wide text-or-600">Fête du jour</div>
-          {!data ? <div className="text-sm text-nuit-600/60">Chargement…</div> : o ? <>
-            <div className="font-titre text-xl font-semibold leading-tight">{o.fete}</div>
-            <div className="text-xs text-nuit-600/70">{CLASSES[o.classe] || o.classe} · {o.couleur}{o.commemoraison ? ` · Commémoraison : ${o.commemoraison}` : ''}</div>
-          </> : <div className="text-sm text-nuit-600/60">Ordo non disponible.</div>}
-        </div>
-        <a href={LIEN_APPMESSE} target="_blank" rel="noreferrer" className="btn-clair py-1.5 text-xs"><ExternalLink className="h-3.5 w-3.5" />AppMESSE</a>
-      </div>
       <div className="px-5 py-3">
-        <div className="mb-1 flex items-center justify-between">
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-x-3">
           <h2 className="text-lg font-semibold">Intentions de messe</h2>
           <button className="text-xs text-or-600 hover:underline" onClick={() => setSemaine(!semaine)}>{semaine ? "Aujourd'hui seulement" : 'Les 7 prochains jours'}</button>
         </div>
+        {o && <p className="mb-1 text-xs text-nuit-600/70">{[CLASSES[o.classe] || o.classe, o.commemoraison ? `Commémoraison : ${o.commemoraison}` : ''].filter(Boolean).join(' · ')} · <a href={LIEN_APPMESSE} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-or-600 hover:underline">AppMESSE<ExternalLink className="h-3 w-3" /></a></p>}
+        {!o && <p className="mb-1 text-xs"><a href={LIEN_APPMESSE} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-or-600 hover:underline">AppMESSE<ExternalLink className="h-3 w-3" /></a></p>}
         {!data ? null : jours.map((j) => {
           const liste = intentionsDu(j), oj = ordoDu(j)
           return (
