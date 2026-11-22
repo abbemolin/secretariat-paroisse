@@ -192,9 +192,17 @@ export async function demoApi(action, p) {
     case 'app.init': return { utilisateur: pub(moi), utilisateurs: etat.utilisateurs.map(({ id, nom, role }) => ({ id, nom, role })), reglages: etat.reglages, signatures: etat.signatures, reponses: etat.reponses, nonLues: etat.notifications.filter((n) => !n.lu).length }
     case 'auth.logout': case 'auth.motdepasse': case 'push.abonner': case 'push.desabonner': case 'push.tester': return true
     case 'push.cle': return ''
+    case 'accueil.blocs': return (etat.blocs = { ordre: p.ordre, masques: p.masques })
+    case 'recherche': {
+      const sa = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(), mots = sa(p.q).split(/\s+/).filter(Boolean), ok = (t) => mots.every((m) => sa(t).includes(m))
+      const g = []
+      const ds = etat.dossiers.filter((d) => ok(`${nomDe(d)} ${d.email} ${d.telephone}`)); if (ds.length) g.push({ cle: 'dossiers', titre: 'Dossiers', total: ds.length, items: ds.slice(0, 8).map((d) => ({ titre: nomDe(d), sous: d.type, lien: '/dossiers/' + d.id })) })
+      const cs = etat.cor.membres.filter((m) => ok(`${m.prenoms} ${m.nom} ${m.email}`)); if (cs.length) g.push({ cle: 'cor', titre: 'Cor Unum', total: cs.length, items: cs.slice(0, 8).map((m) => ({ titre: `${m.prenoms} ${m.nom.toUpperCase()}`, sous: m.annee, lien: `/cor-unum?annee=${m.annee}&vue=tous&fiche=${m.id}` })) })
+      return { groupes: g }
+    }
     case 'accueil.resume': {
       const ouverts = etat.dossiers.filter((d) => d.etat === 'ouvert')
-      return { mailsNonLus: etat.fils.filter((f) => f.nonLu).length, mesMails: etat.fils.filter((f) => f.suivi?.attribue_a === moi.id && f.suivi.statut !== 'Traité').length,
+      return { blocs: etat.blocs || { ordre: ['chiffres', 'afaire', 'fete', 'demandes', 'notifications', 'agenda'], masques: [] }, mailsNonLus: etat.fils.filter((f) => f.nonLu).length, mesMails: etat.fils.filter((f) => f.suivi?.attribue_a === moi.id && f.suivi.statut !== 'Traité').length,
         dossiersOuverts: ouverts.length, mesDossiers: ouverts.filter((d) => d.responsable === moi.id).map(resume),
         nouveaux: ouverts.filter((d) => Object.keys(d.etapes).length <= 1).map(resume),
         evenements: etat.evenements.filter((e) => new Date(e.debut) < Date.now() + 7 * 864e5 && new Date(e.fin) > new Date().setHours(0, 0, 0, 0)).sort((a, b) => a.debut.localeCompare(b.debut)),

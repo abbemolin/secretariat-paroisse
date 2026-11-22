@@ -13,6 +13,15 @@
     <title>Secrétariat – La Croix glorieuse</title>
   </head>
   <body class="bg-parchemin">
+    <div id="demarrage" style="position:fixed;inset:0;z-index:100;background:#521a22;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#fff;transition:opacity .45s ease;font-family:'Cormorant Garamond',Georgia,serif">
+      <img src="./logo-128.png" alt="" style="width:96px;height:96px;border-radius:50%;background:#fff;box-shadow:0 6px 24px rgba(0,0,0,.25);animation:respire 1.6s ease-in-out infinite" />
+      <div style="font-size:26px;font-weight:600">La Croix glorieuse</div><div style="font-family:Inter,Arial,sans-serif;font-size:13px;opacity:.7;margin-top:-8px">Secrétariat paroissial</div>
+    </div>
+    <style>@keyframes respire{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}@media (prefers-reduced-motion:reduce){#demarrage img{animation:none!important}}</style>
+    <script>
+      window.finDemarrage = function () { var z = document.getElementById('demarrage'); if (!z || z.dataset.fin) return; z.dataset.fin = 1; z.style.opacity = 0; z.style.pointerEvents = 'none'; setTimeout(function () { z.remove() }, 500) }
+      setTimeout(window.finDemarrage, 4000)
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

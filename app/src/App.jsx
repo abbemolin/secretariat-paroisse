@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { BoutonRecherche } from './pages/RechercheGlobale.jsx'
 import { Home, Mail, CalendarDays, FolderHeart, FolderOpen, Users, Settings, UserCircle, LogOut, Bell, ScrollText, GraduationCap, HeartHandshake, Mountain, Flame, BookOpen, LifeBuoy, MoreHorizontal, X } from 'lucide-react'
 import { api, ecrireToken, lireToken, quandSessionExpire, estDemo } from './api.js'
 import { Chargement, FournisseurNotif, ROLES, dateRelative } from './ui.jsx'
@@ -96,8 +97,8 @@ export default function App() {
 
   useEffect(() => {
     quandSessionExpire(() => setDonnees(null))
-    if (!lireToken() && !estDemo()) { setPret(true); return }
-    charger().finally(() => setPret(true))
+    if (!lireToken() && !estDemo()) { setPret(true); window.finDemarrage?.(); return }
+    charger().finally(() => { setPret(true); window.finDemarrage?.() })
   }, [charger])
 
   if (!pret) return <Chargement />
@@ -170,6 +171,7 @@ function Cloche() {
 
 function Cadre() {
   const { utilisateur, peut, deconnecter } = useApp()
+  const loc = useLocation()
   const [plus, setPlus] = useState(false)
   const menu = MENU.map((m) => (m.items ? { ...m, items: m.items.filter((x) => peut(x.droit)) } : m)).filter((m) => (m.items ? m.items.length : peut(m.droit)))
   const bas = aplatir(menu).filter((m) => m.bas)
@@ -180,6 +182,7 @@ function Cadre() {
           <img src="./logo-128.png" alt="" className="h-12 w-12 rounded-full" />
           <div className="leading-tight"><div className="font-titre text-lg font-semibold">La Croix glorieuse</div><div className="text-xs text-white/60">Secrétariat paroissial</div></div>
         </div>
+        <BoutonRecherche />
         <nav className="flex-1 space-y-1 overflow-y-auto px-3">
           {menu.map((m, i) => m.items ? (
             <div key={i} className={m.secondaire ? 'border-t border-white/10 pt-2' : 'pt-2'}>
@@ -203,12 +206,12 @@ function Cadre() {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center justify-between bg-nuit px-4 py-2.5 text-white lg:hidden" style={{ paddingTop: 'max(0.6rem, env(safe-area-inset-top))' }}>
           <div className="flex items-center gap-2"><img src="./logo-128.png" alt="" className="h-8 w-8 rounded-full" /><span className="font-titre text-lg font-semibold">La Croix glorieuse</span></div>
-          <div className="flex items-center"><Cloche /><NavLink to="/compte" className="rounded-lg p-2 hover:bg-white/10"><UserCircle className="h-6 w-6" /></NavLink></div>
+          <div className="flex items-center"><BoutonRecherche mobile /><Cloche /><NavLink to="/compte" className="rounded-lg p-2 hover:bg-white/10"><UserCircle className="h-6 w-6" /></NavLink></div>
         </header>
         {estDemo() && <div className="bg-or-100 px-4 py-1.5 text-center text-xs text-or-600">{({ secretaire: 'Aperçu : vous voyez l\'appli comme une secrétaire. ', cure: 'Aperçu : vous voyez l\'appli comme un prêtre. ' })[new URLSearchParams(location.search).get('role')] || 'Mode démonstration — '}Données fictives, rien n'est enregistré ni envoyé.</div>}
 
         <main className="flex-1 overflow-y-auto px-4 pb-24 pt-5 sm:px-6 lg:px-10 lg:pb-10 lg:pt-8">
-          <div className="mx-auto max-w-6xl">
+          <div className="mx-auto max-w-6xl animate-entree" key={loc.pathname}>
             <Routes>
               <Route path="/" element={<Accueil />} />
               {peut('mail') && <Route path="/courrier" element={<Courrier />} />}

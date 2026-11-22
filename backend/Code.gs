@@ -97,6 +97,8 @@ var ROUTES = {
   'auth.motdepasse':       { fn: function (p, s) { return changerMotDePasse_(p, s); } },
   'app.init':              { fn: function (p, s) { return initApp_(p, s); } },
   'accueil.resume':        { fn: function (p, s) { return resumeAccueil_(p, s); } },
+  'accueil.blocs':         { fn: function (p, s) { return ecrirePrefsAccueil_(p, s); } },
+  'recherche':             { fn: function (p, s) { return rechercheGlobale_(p, s); } },
 
   'utilisateurs.liste':    { fn: function (p, s) { return listerUtilisateurs_(p, s); } },
   'utilisateurs.creer':    { fn: function (p, s) { return creerUtilisateur_(p, s); }, droit: 'utilisateurs' },
@@ -539,6 +541,7 @@ function initApp_(p, s) {
 
 function resumeAccueil_(p, s) {
   var d = DROITS[s.role], res = {};
+  try { res.blocs = prefsAccueil_(s.uid); } catch (e) {}
   if (d.indexOf('mail') > -1) {
     res.mailsNonLus = GmailApp.getInboxUnreadCount();
     var suivis = lignes_('SuiviMails');

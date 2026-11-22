@@ -1,92 +1,146 @@
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { Mail, UserCheck, FolderHeart, CalendarDays, ChevronRight, Bell, ExternalLink, ListChecks, CheckCircle2 } from 'lucide-react'
+import { Mail, UserCheck, FolderHeart, CalendarDays, ChevronRight, Bell, ExternalLink, ListChecks, CheckCircle2, SlidersHorizontal, ArrowUp, ArrowDown } from 'lucide-react'
 import { chargerAppMesse, CELEBRANTS, COULEURS_LITURGIQUES, LIEN_APPMESSE } from '../appmesse.js'
 import { api } from '../api.js'
 import { useApp } from '../App.jsx'
 import { TYPES, prochaineEtape } from '../types.js'
-import { Chargement, Erreur, EnTete, heure, jourLong, dateRelative, useCharger } from '../ui.jsx'
+import { Chargement, Erreur, EnTete, Modale, useNotif, heure, jourLong, dateRelative, useCharger } from '../ui.jsx'
+
+// AppMESSE chargée une seule fois (en-tête + carte « Fête du jour »)
+let promesseAppMesse = null
+const appMesse = () => (promesseAppMesse ||= chargerAppMesse(7).catch((e) => { promesseAppMesse = null; throw e }))
+
+const BLOCS = { chiffres: 'Chiffres (mails, dossiers, agenda)', afaire: 'À faire', fete: 'Fête du jour et intentions de messe', demandes: 'Nouvelles demandes et mes dossiers', notifications: 'Notifications', agenda: 'Les 7 prochains jours' }
+const LARGES = ['chiffres', 'afaire', 'fete']
 
 export default function Accueil() {
   const { utilisateur, peut } = useApp()
-  const { data, chargement, erreur, recharger } = useCharger(() => api('accueil.resume'), [], ['accueil.resume', {}])
+  const { data, chargement, erreur, recharger, setData } = useCharger(() => api('accueil.resume'), [], ['accueil.resume', {}])
+  const [perso, setPerso] = useState(false)
+  const [fete, setFete] = useState(null)
+  useEffect(() => { appMesse().then((x) => setFete(x?.ordo?.find((o) => o.date === new Date().toLocaleDateString('sv-SE')) || null)).catch(() => {}) }, [])
   const salut = new Date().getHours() < 18 ? 'Bonjour' : 'Bonsoir'
+  const prefs = data?.blocs || { ordre: Object.keys(BLOCS), masques: [] }
+
+  const rendus = {
+    chiffres: () => (
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {peut('mail') && <Tuile to="/courrier" icone={Mail} chiffre={data.mailsNonLus} libelle="e-mails non lus" />}
+        {peut('mail') && <Tuile to="/courrier?filtre=mes" icone={UserCheck} chiffre={data.mesMails} libelle="mails qui me sont attribués" accent={data.mesMails > 0} />}
+        {peut('dossiers') && <Tuile to="/dossiers" icone={FolderHeart} chiffre={data.dossiersOuverts} libelle="dossiers en cours" />}
+        {peut('agenda') && <Tuile to="/agenda" icone={CalendarDays} chiffre={data.evenements?.length} libelle="événements sur 7 jours" />}
+      </div>
+    ),
+    afaire: () => data.afaire && (
+      <section className="carte p-5">
+        <h2 className="mb-2 flex items-center gap-2 text-xl font-semibold"><ListChecks className="h-5 w-5 text-or" />À faire</h2>
+        {!data.afaire.length ? <p className="flex items-center gap-2 text-sm text-nuit-600/70"><CheckCircle2 className="h-4 w-4 text-emerald-600" />Rien en attente. Bonne journée !</p> : (
+          <ul className="divide-y divide-nuit-50">
+            {data.afaire.map((x) => (
+              <li key={x.cle}><Link to={x.lien} className="flex items-center gap-3 py-2.5 text-sm hover:text-or-600">
+                <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-or px-2 text-xs font-bold text-white">{x.nombre}</span>
+                <span className="flex-1">{x.texte}</span><ChevronRight className="h-4 w-4 text-nuit-600/40" /></Link></li>
+            ))}
+          </ul>
+        )}
+      </section>
+    ),
+    fete: () => <FeteEtIntentions />,
+    demandes: () => peut('dossiers') && (
+      <section className="carte p-5">
+        <Titre texte="Nouvelles demandes" lien="/dossiers" />
+        <ListeDossiers liste={data.nouveaux} vide="Aucune nouvelle demande." />
+        {data.mesDossiers?.length > 0 && <>
+          <h3 className="mb-1 mt-5 text-lg font-semibold">Mes dossiers</h3>
+          <ListeDossiers liste={data.mesDossiers} />
+        </>}
+      </section>
+    ),
+    notifications: () => data.notifications?.length > 0 && (
+      <section className="carte p-5">
+        <Titre texte="Notifications" />
+        <ul className="divide-y divide-nuit-50">
+          {data.notifications.slice(0, 5).map((n) => (
+            <li key={n.id}><Link to={(n.lien || '#/').replace(/^#/, '')} className={`flex items-start gap-2 py-2 text-sm hover:text-or-600 ${n.lu ? 'opacity-60' : ''}`}>
+              <Bell className="mt-0.5 h-4 w-4 shrink-0 text-or" /><div className="min-w-0 flex-1"><div className="font-medium">{n.titre}</div><div className="truncate text-xs text-nuit-600/70">{n.texte}</div></div>
+              <span className="text-xs text-nuit-600/50">{dateRelative(n.date)}</span></Link></li>
+          ))}
+        </ul>
+      </section>
+    ),
+    agenda: () => peut('agenda') && (
+      <section className="carte p-5">
+        <Titre texte="Les 7 prochains jours" lien="/agenda" />
+        {!data.evenements?.length ? <p className="text-sm text-nuit-600/70">Rien de prévu.</p> : (
+          <ul className="divide-y divide-nuit-50">
+            {data.evenements.slice(0, 8).map((e) => (
+              <li key={e.id + e.debut} className="flex gap-3 py-2 text-sm">
+                <div className="w-28 shrink-0 text-nuit-600/80"><div className="text-xs first-letter:uppercase">{jourLong(e.debut).split(' ').slice(0, 3).join(' ')}</div><div className="font-medium text-nuit">{e.journee ? 'journée' : heure(e.debut)}</div></div>
+                <div className="min-w-0 flex-1"><div className="font-medium">{e.titre}</div>{e.lieu && <div className="text-xs text-nuit-600/70">{e.lieu}</div>}</div>
+                {e.dossier && <Link to={`/dossiers/${e.dossier}`} className="self-center text-xs text-or-600 hover:underline">dossier</Link>}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    )
+  }
+  // Les blocs larges prennent toute la largeur ; les autres se rangent deux par deux sur ordinateur
+  const lignes = []
+  if (data) prefs.ordre.filter((b) => !prefs.masques.includes(b)).forEach((b) => {
+    const el = rendus[b]?.(); if (!el) return
+    const dernier = lignes[lignes.length - 1]
+    if (LARGES.includes(b)) lignes.push({ large: true, blocs: [[b, el]] })
+    else if (dernier && !dernier.large && dernier.blocs.length < 2) dernier.blocs.push([b, el])
+    else lignes.push({ large: false, blocs: [[b, el]] })
+  })
 
   return (
     <>
-      <EnTete titre={`${salut}, ${utilisateur.nom}`} sousTitre={jourLong(new Date())} />
+      <EnTete titre={`${salut}, ${utilisateur.nom}`}
+        sousTitre={<span className="flex flex-wrap items-center gap-x-2"><span className="first-letter:uppercase">{jourLong(new Date())}</span>
+          {fete && <span className="flex items-center gap-1.5 text-nuit-600/80"><span className="h-2.5 w-2.5 rounded-full border border-nuit-100" style={{ background: COULEURS_LITURGIQUES[fete.couleur] || '#ddd' }} />{fete.fete}</span>}</span>}
+        actions={<button className="btn-clair py-1.5 text-xs" onClick={() => setPerso(true)}><SlidersHorizontal className="h-3.5 w-3.5" />Personnaliser</button>} />
       <Erreur erreur={erreur} reessayer={recharger} />
       {chargement && !data ? <Chargement /> : data && (
         <div className="space-y-5">
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            {peut('mail') && <Tuile to="/courrier" icone={Mail} chiffre={data.mailsNonLus} libelle="e-mails non lus" />}
-            {peut('mail') && <Tuile to="/courrier?filtre=mes" icone={UserCheck} chiffre={data.mesMails} libelle="mails qui me sont attribués" accent={data.mesMails > 0} />}
-            {peut('dossiers') && <Tuile to="/dossiers" icone={FolderHeart} chiffre={data.dossiersOuverts} libelle="dossiers en cours" />}
-            {peut('agenda') && <Tuile to="/agenda" icone={CalendarDays} chiffre={data.evenements?.length} libelle="événements sur 7 jours" />}
-          </div>
-
-          {data.afaire && (
-            <section className="carte p-5">
-              <h2 className="mb-2 flex items-center gap-2 text-xl font-semibold"><ListChecks className="h-5 w-5 text-or" />À faire</h2>
-              {!data.afaire.length ? <p className="flex items-center gap-2 text-sm text-nuit-600/70"><CheckCircle2 className="h-4 w-4 text-emerald-600" />Rien en attente. Bonne journée !</p> : (
-                <ul className="divide-y divide-nuit-50">
-                  {data.afaire.map((x) => (
-                    <li key={x.cle}><Link to={x.lien} className="flex items-center gap-3 py-2.5 text-sm hover:text-or-600">
-                      <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-or px-2 text-xs font-bold text-white">{x.nombre}</span>
-                      <span className="flex-1">{x.texte}</span><ChevronRight className="h-4 w-4 text-nuit-600/40" /></Link></li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          )}
-
-          <FeteEtIntentions />
-
-          <div className="grid gap-5 lg:grid-cols-2">
-            {peut('dossiers') && (
-              <section className="carte p-5">
-                <Titre texte="Nouvelles demandes" lien="/dossiers" />
-                <ListeDossiers liste={data.nouveaux} vide="Aucune nouvelle demande." />
-                {data.mesDossiers?.length > 0 && <>
-                  <h3 className="mb-1 mt-5 text-lg font-semibold">Mes dossiers</h3>
-                  <ListeDossiers liste={data.mesDossiers} />
-                </>}
-              </section>
-            )}
-            <div className="space-y-5">
-              {data.notifications?.length > 0 && (
-                <section className="carte p-5">
-                  <Titre texte="Notifications" />
-                  <ul className="divide-y divide-nuit-50">
-                    {data.notifications.slice(0, 5).map((n) => (
-                      <li key={n.id}><Link to={(n.lien || '#/').replace(/^#/, '')} className={`flex items-start gap-2 py-2 text-sm hover:text-or-600 ${n.lu ? 'opacity-60' : ''}`}>
-                        <Bell className="mt-0.5 h-4 w-4 shrink-0 text-or" /><div className="min-w-0 flex-1"><div className="font-medium">{n.titre}</div><div className="truncate text-xs text-nuit-600/70">{n.texte}</div></div>
-                        <span className="text-xs text-nuit-600/50">{dateRelative(n.date)}</span></Link></li>
-                    ))}
-                  </ul>
-                </section>
-              )}
-              {peut('agenda') && (
-                <section className="carte p-5">
-                  <Titre texte="Les 7 prochains jours" lien="/agenda" />
-                  {!data.evenements?.length ? <p className="text-sm text-nuit-600/70">Rien de prévu.</p> : (
-                    <ul className="divide-y divide-nuit-50">
-                      {data.evenements.slice(0, 8).map((e) => (
-                        <li key={e.id + e.debut} className="flex gap-3 py-2 text-sm">
-                          <div className="w-28 shrink-0 text-nuit-600/80"><div className="text-xs first-letter:uppercase">{jourLong(e.debut).split(' ').slice(0, 3).join(' ')}</div><div className="font-medium text-nuit">{e.journee ? 'journée' : heure(e.debut)}</div></div>
-                          <div className="min-w-0 flex-1"><div className="font-medium">{e.titre}</div>{e.lieu && <div className="text-xs text-nuit-600/70">{e.lieu}</div>}</div>
-                          {e.dossier && <Link to={`/dossiers/${e.dossier}`} className="self-center text-xs text-or-600 hover:underline">dossier</Link>}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </section>
-              )}
-            </div>
-          </div>
+          {lignes.map((l, i) => l.large ? <div key={l.blocs[0][0]}>{l.blocs[0][1]}</div>
+            : <div key={i} className={`grid gap-5 ${l.blocs.length > 1 ? 'lg:grid-cols-2' : ''} items-start`}>{l.blocs.map(([b, el]) => <div key={b}>{el}</div>)}</div>)}
+          {!lignes.length && <p className="text-sm text-nuit-600/70">Tous les blocs sont masqués. « Personnaliser » pour en afficher.</p>}
         </div>
       )}
+      {perso && <Personnaliser prefs={prefs} onFermer={() => setPerso(false)} onEnregistre={(b) => { setData((x) => ({ ...x, blocs: b })); setPerso(false) }} />}
     </>
+  )
+}
+
+/** Choisir l'ordre des blocs de l'accueil et ceux à masquer (retenu pour l'utilisateur, sur tous ses appareils). */
+function Personnaliser({ prefs, onFermer, onEnregistre }) {
+  const notifier = useNotif()
+  const [ordre, setOrdre] = useState(prefs.ordre)
+  const [masques, setMasques] = useState(prefs.masques)
+  const [envoi, setEnvoi] = useState(false)
+  const bouger = (i, d) => { const o = [...ordre]; const [x] = o.splice(i, 1); o.splice(i + d, 0, x); setOrdre(o) }
+  async function enregistrer() {
+    setEnvoi(true)
+    try { onEnregistre(await api('accueil.blocs', { ordre, masques })); notifier('Accueil personnalisé') } catch (e) { notifier(e.message, 'erreur'); setEnvoi(false) }
+  }
+  return (
+    <Modale titre="Personnaliser mon accueil" onFermer={onFermer}
+      pied={<><button className="btn-clair mr-auto" onClick={() => { setOrdre(Object.keys(BLOCS)); setMasques([]) }}>Rétablir</button><button className="btn-clair" onClick={onFermer}>Annuler</button><button className="btn-principal" disabled={envoi} onClick={enregistrer}>Enregistrer</button></>}>
+      <p className="mb-3 text-sm text-nuit-600">L'ordre et les blocs affichés sont retenus pour vous, sur tous vos appareils.</p>
+      <ul className="divide-y divide-nuit-100 rounded-xl border border-nuit-100">
+        {ordre.map((b, i) => (
+          <li key={b} className="flex items-center gap-2 px-3 py-2">
+            <label className="flex flex-1 cursor-pointer items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-[#521a22]" checked={!masques.includes(b)} onChange={(e) => setMasques(e.target.checked ? masques.filter((x) => x !== b) : [...masques, b])} />
+              <span className={masques.includes(b) ? 'text-nuit-600/50 line-through' : ''}>{BLOCS[b]}</span></label>
+            <button className="btn-clair px-2 py-1" disabled={i === 0} onClick={() => bouger(i, -1)} aria-label="Monter"><ArrowUp className="h-4 w-4" /></button>
+            <button className="btn-clair px-2 py-1" disabled={i === ordre.length - 1} onClick={() => bouger(i, 1)} aria-label="Descendre"><ArrowDown className="h-4 w-4" /></button>
+          </li>
+        ))}
+      </ul>
+    </Modale>
   )
 }
 
@@ -126,7 +180,7 @@ function FeteEtIntentions() {
   const [data, setData] = useState(null)
   const [erreur, setErreur] = useState(false)
   const [semaine, setSemaine] = useState(false)
-  useEffect(() => { chargerAppMesse(7).then(setData).catch(() => setErreur(true)) }, [])
+  useEffect(() => { appMesse().then(setData).catch(() => setErreur(true)) }, [])
   if (erreur) return null
   const auj = new Date().toLocaleDateString('sv-SE')
   const ordoDu = (j) => data?.ordo.find((o) => o.date === j)
