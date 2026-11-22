@@ -25,9 +25,7 @@ function dossierExtraits_(annee) {
 
 /** Par défaut : le curé (administrateur ou signature « Curé ») et les secrétaires. Modifiable dans Réglages. */
 function peutSigner_(s) {
-  var liste = String(reglages_().signataires || '').split(',').filter(String);
-  if (liste.length) return liste.indexOf(s.uid) > -1;
-  return s.role === 'admin' || s.role === 'secretaire' || s.signature === 'cure';
+  return s.role === 'admin' || !!(s.acces && s.acces.signer);
 }
 
 function extraitPublic_(x) {

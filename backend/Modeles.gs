@@ -23,7 +23,6 @@ function modeles_() {
 }
 function modelesRoute_(p, s) {
   if (p.ecrire) {
-    if (DROITS[s.role].indexOf('reglages') === -1) throw erreur_('INTERDIT', 'Réservé aux personnes qui ont accès aux réglages.');
     var stock = json2_(props_().getProperty('MODELES'), {});
     (p.ecrire || []).forEach(function (m) {
       var defaut = MODELES_DEFAUT.filter(function (x) { return x.cle === m.cle; })[0];

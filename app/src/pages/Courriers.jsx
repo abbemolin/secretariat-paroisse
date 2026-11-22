@@ -84,6 +84,7 @@ export default function Courriers({ dossier, onFermer, onFait }) {
   const [a, setA] = useState(dossier.infos?.email || dossier.email || '')
   const [occupe, setOccupe] = useState('')
   const cadre = useRef()
+  const peutSigner = utilisateur.role === 'admin' || !!utilisateur.acces?.signer
   useEffect(() => { api('modeles').then(setData).catch(setErreur) }, [])
   const signataires = useMemo(() => (data?.signatures || []).filter((x) => x.cle !== 'paroisse'), [data])
   const sig = signataires.find((x) => x.cle === sigCle) || signataires[0]
@@ -146,7 +147,7 @@ export default function Courriers({ dossier, onFermer, onFait }) {
       </> : <>
         <button className="btn-clair mr-auto" onClick={() => setModele(null)}><ArrowLeft className="h-4 w-4" />Modèles</button>
         <button className="btn-clair" onClick={() => cadre.current.contentWindow.print()}><Printer className="h-4 w-4" />Imprimer sans signer</button>
-        <button className="btn-or" disabled={!!occupe} onClick={() => setPad(true)}>{occupe === 'signer' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSignature className="h-4 w-4" />}Signer</button>
+        {peutSigner && <button className="btn-or" disabled={!!occupe} onClick={() => setPad(true)}>{occupe === 'signer' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSignature className="h-4 w-4" />}Signer</button>}
       </>}>
         <div className="grid gap-4 md:grid-cols-[300px_1fr]">
           <div className="space-y-2 md:max-h-[62vh] md:overflow-y-auto md:pr-2">

@@ -64,7 +64,6 @@ function statCor_(annee) {
   return r;
 }
 function statistiquesRoute_(p, s) {
-  if (s.role !== 'admin') throw erreur_('INTERDIT', 'Réservé aux administrateurs.');
   var civile = Number(p.annee || aujourdhui_().slice(0, 4));
   var scolaire = /^\d{4}-\d{4}$/.test(String(p.scolaire || '')) ? p.scolaire : anneeScolaire_(aujourdhui_());
   var a = Number(scolaire.slice(0, 4)), precScol = (a - 1) + '-' + a;

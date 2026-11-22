@@ -1,6 +1,6 @@
 // Mode démonstration (?demo dans l'adresse) : données fictives en mémoire, rien n'est envoyé.
 const jour = (d, h = 0, m = 0) => { const x = new Date(); x.setDate(x.getDate() + d); x.setHours(h, m, 0, 0); return x.toISOString() }
-const DROITS = { admin: ['mail', 'agenda', 'dossiers', 'documents', 'utilisateurs', 'reglages'], cure: ['mail', 'agenda', 'dossiers', 'documents'], secretaire: ['mail', 'agenda', 'dossiers', 'documents', 'reglages'] }
+import { accesDuRole, SORTES_ACCES } from './acces.js'
 
 const TRI_DEMO = [{"cle":"extrait","nom":"Extrait de baptême","action":"extrait","type":"","mots":["extrait de bapteme","extrait d'acte de bapteme","acte de bapteme","certificat de bapteme","attestation de bapteme","preuve de bapteme","extrait baptistaire"]},{"cle":"intention","nom":"Intention de messe","action":"appmesse","type":"","mots":["intention de messe","intentions de messe","faire dire une messe","faire celebrer une messe","demander une messe","messe a l'intention","messe pour le repos","offrande de messe"]},{"cle":"obseques","nom":"Obsèques","action":"dossier","type":"obseques","mots":["obseques","enterrement","funerailles","pompes funebres","inhumation","deces","decede*"]},{"cle":"premiere_communion","nom":"Première communion","action":"dossier","type":"premiere_communion","mots":["premiere communion","1ere communion","1re communion"]},{"cle":"profession_foi","nom":"Profession de foi","action":"dossier","type":"profession_foi","mots":["profession de foi"]},{"cle":"confirmand","nom":"Confirmation","action":"dossier","type":"confirmand","mots":["sacrement de confirmation","preparation a la confirmation","recevoir la confirmation","etre confirme*","me faire confirmer","se faire confirmer","faire confirmer"]},{"cle":"catechumene","nom":"Catéchuménat","action":"dossier","type":"catechumene","mots":["catechumenat","catechumene","devenir chretien*","me faire baptiser","bapteme adulte","bapteme d'adulte","bapteme des adultes"]},{"cle":"mariage","nom":"Mariage","action":"dossier","type":"mariage","mots":["mariage","se marier","nous marier","marier a l'eglise","fiance*"]},{"cle":"bapteme","nom":"Baptême","action":"dossier","type":"bapteme","mots":["bapteme","baptis*"]},{"cle":"rendezvous","nom":"Rendez-vous","action":"rendezvous","type":"","mots":["rendez-vous","rendez vous","rdv","vous rencontrer","un entretien","vous voir","rencontrer un pretre","parler a un pretre","rencontrer monsieur le cure","rencontrer le cure"]},{"cle":"horaires","nom":"Horaires","action":"horaires","type":"","mots":["horaire*","a quelle heure","heure de la messe","heure des messes","heures des messes","heures de messe*","y a-t-il une messe","y a t il une messe","est-ce qu'il y a une messe","quand est la messe","heure des confessions","permanence*"]}]
 
@@ -59,7 +59,9 @@ const etat = {
   utilisateurs: [
     { id: 'u1', identifiant: 'florent', nom: 'abbé Florent Molin', role: 'admin', signature: 'cure', actif: true, derniere_connexion: jour(0, 9) },
     { id: 'u2', identifiant: 'guillaume', nom: 'abbé Guillaume Le Gall', role: 'cure', signature: 'vicaire', actif: true, derniere_connexion: jour(-1, 18) },
-    { id: 'u3', identifiant: 'bertille', nom: 'Bertille Bauer', role: 'secretaire', signature: 'secretaire', actif: true, derniere_connexion: jour(0, 8, 30) }
+    { id: 'u3', identifiant: 'bertille', nom: 'Bertille Bauer', role: 'secretaire', signature: 'secretaire', actif: true, derniere_connexion: jour(0, 8, 30) },
+    { id: 'u4', identifiant: 'diacre', nom: 'Jean-Marc Diacre (fictif)', role: 'diacre', signature: 'paroisse', actif: true, derniere_connexion: jour(-3, 20),
+      acces: { ...accesDuRole('diacre'), courrier: 'm', courrier_tout: false, extraits: 'l', registres: 'l', documents: 'l', dossiers: { ...accesDuRole('diacre').dossiers, mariage: 'l', obseques: 'l' } } }
   ],
   signatures: [
     { cle: 'cure', nom: 'abbé Florent Molin', fonction: 'Curé', email: 'cure@croix-glorieuse.org', telephone: '06 98 74 02 46' },
@@ -164,7 +166,12 @@ function retResume(r) {
     du: m.reduce((a, x) => a + x.du, 0), paye: m.reduce((a, x) => a + x.paye, 0), reste: m.reduce((a, x) => a + x.reste, 0), lien: 'https://secretariat.croix-glorieuse.org/retraite/?r=' + r.jeton }
 }
 const retLire = (id) => { const r = etat.retraites.find((x) => x.id === id); return { ...retResume(r), inscriptions: r.inscriptions.map((x) => ({ ...x, montant: retMontant(r, x) })) } }
-const pub = (u) => ({ ...u, droits: DROITS[u.role] })
+function pub(u) {
+  const a = u.acces || accesDuRole(u.role)
+  const dossiers = SORTES_ACCES.some(([k]) => a.dossiers[k]) || ['extraits', 'registres', 'catechisme', 'catechumenat', 'cor_unum', 'retraites'].some((k) => a[k])
+  const droits = [a.courrier && 'mail', a.agenda && 'agenda', dossiers && 'dossiers', a.documents && 'documents', u.role === 'admin' && 'utilisateurs', a.reglages.length && 'reglages'].filter(Boolean)
+  return { ...u, droits, acces: u.role === 'admin' ? accesDuRole('admin') : a, acces_perso: !!u.acces }
+}
 const alertesDemo = (d) => { const i = d.infos, a = []; if (!['confirmand', 'confirmation_jeune', 'catechumene'].includes(d.type)) return a; if (i.bapteme_inconnu === 'oui' && !i.bapteme_date && !i.bapteme_paroisse) a.push('bapteme_a_trouver'); if (i.autre_confession === 'oui') a.push('autre_confession'); if (d.type === 'catechumene' && i.en_attente === 'oui' && !i.annee_sacrements) a.push('en_attente'); if (d.type === 'confirmand' && i.naissance_date && (Date.now() - new Date(i.naissance_date)) / 3.156e10 < 18) a.push('mineur'); return a }
 const resume = (d) => ({ ...d, alertes: alertesDemo(d), autre_confession: d.infos.autre_confession || '', nom: nomDe(d), preparation: d.infos.preparation === 'Autre école' ? d.infos.ecole_autre : d.infos.preparation || '', etapes: Object.keys(d.etapes).filter((k) => d.etapes[k]?.fait), documents: Object.keys(d.documents).filter((k) => d.documents[k]?.recu), date_souhaitee: d.infos.date_souhaitee || '', annee: d.infos.annee_sacrements || d.infos.annee_scolaire || '', liste: d.type === 'catechumene' ? { prenom_bapteme: d.infos.prenom_bapteme || '', parrain: d.infos.parrain_marraine || '', accompagnateur: d.infos.accompagnateurs || '' } : undefined })
 const complet = (d) => ({ ...d, alertes: alertesDemo(d), nom: nomDe(d), historique: [...d.historique].reverse(), fils: d.fils.map((id) => etat.fils.find((f) => f.id === id)).filter(Boolean).map((f) => ({ id: f.id, sujet: f.sujet, date: f.date })) })
@@ -189,7 +196,7 @@ export async function demoApi(action, p) {
   const moi = etat.utilisateurs.find((u) => u.role === role) || etat.utilisateurs[0]
   switch (action) {
     case 'auth.login': return { token: 'demo', utilisateur: pub(moi) }
-    case 'app.init': return { utilisateur: pub(moi), utilisateurs: etat.utilisateurs.map(({ id, nom, role }) => ({ id, nom, role })), reglages: etat.reglages, signatures: etat.signatures, reponses: etat.reponses, nonLues: etat.notifications.filter((n) => !n.lu).length }
+    case 'app.init': return { utilisateur: pub(moi), utilisateurs: etat.utilisateurs.map(pub), reglages: etat.reglages, signatures: etat.signatures, reponses: etat.reponses, nonLues: etat.notifications.filter((n) => !n.lu).length }
     case 'auth.logout': case 'auth.motdepasse': case 'push.abonner': case 'push.desabonner': case 'push.tester': return true
     case 'push.cle': return ''
     case 'accueil.blocs': return (etat.blocs = { ordre: p.ordre, masques: p.masques })
@@ -223,7 +230,7 @@ export async function demoApi(action, p) {
     case 'notifications.liste': return etat.notifications.filter((n) => !p.nonLues || !n.lu).slice(0, p.limite || 50)
     case 'notifications.lues': etat.notifications.forEach((n) => { if (!p.ids || p.ids.includes(n.id)) n.lu = true }); return true
     case 'utilisateurs.liste': return etat.utilisateurs.map(pub)
-    case 'utilisateurs.creer': { const u = { id: 'u' + Date.now(), ...p, actif: true, derniere_connexion: '' }; etat.utilisateurs.push(u); return pub(u) }
+    case 'utilisateurs.creer': { const u = { id: 'u' + Date.now(), ...p, actif: true, derniere_connexion: '' }; delete u.motdepasse; etat.utilisateurs.push(u); return pub(u) }
     case 'utilisateurs.modifier': { const u = etat.utilisateurs.find((x) => x.id === p.id); Object.assign(u, p); delete u.motdepasse; return pub(u) }
     case 'modeles': return { signatures: [{ cle: 'cure', nom: 'abbé Florent Molin', fonction: 'Curé' }, { cle: 'vicaire', nom: 'Abbé Guillaume LE GALL', fonction: 'Vicaire' }],
       modeles: [

@@ -103,8 +103,9 @@ function trouverDossier_(id) {
   return d;
 }
 
-function listerDossiers_(p) {
-  var ds = lignes_('Dossiers');
+function listerDossiers_(p, s) {
+  var sortesOk = s ? sortesLisibles_(s) : SORTES_ACCES;
+  var ds = lignes_('Dossiers').filter(function (x) { return sortesOk.indexOf(x.type) > -1; });
   if (p.type) ds = ds.filter(function (x) { return x.type === p.type; });
   if (p.etat) ds = ds.filter(function (x) { return x.etat === p.etat; });
   var frat = {};

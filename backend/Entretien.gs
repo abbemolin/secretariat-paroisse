@@ -64,7 +64,6 @@ function listerSauvegardes_() {
   return { sauvegardes: l, entretien: props_().getProperty('ENTRETIEN_DERNIER') || '' };
 }
 function sauvegardesRoute_(p, s) {
-  if (s.role !== 'admin') throw erreur_('INTERDIT', 'Réservé aux administrateurs.');
   if (p.sauvegarder) { sauvegarder_('manuelle'); journaliser_(s, 'Sauvegarde manuelle', ''); }
   if (p.restaurer) {
     var src = DriveApp.getFileById(p.restaurer);

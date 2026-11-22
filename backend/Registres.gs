@@ -81,7 +81,7 @@ function registresRoute_(p, s) {
   if (p.dossier) return propositionRegistre_({ id: p.dossier, annee: p.annee });
   if (p.inscrire) return inscrireRegistre_(p.inscrire, s);
   if (p.depart) {   // { registre, annee, numero }
-    if (s.role !== 'admin') throw erreur_('INTERDIT', 'Réservé aux administrateurs.');
+    if (!peutModifier_(s, 'registres')) throw erreur_('INTERDIT', 'Accès aux registres en lecture seulement.');
     var r = reglagesRegistres_(); r[p.depart.registre] = r[p.depart.registre] || {};
     r[p.depart.registre][p.depart.annee] = Number(p.depart.numero) || 0;
     props_().setProperty('REGISTRES', JSON.stringify(r));

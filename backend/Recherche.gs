@@ -10,9 +10,11 @@ function rechercheGlobale_(p, s) {
   var ok = function (t) { var x = sansAccents_(t); return mots.every(function (m) { return x.indexOf(m) > -1; }); };
   var max = 8, groupes = [];
   var essai = function (fn) { try { fn(); } catch (e) { console.error('recherche', e); } };
-  if (DROITS[s.role].indexOf('dossiers') === -1) return { groupes: [] };
+  if (s.droits.indexOf('dossiers') === -1) return { groupes: [] };
   essai(function () {
+    var sortesOk = sortesLisibles_(s);
     var r = lignes_('Dossiers').filter(function (d) {
+      if (sortesOk.indexOf(d.type) === -1) return false;
       var i = json2_(d.donnees, {}).infos || {};
       return ok([d.nom, d.email, d.telephone, i.nom_jeune_fille, i.prenom_bapteme, i.pere_nom, i.mere_nom_jeune_fille, i.fiancee_nom, i.fiance_nom, i.defunt_nom].join(' '));
     }).sort(function (a, b) { return (a.etat === 'ouvert' ? 0 : 1) - (b.etat === 'ouvert' ? 0 : 1) || String(b.maj_le).localeCompare(String(a.maj_le)); });
@@ -21,7 +23,7 @@ function rechercheGlobale_(p, s) {
     }) });
   });
   essai(function () {
-    if (!db_().getSheetByName('CorUnum')) return;
+    if (!peutLire_(s, 'cor_unum') || !db_().getSheetByName('CorUnum')) return;
     var r = corReglages_(), eq = {};
     Object.keys(r.equipes).forEach(function (a) { r.equipes[a].forEach(function (e) { eq[e.id] = e.nom; }); });
     var l = lignes_('CorUnum').filter(function (x) { return ok([x.prenoms, x.nom, x.email, x.telephone].join(' ')); })
@@ -31,7 +33,7 @@ function rechercheGlobale_(p, s) {
     }) });
   });
   essai(function () {
-    if (!db_().getSheetByName('Catechisme')) return;
+    if (!peutLire_(s, 'catechisme') || !db_().getSheetByName('Catechisme')) return;
     var l = lignes_('Catechisme').filter(function (x) { return ok([x.prenoms, x.nom, x.email, x.telephone, x.pere, x.mere].join(' ')); })
       .sort(function (a, b) { return String(b.annee).localeCompare(String(a.annee)); });
     if (l.length) groupes.push({ cle: 'cate', titre: 'Catéchisme', total: l.length, items: l.slice(0, max).map(function (x) {
@@ -39,14 +41,14 @@ function rechercheGlobale_(p, s) {
     }) });
   });
   essai(function () {
-    if (!db_().getSheetByName('Extraits')) return;
+    if (!peutLire_(s, 'extraits') || !db_().getSheetByName('Extraits')) return;
     var l = lignes_('Extraits').filter(function (x) { return ok(x.nom); }).sort(function (a, b) { return String(b.cree_le).localeCompare(String(a.cree_le)); });
     if (l.length) groupes.push({ cle: 'extraits', titre: 'Extraits de baptême', total: l.length, items: l.slice(0, max).map(function (x) {
       return { titre: x.nom, sous: 'Extrait du ' + String(x.cree_le).slice(0, 10).split('-').reverse().join('/') + (x.statut === 'signe' ? ' · signé' : ''), lien: '/extraits/' + x.id };
     }) });
   });
   essai(function () {
-    if (!db_().getSheetByName('RetraitesInscrits')) return;
+    if (!peutLire_(s, 'retraites') || !db_().getSheetByName('RetraitesInscrits')) return;
     var ret = {}; lignes_('Retraites').forEach(function (r) { ret[r.id] = r; });
     var l = lignes_('RetraitesInscrits').filter(function (x) {
       var parts = json2_(x.participants, []).map(function (y) { return (y.prenoms || y.prenom || '') + ' ' + (y.nom || ''); }).join(' ');

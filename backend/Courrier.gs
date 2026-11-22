@@ -51,9 +51,11 @@ function listerMails_(p, s) {
   var suivis = suivisParFil_();
   var debut = Number(p.debut || 0), taille = Math.min(Number(p.taille || 30), 50);
   var fils;
-  if (p.filtre === 'mes' || p.filtre === 'atraiter') {
+  var limite = s.acces && !s.acces.courrier_tout && s.role !== 'admin';   // seulement ses mails attribués
+  if (limite || p.filtre === 'mes' || p.filtre === 'atraiter') {
     var ids = Object.keys(suivis).filter(function (id) {
       var x = suivis[id];
+      if (limite) return x.attribue_a === s.uid && (p.filtre !== 'atraiter' || x.statut !== 'Traité');
       return p.filtre === 'mes' ? x.attribue_a === s.uid && x.statut !== 'Traité' : x.statut && x.statut !== 'Traité';
     }).sort(function (a, b) { return String(suivis[b].maj_le).localeCompare(String(suivis[a].maj_le)); });
     fils = ids.slice(debut, debut + taille).map(function (id) { try { return GmailApp.getThreadById(id); } catch (e) { return null; } })

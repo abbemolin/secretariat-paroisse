@@ -11,7 +11,8 @@ export const APERCUS = [
   { cle: 'chef', titre: 'Un chef de fraternité', texte: 'La page du chef : membres, rencontres, messages, inviter', url: () => base() + 'fraternite/?apercu=1' },
   { cle: 'parrain', titre: 'Un parrain ou une marraine', texte: 'Sa page : certificat à déposer, dates importantes', url: () => APP + 'parrain/?apercu=1' },
   { cle: 'secretaire', titre: 'Une secrétaire', texte: "L'appli du secrétariat avec les droits d'une secrétaire", url: () => base() + '?demo&role=secretaire#/' },
-  { cle: 'cure', titre: 'Un prêtre', texte: "L'appli du secrétariat avec les droits d'un prêtre (curé / vicaire)", url: () => base() + '?demo&role=cure#/' }
+  { cle: 'cure', titre: 'Un prêtre', texte: "L'appli du secrétariat avec les droits d'un prêtre (curé / vicaire)", url: () => base() + '?demo&role=cure#/' },
+  { cle: 'diacre', titre: 'Un diacre (accès ajustés)', texte: 'Exemple : seulement ses mails, mariages et obsèques en lecture, sans signature', url: () => base() + '?demo&role=diacre#/' }
 ]
 export default function VoirComme({ seulement, libelle = 'Voir comme…', className = 'btn-clair' }) {
   const [ouvert, setOuvert] = useState(false)

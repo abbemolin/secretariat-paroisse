@@ -23,7 +23,7 @@ var CONFIG = {
   ALIAS: 'secretariat@croix-glorieuse.org',     // adresse d'envoi (« Envoyer en tant que » dans Gmail)
   NOM_EXPEDITEUR: 'Paroisse La Croix glorieuse',
   DOSSIER_RACINE: 'Secrétariat – La Croix glorieuse',
-  ROLES: ['admin', 'cure', 'secretaire'],
+  ROLES: ['admin', 'cure', 'vicaire', 'diacre', 'secretaire'],
   STATUTS_MAIL: ['À traiter', 'En cours', 'Traité'],
   DUREE_SESSION_JOURS: 30,
   ESSAIS_MAX: 5,
@@ -81,9 +81,7 @@ function doPost(e) {
     var session = verifierSession_(req.token);
     var route = ROUTES[action];
     if (!route) throw erreur_('ACTION_INCONNUE', 'Action inconnue : ' + action);
-    if (route.droit && DROITS[session.role].indexOf(route.droit) === -1) {
-      throw erreur_('INTERDIT', "Vous n'avez pas accès à cette fonction.");
-    }
+    verifierAcces_(action, p, session, route);
     return json_({ ok: true, data: route.fn(p, session) });
   } catch (err) {
     console.error(err && err.stack || err);
@@ -336,7 +334,7 @@ function trouverUtilisateur_(id) {
 }
 function utilisateurPublic_(u) {
   return { id: u.id, identifiant: u.identifiant, nom: u.nom, role: u.role, signature: u.signature,
-           actif: estActif_(u), droits: DROITS[u.role] || [], derniere_connexion: u.derniere_connexion };
+           actif: estActif_(u), droits: droitsDe_(u.role, accesDe_(u)), acces: accesDe_(u), acces_perso: !!u.acces, derniere_connexion: u.derniere_connexion };
 }
 
 function login_(p) {
@@ -370,7 +368,7 @@ function verifierSession_(token) {
   var u = json2_(cache.get('u_' + s.uid), null);
   if (!u) { u = utilisateurPublic_(trouverUtilisateur_(s.uid)); cache.put('u_' + s.uid, JSON.stringify(u), 60); }
   if (!u.actif) throw erreur_('SESSION', 'Compte désactivé.');
-  return { uid: u.id, role: u.role, nom: u.nom, signature: u.signature, token: token };
+  return { uid: u.id, role: u.role, nom: u.nom, signature: u.signature, token: token, acces: u.acces, droits: u.droits };
 }
 
 function nettoyerSessions_() {
@@ -413,12 +411,13 @@ function creerUtilisateur_(p, s) {
   if (CONFIG.ROLES.indexOf(p.role) === -1) throw erreur_('INVALIDE', 'Rôle inconnu.');
   verifierMotDePasse_(p.motdepasse);
   return verrou_(function () {
+    completerColonnes_(feuille_('Utilisateurs'), FEUILLES.Utilisateurs); oublierLignes_();
     if (lignes_('Utilisateurs').some(function (x) { return String(x.identifiant).toLowerCase() === identifiant; })) {
       throw erreur_('INVALIDE', 'Cet identifiant existe déjà.');
     }
     var sel = uid_() + uid_();
     var u = ecrireLigne_('Utilisateurs', {
-      id: uid_(), identifiant: identifiant, nom: String(p.nom || identifiant), role: p.role, signature: p.signature || '',
+      id: uid_(), identifiant: identifiant, nom: String(p.nom || identifiant), role: p.role, signature: p.signature || '', acces: JSON.stringify(accesValides_(p.acces || accesDuRole_(p.role))),
       sel: sel, hash: hacher_(p.motdepasse, sel), actif: true, cree_le: maintenant_(), derniere_connexion: ''
     });
     journaliser_(s, 'Utilisateur créé', u.nom + ' (' + u.role + ')');
@@ -428,6 +427,7 @@ function creerUtilisateur_(p, s) {
 
 function modifierUtilisateur_(p, s) {
   return verrou_(function () {
+    completerColonnes_(feuille_('Utilisateurs'), FEUILLES.Utilisateurs); oublierLignes_();
     var tous = lignes_('Utilisateurs');
     var u = tous.filter(function (x) { return x.id === p.id; })[0];
     if (!u) throw erreur_('INTROUVABLE', 'Utilisateur introuvable.');
@@ -438,6 +438,7 @@ function modifierUtilisateur_(p, s) {
       u.role = p.role;
     }
     if (p.actif !== undefined) u.actif = !!p.actif;
+    if (p.acces !== undefined) u.acces = p.acces ? JSON.stringify(accesValides_(p.acces)) : '';
     if (p.motdepasse) { verifierMotDePasse_(p.motdepasse); u.sel = uid_() + uid_(); u.hash = hacher_(p.motdepasse, u.sel); }
     var admins = tous.filter(function (x) { var y = x.id === u.id ? u : x; return y.role === 'admin' && estActif_(y); });
     if (!admins.length) throw erreur_('INVALIDE', 'Il doit rester au moins un administrateur actif.');
@@ -552,7 +553,7 @@ function initApp_(p, s) {
 }
 
 function resumeAccueil_(p, s) {
-  var d = DROITS[s.role], res = {};
+  var d = s.droits, res = {};
   try { res.blocs = prefsAccueil_(s.uid); } catch (e) {}
   assurerEntretien_();
   if (d.indexOf('mail') > -1) {
@@ -566,7 +567,8 @@ function resumeAccueil_(p, s) {
     res.evenements = listerEvenements_({ debut: debut.toISOString(), fin: new Date(debut.getTime() + 7 * 86400000).toISOString() });
   }
   if (d.indexOf('dossiers') > -1) {
-    var ds = lignes_('Dossiers').filter(function (x) { return x.etat === 'ouvert'; });
+    var sortesOk = sortesLisibles_(s);
+    var ds = lignes_('Dossiers').filter(function (x) { return x.etat === 'ouvert' && sortesOk.indexOf(x.type) > -1; });
     res.dossiersOuverts = ds.length;
     res.mesDossiers = ds.filter(function (x) { return x.responsable === s.uid; }).map(dossierResume_);
     res.nouveaux = ds.filter(function (x) { return !json2_(x.donnees, {}).etapes || etapesFaites_(x) === 0; }).map(dossierResume_);
@@ -578,7 +580,7 @@ function resumeAccueil_(p, s) {
 
 /** Liste « À faire » de l'accueil : tout ce qui attend une action, avec le lien pour y aller. */
 function aFaire_(s) {
-  var d = DROITS[s.role], l = [];
+  var d = s.droits, l = [];
   var essai = function (fn) { try { fn(); } catch (e) { console.error('aFaire', e); } };
   if (d.indexOf('mail') > -1) essai(function () {
     var n = lignes_('SuiviMails').filter(function (x) { return x.statut === 'À traiter'; }).length;
@@ -586,7 +588,8 @@ function aFaire_(s) {
   });
   if (d.indexOf('dossiers') > -1) {
     essai(function () {
-      var ds = lignes_('Dossiers').filter(function (x) { return x.etat === 'ouvert'; });
+      var sortesOk = sortesLisibles_(s);
+      var ds = lignes_('Dossiers').filter(function (x) { return x.etat === 'ouvert' && sortesOk.indexOf(x.type) > -1; });
       var nouv = ds.filter(function (x) { return etapesFaites_(x) <= 1 && (json2_(x.donnees, {}).historique || []).length <= 2; }).length;
       if (nouv) l.push({ cle: 'demandes', nombre: nouv, texte: nouv > 1 ? 'nouvelles demandes à prendre en charge' : 'nouvelle demande à prendre en charge', lien: '/dossiers' });
       var valider = ds.filter(function (x) {
@@ -597,20 +600,20 @@ function aFaire_(s) {
       if (valider) l.push({ cle: 'valider', nombre: valider, texte: valider > 1 ? 'préparations hors paroisse à valider par le curé' : 'préparation hors paroisse à valider par le curé', lien: '/dossiers?type=premiere_communion' });
       var bap = ds.filter(function (x) { return alertesDossier_(x.type, json2_(x.donnees, {}).infos || {}).indexOf('bapteme_a_trouver') > -1; }).length;
       try {
-        if (db_().getSheetByName('Extraits')) {
+        if (peutLire_(s, 'extraits') && db_().getSheetByName('Extraits')) {
           var actes = lignes_('Extraits').filter(function (x) { return json2_(x.demande, null) && !json2_(x.envois, []).length; });
           if (actes.length) l.push({ cle: 'actes', nombre: actes.length, texte: actes.length > 1 ? 'demandes d\'acte de baptême à envoyer' : 'demande d\'acte de baptême à envoyer', lien: actes.length > 1 ? '/extraits' : '/extraits/' + actes[0].id });
         }
       } catch (e) {}
       try {
         var nReg = 0, premier = '';
-        Object.keys(REGISTRES).forEach(function (k) { var n = actesAInscrire_(k).length; if (n && !premier) premier = k; nReg += n; });
+        if (peutLire_(s, 'registres')) Object.keys(REGISTRES).forEach(function (k) { var n = actesAInscrire_(k).length; if (n && !premier) premier = k; nReg += n; });
         if (nReg) l.push({ cle: 'registres', nombre: nReg, texte: nReg > 1 ? 'actes à inscrire au registre' : 'acte à inscrire au registre', lien: '/registres?r=' + premier });
       } catch (e) {}
       if (bap) l.push({ cle: 'bapteme', nombre: bap, texte: bap > 1 ? 'confirmands dont le baptême est à trouver' : 'confirmand dont le baptême est à trouver', lien: '/dossiers?type=confirmand' });
     });
     essai(function () {
-      if (!db_().getSheetByName('CorUnum')) return;
+      if (!peutLire_(s, 'cor_unum') || !db_().getSheetByName('CorUnum')) return;
       var r = corReglages_();
       var annee = r.feuilles.map(function (f) { return f.annee; }).sort().reverse()[0];
       var n = lignes_('CorUnum').filter(function (x) { return x.annee === annee && x.statut !== 'ancien' && !x.equipe_id; }).length;
@@ -620,7 +623,7 @@ function aFaire_(s) {
       if (m) l.push({ cle: 'chefs', nombre: m, texte: m > 1 ? 'messages de chefs de fraternité non lus' : 'message de chef de fraternité non lu', lien: '/cor-unum' });
     });
     essai(function () {
-      if (!db_().getSheetByName('Catechisme')) return;
+      if (!peutLire_(s, 'catechisme') || !db_().getSheetByName('Catechisme')) return;
       var annee = cateReglages_().feuilles.map(function (f) { return f.annee; }).sort().reverse()[0] || anneeScolaire_();
       var imp = lignes_('Catechisme').filter(function (x) { return x.annee === annee; }).map(resumeInscription_).filter(function (x) { return x.reste > 0; });
       if (imp.length) {

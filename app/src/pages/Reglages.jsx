@@ -6,13 +6,13 @@ import { useApp } from '../App.jsx'
 import { Chargement, Erreur, useCharger, useNotif, useConfirmer, dateHeure, Interrupteur } from '../ui.jsx'
 import { ApercuSignature } from './Courrier.jsx'
 import { VARIABLES_COURRIER } from './Courriers.jsx'
+import { ONGLETS_REGLAGES, ongletPermis } from '../acces.js'
 
-const ONGLETS = ['Paroisse', 'Signatures', 'Réponses types', 'Modèles', 'Tri automatique', 'Catéchisme', 'Confirmands', 'Cor Unum', 'Paiements en ligne', 'Journal']
 
 export default function Reglages() {
   const { utilisateur } = useApp()
-  const [onglet, setOnglet] = useState('Paroisse')
-  const onglets = utilisateur.role === 'admin' ? [...ONGLETS, 'Sauvegardes'] : ONGLETS
+  const onglets = ONGLETS_REGLAGES.filter((o) => ongletPermis(utilisateur, o))
+  const [onglet, setOnglet] = useState(onglets[0])
   return (
     <>
       <div className="mb-5"><h1 className="text-3xl font-semibold">Réglages</h1><p className="text-sm text-nuit-600/80">Paroisse, signatures, réponses types, tri des mails, journal des actions</p></div>
@@ -76,21 +76,13 @@ function Sceau() {
 }
 
 function Signataires() {
-  const { reglages, utilisateurs, majDonnees } = useApp()
-  const notifier = useNotif()
-  const defaut = utilisateurs.filter((u) => u.role === 'admin' || u.role === 'secretaire' || u.signature === 'cure').map((u) => u.id)
-  const [ids, setIds] = useState(() => (reglages.signataires ? reglages.signataires.split(',').filter(Boolean) : defaut))
-  async function enregistrer(liste) {
-    setIds(liste)
-    try { const r = await api('reglages.ecrire', { ...reglages, signataires: liste.join(',') }); majDonnees({ reglages: r }); notifier('Signataires enregistrés') } catch (e) { notifier(e.message, 'erreur') }
-  }
+  const { utilisateurs } = useApp()
+  const ok = utilisateurs.filter((u) => u.actif && (u.role === 'admin' || u.acces?.signer))
   return (
     <div className="carte space-y-2 p-5">
-      <h2 className="text-xl font-semibold">Peuvent signer les extraits</h2>
-      {utilisateurs.map((u) => (
-        <label key={u.id} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={ids.includes(u.id)}
-          onChange={(e) => enregistrer(e.target.checked ? [...ids, u.id] : ids.filter((x) => x !== u.id))} />{u.nom}</label>
-      ))}
+      <h2 className="text-xl font-semibold">Peuvent signer</h2>
+      <p className="text-sm text-nuit-600/80">{ok.length ? ok.map((u) => u.nom).join(', ') : 'Personne'}.</p>
+      <p className="text-xs text-nuit-600/60">Extraits, B6 et courriers. Se règle dans Utilisateurs → fiche de la personne → « Peut signer ».</p>
     </div>
   )
 }

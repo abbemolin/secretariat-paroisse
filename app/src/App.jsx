@@ -5,6 +5,7 @@ import { Home, Mail, CalendarDays, FolderHeart, FolderOpen, Users, Settings, Use
 import { api, ecrireToken, lireToken, quandSessionExpire, estDemo, suivreFile, viderFile } from './api.js'
 import { Chargement, FournisseurNotif, ROLES, dateRelative, useNotif } from './ui.jsx'
 import Connexion from './pages/Connexion.jsx'
+import { peutVoir, peutModifier } from './acces.js'
 import Accueil from './pages/Accueil.jsx'
 import Courrier from './pages/Courrier.jsx'
 import Agenda from './pages/Agenda.jsx'
@@ -34,18 +35,18 @@ const MENU = [
   { to: '/agenda', label: 'Agenda', icone: CalendarDays, droit: 'agenda', bas: true },
   { groupe: 'Sacrements', items: [
     { to: '/dossiers', label: 'Dossiers', icone: FolderHeart, droit: 'dossiers', bas: true },
-    { to: '/extraits', label: 'Extraits de baptême', icone: ScrollText, droit: 'dossiers' },
-    { to: '/registres', label: 'Registres', icone: BookMarked, droit: 'dossiers' }
+    { to: '/extraits', label: 'Extraits de baptême', icone: ScrollText, droit: 'extraits' },
+    { to: '/registres', label: 'Registres', icone: BookMarked, droit: 'registres' }
   ] },
   { groupe: 'Catéchèse', items: [
-    { to: '/catechisme', label: 'Catéchisme', icone: GraduationCap, droit: 'dossiers' },
-    { to: '/catechumenat', label: 'Catéchuménat', icone: BookOpen, droit: 'dossiers' },
-    { to: '/dossiers?type=confirmand', label: 'Confirmands', icone: Flame, droit: 'dossiers' },
-    { to: '/cor-unum', label: 'Cor Unum', icone: HeartHandshake, droit: 'dossiers' },
-    { to: '/retraites', label: 'Retraites', icone: Mountain, droit: 'dossiers' }
+    { to: '/catechisme', label: 'Catéchisme', icone: GraduationCap, droit: 'catechisme' },
+    { to: '/catechumenat', label: 'Catéchuménat', icone: BookOpen, droit: 'catechumenat' },
+    { to: '/dossiers?type=confirmand', label: 'Confirmands', icone: Flame, droit: 'dossiers:confirmand' },
+    { to: '/cor-unum', label: 'Cor Unum', icone: HeartHandshake, droit: 'cor_unum' },
+    { to: '/retraites', label: 'Retraites', icone: Mountain, droit: 'retraites' }
   ] },
   { to: '/documents', label: 'Documents', icone: FolderOpen, droit: 'documents' },
-  { to: '/statistiques', label: 'Statistiques', icone: BarChart3, droit: 'utilisateurs' },
+  { to: '/statistiques', label: 'Statistiques', icone: BarChart3, droit: 'statistiques' },
   { groupe: '', secondaire: true, items: [
     { to: '/aide', label: 'Aide', icone: LifeBuoy },
     { to: '/utilisateurs', label: 'Utilisateurs', icone: Users, droit: 'utilisateurs' },
@@ -109,7 +110,8 @@ export default function App() {
 
   const valeur = donnees && {
     ...donnees,
-    peut: (d) => !d || donnees.utilisateur.droits.includes(d),
+    peut: (d) => peutVoir(donnees.utilisateur, d),
+    ecrit: (zone, sorte) => peutModifier(donnees.utilisateur, zone, sorte),
     nomUtilisateur: (id) => donnees.utilisateurs.find((u) => u.id === id)?.nom || '',
     recharger: charger,
     majDonnees: (patch) => setDonnees((d) => ({ ...d, ...patch })),
@@ -174,10 +176,12 @@ function Cloche() {
 }
 
 function Cadre() {
-  const { utilisateur, peut, deconnecter } = useApp()
+  const { utilisateur, peut, ecrit, deconnecter } = useApp()
   const loc = useLocation()
   const [plus, setPlus] = useState(false)
   const notifier = useNotif()
+  const zonePage = { courrier: 'courrier', agenda: 'agenda', extraits: 'extraits', registres: 'registres', catechisme: 'catechisme', catechumenat: 'catechumenat', 'cor-unum': 'cor_unum', retraites: 'retraites', documents: 'documents' }[loc.pathname.split('/')[1]]
+  const lectureSeule = (zonePage && !ecrit(zonePage)) || (loc.pathname === '/dossiers' && !ecrit('dossiers'))
   const [attente, setAttente] = useState(0)
   useEffect(() => {
     const fin = suivreFile(setAttente)
@@ -221,8 +225,9 @@ function Cadre() {
           <div className="flex items-center gap-2"><img src="./logo-128.png" alt="" className="h-8 w-8 rounded-full" /><span className="font-titre text-lg font-semibold">La Croix glorieuse</span></div>
           <div className="flex items-center"><BoutonRecherche mobile /><Cloche /><NavLink to="/compte" className="rounded-lg p-2 hover:bg-white/10"><UserCircle className="h-6 w-6" /></NavLink></div>
         </header>
+        {lectureSeule && <div className="bg-nuit-50 px-4 py-1.5 text-center text-xs text-nuit-600">Lecture seule : vous pouvez consulter cette page, mais pas la modifier.</div>}
         {attente > 0 && <div className="bg-nuit-50 px-4 py-1.5 text-center text-xs text-nuit-600">{attente > 1 ? `${attente} modifications gardées` : '1 modification gardée'} sur l'appareil — {attente > 1 ? 'elles seront envoyées' : 'elle sera envoyée'} dès le retour de la connexion. <button className="underline" onClick={() => viderFile()}>Réessayer</button></div>}
-        {estDemo() && <div className="bg-or-100 px-4 py-1.5 text-center text-xs text-or-600">{({ secretaire: 'Aperçu : vous voyez l\'appli comme une secrétaire. ', cure: 'Aperçu : vous voyez l\'appli comme un prêtre. ' })[new URLSearchParams(location.search).get('role')] || 'Mode démonstration — '}Données fictives, rien n'est enregistré ni envoyé.</div>}
+        {estDemo() && <div className="bg-or-100 px-4 py-1.5 text-center text-xs text-or-600">{({ secretaire: 'Aperçu : vous voyez l\'appli comme une secrétaire. ', cure: 'Aperçu : vous voyez l\'appli comme un prêtre. ', diacre: 'Aperçu : vous voyez l\'appli comme un diacre aux accès ajustés. ' })[new URLSearchParams(location.search).get('role')] || 'Mode démonstration — '}Données fictives, rien n'est enregistré ni envoyé.</div>}
 
         <main className="flex-1 overflow-y-auto px-4 pb-24 pt-5 sm:px-6 lg:px-10 lg:pb-10 lg:pt-8">
           <div className="mx-auto max-w-6xl animate-entree" key={loc.pathname}>
@@ -233,16 +238,16 @@ function Cadre() {
               {peut('dossiers') && <Route path="/dossiers" element={<Dossiers />} />}
               {peut('dossiers') && <Route path="/dossiers/:id" element={<Dossier />} />}
               {peut('documents') && <Route path="/documents" element={<Documents />} />}
-              {peut('dossiers') && <Route path="/catechisme" element={<Catechisme />} />}
-              {peut('dossiers') && <Route path="/cor-unum" element={<CorUnum />} />}
-              {peut('dossiers') && <Route path="/retraites" element={<Retraites />} />}
-              {peut('dossiers') && <Route path="/catechumenat" element={<Catechumenat />} />}
-              {peut('dossiers') && <Route path="/retraites/:id" element={<Retraites />} />}
-              {peut('dossiers') && <Route path="/catechisme/:id" element={<Catechisme />} />}
-              {peut('dossiers') && <Route path="/extraits" element={<Extraits />} />}
-              {peut('dossiers') && <Route path="/extraits/:id" element={<Extraits />} />}
-              {peut('dossiers') && <Route path="/registres" element={<Registres />} />}
-              {peut('utilisateurs') && <Route path="/statistiques" element={<Statistiques />} />}
+              {peut('catechisme') && <Route path="/catechisme" element={<Catechisme />} />}
+              {peut('cor_unum') && <Route path="/cor-unum" element={<CorUnum />} />}
+              {peut('retraites') && <Route path="/retraites" element={<Retraites />} />}
+              {peut('catechumenat') && <Route path="/catechumenat" element={<Catechumenat />} />}
+              {peut('retraites') && <Route path="/retraites/:id" element={<Retraites />} />}
+              {peut('catechisme') && <Route path="/catechisme/:id" element={<Catechisme />} />}
+              {peut('extraits') && <Route path="/extraits" element={<Extraits />} />}
+              {peut('extraits') && <Route path="/extraits/:id" element={<Extraits />} />}
+              {peut('registres') && <Route path="/registres" element={<Registres />} />}
+              {peut('statistiques') && <Route path="/statistiques" element={<Statistiques />} />}
               {peut('utilisateurs') && <Route path="/utilisateurs" element={<Utilisateurs />} />}
               {peut('reglages') && <Route path="/reglages" element={<Reglages />} />}
               <Route path="/aide" element={<Aide />} />

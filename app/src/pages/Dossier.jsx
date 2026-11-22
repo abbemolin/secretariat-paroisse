@@ -46,7 +46,8 @@ export default function Dossier() {
     api('dossiers.lire', { id }).then((x) => { setD(x); setB(champsEditables(x)) }).catch(setErreur)
   }, [id])
   // Enregistrement automatique : 1 s après la dernière modification
-  const etatAuto = useAutoEnregistrement(b, d && champsEditables(d), async (val) => {
+  const lecture = !!d && !app.ecrit('dossiers', d.type)
+  const etatAuto = useAutoEnregistrement(lecture ? null : b, d && champsEditables(d), async (val) => {
     const x = await api('dossiers.modifier', { id: d.id, ...val })
     setD(x)
     if (JSON.stringify(bActuel.current) === JSON.stringify(val)) setB(champsEditables(x))
@@ -147,20 +148,21 @@ export default function Dossier() {
           {d.type === 'catechumene' && <EspaceDossier d={d} />}
         </div>
         <div className="flex flex-wrap gap-2">
-          <select className="champ w-auto" value={b.responsable} onChange={(e) => setB({ ...b, responsable: e.target.value })}>
+          <select className="champ w-auto" disabled={lecture} value={b.responsable} onChange={(e) => setB({ ...b, responsable: e.target.value })}>
             <option value="">Sans responsable</option>{app.utilisateurs.map((u) => <option key={u.id} value={u.id}>{u.nom}</option>)}
           </select>
-          <select className="champ w-auto" value={b.etat} onChange={(e) => setB({ ...b, etat: e.target.value })}>
+          <select className="champ w-auto" disabled={lecture} value={b.etat} onChange={(e) => setB({ ...b, etat: e.target.value })}>
             {Object.entries(ETATS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
+          {lecture ? <span className="pastille bg-nuit-50 text-nuit-600">Lecture seule</span> : <>
           <button className="btn-clair" onClick={async () => { await avantAction(); setCourriers(true) }}><FileSignature className="h-4 w-4" />Courriers</button>
-          <button className="btn-danger" title="Supprimer le dossier" onClick={supprimerDossier}><Trash2 className="h-4 w-4" /><span className="hidden sm:inline">Supprimer</span></button>
+          <button className="btn-danger" title="Supprimer le dossier" onClick={supprimerDossier}><Trash2 className="h-4 w-4" /><span className="hidden sm:inline">Supprimer</span></button></>}
         </div>
       </div>
 
       {(etatAuto || modifie) && <div className="-mt-3 mb-3 flex justify-end"><EtatEnregistrement etat={etatAuto === 'erreur' ? 'erreur' : modifie || sauvegarde ? 'encours' : etatAuto} /></div>}
 
-      <div className="grid gap-5 lg:grid-cols-3">
+      <fieldset disabled={lecture} className="grid min-w-0 gap-5 lg:grid-cols-3">
         {/* Colonne de suivi */}
         <div className="space-y-5">
           <section className="carte p-4">
@@ -319,7 +321,7 @@ export default function Dossier() {
             </ul>
           </section>
         </div>
-      </div>
+      </fieldset>
 
       {mail && <Redaction {...mail} onFermer={() => setMail(null)} onEnvoye={async () => { setMail(null); notifier('Message envoyé et rattaché au dossier'); const x = await api('dossiers.lire', { id: d.id }); setD(x); setB(champsEditables(x)) }} />}
       {imprimer && <Imprimer modele={IMPRIMABLES[imprimer]} dossier={{ ...d, ...b }} reglages={app.reglages}

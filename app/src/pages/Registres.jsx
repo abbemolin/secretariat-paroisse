@@ -65,7 +65,7 @@ function imprimerTable(d, paroisse) {
 }
 
 export default function Registres() {
-  const { utilisateur, reglages } = useApp()
+  const { reglages, ecrit } = useApp()
   const notifier = useNotif()
   const [params, setParams] = useSearchParams()
   const registre = params.get('r') || 'baptemes'
@@ -129,7 +129,7 @@ export default function Registres() {
               </table>
             )}
             <p className="mt-3 text-xs text-nuit-600/60">Prochain numéro proposé en {annee} : <b>{d.prochain}</b></p>
-            {utilisateur.role === 'admin' && (
+            {ecrit('registres') && (
               <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-nuit-50 pt-3 text-sm">
                 <span className="text-nuit-600/80">Dernier acte de {annee} inscrit avant l'application :</span>
                 <input className="champ w-20" inputMode="numeric" value={depart} onChange={(e) => setDepart(e.target.value.replace(/\D/g, ''))} />

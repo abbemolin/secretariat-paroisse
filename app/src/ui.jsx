@@ -33,7 +33,7 @@ export function versLocal(iso, avecHeure = true) {
   return avecHeure ? `${j}T${p(d.getHours())}:${p(d.getMinutes())}` : j
 }
 
-export const ROLES = { admin: 'Administrateur', cure: 'Curé / prêtre', secretaire: 'Secrétaire' }
+export const ROLES = { admin: 'Administrateur', cure: 'Curé', vicaire: 'Vicaire / prêtre', diacre: 'Diacre', secretaire: 'Secrétaire' }
 
 export const COULEURS_STATUT = {
   'À traiter': 'bg-or-100 text-or-600',

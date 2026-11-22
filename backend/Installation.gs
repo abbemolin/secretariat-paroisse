@@ -5,7 +5,7 @@
  */
 
 var FEUILLES = {
-  Utilisateurs: ['id', 'identifiant', 'nom', 'role', 'signature', 'sel', 'hash', 'actif', 'cree_le', 'derniere_connexion'],
+  Utilisateurs: ['id', 'identifiant', 'nom', 'role', 'signature', 'sel', 'hash', 'actif', 'cree_le', 'derniere_connexion', 'acces'],
   Dossiers: ['id', 'type', 'etat', 'cree_le', 'source', 'nom', 'email', 'telephone', 'date_celebration', 'evenement_id',
              'responsable', 'donnees', 'maj_le', 'maj_par'],
   SuiviMails: ['fil_id', 'statut', 'attribue_a', 'dossier_id', 'maj_le', 'maj_par'],
