@@ -330,7 +330,7 @@ function paiementCate_(p, s) {
     if (p.ajouter) {
       var montant = nombre_(p.ajouter.montant);
       if (!montant) throw erreur_('INVALIDE', 'Montant manquant.');
-      l.push({ id: uid_(), date: p.ajouter.date || maintenant_().slice(0, 10), montant: montant, mode: String(p.ajouter.mode || ''), par: s.nom });
+      l.push({ id: uid_(), date: p.ajouter.date || aujourdhui_(), montant: montant, mode: String(p.ajouter.mode || ''), par: s.nom });
       journaliser_(s, 'Paiement catéchisme', x.prenoms + ' ' + x.nom + ' : ' + montant + ' € (' + (p.ajouter.mode || '') + ')');
     }
     if (p.retirer) l = l.filter(function (y) { return y.id !== p.retirer; });
@@ -342,7 +342,7 @@ function paiementCate_(p, s) {
 
 function supprimerCate_(p, s) {
   var x = trouverInscription_(p.id);
-  feuilleCate_().deleteRow(x._ligne);
+  feuilleCate_().deleteRow(x._ligne); oublierLignes_();
   journaliser_(s, 'Inscription catéchisme supprimée', x.prenoms + ' ' + x.nom + ' (' + x.annee + ')');
   return true;
 }

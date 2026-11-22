@@ -102,9 +102,9 @@ export default function Documents() {
       <p className="mt-3 text-xs text-nuit-600/60">Les documents Google (Docs, Sheets) sont téléchargés en PDF. « Ouvrir dans Drive » demande d'être connecté au compte Google de la paroisse.</p>
 
       {nouveauDossier && <NomModale titre="Nouveau dossier" onFermer={() => setNouveauDossier(false)} onValider={async (nom) => { await api('documents.dossier', { parentId: data.id, nom }); setNouveauDossier(false); notifier('Dossier créé'); recharger() }} />}
-      {renommer && <NomModale titre="Renommer" initial={renommer.nom} onFermer={() => setRenommer(null)} onValider={async (nom) => { await api('documents.renommer', { id: renommer.id, nom }); setRenommer(null); notifier('Renommé'); resultats ? setResultats(null) : recharger() }} />}
+      {renommer && <NomModale titre="Renommer" initial={renommer.nom} onFermer={() => setRenommer(null)} onValider={async (nom) => { await api('documents.renommer', { id: renommer.id, nom }); setRenommer(null); notifier('Renommé'); if (resultats) setResultats(null); else recharger() }} />}
       {deplacer && <ChoisirDossier titre={`Ranger « ${deplacer.nom} »`} onFermer={() => setDeplacer(null)} onChoix={async (versId) => {
-        try { await api('documents.deplacer', { id: deplacer.id, versId }); setDeplacer(null); notifier('Déplacé'); resultats ? setResultats(null) : recharger() } catch (e) { notifier(e.message, 'erreur') }
+        try { await api('documents.deplacer', { id: deplacer.id, versId }); setDeplacer(null); notifier('Déplacé'); if (resultats) setResultats(null); else recharger() } catch (e) { notifier(e.message, 'erreur') }
       }} />}
     </>
   )

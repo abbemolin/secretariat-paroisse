@@ -98,6 +98,11 @@ var ROUTES = {
   'app.init':              { fn: function (p, s) { return initApp_(p, s); } },
   'accueil.resume':        { fn: function (p, s) { return resumeAccueil_(p, s); } },
   'accueil.blocs':         { fn: function (p, s) { return ecrirePrefsAccueil_(p, s); } },
+  'registres':             { fn: function (p, s) { return registresRoute_(p, s); }, droit: 'dossiers' },
+  'statistiques':          { fn: function (p, s) { return statistiquesRoute_(p, s); }, droit: 'utilisateurs' },
+  'modeles':               { fn: function (p, s) { return modelesRoute_(p, s); }, droit: 'dossiers' },
+  'dossiers.courrier':     { fn: function (p, s) { return courrierRoute_(p, s); }, droit: 'dossiers' },
+  'sauvegardes':           { fn: function (p, s) { return sauvegardesRoute_(p, s); }, droit: 'utilisateurs' },
   'recherche':             { fn: function (p, s) { return rechercheGlobale_(p, s); } },
 
   'utilisateurs.liste':    { fn: function (p, s) { return listerUtilisateurs_(p, s); } },
@@ -237,7 +242,7 @@ function json_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
 function erreur_(code, message) { var e = new Error(message); e.code = code; return e; }
-function props_() { return PropertiesService.getScriptProperties(); }
+// props_() : voir Stockage.gs (réglages volumineux dans une feuille)
 function prop_(cle) {
   var v = props_().getProperty(cle);
   if (!v) throw erreur_('NON_INSTALLE', "L'installation n'a pas été faite (fonction installer()).");
@@ -250,6 +255,8 @@ function db_() {
 function feuille_(nom) { return db_().getSheetByName(nom); }
 function uid_() { return Utilities.getUuid().replace(/-/g, '').slice(0, 12); }
 function maintenant_() { return new Date().toISOString(); }
+/** Date du jour à Strasbourg (AAAA-MM-JJ) — et non en heure universelle, fausse entre minuit et 1 h / 2 h. */
+function aujourdhui_() { return Utilities.formatDate(new Date(), 'Europe/Paris', 'yyyy-MM-dd'); }
 function hex_(bytes) { return bytes.map(function (b) { return ('0' + (b & 0xff).toString(16)).slice(-2); }).join(''); }
 function hacher_(mdp, sel) {
   var h = sel + '|' + mdp;
@@ -261,7 +268,8 @@ function hacher_(mdp, sel) {
 function verrou_(fn) {
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
-  try { return fn(); } finally { lock.releaseLock(); }
+  oublierLignes_();   // sous verrou, on relit toujours la feuille fraîche
+  try { return fn(); } finally { oublierLignes_(); lock.releaseLock(); }
 }
 function json2_(v, defaut) { try { return v ? JSON.parse(v) : defaut; } catch (e) { return defaut; } }
 function echapper_(t) {
@@ -269,9 +277,12 @@ function echapper_(t) {
 }
 
 /** Lit une feuille en objets ({_ligne} = n° de ligne). Toutes les cellules sont au format texte. */
+var VALEURS_ = {};
+/** Chaque feuille n'est lue qu'une fois par requête ; toute écriture efface ce cache. */
+function oublierLignes_(nom) { if (nom) delete VALEURS_[nom]; else VALEURS_ = {}; }
 function lignes_(nom) {
-  var f = feuille_(nom);
-  var valeurs = f.getDataRange().getValues();
+  if (!VALEURS_[nom]) VALEURS_[nom] = feuille_(nom).getDataRange().getValues();
+  var valeurs = VALEURS_[nom].slice();
   var entetes = valeurs.shift();
   return valeurs.map(function (r, i) {
     var o = { _ligne: i + 2 };
@@ -307,10 +318,11 @@ function ecrireLigne_(nom, obj) {
     obj._ligne = n;
   }
   f.getRange(obj._ligne, 1, 1, row.length).setNumberFormat('@').setValues([row]);
+  oublierLignes_(nom);
   return obj;
 }
 function journaliser_(session, action, detail) {
-  try { feuille_('Journal').appendRow([maintenant_(), session ? session.nom : 'système', action, detail || '']); } catch (e) {}
+  try { feuille_('Journal').appendRow([maintenant_(), session ? session.nom : 'système', action, detail || '']); oublierLignes_('Journal'); } catch (e) {}
 }
 
 // ─────────────────────────────── AUTHENTIFICATION ────────────────────────────
@@ -542,6 +554,7 @@ function initApp_(p, s) {
 function resumeAccueil_(p, s) {
   var d = DROITS[s.role], res = {};
   try { res.blocs = prefsAccueil_(s.uid); } catch (e) {}
+  assurerEntretien_();
   if (d.indexOf('mail') > -1) {
     res.mailsNonLus = GmailApp.getInboxUnreadCount();
     var suivis = lignes_('SuiviMails');
@@ -588,6 +601,11 @@ function aFaire_(s) {
           var actes = lignes_('Extraits').filter(function (x) { return json2_(x.demande, null) && !json2_(x.envois, []).length; });
           if (actes.length) l.push({ cle: 'actes', nombre: actes.length, texte: actes.length > 1 ? 'demandes d\'acte de baptême à envoyer' : 'demande d\'acte de baptême à envoyer', lien: actes.length > 1 ? '/extraits' : '/extraits/' + actes[0].id });
         }
+      } catch (e) {}
+      try {
+        var nReg = 0, premier = '';
+        Object.keys(REGISTRES).forEach(function (k) { var n = actesAInscrire_(k).length; if (n && !premier) premier = k; nReg += n; });
+        if (nReg) l.push({ cle: 'registres', nombre: nReg, texte: nReg > 1 ? 'actes à inscrire au registre' : 'acte à inscrire au registre', lien: '/registres?r=' + premier });
       } catch (e) {}
       if (bap) l.push({ cle: 'bapteme', nombre: bap, texte: bap > 1 ? 'confirmands dont le baptême est à trouver' : 'confirmand dont le baptême est à trouver', lien: '/dossiers?type=confirmand' });
     });

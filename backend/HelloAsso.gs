@@ -167,7 +167,7 @@ function lienObjetPaiement_(x) {
 }
 function appliquerPaiement_(x, montant) {
   var c = json2_(x.cible, {});
-  var ligne = function (part) { return { id: uid_(), date: maintenant_().slice(0, 10), montant: montant, mode: 'HelloAsso', par: 'Paiement en ligne', ref: x.order_id, part: part || '' }; };
+  var ligne = function (part) { return { id: uid_(), date: aujourdhui_(), montant: montant, mode: 'HelloAsso', par: 'Paiement en ligne', ref: x.order_id, part: part || '' }; };
   if (x.objet === 'cate') {
     // réparti entre les enfants de la famille, dans l'ordre, selon ce qui reste à payer
     var reste = montant;

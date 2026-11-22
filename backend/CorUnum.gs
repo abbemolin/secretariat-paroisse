@@ -25,7 +25,7 @@ function feuilleCor_() {
     // colonnes ajoutées depuis la création de la feuille
     var ent = f.getRange(1, 1, 1, f.getLastColumn()).getValues()[0];
     var manque = COLONNES_COR.filter(function (c) { return ent.indexOf(c) === -1; });
-    if (manque.length) f.getRange(1, ent.length + 1, 1, manque.length).setValues([manque]);
+    if (manque.length) f.getRange(1, ent.length + 1, 1, manque.length).setValues([manque]); oublierLignes_();
   }
   return f;
 }
@@ -347,7 +347,7 @@ function supprimerCor_(p, s) {
   verrou_(function () {
     var x = lignes_('CorUnum').filter(function (y) { return y.id === p.id; })[0];
     if (!x) throw erreur_('INTROUVABLE', 'Fiche introuvable.');
-    feuilleCor_().deleteRow(x._ligne);
+    feuilleCor_().deleteRow(x._ligne); oublierLignes_();
     journaliser_(s, 'Cor Unum : fiche supprimée', x.prenoms + ' ' + x.nom);
   });
   return listerCor_({ annee: p.annee }, s);
@@ -553,7 +553,7 @@ function reprendreOngletsCor_(p, s) {
       });
     });
     membres.filter(function (m) { return m._supprime && m._ligne; }).sort(function (a, b) { return b._ligne - a._ligne; })
-      .forEach(function (m) { feuilleCor_().deleteRow(m._ligne); res.regroupees = (res.regroupees || 0) + 1; });
+      .forEach(function (m) { feuilleCor_().deleteRow(m._ligne); res.regroupees = (res.regroupees || 0) + 1; }); oublierLignes_();
     r.equipes[p.annee] = equipes;
     r.onglets_repris[p.annee] = true;
     ecrireCorReglages_(r);
@@ -879,7 +879,7 @@ function actionChef_(action, p) {
       var x = membreDeLEquipe(p.id);
       if (x.statut !== 'ancien') throw erreur_('INVALIDE', 'Seuls les anciens membres peuvent être retirés.');
       x.equipe_id = '';
-      x.note = [x.note, 'Ancien membre de la fraternité ' + e.nom + ', retiré de la liste par le chef le ' + maintenant_().slice(0, 10)].filter(String).join(' ; ');
+      x.note = [x.note, 'Ancien membre de la fraternité ' + e.nom + ', retiré de la liste par le chef le ' + aujourdhui_()].filter(String).join(' ; ');
       x.maj_le = maintenant_(); x.maj_par = qui;
       ecrireLigne_('CorUnum', x);
       nomR = x.prenoms + ' ' + x.nom;
@@ -905,7 +905,7 @@ function actionChef_(action, p) {
     verrou_(function () {
       var x = membreDeLEquipe(p.id);
       x.statut = 'ancien';
-      x.note = [x.note, 'Départ signalé par le chef le ' + maintenant_().slice(0, 10) + (court(p.note) ? ' : ' + court(p.note) : '')].filter(String).join(' ; ');
+      x.note = [x.note, 'Départ signalé par le chef le ' + aujourdhui_() + (court(p.note) ? ' : ' + court(p.note) : '')].filter(String).join(' ; ');
       x.maj_le = maintenant_(); x.maj_par = qui;
       ecrireLigne_('CorUnum', x);
       nom = x.prenoms + ' ' + x.nom;
@@ -920,7 +920,7 @@ function actionChef_(action, p) {
       feuilleFil_();
       if (p.supprimer) {
         var x = lignes_('CorUnumFils').filter(function (y) { return y.id === p.supprimer && y.fil === e.fil && y.type === 'rencontre'; })[0];
-        if (x) feuilleFil_().deleteRow(x._ligne);
+        if (x) feuilleFil_().deleteRow(x._ligne); oublierLignes_();
       } else {
         if (!/^\d{4}-\d{2}-\d{2}/.test(String(p.date || ''))) throw erreur_('INVALIDE', 'Date manquante.');
         ecrireLigne_('CorUnumFils', { id: uid_(), fil: e.fil, type: 'rencontre', date: maintenant_(), auteur: court(p.note, 300), cote: 'chef', texte: court(p.date, 20), lieu: court(p.lieu, 200), lu: '' });
@@ -1018,7 +1018,7 @@ function messageTousChefsCor_(p, s) {
 function resumeFils_(equipes) {
   if (!db_().getSheetByName('CorUnumFils')) return {};
   var parFil = {};
-  var auj = maintenant_().slice(0, 10);
+  var auj = aujourdhui_();
   lignes_('CorUnumFils').forEach(function (x) {
     var f = parFil[x.fil] = parFil[x.fil] || { non_lus: 0, prochaine: null, nb_rencontres: 0 };
     if (x.type === 'message' && x.cote === 'chef' && x.lu !== 'oui') f.non_lus++;
@@ -1171,7 +1171,7 @@ function actionRejoindre_(action, p) {
         x.profils = JSON.stringify(uniq(json2_(x.profils, []).concat(profils)));
         x.sources = JSON.stringify(uniq(json2_(x.sources, []).concat(['lien_chef'])));
         if (ancienneEquipe && ancienneEquipe !== e.id) x.deja_participe = 'Non';
-        x.note = [x.note, 'Inscrit(e) par le lien du chef le ' + maintenant_().slice(0, 10)].filter(String).join(' ; ');
+        x.note = [x.note, 'Inscrit(e) par le lien du chef le ' + aujourdhui_()].filter(String).join(' ; ');
         x.maj_le = maintenant_(); x.maj_par = qui;
         ecrireLigne_('CorUnum', x);
       } else {
@@ -1245,7 +1245,7 @@ function menageCor_(x, z, toutes, r, qui) {
   if (change) ecrireCorReglages_(r);
   ecrireLigne_('CorUnum', x);
   var zz = lignes_('CorUnum').filter(function (y) { return y.id === z.id; })[0];
-  if (zz) feuilleCor_().deleteRow(zz._ligne);
+  if (zz) feuilleCor_().deleteRow(zz._ligne); oublierLignes_();
 }
 function menageCorRoute_(p, s) {
   var nom = '';

@@ -294,7 +294,7 @@ function prevenirEspace_(d, titre) {
 function vueEspace_(d) {
   var don = json2_(d.donnees, {}), i = don.infos || {}, pr = profilEspace_(d);
   var docs = don.documents || {};
-  var auj = maintenant_().slice(0, 10);
+  var auj = aujourdhui_();
   var cal = lignesCal_().filter(function (e) { return cibleConcerne_(e.cible, pr) && e.date >= auj; })
     .map(function (e) { return { date: e.date, heure_debut: e.heure_debut, heure_fin: e.heure_fin, titre: e.titre, lieu: e.lieu, note: e.note }; });
   if (!pr.neo && pr.annee) {
@@ -404,7 +404,7 @@ function parrainParJeton_(j) {
   throw erreur_('LIEN', 'Ce lien n\'est plus valable. Demandez-en un nouveau à votre filleul(e) ou à la paroisse.');
 }
 function vueParrain_(ctx) {
-  var d = ctx.d, z = ctx.z, i = json2_(d.donnees, {}).infos || {}, pr = profilEspace_(d), auj = maintenant_().slice(0, 10);
+  var d = ctx.d, z = ctx.z, i = json2_(d.donnees, {}).infos || {}, pr = profilEspace_(d), auj = aujourdhui_();
   var dates = lignesCal_().filter(function (e) { return e.parrains === 'oui' && cibleConcerne_(e.cible, pr) && e.date >= auj; })
     .sort(function (a, b) { return String(a.date + a.heure_debut).localeCompare(String(b.date + b.heure_debut)); })
     .map(function (e) { return { date: e.date, heure_debut: e.heure_debut, heure_fin: e.heure_fin, titre: e.titre, lieu: e.lieu, note: e.note }; });
@@ -452,7 +452,7 @@ function fraterniteEspace_(d) {
   if (!x || x.statut === 'ancien') return { etat: 'aucune', annee: annee };
   var e = x.equipe_id ? equipesDe_(r, annee).filter(function (y) { return y.id === x.equipe_id; })[0] : null;
   if (!e) return { etat: 'demande', annee: annee };
-  var auj = maintenant_().slice(0, 10);
+  var auj = aujourdhui_();
   return {
     etat: 'membre', annee: annee, equipe: e.nom, chefs: chefsInfos_(e, toutes),
     membres: toutes.filter(function (y) { return y.annee === annee && y.equipe_id === e.id && y.statut !== 'ancien'; })
@@ -474,7 +474,7 @@ function demandeCorEspace_(d, preferences) {
     var doss = dossiersLies_(), dd = doss.filter(function (z) { return z.id === d.id; })[0];
     var l = (liensCor_(toutes.filter(function (x) { return x.annee === annee; }), doss).parDossier[d.id] || []);
     var x = l.length ? l[0].x : null, i = dd.infos || {};
-    var note = 'Demande depuis l\'espace personnel le ' + maintenant_().slice(0, 10);
+    var note = 'Demande depuis l\'espace personnel le ' + aujourdhui_();
     if (x) {
       x.statut = 'actif'; x.equipe_id = ''; x.equipe_proposee = '';
       if (prefs) x.souhait = [x.souhait, prefs].filter(String).join(' ; ');
@@ -638,7 +638,7 @@ function supprimerTexte_(p, s) {
     var t = lignes_('Textes').filter(function (y) { return y.id === p.id; })[0];
     if (!t) return;
     json2_(t.fichiers, []).forEach(function (f) { try { DriveApp.getFileById(f.id).setTrashed(true); } catch (e) {} });
-    db_().getSheetByName('Textes').deleteRow(t._ligne);
+    db_().getSheetByName('Textes').deleteRow(t._ligne); oublierLignes_();
   });
   return listerTextes_();
 }
@@ -647,7 +647,7 @@ function ecrireCalendrier_(p, s) {
   verrou_(function () {
     if (p.supprimer) {
       var y = lignesCal_().filter(function (z) { return z.id === p.supprimer; })[0];
-      if (y) db_().getSheetByName('CalendrierCate').deleteRow(y._ligne);
+      if (y) db_().getSheetByName('CalendrierCate').deleteRow(y._ligne); oublierLignes_();
       return;
     }
     var e = p.evenement || {};

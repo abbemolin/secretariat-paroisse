@@ -1,9 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { BoutonRecherche } from './pages/RechercheGlobale.jsx'
-import { Home, Mail, CalendarDays, FolderHeart, FolderOpen, Users, Settings, UserCircle, LogOut, Bell, ScrollText, GraduationCap, HeartHandshake, Mountain, Flame, BookOpen, LifeBuoy, MoreHorizontal, X } from 'lucide-react'
-import { api, ecrireToken, lireToken, quandSessionExpire, estDemo } from './api.js'
-import { Chargement, FournisseurNotif, ROLES, dateRelative } from './ui.jsx'
+import { Home, Mail, CalendarDays, FolderHeart, FolderOpen, Users, Settings, UserCircle, LogOut, Bell, ScrollText, GraduationCap, HeartHandshake, Mountain, Flame, BookOpen, BookMarked, BarChart3, LifeBuoy, MoreHorizontal, X } from 'lucide-react'
+import { api, ecrireToken, lireToken, quandSessionExpire, estDemo, suivreFile, viderFile } from './api.js'
+import { Chargement, FournisseurNotif, ROLES, dateRelative, useNotif } from './ui.jsx'
 import Connexion from './pages/Connexion.jsx'
 import Accueil from './pages/Accueil.jsx'
 import Courrier from './pages/Courrier.jsx'
@@ -20,6 +20,8 @@ import CorUnum from './pages/CorUnum.jsx'
 import Retraites from './pages/Retraites.jsx'
 import Catechumenat from './pages/Catechumenat.jsx'
 import Aide from './pages/Aide.jsx'
+import Registres from './pages/Registres.jsx'
+import Statistiques from './pages/Statistiques.jsx'
 
 const CtxApp = createContext(null)
 export const useApp = () => useContext(CtxApp)
@@ -32,7 +34,8 @@ const MENU = [
   { to: '/agenda', label: 'Agenda', icone: CalendarDays, droit: 'agenda', bas: true },
   { groupe: 'Sacrements', items: [
     { to: '/dossiers', label: 'Dossiers', icone: FolderHeart, droit: 'dossiers', bas: true },
-    { to: '/extraits', label: 'Extraits de baptême', icone: ScrollText, droit: 'dossiers' }
+    { to: '/extraits', label: 'Extraits de baptême', icone: ScrollText, droit: 'dossiers' },
+    { to: '/registres', label: 'Registres', icone: BookMarked, droit: 'dossiers' }
   ] },
   { groupe: 'Catéchèse', items: [
     { to: '/catechisme', label: 'Catéchisme', icone: GraduationCap, droit: 'dossiers' },
@@ -42,6 +45,7 @@ const MENU = [
     { to: '/retraites', label: 'Retraites', icone: Mountain, droit: 'dossiers' }
   ] },
   { to: '/documents', label: 'Documents', icone: FolderOpen, droit: 'documents' },
+  { to: '/statistiques', label: 'Statistiques', icone: BarChart3, droit: 'utilisateurs' },
   { groupe: '', secondaire: true, items: [
     { to: '/aide', label: 'Aide', icone: LifeBuoy },
     { to: '/utilisateurs', label: 'Utilisateurs', icone: Users, droit: 'utilisateurs' },
@@ -173,6 +177,15 @@ function Cadre() {
   const { utilisateur, peut, deconnecter } = useApp()
   const loc = useLocation()
   const [plus, setPlus] = useState(false)
+  const notifier = useNotif()
+  const [attente, setAttente] = useState(0)
+  useEffect(() => {
+    const fin = suivreFile(setAttente)
+    const refus = (e) => notifier('Une modification gardée hors connexion a été refusée par le serveur : ' + e.detail, 'erreur')
+    window.addEventListener('file-erreur', refus)
+    viderFile()
+    return () => { fin(); window.removeEventListener('file-erreur', refus) }
+  }, [notifier])
   const menu = MENU.map((m) => (m.items ? { ...m, items: m.items.filter((x) => peut(x.droit)) } : m)).filter((m) => (m.items ? m.items.length : peut(m.droit)))
   const bas = aplatir(menu).filter((m) => m.bas)
   return (
@@ -208,6 +221,7 @@ function Cadre() {
           <div className="flex items-center gap-2"><img src="./logo-128.png" alt="" className="h-8 w-8 rounded-full" /><span className="font-titre text-lg font-semibold">La Croix glorieuse</span></div>
           <div className="flex items-center"><BoutonRecherche mobile /><Cloche /><NavLink to="/compte" className="rounded-lg p-2 hover:bg-white/10"><UserCircle className="h-6 w-6" /></NavLink></div>
         </header>
+        {attente > 0 && <div className="bg-nuit-50 px-4 py-1.5 text-center text-xs text-nuit-600">{attente > 1 ? `${attente} modifications gardées` : '1 modification gardée'} sur l'appareil — {attente > 1 ? 'elles seront envoyées' : 'elle sera envoyée'} dès le retour de la connexion. <button className="underline" onClick={() => viderFile()}>Réessayer</button></div>}
         {estDemo() && <div className="bg-or-100 px-4 py-1.5 text-center text-xs text-or-600">{({ secretaire: 'Aperçu : vous voyez l\'appli comme une secrétaire. ', cure: 'Aperçu : vous voyez l\'appli comme un prêtre. ' })[new URLSearchParams(location.search).get('role')] || 'Mode démonstration — '}Données fictives, rien n'est enregistré ni envoyé.</div>}
 
         <main className="flex-1 overflow-y-auto px-4 pb-24 pt-5 sm:px-6 lg:px-10 lg:pb-10 lg:pt-8">
@@ -227,6 +241,8 @@ function Cadre() {
               {peut('dossiers') && <Route path="/catechisme/:id" element={<Catechisme />} />}
               {peut('dossiers') && <Route path="/extraits" element={<Extraits />} />}
               {peut('dossiers') && <Route path="/extraits/:id" element={<Extraits />} />}
+              {peut('dossiers') && <Route path="/registres" element={<Registres />} />}
+              {peut('utilisateurs') && <Route path="/statistiques" element={<Statistiques />} />}
               {peut('utilisateurs') && <Route path="/utilisateurs" element={<Utilisateurs />} />}
               {peut('reglages') && <Route path="/reglages" element={<Reglages />} />}
               <Route path="/aide" element={<Aide />} />

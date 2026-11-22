@@ -6,7 +6,7 @@ import ChoixFraternite from './ChoixFraternite.jsx'
 import { api } from '../api.js'
 import { analyserClasseur, lireClasseur, STATUTS_IMPORT } from '../importCatechumenes.js'
 import { useApp } from '../App.jsx'
-import { TYPES, ORDRE_TYPES, ETATS, prochaineEtape, documentsManquants, PAR_ANNEE, anneeSacrements, etapesDe, libelleAnnee, TITRES_COLLECTIFS, lieuPreparation, anneeScolaireActuelle, estOptionnel, ALERTES } from '../types.js'
+import { TYPES, ORDRE_TYPES, ETATS, prochaineEtape, documentsManquants, PAR_ANNEE, anneeSacrements, etapesDe, libelleAnnee, TITRES_COLLECTIFS, anneeScolaireActuelle, estOptionnel, ALERTES } from '../types.js'
 import { Chargement, Erreur, Modale, Vide, useCharger, enSuppression, Aide, useNotif, imprimerHtml, dateCourte, initiales, versLocal, jourLong, heure, COULEURS_STATUT } from '../ui.jsx'
 
 export default function Dossiers() {
@@ -91,7 +91,7 @@ export default function Dossiers() {
                 return (
                   <div key={d.id}>
                   {entete && <div className="bg-or-50 px-4 py-1.5 font-titre text-lg font-semibold text-or-600">{anneeSacrements(d) ? libelleAnnee(type) + anneeSacrements(d) : 'Année non fixée'}</div>}
-                  <button onClick={() => sel ? setSel((x) => { const n = new Set(x); n.has(d.id) ? n.delete(d.id) : n.add(d.id); return n }) : nav(`/dossiers/${d.id}`)} className={`${sel?.has(d.id) ? 'bg-or-50 ' : ''}grid w-full grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-1 px-4 py-3 text-left text-sm hover:bg-nuit-50/50 md:grid-cols-[150px_1fr_200px_120px_40px]`}>
+                  <button onClick={() => sel ? setSel((x) => { const n = new Set(x); if (n.has(d.id)) n.delete(d.id); else n.add(d.id); return n }) : nav(`/dossiers/${d.id}`)} className={`${sel?.has(d.id) ? 'bg-or-50 ' : ''}grid w-full grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-1 px-4 py-3 text-left text-sm hover:bg-nuit-50/50 md:grid-cols-[150px_1fr_200px_120px_40px]`}>
                     <span className="flex flex-col gap-0.5">{sel && <input type="checkbox" readOnly checked={sel.has(d.id)} className="mb-1 h-4 w-4 accent-[#521a22]" aria-label={`Choisir ${d.nom}`} />}<span className="pastille w-fit text-white" style={{ background: t.couleur }}>{t.nom}</span>
                       {PAR_ANNEE.includes(d.type) && !parAnnee && anneeSacrements(d) && <span className="pastille w-fit border border-or/40 py-0 text-[10px] text-or-600">{anneeSacrements(d)}</span>}</span>
                     <span className="min-w-0"><span className="flex items-center gap-2 truncate font-medium">{d.photo && <img src={d.photo} alt="" className="h-7 w-7 shrink-0 rounded-full object-cover" />}<span className="truncate">{d.nom}</span></span>
@@ -357,7 +357,7 @@ function ApercuImport({ apercu, onFermer, onFait }) {
   const aImporter = personnes.filter((p) => p.statut !== 'ignorer')
   async function importer() {
     setEnvoi(true)
-    try { onFait(await api('dossiers.importerCatechumenes', { personnes: aImporter.map(({ existant, ...p }) => p) })) }
+    try { onFait(await api('dossiers.importerCatechumenes', { personnes: aImporter.map(({ existant: _e, ...p }) => p) })) }
     catch (e) { notifier(e.message, 'erreur'); setEnvoi(false) }
   }
   return (

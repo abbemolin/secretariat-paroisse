@@ -17,7 +17,7 @@ function feuilleCommandes_() {
 function completerColonnes_(f, colonnes) {
   var ent = f.getRange(1, 1, 1, f.getLastColumn()).getValues()[0];
   var manque = colonnes.filter(function (c) { return ent.indexOf(c) === -1; });
-  if (manque.length) f.getRange(1, ent.length + 1, 1, manque.length).setValues([manque]);
+  if (manque.length) f.getRange(1, ent.length + 1, 1, manque.length).setValues([manque]); oublierLignes_();
   return f;
 }
 
@@ -94,7 +94,7 @@ function modifierCommande_(p, s) {
       var montant = nombre_(p.ajouter.montant);
       if (!montant) throw erreur_('INVALIDE', 'Montant manquant.');
       c.maj_le = maintenant_(); ecrireLigne_('Commandes', c);
-      payerCommande_(c.id, { id: uid_(), date: p.ajouter.date || maintenant_().slice(0, 10), montant: montant, mode: String(p.ajouter.mode || ''), par: s.nom });
+      payerCommande_(c.id, { id: uid_(), date: p.ajouter.date || aujourdhui_(), montant: montant, mode: String(p.ajouter.mode || ''), par: s.nom });
       return;
     }
     if (p.retirer) c.paiements = JSON.stringify(json2_(c.paiements, []).filter(function (y) { return y.id !== p.retirer; }));

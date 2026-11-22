@@ -80,7 +80,7 @@ function retraitePublique_(r) {
 }
 function estOuverteRet_(r) {
   if (String(r.ouverte) === 'non') return false;
-  if (r.date_limite && maintenant_().slice(0, 10) > r.date_limite) return false;
+  if (r.date_limite && aujourdhui_() > r.date_limite) return false;
   return true;
 }
 function urlRetraite_(params) {
@@ -174,8 +174,8 @@ function supprimerRetraite_(p, s) {
   verrou_(function () {
     var r = trouverRetraite_(p.id);
     var f = db_().getSheetByName('RetraitesInscrits');
-    inscritsRet_(r.id).map(function (x) { return x._ligne; }).sort(function (a, b) { return b - a; }).forEach(function (l) { f.deleteRow(l); });
-    db_().getSheetByName('Retraites').deleteRow(r._ligne);
+    inscritsRet_(r.id).map(function (x) { return x._ligne; }).sort(function (a, b) { return b - a; }).forEach(function (l) { f.deleteRow(l); }); oublierLignes_();
+    db_().getSheetByName('Retraites').deleteRow(r._ligne); oublierLignes_();
   });
   journaliser_(s, 'Retraite supprimée', p.id);
   return true;
@@ -189,7 +189,7 @@ function modifierInscriptionRet_(p, s) {
     if (p.ajouter) {
       var montant = nombre_(p.ajouter.montant);
       if (!montant) throw erreur_('INVALIDE', 'Montant manquant.');
-      l.push({ id: uid_(), date: p.ajouter.date || maintenant_().slice(0, 10), montant: montant, mode: String(p.ajouter.mode || ''), par: s.nom });
+      l.push({ id: uid_(), date: p.ajouter.date || aujourdhui_(), montant: montant, mode: String(p.ajouter.mode || ''), par: s.nom });
     }
     if (p.retirer) l = l.filter(function (y) { return y.id !== p.retirer; });
     x.paiements = JSON.stringify(l);
@@ -331,7 +331,7 @@ function inscrireRetraite_(p) {
     x.participants = JSON.stringify(parts);
     x.ceremonie = String(Math.max(0, nombre_(f.ceremonie)));
     x.urgence_nom = court(f.urgence_nom, 120); x.urgence_tel = court(f.urgence_tel, 40);
-    x.autorisation = enfants && f.autorisation ? 'oui – ' + court(f.contact_nom, 120) + ' – ' + maintenant_().slice(0, 10) : '';
+    x.autorisation = enfants && f.autorisation ? 'oui – ' + court(f.contact_nom, 120) + ' – ' + aujourdhui_() : '';
     x.covoiturage = ['propose', 'cherche'].indexOf(f.covoiturage) > -1 ? f.covoiturage : '';
     x.covoit_places = x.covoiturage === 'propose' ? String(Math.min(9, Math.max(0, Math.round(nombre_(f.covoit_places))))) : '';
     x.remarque = court(f.remarque, 1000);

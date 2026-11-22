@@ -159,7 +159,7 @@ function retMontant(r, x) {
 }
 function retResume(r) {
   const act = r.inscriptions.filter((x) => x.statut !== 'annule'); const m = act.map((x) => retMontant(r, x))
-  const { inscriptions, ...o } = r
+  const { inscriptions: _i, ...o } = r
   return { ...o, titre: r.titre || 'Retraite – ' + RET_TYPES[r.type], ouverte_maintenant: r.ouverte !== 'non', nb_participants: act.reduce((a, x) => a + x.participants.length, 0), nb_inscriptions: act.length,
     du: m.reduce((a, x) => a + x.du, 0), paye: m.reduce((a, x) => a + x.paye, 0), reste: m.reduce((a, x) => a + x.reste, 0), lien: 'https://secretariat.croix-glorieuse.org/retraite/?r=' + r.jeton }
 }
@@ -225,6 +225,33 @@ export async function demoApi(action, p) {
     case 'utilisateurs.liste': return etat.utilisateurs.map(pub)
     case 'utilisateurs.creer': { const u = { id: 'u' + Date.now(), ...p, actif: true, derniere_connexion: '' }; etat.utilisateurs.push(u); return pub(u) }
     case 'utilisateurs.modifier': { const u = etat.utilisateurs.find((x) => x.id === p.id); Object.assign(u, p); delete u.motdepasse; return pub(u) }
+    case 'modeles': return { signatures: [{ cle: 'cure', nom: 'abbé Florent Molin', fonction: 'Curé' }, { cle: 'vicaire', nom: 'Abbé Guillaume LE GALL', fonction: 'Vicaire' }],
+      modeles: [
+        { cle: 'attestation', titre: 'Attestation de préparation', objet: 'Attestation de préparation {a_sacrement}', corps: 'Je soussigné, {signataire}, {fonction} de la {paroisse}, atteste que\n\n{nom_complet}, né(e) le {ne_le}{ne_a},\n\na suivi la préparation {a_sacrement} dans notre paroisse.\n\nCette attestation est délivrée pour servir et valoir ce que de droit.' },
+        { cle: 'autorisation', titre: 'Autorisation (licence)', objet: 'Autorisation pour la célébration {du_sacrement}', corps: 'Je soussigné, {signataire}, {fonction} de la {paroisse} (diocèse de {diocese}), donne licence pour la célébration {du_sacrement} de\n\n{nom_complet}\n\nle {date_celebration} en l\'église {lieu_celebration}{par_celebrant}.' },
+        { cle: 'aptitude', titre: 'Certificat d\'aptitude (parrain / marraine)', objet: 'Certificat d\'aptitude à la charge de parrain ou de marraine', corps: 'Je soussigné, {signataire}, {fonction} de la {paroisse}, certifie que\n\n{nom_complet}, né(e) le {ne_le}{ne_a},\n\nremplit les conditions requises par le droit de l\'Église (canon 874) pour exercer la charge de parrain ou de marraine.' },
+        { cle: 'lettre', titre: 'Lettre libre à en-tête', objet: '', corps: 'Madame, Monsieur,\n\n\n\nAvec l\'assurance de nos prières à toutes vos intentions,' }] }
+    case 'dossiers.courrier': return demoApi('dossiers.lire', { id: p.dossierId })
+    case 'registres': {
+      if (p.dossier) return { registre: 'baptemes', nom_registre: 'Baptêmes', annee: String(new Date().getFullYear()), numero: '15' }
+      if (p.inscrire) return demoApi('dossiers.lire', { id: p.inscrire.id })
+      const noms = [['ARNOLD', 'Paul', 6], ['BAUER', 'Léa', 11], ['KLEIN', 'Hugo', 3], ['MARTIN', 'Zoé', 9], ['WEBER', 'Louise', 5]]
+      return { registres: [['baptemes', 'Baptêmes', 2], ['communions', 'Premières communions', 0], ['professions', 'Professions de foi', 0], ['confirmations', 'Confirmations', 1], ['mariages', 'Mariages', 0], ['sepultures', 'Sépultures', 1]].map(([cle, nom, a]) => ({ cle, nom, a_inscrire: a })),
+        registre: p.registre || 'baptemes', annee: p.annee || String(new Date().getFullYear()), annees: [String(new Date().getFullYear()), String(new Date().getFullYear() - 1)], depart: 2, prochain: 15,
+        a_inscrire: [{ id: 'd1', nom: 'Louise WEBER', type: 'bapteme', date: jour(-10).slice(0, 10) }, { id: 'd2', nom: 'Gabriel HOFFMANN', type: 'bapteme', date: jour(-3).slice(0, 10) }],
+        table: noms.map(([nom, prenoms, n]) => ({ nom, prenoms, numero: String(n), date: jour(-n * 20).slice(0, 10), id: 'd1', type: 'bapteme' })) }
+    }
+    case 'statistiques': {
+      const t = (k) => ({ bapteme: 23 - k * 3, catechumene: 4 + k, premiere_communion: 31 - k, profession_foi: 18 + k, confirmation: 27 - k * 2, mariage: 9 + k, obseques: 42 - k * 4 })
+      const m = (k) => [1, 0, 2, 9, 11, 14, 12, 8, 13, 6, 3, 4].map((x) => Math.max(0, x - k * 2 + (x % 3)))
+      return { annee: Number(p.annee), annee_prec: Number(p.annee) - 1, scolaire: p.scolaire, scolaire_prec: '',
+        types: [['bapteme', 'Baptêmes d\'enfants'], ['catechumene', 'Baptêmes d\'adultes'], ['premiere_communion', 'Premières communions'], ['profession_foi', 'Professions de foi'], ['confirmation', 'Confirmations'], ['mariage', 'Mariages'], ['obseques', 'Obsèques']].map(([cle, nom]) => ({ cle, nom })),
+        sacrements: { par_type: t(0), par_mois: m(0) }, sacrements_prec: { par_type: t(1), par_mois: m(1) },
+        catechese: { enfants: 87, du: 2610, paye: 2245, classes: { CE1: 14, CE2: 16, CM1: 19, CM2: 15, '6e': 12, '5e': 11 }, preparations: { premiere_communion: 31, profession_foi: 18, confirmation_jeune: 24, confirmand: 9, catechumene: 6 } },
+        catechese_prec: { enfants: 79, preparations: { premiere_communion: 28, profession_foi: 20, confirmation_jeune: 22, confirmand: 7, catechumene: 4 } },
+        cor: { membres: 146, places: 138, fraternites: 17, chefs: 31 }, cor_prec: { membres: 121, fraternites: 14, chefs: 26 } }
+    }
+    case 'sauvegardes': return { entretien: jour(0, 3), sauvegardes: [0, 7, 14, 21].map((n, i) => ({ id: 'sv' + i, nom: 'Sauvegarde secrétariat ' + jour(-n, 3).slice(0, 10) + ' 03.00', date: jour(-n, 3), url: '#' })) }
     case 'journal.liste': return [{ date: jour(0, 10, 13), utilisateur: 'système', action: 'Demande reçue (site)', detail: 'Baptême – Louise WEBER' }, { date: jour(0, 8, 2), utilisateur: 'Tri automatique', action: 'Réponse auto envoyée', detail: 'Horaires → claire.m@example.fr (« Horaires de Noël »)' }, { date: jour(0, 9), utilisateur: 'Bertille Bauer', action: 'Suivi mail', detail: 'Réservation salle → En cours' }]
     case 'reglages.ecrire': Object.assign(etat.reglages, p); return etat.reglages
     case 'signatures.ecrire': etat.signatures = p.signatures; return p.signatures

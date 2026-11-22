@@ -3,28 +3,33 @@ import { Loader2, Plus, Trash2, RotateCcw, Wand2, AlertTriangle, CheckCircle2, D
 import { api, fichierEnBase64 } from '../api.js'
 import { chargerSceau, oublierSceau } from './Extraits.jsx'
 import { useApp } from '../App.jsx'
-import { Chargement, Erreur, useCharger, useNotif, dateHeure, Interrupteur } from '../ui.jsx'
+import { Chargement, Erreur, useCharger, useNotif, useConfirmer, dateHeure, Interrupteur } from '../ui.jsx'
 import { ApercuSignature } from './Courrier.jsx'
+import { VARIABLES_COURRIER } from './Courriers.jsx'
 
-const ONGLETS = ['Paroisse', 'Signatures', 'Réponses types', 'Tri automatique', 'Catéchisme', 'Confirmands', 'Cor Unum', 'Paiements en ligne', 'Journal']
+const ONGLETS = ['Paroisse', 'Signatures', 'Réponses types', 'Modèles', 'Tri automatique', 'Catéchisme', 'Confirmands', 'Cor Unum', 'Paiements en ligne', 'Journal']
 
 export default function Reglages() {
+  const { utilisateur } = useApp()
   const [onglet, setOnglet] = useState('Paroisse')
+  const onglets = utilisateur.role === 'admin' ? [...ONGLETS, 'Sauvegardes'] : ONGLETS
   return (
     <>
       <div className="mb-5"><h1 className="text-3xl font-semibold">Réglages</h1><p className="text-sm text-nuit-600/80">Paroisse, signatures, réponses types, tri des mails, journal des actions</p></div>
       <div className="-mx-1 mb-5 flex gap-1.5 overflow-x-auto px-1">
-        {ONGLETS.map((o) => <button key={o} onClick={() => setOnglet(o)} className={`pastille shrink-0 border px-3 py-1.5 text-sm ${onglet === o ? 'border-nuit bg-nuit text-white' : 'border-nuit-100 bg-white text-nuit-600'}`}>{o}</button>)}
+        {onglets.map((o) => <button key={o} onClick={() => setOnglet(o)} className={`pastille shrink-0 border px-3 py-1.5 text-sm ${onglet === o ? 'border-nuit bg-nuit text-white' : 'border-nuit-100 bg-white text-nuit-600'}`}>{o}</button>)}
       </div>
       {onglet === 'Paroisse' && <Paroisse />}
       {onglet === 'Signatures' && <Signatures />}
       {onglet === 'Réponses types' && <Reponses />}
+      {onglet === 'Modèles' && <Modeles />}
       {onglet === 'Tri automatique' && <TriAutomatique />}
       {onglet === 'Catéchisme' && <CatechismeReglages />}
       {onglet === 'Confirmands' && <ConfirmandsReglages />}
       {onglet === 'Cor Unum' && <CorUnumReglages />}
       {onglet === 'Paiements en ligne' && <PaiementsReglages />}
       {onglet === 'Journal' && <Journal />}
+      {onglet === 'Sauvegardes' && <Sauvegardes />}
     </>
   )
 }
@@ -182,6 +187,80 @@ function Journal() {
         <ul className="divide-y divide-nuit-50 text-sm">
           {data?.map((j, i) => <li key={i} className="flex flex-wrap gap-x-3 py-2"><span className="w-36 shrink-0 text-xs text-nuit-600/60">{dateHeure(j.date)}</span><span className="font-medium">{j.utilisateur}</span><span>{j.action}</span><span className="text-nuit-600/70">{j.detail}</span></li>)}
         </ul>
+      )}
+    </div>
+  )
+}
+
+function Modeles() {
+  const notifier = useNotif()
+  const { data, chargement, erreur } = useCharger(() => api('modeles'), [])
+  const [liste, setListe] = useState(null)
+  const [envoi, setEnvoi] = useState(false)
+  useEffect(() => { if (data) setListe(data.modeles) }, [data])
+  if (chargement || !liste) return <><Erreur erreur={erreur} />{!erreur && <Chargement />}</>
+  const maj = (i, k, v) => setListe(liste.map((m, j) => (j === i ? { ...m, [k]: v } : m)))
+  async function enregistrer(retablir) {
+    setEnvoi(true)
+    try { const r = await api('modeles', { ecrire: retablir ? [{ cle: retablir, retablir: true }] : liste }); setListe(r.modeles); notifier(retablir ? 'Texte d\'origine rétabli' : 'Modèles enregistrés') }
+    catch (e) { notifier(e.message, 'erreur') } finally { setEnvoi(false) }
+  }
+  return (
+    <div className="space-y-4">
+      <div className="carte p-4 text-sm text-nuit-600/80">
+        <p className="mb-2">Ces textes pré-remplissent les courriers (bouton « Courriers » d'un dossier) ; ils restent modifiables avant la signature. Variables remplacées automatiquement :</p>
+        <div className="flex flex-wrap gap-1.5">{VARIABLES_COURRIER.map(([k, l]) => <span key={k} className="pastille bg-nuit-50 text-xs" title={l}><code>{'{' + k + '}'}</code> <span className="text-nuit-600/60">{l}</span></span>)}</div>
+      </div>
+      {liste.map((m, i) => (
+        <div key={m.cle} className="carte space-y-2 p-4">
+          <div className="flex items-center gap-2"><h3 className="flex-1 text-lg font-semibold">{m.titre}</h3>
+            {m.modifie && <button className="btn-clair text-sm" disabled={envoi} onClick={() => enregistrer(m.cle)}><RotateCcw className="h-4 w-4" />Texte d'origine</button>}</div>
+          <label className="etiquette">Objet</label>
+          <input className="champ" value={m.objet} onChange={(e) => maj(i, 'objet', e.target.value)} />
+          <label className="etiquette">Texte</label>
+          <textarea className="champ min-h-[180px] text-sm leading-relaxed" value={m.corps} onChange={(e) => maj(i, 'corps', e.target.value)} />
+        </div>
+      ))}
+      <div className="flex justify-end"><button className="btn-principal" onClick={() => enregistrer()} disabled={envoi}>{envoi && <Loader2 className="h-4 w-4 animate-spin" />}Enregistrer</button></div>
+    </div>
+  )
+}
+
+function Sauvegardes() {
+  const notifier = useNotif()
+  const confirmer = useConfirmer()
+  const { data, chargement, erreur, recharger } = useCharger(() => api('sauvegardes'), [])
+  const [encours, setEncours] = useState('')
+  async function faire(payload, cle, message) {
+    setEncours(cle)
+    try { await api('sauvegardes', payload); notifier(message); recharger() } catch (e) { notifier(e.message, 'erreur') } finally { setEncours('') }
+  }
+  async function restaurer(s) {
+    const ok = await confirmer({ titre: 'Restaurer cette sauvegarde ?', danger: true, bouton: 'Restaurer',
+      texte: `Toute l'application reviendra à l'état du ${dateHeure(s.date)}. Ce qui a été saisi depuis sera perdu dans l'application (l'état actuel est d'abord sauvegardé, et l'ancienne base reste dans le Drive).` })
+    if (ok) { await faire({ restaurer: s.id }, s.id, 'Sauvegarde restaurée.'); setTimeout(() => location.reload(), 1200) }
+  }
+  return (
+    <div className="carte p-4">
+      <Erreur erreur={erreur} />
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <p className="flex-1 text-sm text-nuit-600/80">Chaque dimanche à 3 h, une copie complète de la base est rangée dans le Drive (dossier « Sauvegardes ») ; les 8 dernières sont gardées. Chaque nuit, les notifications de plus de 6 mois sont effacées et le journal de plus de 2 ans est archivé (dossier « Archives »).</p>
+        <button className="btn-principal" disabled={!!encours} onClick={() => faire({ sauvegarder: true }, 'nouv', 'Sauvegarde faite.')}>{encours === 'nouv' ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />} Sauvegarder maintenant</button>
+      </div>
+      {chargement ? <Chargement /> : (
+        <>
+          {data?.entretien && <p className="mb-2 text-xs text-nuit-600/60">Dernier entretien automatique : {dateHeure(data.entretien)}</p>}
+          {!data?.sauvegardes?.length ? <p className="text-sm text-nuit-600/70">Aucune sauvegarde pour l'instant.</p> : (
+            <ul className="divide-y divide-nuit-50 text-sm">
+              {data.sauvegardes.map((s) => (
+                <li key={s.id} className="flex flex-wrap items-center gap-3 py-2">
+                  <a href={s.url} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate hover:underline">{s.nom.replace('Sauvegarde secrétariat ', '')}</a>
+                  <button className="btn-clair text-sm" disabled={!!encours} onClick={() => restaurer(s)}>{encours === s.id ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />} Restaurer</button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
       )}
     </div>
   )

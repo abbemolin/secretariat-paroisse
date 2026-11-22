@@ -90,7 +90,7 @@ function signerExtrait_(p, s) {
     var e = trouverExtrait_(p.id);
     var annee = String(e.cree_le).slice(0, 4);
     var dossier = dossierExtraits_(annee);
-    var base = maintenant_().slice(0, 10) + ' ' + String(e.nom).replace(/[\\/:*?"<>|]/g, '-');
+    var base = aujourdhui_() + ' ' + String(e.nom).replace(/[\\/:*?"<>|]/g, '-');
     var sig = dossier.createFile(Utilities.newBlob(Utilities.base64Decode(p.signature), 'image/png', base + ' – signature.png'));
     var pdf = dossier.createFile(Utilities.newBlob(Utilities.base64Decode(p.pdf), 'application/pdf', base + ' – extrait de baptême.pdf'));
     // l'ancien PDF signé (si re-signature) est mis à la corbeille
@@ -172,7 +172,7 @@ function supprimerExtrait_(p, s) {
         ecrireLigne_('Dossiers', d);
       } catch (err) {}
     }
-    feuilleExtraits_().deleteRow(e._ligne);
+    feuilleExtraits_().deleteRow(e._ligne); oublierLignes_();
     return e.nom;
   });
   journaliser_(s, 'Extrait supprimé', nom);

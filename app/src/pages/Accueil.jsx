@@ -5,7 +5,7 @@ import { chargerAppMesse, CELEBRANTS, COULEURS_LITURGIQUES, LIEN_APPMESSE } from
 import { api } from '../api.js'
 import { useApp } from '../App.jsx'
 import { TYPES, prochaineEtape } from '../types.js'
-import { Chargement, Erreur, EnTete, Modale, useNotif, heure, jourLong, dateRelative, useCharger } from '../ui.jsx'
+import { Chargement, Erreur, Modale, useNotif, heure, jourLong, dateRelative, useCharger } from '../ui.jsx'
 
 // AppMESSE chargée une seule fois (en-tête + carte « Fête du jour »)
 let promesseAppMesse = null

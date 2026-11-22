@@ -240,7 +240,26 @@ function supprimerDossier_(p, s) {
     lignes_('SuiviMails').forEach(function (x) { if (x.dossier_id === d.id) { x.dossier_id = ''; ecrireLigne_('SuiviMails', x); } });
     try {
       var fx = db_().getSheetByName('Extraits');
-      if (fx) lignes_('Extraits').forEach(function (x) { if (x.dossier_id === d.id) { x.dossier_id = ''; ecrireLigne_('Extraits', x); } });
+      // brouillons d'extraits du dossier : supprimés ; extraits signés : gardés (registre), seulement déliés
+      if (fx) {
+        lignes_('Extraits').filter(function (x) { return x.dossier_id === d.id; }).reverse().forEach(function (x) {
+          if (x.statut === 'brouillon') fx.deleteRow(x._ligne);
+          else { x.dossier_id = ''; ecrireLigne_('Extraits', x); }
+        });
+        oublierLignes_();
+      }
+    } catch (e) {}
+    // espace personnel (catéchumène) et ses liens de parrains : fermés
+    try {
+      var fe = db_().getSheetByName('Espaces');
+      if (fe) { lignes_('Espaces').filter(function (x) { return x.dossier_id === d.id; }).reverse().forEach(function (x) { fe.deleteRow(x._ligne); }); oublierLignes_(); }
+    } catch (e) {}
+    // fiches Cor Unum reliées : lien retiré
+    try {
+      if (db_().getSheetByName('CorUnum')) lignes_('CorUnum').forEach(function (x) {
+        var l = json2_(x.dossiers_lies, []);
+        if (l.indexOf(d.id) > -1) { x.dossiers_lies = JSON.stringify(l.filter(function (k) { return k !== d.id; })); ecrireLigne_('CorUnum', x); }
+      });
     } catch (e) {}
     // Inscription au catéchisme reliée : on retire le lien
     try {
@@ -251,7 +270,7 @@ function supprimerDossier_(p, s) {
         ecrireLigne_('Catechisme', x);
       });
     } catch (e) {}
-    feuille_('Dossiers').deleteRow(d._ligne);
+    feuille_('Dossiers').deleteRow(d._ligne); oublierLignes_();
     return d;
   });
   journaliser_(s, 'Dossier supprimé', TYPES_DOSSIER[d.type].nom + ' – ' + d.nom);
@@ -273,7 +292,7 @@ function signerB6_(p, s) {
     don.infos.b6_signe_par = s.nom;
     don.infos.b6_pdf_id = f.getId();
     if (!don.infos.entree_ministre) don.infos.entree_ministre = p.ministre || s.nom;
-    if (!don.infos.entree_date) don.infos.entree_date = maintenant_().slice(0, 10);
+    if (!don.infos.entree_date) don.infos.entree_date = aujourdhui_();
     don.etapes = don.etapes || {};
     if (!(don.etapes.entree && don.etapes.entree.fait)) {
       don.etapes.entree = { fait: true, date: maintenant_(), par: s.nom, libelle: 'Entrée en catéchuménat' };
@@ -323,7 +342,7 @@ function dossierDriveDe_(d) {
 
 function nomFichierDossier_(d, libelle, ext) {
   var propre = function (t) { return String(t).replace(/[\\/:*?"<>|]/g, '-').trim(); };
-  return maintenant_().slice(0, 10) + ' ' + propre(d.nom) + ' – ' + propre(libelle) + (ext ? '.' + ext : '');
+  return aujourdhui_() + ' ' + propre(d.nom) + ' – ' + propre(libelle) + (ext ? '.' + ext : '');
 }
 
 /** Vignette (data:image/jpeg ; réduite dans le navigateur) acceptée si raisonnable. */

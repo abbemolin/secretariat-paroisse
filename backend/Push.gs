@@ -141,7 +141,7 @@ function abonnerPush_(p, s) {
 function desabonnerPush_(p) {
   verrou_(function () {
     var f = feuille_('Push');
-    lignes_('Push').reverse().forEach(function (x) { if (x.endpoint === p.endpoint) f.deleteRow(x._ligne); });
+    lignes_('Push').reverse().forEach(function (x) { if (x.endpoint === p.endpoint) f.deleteRow(x._ligne); }); oublierLignes_();
   });
   return true;
 }

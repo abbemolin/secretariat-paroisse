@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
-import { enCache } from './api.js'
-import { X, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { enCache, fileAttente } from './api.js'
+import { X, Loader2, AlertCircle, CheckCircle2, CloudOff } from 'lucide-react'
 
 // ─── Formats ───
 const fmtJour = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
@@ -219,7 +219,7 @@ export function Aide({ children, className = '' }) {
 export function EtatEnregistrement({ etat }) {
   if (!etat) return null
   return <span className={`inline-flex items-center gap-1 text-xs ${etat === 'erreur' ? 'text-red-700' : 'text-nuit-600/70'}`}>
-    {etat === 'encours' ? <><span className="h-2 w-2 animate-pulse rounded-full bg-or" />Enregistrement…</> : etat === 'erreur' ? <><AlertCircle className="h-3.5 w-3.5" />Non enregistré</> : <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />Enregistré</>}
+    {etat === 'encours' ? <><span className="h-2 w-2 animate-pulse rounded-full bg-or" />Enregistrement…</> : etat === 'erreur' ? <><AlertCircle className="h-3.5 w-3.5" />Non enregistré</> : etat === 'attente' ? <><CloudOff className="h-3.5 w-3.5 text-or" />Gardé sur l'appareil — envoyé au retour de la connexion</> : <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />Enregistré</>}
   </span>
 }
 
@@ -233,7 +233,7 @@ export function useAutoEnregistrement(valeur, reference, sauver) {
     if (valeur == null || v === dernier.current) return
     const t = setTimeout(async () => {
       setEtat('encours')
-      try { await sauver(valeur); dernier.current = v; setEtat('ok') } catch { setEtat('erreur') }
+      try { await sauver(valeur); dernier.current = v; setEtat(fileAttente().length ? 'attente' : 'ok') } catch { setEtat('erreur') }
     }, 1000)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps

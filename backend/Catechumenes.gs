@@ -76,7 +76,7 @@ function importerCatechumenes_(p, s) {
         if (aj.length) i.remarques = [deja].concat(aj).filter(String).join('\n');
       }
 
-      var quand = function (date) { return (date || maintenant_().slice(0, 10)) + 'T12:00:00.000Z'; };
+      var quand = function (date) { return (date || aujourdhui_()) + 'T12:00:00.000Z'; };
       var entree = x.entree_date || (x.entree_annee ? x.entree_annee + '-09-01' : '');
       var cocher = function (cle, libelle, date) {
         if (don.etapes[cle] && don.etapes[cle].fait) return;

@@ -5,7 +5,7 @@ import { api } from '../api.js'
 import { useApp } from '../App.jsx'
 import { B14 } from '../imprimables.js'
 import { htmlVersPdf, telechargerBlob } from '../pdf.js'
-import { Chargement, Erreur, Modale, Vide, useCharger, useNotif, useConfirmer, useDifferer, enSuppression, dateHeure, dateCourte } from '../ui.jsx'
+import { Chargement, Erreur, Modale, Vide, useCharger, useNotif, useDifferer, enSuppression, dateHeure, dateCourte } from '../ui.jsx'
 import { Redaction } from './Courrier.jsx'
 
 const dateLongue = (d) => new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }).format(d ? new Date(d) : new Date())
@@ -83,9 +83,8 @@ function Registre() {
 function Extrait({ id }) {
   const nav = useNavigate()
   const differer = useDifferer()
-  const confirmer = useConfirmer()
   const notifier = useNotif()
-  const { utilisateur, reglages } = useApp()
+  const { utilisateur } = useApp()
   const [x, setX] = useState(null)
   const [v, setV] = useState(null)
   const [erreur, setErreur] = useState(null)

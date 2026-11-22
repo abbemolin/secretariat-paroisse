@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Check, Upload, Loader2, Mail, Printer, FileText, Download, ExternalLink, Globe, Plus, Trash2, Save, History, Send, Church, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Check, Upload, Loader2, Mail, Printer, FileText, Download, ExternalLink, Globe, Plus, Trash2, History, Send, Church, FileSignature } from 'lucide-react'
 import { api, fichierEnBase64, telechargerBase64, enCache, vignetteImage } from '../api.js'
 import { useApp } from '../App.jsx'
-import { estOptionnel, ALERTES, TYPES, ETATS, documentsManquants, PAR_ANNEE, anneeSacrements, choixAnnees, etapesDe, documentsDe, TITRES_COLLECTIFS, choixAnneesScolaires, lieuPreparation, libelleAnnee } from '../types.js'
+import { estOptionnel, ALERTES, TYPES, ETATS, documentsManquants, PAR_ANNEE, anneeSacrements, choixAnnees, etapesDe, documentsDe, choixAnneesScolaires, lieuPreparation, libelleAnnee } from '../types.js'
 import { IMPRIMABLES } from '../imprimables.js'
 import { Chargement, Erreur, Modale, useNotif, useConfirmer, useDifferer, useAutoEnregistrement, EtatEnregistrement, Aide, dateHeure, dateRelative, dateCourte, versLocal, jourLong, heure } from '../ui.jsx'
 import { Redaction } from './Courrier.jsx'
 import ChoixFraternite from './ChoixFraternite.jsx'
+import { InscriptionRegistre } from './Registres.jsx'
+import Courriers from './Courriers.jsx'
 import { htmlVersPdf } from '../pdf.js'
 import { creerExtrait, PadSignature, chargerSceau } from './Extraits.jsx'
 import { PenLine, RefreshCw, HeartHandshake, Link2, Smartphone, Copy } from 'lucide-react'
@@ -30,6 +32,8 @@ export default function Dossier() {
   bActuel.current = b
   const [erreur, setErreur] = useState(null)
   const [sauvegarde, setSauvegarde] = useState(false)
+  const [registre, setRegistre] = useState(false)
+  const [courriers, setCourriers] = useState(false)
   const [mail, setMail] = useState(null)
   const [imprimer, setImprimer] = useState(null)
   const [envoiPiece, setEnvoiPiece] = useState(null)
@@ -71,6 +75,7 @@ export default function Dossier() {
   const majInfo = (cle, v) => setB({ ...b, infos: { ...b.infos, [cle]: v } })
   function basculerEtape(e) {
     const fait = b.etapes[e.cle]?.fait
+    if (e.cle === 'registre' && !fait) { setRegistre(true); return }
     const etapes = { ...b.etapes }
     if (fait) delete etapes[e.cle]; else etapes[e.cle] = { fait: true, date: new Date().toISOString(), par: app.utilisateur.nom, libelle: e.label }
     setB({ ...b, etapes })
@@ -148,6 +153,7 @@ export default function Dossier() {
           <select className="champ w-auto" value={b.etat} onChange={(e) => setB({ ...b, etat: e.target.value })}>
             {Object.entries(ETATS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
+          <button className="btn-clair" onClick={async () => { await avantAction(); setCourriers(true) }}><FileSignature className="h-4 w-4" />Courriers</button>
           <button className="btn-danger" title="Supprimer le dossier" onClick={supprimerDossier}><Trash2 className="h-4 w-4" /><span className="hidden sm:inline">Supprimer</span></button>
         </div>
       </div>
@@ -318,6 +324,8 @@ export default function Dossier() {
       {mail && <Redaction {...mail} onFermer={() => setMail(null)} onEnvoye={async () => { setMail(null); notifier('Message envoyé et rattaché au dossier'); const x = await api('dossiers.lire', { id: d.id }); setD(x); setB(champsEditables(x)) }} />}
       {imprimer && <Imprimer modele={IMPRIMABLES[imprimer]} dossier={{ ...d, ...b }} reglages={app.reglages}
         onFermer={() => setImprimer(null)} onArchive={(x, msg) => { setD(x); setB(champsEditables(x)); notifier(msg || 'Document archivé dans le dossier') }} />}
+      {courriers && <Courriers dossier={dossierCourant} onFermer={() => setCourriers(false)} onFait={(x) => { setD(x); setB(champsEditables(x)) }} />}
+      {registre && <InscriptionRegistre id={d.id} nom={d.nom} onFermer={() => setRegistre(false)} onInscrit={(x) => { setD(x); setB(champsEditables(x)) }} />}
     </>
   )
 }
