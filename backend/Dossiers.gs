@@ -76,6 +76,7 @@ function dossierResume_(d) {
     annee: (don.infos || {}).annee_sacrements || (don.infos || {}).annee_scolaire || '',
     autre_confession: (don.infos || {}).autre_confession || '',
     alertes: alertesDossier_(d.type, don.infos || {}),
+    photo: (don.photo || {}).mini || '',
     liste: d.type === 'catechumene' ? { prenom_bapteme: (don.infos || {}).prenom_bapteme || '', parrain: (don.infos || {}).parrain_marraine || '', accompagnateur: (don.infos || {}).accompagnateurs || '' } : undefined,
     preparation: (don.infos || {}).preparation === 'Autre école' ? ((don.infos || {}).ecole_autre || 'Autre école') : ((don.infos || {}).preparation || '')
   };
@@ -126,6 +127,8 @@ function dossierComplet_(d) {
   res.pieces = don.pieces || [];
   res.historique = (don.historique || []).slice().reverse();
   try { res.fraternite = fraterniteDuDossier_(d); } catch (e) { res.fraternite = null; }
+  res.photo = photoMini_(d);
+  res.photo_fichier = !!(don.photo && don.photo.fichier);
   res.fils = (don.fils || []).slice(-30).map(function (id) {
     try {
       var t = GmailApp.getThreadById(id);
@@ -323,8 +326,11 @@ function nomFichierDossier_(d, libelle, ext) {
   return maintenant_().slice(0, 10) + ' ' + propre(d.nom) + ' – ' + propre(libelle) + (ext ? '.' + ext : '');
 }
 
-function enregistrerPiece_(d, fichier, libelle, doc, s, genere) {
+/** Vignette (data:image/jpeg ; réduite dans le navigateur) acceptée si raisonnable. */
+function vignetteValide_(m) { return /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+\/=]+$/.test(String(m || '')) && String(m).length < 120000 ? String(m) : ''; }
+function enregistrerPiece_(d, fichier, libelle, doc, s, genere, mini) {
   var don = json2_(d.donnees, {});
+  if (doc === 'photo' && /^image\//.test(fichier.getMimeType ? fichier.getMimeType() : 'image/')) don.photo = { fichier: fichier.getId(), mini: vignetteValide_(mini), date: maintenant_() };
   don.pieces = (don.pieces || []).concat([{ id: fichier.getId(), nom: fichier.getName(), libelle: libelle, doc: doc || '', date: maintenant_(), par: s.nom, genere: !!genere }]);
   if (doc) { don.documents = don.documents || {}; don.documents[doc] = { recu: true, date: maintenant_() }; }
   d.donnees = JSON.stringify(don);
@@ -339,7 +345,7 @@ function deposerPieceDossier_(p, s) {
     var ext = (String(p.nom).match(/\.([a-z0-9]{1,5})$/i) || [])[1] || '';
     var nom = nomFichierDossier_(d, p.libelle || p.nom.replace(/\.[^.]+$/, ''), ext);
     var f = dossierDriveDe_(d).createFile(Utilities.newBlob(Utilities.base64Decode(p.base64), p.type || 'application/octet-stream', nom));
-    enregistrerPiece_(d, f, p.libelle || p.nom, p.doc, s, false);
+    enregistrerPiece_(d, f, p.libelle || p.nom, p.doc, s, false, p.mini);
     return dossierComplet_(d);
   });
 }
@@ -501,4 +507,25 @@ function fixerPromotion_(p, s) {
     journaliser_(s, 'Célébration ' + TITRES_COLLECTIFS[p.type], p.annee + ' → ' + (promo.date || 'retirée'));
     return tout;
   });
+}
+
+/** Vignette de la photo d'identité ; si le navigateur n'a pas pu la réduire, vignette de Google Drive (gardée ensuite). */
+function photoMini_(d) {
+  var don = json2_(d.donnees, {}), ph = don.photo;
+  if (!ph || !ph.fichier) return '';
+  if (ph.mini) return ph.mini;
+  try {
+    var t = DriveApp.getFileById(ph.fichier).getThumbnail();
+    if (!t) return '';
+    ph.mini = vignetteValide_('data:' + (t.getContentType() || 'image/png') + ';base64,' + Utilities.base64Encode(t.getBytes()));
+    if (ph.mini) verrou_(function () { var x = trouverDossier_(d.id), dx = json2_(x.donnees, {}); if (dx.photo) { dx.photo.mini = ph.mini; x.donnees = JSON.stringify(dx); ecrireLigne_('Dossiers', x); } });
+    return ph.mini;
+  } catch (e) { return ''; }
+}
+/** Photo en grand (appli). */
+function photoDossier_(p) {
+  var ph = json2_(trouverDossier_(p.id).donnees, {}).photo;
+  if (!ph || !ph.fichier) throw erreur_('INTROUVABLE', 'Pas de photo.');
+  var b = DriveApp.getFileById(ph.fichier).getBlob();
+  return { type: b.getContentType(), base64: Utilities.base64Encode(b.getBytes()) };
 }

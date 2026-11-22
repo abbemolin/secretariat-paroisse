@@ -132,3 +132,21 @@ export function telechargerBase64({ nom, type, base64 }) {
   a.href = url; a.download = nom; a.click()
   setTimeout(() => URL.revokeObjectURL(url), 5000)
 }
+
+/** Vignette JPEG (240 px) d'une photo, réduite dans le navigateur ; '' si l'image ne peut pas être lue (HEIC…). */
+export function vignetteImage(fichier, taille = 240) {
+  return new Promise((ok) => {
+    if (!/^image\//.test(fichier?.type || '')) return ok('')
+    const url = URL.createObjectURL(fichier), img = new Image()
+    img.onload = () => {
+      try {
+        const k = Math.min(1, taille / Math.max(img.width, img.height)), c = document.createElement('canvas')
+        c.width = Math.round(img.width * k); c.height = Math.round(img.height * k)
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height)
+        ok(c.toDataURL('image/jpeg', 0.8))
+      } catch { ok('') } finally { URL.revokeObjectURL(url) }
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); ok('') }
+    img.src = url
+  })
+}

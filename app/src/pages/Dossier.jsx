@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Check, Upload, Loader2, Mail, Printer, FileText, Download, ExternalLink, Globe, Plus, Trash2, Save, History, Send, Church, AlertCircle } from 'lucide-react'
-import { api, fichierEnBase64, telechargerBase64, enCache } from '../api.js'
+import { api, fichierEnBase64, telechargerBase64, enCache, vignetteImage } from '../api.js'
 import { useApp } from '../App.jsx'
 import { estOptionnel, ALERTES, TYPES, ETATS, documentsManquants, PAR_ANNEE, anneeSacrements, choixAnnees, etapesDe, documentsDe, TITRES_COLLECTIFS, choixAnneesScolaires, lieuPreparation, libelleAnnee } from '../types.js'
 import { IMPRIMABLES } from '../imprimables.js'
@@ -93,7 +93,7 @@ export default function Dossier() {
     setEnvoiPiece(doc?.cle || 'autre')
     try {
       await avantAction()
-      const x = await api('dossiers.piece', { dossierId: d.id, nom: f.name, type: f.type, base64: await fichierEnBase64(f), doc: doc?.cle || '', libelle: doc?.label || f.name.replace(/\.[^.]+$/, '') })
+      const x = await api('dossiers.piece', { dossierId: d.id, nom: f.name, type: f.type, base64: await fichierEnBase64(f), mini: doc?.cle === 'photo' ? await vignetteImage(f) : '', doc: doc?.cle || '', libelle: doc?.label || f.name.replace(/\.[^.]+$/, '') })
       setD(x); setB(champsEditables(x)); notifier('Pièce ajoutée au dossier')
     } catch (e) { notifier(e.message, 'erreur') } finally { setEnvoiPiece(null); fichierRef.current.value = ''; docCible.current = null }
   }
@@ -136,7 +136,7 @@ export default function Dossier() {
             {t.collectif && b.infos.preparation && <span className="pastille border border-nuit-100 bg-white text-nuit-600">Préparation : {lieuPreparation(b.infos)}</span>}
             {t.collectif && b.infos.preparation && b.infos.preparation !== 'Paroisse' && !b.etapes.validation?.fait && <span className="pastille bg-amber-100 text-amber-900">En attente de validation du curé</span>}</span>
           {d.alertes?.length > 0 && <span className="mb-1 flex flex-wrap gap-1.5">{d.alertes.map((a) => <span key={a} className={`pastille ${ALERTES[a]?.classe}`}>{ALERTES[a]?.nom}{a === 'autre_confession' && b.infos.confession_origine ? ` : ${b.infos.confession_origine}` : ''}</span>)}</span>}
-          <h1 className="text-3xl font-semibold leading-tight">{d.nom || 'Sans nom'}</h1>
+          <h1 className="flex items-center gap-3 text-3xl font-semibold leading-tight">{d.photo && <PhotoDossier d={d} />}{d.nom || 'Sans nom'}</h1>
           <p className="text-xs text-nuit-600/70">Créé le {dateCourte(d.cree_le)} · {d.source}{t.note ? ` · ${t.note}` : ''}{b.infos.inscription_catechisme && <> · <Link to={`/catechisme/${b.infos.inscription_catechisme}`} className="text-or-600 hover:underline">Inscription au catéchisme →</Link></>}</p>
           {['catechumene', 'confirmand'].includes(d.type) && <FraterniteDossier d={d} onMaj={(f) => setD((x) => ({ ...x, fraternite: f }))} />}
           {d.type === 'catechumene' && <EspaceDossier d={d} />}
@@ -476,6 +476,21 @@ function RendezVousCure({ infos, email, onChoix, onRappel }) {
 }
 
 /** Fraternité Cor Unum du catéchumène / néophyte / confirmand, avec « Relier » et « Délier ». */
+/** Photo d'identité : vignette, agrandie au clic. */
+function PhotoDossier({ d }) {
+  const [grande, setGrande] = useState(null)
+  const notifier = useNotif()
+  async function ouvrir() {
+    setGrande({ src: d.photo })
+    if (!d.photo_fichier) return
+    try { const r = await api('dossiers.photo', { id: d.id }); setGrande({ src: `data:${r.type};base64,${r.base64}` }) } catch (e) { notifier(e.message, 'erreur') }
+  }
+  return <>
+    <button onClick={ouvrir} title="Photo d'identité" className="shrink-0"><img src={d.photo} alt="" className="h-14 w-14 rounded-full border-2 border-white object-cover shadow" /></button>
+    {grande && <Modale titre={d.nom} onFermer={() => setGrande(null)}><img src={grande.src} alt={`Photo de ${d.nom}`} className="mx-auto max-h-[70vh] rounded-lg" /></Modale>}
+  </>
+}
+
 function FraterniteDossier({ d, onMaj }) {
   const notifier = useNotif()
   const [choix, setChoix] = useState(false)

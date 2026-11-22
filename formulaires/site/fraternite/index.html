@@ -113,8 +113,17 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       '<div class="petit">' + tels.map(function (t) { return '<a href="tel:' + e(t.replace(/\s/g, '')) + '">' + e(t) + '</a>'; }).join(' · ') +
       (tels.length && mails.length ? ' · ' : '') + mails.map(function (x) { return '<a href="mailto:' + e(x) + '">' + e(x) + '</a>'; }).join(' · ') + '</div>' +
       (m.adresse ? '<div class="petit">' + e(m.adresse) + '</div>' : '') + (ancien && m.note ? '<div class="petit"><i>' + e(m.note) + '</i></div>' : '');
+    if (ancien) {
+      h += ouvert[m.id] === 'retirer'
+        ? '<div class="info">Retirer ' + e(m.prenoms) + ' de la liste des anciens ? Le secrétariat garde sa fiche.<br><button class="bouton principal" data-act="retirer-ok" data-id="' + m.id + '">Oui, retirer</button><button class="bouton" data-act="fermer" data-id="' + m.id + '">Annuler</button></div>'
+        : '<div class="actions"><button data-act="retirer" data-id="' + m.id + '">Retirer de la liste</button></div>';
+    }
     if (!ancien) {
-      h += '<div class="actions"><button data-act="corriger" data-id="' + m.id + '">Corriger les coordonnées</button>' + (m.chef ? '' : '<button class="danger" data-act="depart" data-id="' + m.id + '">Signaler un départ</button>') + '</div>';
+      h += '<div class="actions"><button data-act="corriger" data-id="' + m.id + '">Corriger les coordonnées</button>' + (d.membres.length > 1 ? '<button data-act="menage" data-id="' + m.id + '">Lier en ménage</button>' : '') + (m.chef ? '' : '<button class="danger" data-act="depart" data-id="' + m.id + '">Signaler un départ</button>') + '</div>';
+      if (ouvert[m.id] === 'menage') h += '<div class="info"><label>' + e(m.prenoms) + ' vit en couple avec :</label><select id="mg-' + m.id + '"><option value="">— choisir —</option>' +
+        d.membres.filter(function (x) { return x.id !== m.id; }).map(function (x) { return '<option value="' + x.id + '">' + e(x.prenoms + ' ' + String(x.nom).toUpperCase()) + '</option>'; }).join('') + '</select>' +
+        '<p class="petit">Les deux fiches deviendront une seule fiche foyer (noms, e-mails et téléphones gardés). On ne peut pas les séparer depuis cette page.</p>' +
+        '<button class="bouton principal" data-act="menage-ok" data-id="' + m.id + '">Lier en ménage</button><button class="bouton" data-act="fermer" data-id="' + m.id + '">Annuler</button><div id="z-mg-' + m.id + '" style="display:none"></div></div>';
       if (ouvert[m.id] === 'corriger') h += '<div class="grille"><div><label>Téléphone</label><input id="t-' + m.id + '" value="' + e(m.telephone) + '"></div><div><label>E-mail</label><input id="m-' + m.id + '" value="' + e(m.email) + '"></div></div>' +
         '<label>Adresse</label><input id="a-' + m.id + '" value="' + e(m.adresse) + '"><button class="bouton principal" data-act="enregistrer" data-id="' + m.id + '">Enregistrer</button><button class="bouton" data-act="fermer" data-id="' + m.id + '">Annuler</button>';
       if (ouvert[m.id] === 'depart') h += '<div class="info">Confirmez-vous le départ de ' + e(m.prenoms) + ' ? Le secrétariat en sera prévenu.<label>Précision (facultatif)</label><input id="n-' + m.id + '" placeholder="A déménagé, ne vient plus…">' +
@@ -211,6 +220,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         message('z-inv', 'Invitation envoyée à ' + r.nb + ' adresse' + (r.nb > 1 ? 's' : '') + '.', true);
       }).catch(function (err) { b.disabled = false; b.textContent = 'Envoyer l\'invitation'; message('z-inv', err.message); });
       return;
+    }
+    if (act === 'retirer' || act === 'menage') { ouvert[id] = act; rendre(); return; }
+    if (act === 'retirer-ok') { delete ouvert[id]; occuper(appel('chef.retirer', { id: id })); return; }
+    if (act === 'menage-ok') {
+      var avec = $('mg-' + id).value;
+      if (!avec) { message('z-mg-' + id, 'Choisissez la personne.'); return; }
+      delete ouvert[id]; occuper(appel('chef.menage', { id: id, avec: avec }), 'z-mg-' + id); return;
     }
     if (act === 'corriger' || act === 'depart') { ouvert[id] = act; rendre(); return; }
     if (act === 'fermer') { delete ouvert[id]; rendre(); return; }

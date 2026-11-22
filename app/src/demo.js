@@ -98,7 +98,7 @@ const etat = {
       infos: { enfant_prenoms: 'Louise', enfant_nom: 'Weber', enfant_naissance_date: '2026-08-02', enfant_naissance_lieu: 'Strasbourg', parents_noms: 'Julie et Marc Weber', adresse: '12 rue du Dôme, Strasbourg', telephone: '06 12 34 56 78', email: 'julie.weber@example.fr', parrain_nom: 'Thomas Weber', marraine_nom: 'Claire Roth', date_souhaitee: '2027-04-18', message: 'Nous souhaiterions un baptême au printemps, après Pâques si possible.' },
       etapes: { recue: { fait: true, date: jour(0, 10, 13), par: 'Formulaire', libelle: 'Demande reçue' } }, documents: {}, rencontres: [], pieces: [], fils: ['t1'],
       historique: [{ date: jour(0, 10, 13), par: 'Formulaire du site', texte: 'Demande reçue' }] },
-    { id: 'd2', type: 'catechumene', etat: 'ouvert', cree_le: jour(-60), source: 'Formulaire du site', email: 'sarah.k@example.fr', telephone: '06 55 44 33 22', date_celebration: '', evenement_id: '', responsable: 'u1', maj_le: jour(-3),
+    { id: 'd2', photo: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><rect width="80" height="80" fill="#e8c9a8"/><circle cx="40" cy="31" r="15" fill="#a8662e"/><ellipse cx="40" cy="75" rx="27" ry="21" fill="#a8662e"/></svg>'), type: 'catechumene', etat: 'ouvert', cree_le: jour(-60), source: 'Formulaire du site', email: 'sarah.k@example.fr', telephone: '06 55 44 33 22', date_celebration: '', evenement_id: '', responsable: 'u1', maj_le: jour(-3),
       infos: { prenoms: 'Sarah', nom: 'Kessler', naissance_date: '1994-03-12', naissance_lieu: 'Mulhouse', adresse: 'Strasbourg', telephone: '06 55 44 33 22', email: 'sarah.k@example.fr', situation: 'Célibataire', accompagnateurs: 'Marie et Paul Hirsch', entree_date: '2026-10-11', entree_ministre: 'abbé Florent Molin', b6_annee: '2026', annee_sacrements: '2027' },
       etapes: { accueil: { fait: true, date: jour(-60), par: 'abbé Florent Molin' }, accompagnateur: { fait: true, date: jour(-45), par: 'abbé Florent Molin' }, entree: { fait: true, date: jour(-39), par: 'abbé Florent Molin' } },
       documents: { acte_naissance: { recu: true, date: jour(-40) } },
@@ -249,6 +249,14 @@ export async function demoApi(action, p) {
     case 'cor.supprimer': etat.cor.membres = etat.cor.membres.filter((x) => x.id !== p.id); return corListe(p.annee)
     case 'cor.equipe': { const l = etat.cor.equipes[p.annee] ||= []; if (p.supprimer) { etat.cor.equipes[p.annee] = l.filter((e) => e.id !== p.supprimer); etat.cor.membres.forEach((m) => { if (m.equipe_id === p.supprimer) m.equipe_id = '' }) } else { const e = l.find((x) => x.id === p.equipe.id); if (e) Object.assign(e, p.equipe); else { const n = { ...p.equipe, id: 'q' + Date.now() }; l.push(n); n.chefs.forEach((c) => { const m = etat.cor.membres.find((x) => x.id === c); if (m) m.equipe_id = n.id }) } } return corListe(p.annee) }
     case 'cor.nouvelleAnnee': etat.cor.equipes[p.vers] = (etat.cor.equipes[p.de] || []).map((e) => ({ ...e, id: e.id + 'b' })); etat.cor.membres.filter((m) => m.annee === p.de && m.statut !== 'ancien' && m.equipe_id).forEach((m) => etat.cor.membres.push({ ...m, id: m.id + 'b', annee: p.vers, equipe_id: m.equipe_id + 'b', statut: 'ancien' })); etat.cor.equipes[p.vers].forEach((e) => { e.chefs = e.chefs.map((c) => c + 'b') }); return corListe(p.vers)
+    case 'cor.menage': {
+      const x = etat.cor.membres.find((y) => y.id === p.id), z = etat.cor.membres.find((y) => y.id === p.avec)
+      if (x.nom.toLowerCase() === z.nom.toLowerCase()) x.prenoms = x.prenoms + ' et ' + z.prenoms; else { x.prenoms = `${x.prenoms} ${x.nom.toUpperCase()} et ${z.prenoms}`; x.nom = z.nom }
+      x.email = [x.email, z.email].filter(Boolean).join(', '); x.telephone = [x.telephone, z.telephone].filter(Boolean).join(' / '); x.dossiers = [...x.dossiers, ...z.dossiers]
+      etat.cor.membres = etat.cor.membres.filter((y) => y.id !== z.id)
+      Object.values(etat.cor.equipes).flat().forEach((e) => { e.chefs = e.chefs.map((c) => c === z.id ? x.id : c) })
+      return corListe(p.annee)
+    }
     case 'cor.equipesCourantes': return { annee: '2026-2027', equipes: (etat.cor.equipes['2026-2027'] || []).map((e) => ({ id: e.id, nom: e.nom, chefs: (e.chefs || []).map((c) => { const x = etat.cor.membres.find((y) => y.id === c); return x ? x.prenoms + ' ' + x.nom.toUpperCase() : '' }).filter(Boolean), membres: etat.cor.membres.filter((m) => m.annee === '2026-2027' && m.equipe_id === e.id && m.statut !== 'ancien').length })) }
     case 'cor.placer': {
       p.dossiers.forEach((id) => {
@@ -391,6 +399,7 @@ export async function demoApi(action, p) {
       const d = etat.dossiers.find((x) => x.id === p.dossierId)
       d.pieces.push({ id: 'p' + Date.now(), libelle: p.libelle, date: new Date().toISOString(), par: moi.nom, genere: action === 'dossiers.archiver' })
       if (p.doc) d.documents[p.doc] = { recu: true, date: new Date().toISOString() }
+      if (p.doc === 'photo' && p.mini) d.photo = p.mini
       d.historique.push({ date: new Date().toISOString(), par: moi.nom, texte: (action === 'dossiers.archiver' ? 'Document généré : ' : 'Pièce ajoutée : ') + p.libelle })
       return complet(d)
     }

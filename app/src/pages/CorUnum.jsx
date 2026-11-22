@@ -217,7 +217,7 @@ export default function CorUnum() {
           )}
         </>
       )}
-      {fiche && <Fiche m={fiche} annee={data?.annee} equipes={equipes} profils={data?.profils || []} onFermer={() => { setFiche(null); if (params.get('fiche')) changer({ fiche: '' }) }} onMaj={(r) => { setData(r); setFiche(null) }} onLiens={(r) => setData(r)}
+      {fiche && <Fiche m={fiche} membres={data?.membres || []} annee={data?.annee} equipes={equipes} profils={data?.profils || []} onFermer={() => { setFiche(null); if (params.get('fiche')) changer({ fiche: '' }) }} onMaj={(r) => { setData(r); setFiche(null) }} onLiens={(r) => setData(r)}
         onSupprimer={(m) => { setFiche(null); differer(`${nomComplet(m)} retiré(e) des fraternités`, async () => setData(await api('cor.supprimer', { id: m.id, annee: data.annee })), { ids: [m.id], onAnnule: () => setData((d) => ({ ...d })) }); setData((d) => ({ ...d })) }} />}
       {equipeEdit && <EquipeEdit e={equipeEdit} annee={data.annee} membres={actifs} onFermer={() => setEquipeEdit(null)} onMaj={(r) => { setData(r); setEquipeEdit(null); notifier('Fraternité enregistrée') }} />}
       {fil && <Fil e={fil} annee={data.annee} onFermer={() => { setFil(null); recharger() }} />}
@@ -276,7 +276,8 @@ function EquipeEdit({ e, annee, membres, onFermer, onMaj }) {
 
 const CHAMPS_FICHE = [['prenoms', 'Prénom(s) — « Paul et Marie » pour un foyer'], ['nom', 'Nom'], ['email', 'E-mail(s)'], ['telephone', 'Téléphone'], ['adresse', 'Adresse'], ['situation', 'Situation (marié, célibataire…)']]
 
-function Fiche({ m, annee, equipes, profils, onFermer, onMaj, onSupprimer, onLiens }) {
+function Fiche({ m, annee, equipes, profils, membres = [], onFermer, onMaj, onSupprimer, onLiens }) {
+  const [menage, setMenage] = useState(false)
   const confirmer = useConfirmer()
   const nouveau = !!m.nouveau && !m.id
   const [v, setV] = useState(nouveau ? { prenoms: '', nom: '', email: '', telephone: '', adresse: '', situation: '', profils: [], equipe_id: '', statut: 'actif', note: '', souhait: '', chef_possible: false } : { ...m })
@@ -305,7 +306,7 @@ function Fiche({ m, annee, equipes, profils, onFermer, onMaj, onSupprimer, onLie
   function supprimer() { onSupprimer(m) }
   return (
     <Modale large titre={nouveau ? 'Ajouter une personne' : nomComplet(m)} onFermer={onFermer}
-      pied={<>{!nouveau && <button className="btn-clair mr-auto text-red-700" onClick={supprimer}><Trash2 className="h-4 w-4" />Supprimer</button>}<button className="btn-clair" onClick={onFermer}>Annuler</button><button className="btn-principal" disabled={envoi || !(v.nom || v.prenoms)} onClick={enregistrer}>{envoi && <Loader2 className="h-4 w-4 animate-spin" />}Enregistrer</button></>}>
+      pied={<>{!nouveau && <button className="btn-clair text-red-700" onClick={supprimer}><Trash2 className="h-4 w-4" />Supprimer</button>}{!nouveau && <button className="btn-clair mr-auto" onClick={() => setMenage(true)}><Users className="h-4 w-4" />Lier en ménage</button>}<button className="btn-clair" onClick={onFermer}>Annuler</button><button className="btn-principal" disabled={envoi || !(v.nom || v.prenoms)} onClick={enregistrer}>{envoi && <Loader2 className="h-4 w-4 animate-spin" />}Enregistrer</button></>}>
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-3">
           {CHAMPS_FICHE.map(([k, l]) => <div key={k}><label className="etiquette">{l}</label><input className="champ" value={v[k] || ''} onChange={(e) => maj(k, e.target.value)} /></div>)}
@@ -346,7 +347,27 @@ function Fiche({ m, annee, equipes, profils, onFermer, onMaj, onSupprimer, onLie
         </div>
       </div>
       <div className="mt-3"><Erreur erreur={erreur} /></div>
+      {menage && <ChoixMenage m={m} membres={membres} onFermer={() => setMenage(false)} onChoisir={async (z) => {
+        if (!(await confirmer({ titre: 'Lier en ménage', texte: `${nomComplet(m)} et ${nomComplet(z)} deviendront une seule fiche foyer (noms, e-mails, téléphones, liens aux dossiers et rôle de chef gardés). Cette action ne peut pas être annulée.`, bouton: 'Lier en ménage' }))) return
+        try { onMaj(await api('cor.menage', { id: m.id, avec: z.id, annee })); notifierL('Fiches réunies en un foyer') } catch (err) { notifierL(err.message, 'erreur') }
+      }} />}
       {choix && <ChoixDossier nom={nomComplet(m)} deja={liens.dossiers.map((d) => d.id)} onFermer={() => setChoix(false)} onChoisir={(id) => { setChoix(false); lier(id, false, 'Dossier relié') }} />}
+    </Modale>
+  )
+}
+
+function ChoixMenage({ m, membres, onFermer, onChoisir }) {
+  const [texte, setTexte] = useState('')
+  const sa = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const liste = membres.filter((x) => x.id !== m.id && (!texte || sa(`${x.prenoms} ${x.nom} ${x.email}`).includes(sa(texte))))
+  return (
+    <Modale titre={`${nomComplet(m)} vit en couple avec…`} onFermer={onFermer} pied={<button className="btn-clair" onClick={onFermer}>Fermer</button>}>
+      <input className="champ mb-3" placeholder="Nom, prénom ou e-mail…" value={texte} onChange={(e) => setTexte(e.target.value)} autoFocus />
+      <ul className="max-h-[50vh] divide-y divide-nuit-100 overflow-y-auto">
+        {liste.slice(0, 80).map((x) => <li key={x.id}><button className="flex w-full items-center gap-3 py-2 text-left text-sm hover:bg-nuit-50/60" onClick={() => onChoisir(x)}>
+          <span className="flex-1"><span className="font-medium">{nomComplet(x)}</span><span className="block text-xs text-nuit-600/70">{x.email}</span></span>
+          <span className="text-xs text-nuit-600">{x.statut === 'ancien' ? 'ancien' : ''}</span></button></li>)}
+      </ul>
     </Modale>
   )
 }

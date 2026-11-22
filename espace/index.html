@@ -273,7 +273,8 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
       }).join('') + '<div id="zi" style="display:none"></div><button class="bouton principal" data-a="infos">Enregistrer</button>' + blocSignaler('Mes informations') + '</div>';
     h += blocParrains();
     h += '<div class="carte"><h2>Pièces à déposer</h2><p class="petit">Une photo nette ou un PDF (10 Mo au plus).</p>' + d.pieces.map(function (p) {
-      return '<div class="piece"><span>' + (p.recu ? '✅ ' : '◻️ ') + e(p.nom) + '</span>' + (p.recu ? '<span class="petit" style="flex:none">reçu</span>' : '<label class="bouton" style="margin:0">Déposer<input type="file" accept="image/*,application/pdf" data-piece="' + p.cle + '" style="display:none"></label>') + '</div>';
+      if (p.cle === 'photo' && d.photo) return '<div class="piece"><img src="' + e(d.photo) + '" alt="Ma photo" style="width:52px;height:52px;border-radius:50%;object-fit:cover;flex:none"><span>' + e(p.nom) + '<span class="petit" style="display:block">reçue</span></span><label class="bouton" style="margin:0">Remplacer<input type="file" accept="image/*" data-piece="photo" style="display:none"></label></div>';
+      return '<div class="piece"><span>' + (p.recu ? '✅ ' : '◻️ ') + e(p.nom) + '</span>' + (p.recu ? '<span class="petit" style="flex:none">reçu</span>' : '<label class="bouton" style="margin:0">Déposer<input type="file" accept="' + (p.cle === 'photo' ? 'image/*' : 'image/*,application/pdf') + '" data-piece="' + p.cle + '" style="display:none"></label>') + '</div>';
     }).join('') + '<div id="zp" style="display:none"></div>' + blocSignaler('Pièces à déposer') + '</div>';
     if (!d.neophyte || d.lettre.texte) {
       var l = d.lettre, fini = l.statut === 'validee', envoyee = l.statut === 'envoyee';
@@ -417,12 +418,22 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     message('zp', 'Envoi en cours…', true);
     var rd = new FileReader();
     rd.onload = function () {
-      appel('esp.piece', { doc: piece, nom: f.name, type: f.type || 'image/jpeg', base64: String(rd.result).split(',')[1] })
+      (piece === 'photo' ? vignette(f) : Promise.resolve('')).then(function (mini) { return appel('esp.piece', { doc: piece, nom: f.name, type: f.type || 'image/jpeg', base64: String(rd.result).split(',')[1], mini: mini }); })
         .then(function (r) { d = r; rendre(); message('zp', 'Pièce déposée. Merci !', true); }).catch(function (er) { message('zp', er.message); });
     };
     rd.readAsDataURL(f);
   });
 
+  // Vignette de la photo (240 px), réduite sur le téléphone avant l'envoi
+  function vignette(f) {
+    return new Promise(function (ok) {
+      if (!/^image\//.test(f.type || '')) return ok('');
+      var u = URL.createObjectURL(f), im = new Image();
+      im.onload = function () { try { var k = Math.min(1, 240 / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); ok(c.toDataURL('image/jpeg', 0.8)); } catch (x) { ok(''); } URL.revokeObjectURL(u); };
+      im.onerror = function () { URL.revokeObjectURL(u); ok(''); };
+      im.src = u;
+    });
+  }
   function cleVapid(k) { var p = '='.repeat((4 - k.length % 4) % 4), b = atob((k + p).replace(/-/g, '+').replace(/_/g, '/')), u = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; }
   function activerNotifications() {
     Notification.requestPermission().then(function (perm) {

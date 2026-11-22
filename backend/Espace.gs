@@ -195,7 +195,7 @@ function actionEspace_(action, p) {
       var x = trouverDossier_(d.id);
       var ext = (String(p.nom || '').match(/\.([a-z0-9]{1,5})$/i) || [])[1] || (p.type === 'application/pdf' ? 'pdf' : 'jpg');
       var f = dossierDriveDe_(x).createFile(Utilities.newBlob(Utilities.base64Decode(p.base64), p.type, nomFichierDossier_(x, PIECES_ESPACE[p.doc], ext)));
-      enregistrerPiece_(x, f, PIECES_ESPACE[p.doc], p.doc, { nom: 'Espace personnel' }, false);
+      enregistrerPiece_(x, f, PIECES_ESPACE[p.doc], p.doc, { nom: 'Espace personnel' }, false, p.mini);
       prevenirEspace_(x, 'Espace personnel : pièce déposée (' + PIECES_ESPACE[p.doc] + ')');
     });
     return vueEspace_(trouverDossier_(d.id));
@@ -306,6 +306,7 @@ function vueEspace_(d) {
     pieces: Object.keys(PIECES_ESPACE).map(function (k) { return { cle: k, nom: PIECES_ESPACE[k], recu: !!(docs[k] && docs[k].recu) }; }),
     lettre: { texte: l.texte || '', statut: l.statut || '', remarque: l.remarque || '', validee_le: l.validee_le || '' },
     signalements: (don.signalements || []).slice(-30).reverse().map(function (z) { return { id: z.id, date: z.date, sujet: z.sujet, texte: z.texte, statut: z.statut, reponse: z.reponse || '', traite_le: z.traite_le || '' }; }),
+    photo: photoMini_(d),
     parrains: (don.parrains || []).map(function (z) { return parrainVue_(z, true); }), fraternite: frat,
     calendrier: cal, textes: textes, paroisse: reglages_().paroisse
   };

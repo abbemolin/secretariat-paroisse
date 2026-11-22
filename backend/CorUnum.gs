@@ -873,6 +873,33 @@ function actionChef_(action, p) {
     return vueChef_(ctx);
   }
 
+  if (action === 'chef.retirer') {
+    var nomR = '';
+    verrou_(function () {
+      var x = membreDeLEquipe(p.id);
+      if (x.statut !== 'ancien') throw erreur_('INVALIDE', 'Seuls les anciens membres peuvent être retirés.');
+      x.equipe_id = '';
+      x.note = [x.note, 'Ancien membre de la fraternité ' + e.nom + ', retiré de la liste par le chef le ' + maintenant_().slice(0, 10)].filter(String).join(' ; ');
+      x.maj_le = maintenant_(); x.maj_par = qui;
+      ecrireLigne_('CorUnum', x);
+      nomR = x.prenoms + ' ' + x.nom;
+    });
+    journaliser_(s, 'Cor Unum : ancien retiré par le chef', nomR);
+    return vueChef_(ctx);
+  }
+
+  if (action === 'chef.menage') {
+    var nomM = '';
+    verrou_(function () {
+      var x = membreDeLEquipe(p.id), z = membreDeLEquipe(p.avec);
+      menageCor_(x, z, lignes_('CorUnum'), corReglages_(), qui);
+      nomM = x.prenoms + ' ' + x.nom;
+    });
+    journaliser_(s, 'Cor Unum : ménage lié par le chef', nomM);
+    ctx = equipeParJeton_(p.c);   // les chefs ont pu changer
+    return vueChef_(ctx);
+  }
+
   if (action === 'chef.depart') {
     var nom = '';
     verrou_(function () {
@@ -1186,4 +1213,50 @@ function mailsInscriptionRejoindre_(e, chefs, gens, profils) {
     GmailApp.sendEmail(mailsChefs.join(','), 'Nouvelle inscription dans votre fraternité', corpsTexte_(t2, 'paroisse'),
       { name: opts.name, from: opts.from, htmlBody: corpsHtml_(t2, 'paroisse'), replyTo: gens[0].email });
   }
+}
+
+// ─── Lier deux personnes en ménage : une seule fiche foyer ───
+
+/** z est fusionnée dans x (même année). Noms différents : « Claire DUPONT et Antoine » + MARTIN. Les liens aux dossiers et le rôle de chef sont gardés. */
+function menageCor_(x, z, toutes, r, qui) {
+  if (x.id === z.id) throw erreur_('INVALIDE', 'Choisissez deux personnes différentes.');
+  if (x.annee !== z.annee) throw erreur_('INVALIDE', 'Les deux fiches doivent être de la même année.');
+  try {
+    var liens = liensCor_(toutes.filter(function (a) { return a.annee === x.annee; }), dossiersLies_());
+    var lies = json2_(x.dossiers_lies, []);
+    [x, z].forEach(function (f) { (liens.parFiche[f.id] || []).forEach(function (l) { if (lies.indexOf(l.d.id) === -1) lies.push(l.d.id); }); });
+    x.dossiers_lies = JSON.stringify(lies);
+  } catch (e) { /* sans dossiers */ }
+  if (!memeNom_(x.nom, z.nom)) {
+    x.prenoms = (String(x.prenoms || '').trim() + ' ' + String(x.nom || '').toUpperCase()).trim() + ' et ' + String(z.prenoms || '').trim();
+    x.nom = z.nom;
+  }
+  fusionnerCor_(x, z);
+  if (!x.equipe_id && z.equipe_id) x.equipe_id = z.equipe_id;
+  if (z.statut !== 'ancien') x.statut = x.statut === 'ancien' ? 'actif' : (x.statut || 'actif');
+  x.note = [x.note, z.note].filter(String).join(' ; ');
+  x.maj_le = maintenant_(); x.maj_par = qui;
+  // chef : la fiche foyer remplace la fiche fusionnée
+  var change = false;
+  (r.equipes[x.annee] || []).forEach(function (e) {
+    var i = (e.chefs || []).indexOf(z.id);
+    if (i > -1) { e.chefs.splice(i, 1); if (e.chefs.indexOf(x.id) === -1) e.chefs.push(x.id); change = true; }
+  });
+  if (change) ecrireCorReglages_(r);
+  ecrireLigne_('CorUnum', x);
+  var zz = lignes_('CorUnum').filter(function (y) { return y.id === z.id; })[0];
+  if (zz) feuilleCor_().deleteRow(zz._ligne);
+}
+function menageCorRoute_(p, s) {
+  var nom = '';
+  verrou_(function () {
+    feuilleCor_();
+    var toutes = lignes_('CorUnum');
+    var x = toutes.filter(function (y) { return y.id === p.id; })[0], z = toutes.filter(function (y) { return y.id === p.avec; })[0];
+    if (!x || !z) throw erreur_('INTROUVABLE', 'Fiche introuvable.');
+    menageCor_(x, z, toutes, corReglages_(), s.nom);
+    nom = x.prenoms + ' ' + x.nom;
+  });
+  journaliser_(s, 'Cor Unum : ménage lié', nom);
+  return listerCor_({ annee: p.annee }, s);
 }
