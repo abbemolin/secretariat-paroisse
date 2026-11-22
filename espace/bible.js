@@ -158,7 +158,13 @@
     '.bb-v sup{color:#a8662e;font-family:Arial,sans-serif;font-size:.62em;font-weight:bold;margin:0 2px 0 4px}' +
     '.bb-v.fav{background:#fdf0d8}.bb-v.fav sup::before{content:"★";margin-right:2px;color:#d08c4c}' +
     '.bb-v.choisi{background:#f3dfe2;outline:1px solid #e3b9c0}.bb-v.vise{background:#fff4d6}' +
-    '.bb-outil{position:sticky;bottom:72px;margin:0 10px 10px;background:#521a22;color:#fff;border-radius:12px;padding:8px 10px;display:flex;gap:8px;align-items:center;font-size:14px;z-index:3;box-shadow:0 4px 14px rgba(0,0,0,.2)}' +
+    '.bb-outil{position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 20px);max-width:620px;box-sizing:border-box;bottom:80px;background:#521a22;color:#fff;border-radius:12px;padding:8px 10px;display:flex;gap:8px;align-items:center;font-size:14px;z-index:3;box-shadow:0 4px 14px rgba(0,0,0,.2)}' +
+    '.bb-texte.avec-outil{padding-bottom:90px}' +
+    '.bb-toast{position:fixed;left:50%;transform:translateX(-50%);bottom:80px;z-index:6;background:#521a22;color:#fff;white-space:nowrap;border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:10px 12px 10px 16px;display:flex;gap:12px;align-items:center;font-size:14.5px;box-shadow:0 4px 14px rgba(0,0,0,.25);max-width:calc(100% - 20px);box-sizing:border-box;animation:bbt .2s ease-out}' +
+    '.bb-toast button{border:0;background:none;color:#f0c9a8;font:inherit;font-weight:bold;cursor:pointer;padding:4px}@keyframes bbt{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}' +
+    '.bb-mes{width:auto!important;font-size:14px!important;padding:8px 11px!important;white-space:nowrap}' +
+    'html.sombre .bb-v.choisi{background:#5c1f2b;outline:1px solid #c98a4a;color:#fff}html.sombre .bb-v.vise{background:#4a3a1e;color:#fff}html.sombre .bb-v.fav{background:#3b2a20}' +
+    'html.sombre .bb-res b,html.sombre .bb-groupe{color:#f0c9a8}html.sombre .bb-res mark{background:#6b4a1e;color:#fff}html.sombre .bb-panneau{border-bottom-color:#3a2d31}' +
     '.bb-outil span{flex:1}.bb-outil button{border:1px solid rgba(255,255,255,.5);background:none;color:#fff;border-radius:8px;padding:7px 10px;font:inherit;cursor:pointer}' +
     '.bb-panneau{padding:10px 14px 14px;border-bottom:1px solid #f1e8e1;background:#fffdfa}' +
     '.bb-onglets{display:flex;gap:6px;margin-bottom:8px}.bb-onglets button{flex:1;border:1px solid #e6d8cc;background:#fff;border-radius:999px;padding:7px;font:inherit;font-size:14px;color:#521a22;cursor:pointer}.bb-onglets button.actif{background:#521a22;color:#fff;border-color:#521a22}' +
@@ -172,13 +178,32 @@
     'a.bible-ref{color:#a8662e;text-decoration:none;border-bottom:1px dotted #a8662e}';
 
   window.lierReferencesBibliques = lierReferences;
-  window.creerBible = function () {
+  window.creerBible = function (opts) {
+    opts = opts || {};
     var st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
     var R = document.createElement('div'); R.className = 'bb';
     var pos = lireLS('bible_position', { livre: 'Matthieu', chap: 1 });
     var livre = pos.livre, chap = pos.chap, chaps = [], versets = [], panneau = '', onglet = TOUS.indexOf(livre) >= TOUS.indexOf('Matthieu') ? 'NT' : 'AT';
     var choisis = [], vise = null, recherche = '', resultats = null, sens = '', telechargement = '', bibleLocale = false;
-    var favoris = lireLS('bible_favoris', []), demarre = false;
+    var favoris = lireLS('bible_favoris', []), favMaj = lireLS('bible_favoris_maj', ''), demarre = false, toast = null;
+    // Versets gardés aussi sur le serveur (espace personnel) : la version la plus récente l'emporte
+    if (opts.favoris && opts.favoris.maj && opts.favoris.maj > favMaj) { favoris = opts.favoris.liste || []; favMaj = opts.favoris.maj; ecrireLS('bible_favoris', favoris); ecrireLS('bible_favoris_maj', favMaj); }
+    else if (favMaj && opts.surFavoris && (!opts.favoris || favMaj > (opts.favoris.maj || ''))) opts.surFavoris(favoris, favMaj);
+    function enregistrerFavoris() {
+      favMaj = new Date().toISOString();
+      ecrireLS('bible_favoris', favoris); ecrireLS('bible_favoris_maj', favMaj);
+      if (opts.surFavoris) opts.surFavoris(favoris, favMaj);
+    }
+    function montrerToast(texte, voir) {
+      if (toast) toast.remove();
+      toast = document.createElement('div'); toast.className = 'bb-toast';
+      toast.innerHTML = '<span>' + e(texte) + '</span>' + (voir ? '<button type="button">Voir mes versets</button>' : '');
+      var nav = document.querySelector('.nav'); toast.style.bottom = ((nav ? nav.offsetHeight : 64) + 10) + 'px';
+      var t = toast;
+      if (voir) t.querySelector('button').onclick = function () { t.remove(); panneau = 'favoris'; rendre(); window.scrollTo({ top: R.getBoundingClientRect().top + window.scrollY - 80, behavior: 'smooth' }); };
+      document.body.appendChild(t);
+      setTimeout(function () { t.remove(); if (toast === t) toast = null; }, 2600);
+    }
     function cleV(n) { return livre + '|' + chap + '|' + n; }
     function estFav(n) { return favoris.some(function (f) { return f.cle === cleV(n); }); }
 
@@ -188,7 +213,7 @@
         '<button class="bb-b" data-bb="prec" aria-label="Chapitre précédent"' + (chaps.indexOf(chap) <= 0 ? ' disabled' : '') + '>‹</button>' +
         '<button class="bb-b" data-bb="suiv" aria-label="Chapitre suivant"' + (chaps.indexOf(chap) === chaps.length - 1 ? ' disabled' : '') + '>›</button>' +
         '<button class="bb-b' + (panneau === 'cherche' ? ' actif' : '') + '" data-bb="cherche" aria-label="Rechercher">⌕</button>' +
-        '<button class="bb-b' + (panneau === 'favoris' ? ' actif' : '') + '" data-bb="favoris" aria-label="Mes versets">★</button></div>';
+        '<button class="bb-b bb-mes' + (panneau === 'favoris' ? ' actif' : '') + '" data-bb="favoris">★ Mes versets' + (favoris.length ? ' (' + favoris.length + ')' : '') + '</button></div>';
     }
     function panneauHtml() {
       if (panneau === 'livres') return '<div class="bb-panneau"><div class="bb-onglets"><button data-bb="at" class="' + (onglet === 'AT' ? 'actif' : '') + '">Ancien Testament</button><button data-bb="nt" class="' + (onglet === 'NT' ? 'actif' : '') + '">Nouveau Testament</button></div>' +
@@ -212,7 +237,7 @@
     function texteHtml() {
       if (!versets) return '<div class="bb-texte"><p class="bb-vide">Chargement…</p></div>';
       if (!versets.length) return '<div class="bb-texte"><p class="bb-vide">Ce chapitre n\'est pas disponible' + (navigator.onLine === false ? ' hors connexion (téléchargez la Bible pour la lire sans réseau).' : '.') + '</p></div>';
-      return '<div class="bb-texte ' + sens + '"><h3>' + e(livre) + ' ' + chap + '</h3>' + versets.map(function (v) {
+      return '<div class="bb-texte ' + sens + (choisis.length ? ' avec-outil' : '') + '"><h3>' + e(livre) + ' ' + chap + '</h3>' + versets.map(function (v) {
         var n = +v.verset_num;
         return '<span class="bb-v' + (estFav(n) ? ' fav' : '') + (choisis.indexOf(n) > -1 ? ' choisi' : '') + (vise && n >= vise[0] && n <= vise[1] ? ' vise' : '') + '" data-v="' + n + '" id="bbv' + n + '"><sup>' + n + '</sup>' + e(v.texte) + '</span> ';
       }).join('') + '</div>';
@@ -229,6 +254,8 @@
     }
     function rendre() {
       R.innerHTML = barre() + panneauHtml() + texteHtml() + outilHtml() + etatHtml();
+      var o = R.querySelector('.bb-outil'), nav = document.querySelector('.nav');
+      if (o) o.style.bottom = ((nav ? nav.offsetHeight : 64) + 10) + 'px';
       sens = '';
       var q = R.querySelector('[data-bb=q]');
       if (q) { q.oninput = function () { recherche = q.value; }; q.onkeydown = function (ev) { if (ev.key === 'Enter') chercher(); }; }
@@ -301,7 +328,8 @@
           favoris = favoris.filter(function (f) { return f.cle !== cleV(n); });
           if (!tousFav) { var v = versets.filter(function (x) { return +x.verset_num === n; })[0]; favoris.push({ cle: cleV(n), livre: livre, chap: chap, v: n, texte: v ? v.texte : '' }); }
         });
-        ecrireLS('bible_favoris', favoris); choisis = []; rendre(); return;
+        var nb = choisis.length; enregistrerFavoris(); choisis = []; rendre();
+        montrerToast(tousFav ? (nb > 1 ? 'Versets retirés' : 'Verset retiré') : (nb > 1 ? 'Versets gardés' : 'Verset gardé'), !tousFav); return;
       }
       if (a === 'partager') {
         var l = choisis.slice().sort(function (x, y) { return x - y; });

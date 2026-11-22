@@ -400,7 +400,10 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
   var bible = null;
   function placerBible() {
     var z = $('bible-place'); if (!z || !window.creerBible) return;
-    if (!bible) bible = window.creerBible();
+    if (!bible) bible = window.creerBible({
+      favoris: d && d.favoris,
+      surFavoris: function (liste, maj) { if (APERCU) return; appel('esp.favoris', { favoris: liste, maj: maj }).then(function (r) { if (d) d.favoris = r; }).catch(function () {}); }
+    });
     z.appendChild(bible.element);
   }
   function pageBible() { return blocTaille() + '<div id="bible-place"></div>'; }

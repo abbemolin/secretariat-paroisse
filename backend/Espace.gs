@@ -6,7 +6,7 @@
  * les textes publiés pour elle. Notification sur le téléphone à chaque nouveau texte.
  */
 
-var COLONNES_ESPACES = ['dossier_id', 'jeton', 'hash', 'sel', 'mdp_maj', 'cree_le', 'derniere_visite', 'prefs'];
+var COLONNES_ESPACES = ['dossier_id', 'jeton', 'hash', 'sel', 'mdp_maj', 'cree_le', 'derniere_visite', 'prefs', 'favoris'];
 var COLONNES_TEXTES = ['id', 'cree_le', 'auteur', 'titre', 'corps', 'cible', 'fichiers', 'liens', 'lus', 'maj_le'];
 var COLONNES_CALENDRIER = ['id', 'date', 'heure_debut', 'heure_fin', 'titre', 'lieu', 'cible', 'note', 'parrains'];
 var ESPACE_SESSION_JOURS = 90;
@@ -253,6 +253,22 @@ function actionEspace_(action, p) {
     demanderActe_(d, p.motif);
     return vueEspace_(trouverDossier_(d.id));
   }
+  if (action === 'esp.favoris') {
+    // versets de la Bible gardés (« ★ Garder ») : la liste la plus récente l'emporte
+    var liste = (p.favoris || []).slice(-200).map(function (f) {
+      return { cle: String(f.cle || '').slice(0, 80), livre: String(f.livre || '').slice(0, 40), chap: Number(f.chap) || 0, v: Number(f.v) || 0, texte: String(f.texte || '').slice(0, 180) };
+    }).filter(function (f) { return f.cle && f.livre; });
+    var maj = /^\d{4}-\d\d-\d\dT/.test(String(p.maj || '')) ? String(p.maj) : maintenant_();
+    verrou_(function () {
+      feuillesEspace_(); oublierLignes_();
+      var x = lignes_('Espaces').filter(function (y) { return y.dossier_id === esp.dossier_id; })[0];
+      if (!x) return;
+      var avant = json2_(x.favoris, {});
+      if (avant.maj && avant.maj > maj) return;   // une version plus récente est déjà là (autre appareil)
+      x.favoris = JSON.stringify({ liste: liste, maj: maj }); ecrireLigne_('Espaces', x);
+    });
+    return favorisEspace_(esp.dossier_id);
+  }
   if (action === 'esp.prefs') {
     verrou_(function () {
       var x = lignes_('Espaces').filter(function (y) { return y.dossier_id === esp.dossier_id; })[0];
@@ -322,6 +338,7 @@ function vueEspace_(d) {
     signalements: (don.signalements || []).slice(-30).reverse().map(function (z) { return { id: z.id, date: z.date, sujet: z.sujet, texte: z.texte, statut: z.statut, reponse: z.reponse || '', traite_le: z.traite_le || '' }; }),
     photo: photoMini_(d),
     notifs: prefsNotifsEspace_(d.id),
+    favoris: favorisEspace_(d.id),
     bapteme: pr.neo ? { date: dateBapteme_(d), lieu: [i.lieu_celebration, i.commune_celebration].filter(Boolean).join(', '), prenom_bapteme: i.prenom_bapteme || '', actes: actesEspace_(d), motifs: MOTIFS_ACTE, mail: mailDossier_(d) ? masquerMail_(mailDossier_(d)) : '' } : null,
     anniversaire: (function () { var n = pr.neo ? anniversaireDuJour_(d) : 0; return n ? { annees: n, texte: texteAnniversaire_(d, n) } : null; })(),
     parrains: (don.parrains || []).map(function (z) { return parrainVue_(z, true); }), fraternite: frat,
@@ -773,6 +790,11 @@ function reglagesCatechumenatRoute_(p, s) {
 }
 
 // ─── Notifications de l'espace, par sorte (réglages de la personne) ───
+function favorisEspace_(id) {
+  var x = null;
+  try { x = lignes_('Espaces').filter(function (y) { return y.dossier_id === id; })[0]; } catch (e) {}
+  return json2_(x && x.favoris, { liste: [], maj: '' });
+}
 function prefsNotifsEspace_(id) {
   var x = null;
   try { x = lignes_('Espaces').filter(function (y) { return y.dossier_id === id; })[0]; } catch (e) {}
