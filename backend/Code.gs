@@ -176,6 +176,7 @@ var ROUTES = {
   'cor.lienInscription':   { fn: function (p, s) { return lienInscriptionCor_(p, s); }, droit: 'dossiers' },
   'parrain.ecrire':        { fn: function (p, s) { return parrainEcrireRoute_(p, s); }, droit: 'dossiers' },
   'parrain.envoyer':       { fn: function (p, s) { return parrainEnvoyerRoute_(p, s); }, droit: 'dossiers' },
+  'catechumenat.reglages': { fn: function (p, s) { return reglagesCatechumenatRoute_(p, s); }, droit: 'dossiers' },
   'espace.signalement':    { fn: function (p, s) { return signalementEspace_(p, s); }, droit: 'dossiers' },
   'textes.liste':          { fn: function (p, s) { return listerTextes_(p, s); }, droit: 'dossiers' },
   'textes.ecrire':         { fn: function (p, s) { return ecrireTexte_(p, s); }, droit: 'dossiers' },
@@ -579,6 +580,12 @@ function aFaire_(s) {
       }).length;
       if (valider) l.push({ cle: 'valider', nombre: valider, texte: valider > 1 ? 'préparations hors paroisse à valider par le curé' : 'préparation hors paroisse à valider par le curé', lien: '/dossiers?type=premiere_communion' });
       var bap = ds.filter(function (x) { return alertesDossier_(x.type, json2_(x.donnees, {}).infos || {}).indexOf('bapteme_a_trouver') > -1; }).length;
+      try {
+        if (db_().getSheetByName('Extraits')) {
+          var actes = lignes_('Extraits').filter(function (x) { return json2_(x.demande, null) && !json2_(x.envois, []).length; });
+          if (actes.length) l.push({ cle: 'actes', nombre: actes.length, texte: actes.length > 1 ? 'demandes d\'acte de baptême à envoyer' : 'demande d\'acte de baptême à envoyer', lien: actes.length > 1 ? '/extraits' : '/extraits/' + actes[0].id });
+        }
+      } catch (e) {}
       if (bap) l.push({ cle: 'bapteme', nombre: bap, texte: bap > 1 ? 'confirmands dont le baptême est à trouver' : 'confirmand dont le baptême est à trouver', lien: '/dossiers?type=confirmand' });
     });
     essai(function () {

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BookOpen, CalendarDays, Check, Eye, Link2, Loader2, Paperclip, Pencil, Plus, Send, Trash2, X } from 'lucide-react'
+import { Cake, BookOpen, CalendarDays, Check, Eye, Link2, Loader2, Paperclip, Pencil, Plus, Send, Trash2, X } from 'lucide-react'
 import { api, fichierEnBase64 } from '../api.js'
 import { Chargement, Erreur, Modale, Vide, useCharger, useNotif, useConfirmer, Aide, dateCourte } from '../ui.jsx'
 
@@ -20,15 +20,15 @@ export default function Catechumenat() {
         <div><h1 className="text-3xl font-semibold">Catéchuménat</h1><p className="text-sm text-nuit-600/80">Textes et calendrier de l'app « Croix glorieuse » (app.croix-glorieuse.org)</p></div>
         <div className="flex gap-2">
           {peut('utilisateurs') && <VoirComme seulement={['catechumene', 'neophyte', 'parrain']} libelle="Aperçu" />}
-          {vue === 'textes' ? <button className="btn-principal" disabled={!data} onClick={() => setTexte({ titre: '', corps: '', cible: data.promotions[1]?.cle || 'tous', liens: [], fichiers: [] })}><Plus className="h-4 w-4" />Nouveau texte</button>
+          {vue === 'anniversaires' ? null : vue === 'textes' ? <button className="btn-principal" disabled={!data} onClick={() => setTexte({ titre: '', corps: '', cible: data.promotions[1]?.cle || 'tous', liens: [], fichiers: [] })}><Plus className="h-4 w-4" />Nouveau texte</button>
             : <button className="btn-principal" disabled={!data} onClick={() => setEvt({ date: '', heure_debut: '', heure_fin: '', titre: '', lieu: '', cible: data.promotions[1]?.cle || 'tous', note: '' })}><Plus className="h-4 w-4" />Nouvelle date</button>}
           <Aide>Les catéchumènes et néophytes voient ces textes et ces dates dans leur espace personnel (lien envoyé depuis leur dossier). Un nouveau texte déclenche une notification sur leur téléphone.</Aide>
         </div>
       </div>
-      <div className="mb-4 flex gap-1.5">{[['textes', 'Textes', BookOpen], ['calendrier', 'Calendrier', CalendarDays]].map(([k, l, I]) => (
+      <div className="mb-4 flex gap-1.5">{[['textes', 'Textes', BookOpen], ['calendrier', 'Calendrier', CalendarDays], ['anniversaires', 'Anniversaires de baptême', Cake]].map(([k, l, I]) => (
         <button key={k} className={`pastille gap-1 border px-3 py-1.5 text-sm ${vue === k ? 'border-nuit bg-nuit text-white' : 'border-nuit-100 bg-white text-nuit-600'}`} onClick={() => setVue(k)}><I className="h-4 w-4" />{l}</button>))}</div>
       <Erreur erreur={erreur} />
-      {!data ? <Chargement /> : vue === 'textes' ? (
+      {vue === 'anniversaires' ? <Anniversaires /> : !data ? <Chargement /> : vue === 'textes' ? (
         !data.textes.length ? <Vide icone={BookOpen} texte="Aucun texte publié. « Nouveau texte » pour écrire un enseignement, une prière, une consigne…" /> : (
           <div className="carte divide-y divide-nuit-100">
             {data.textes.map((t) => (
@@ -163,5 +163,44 @@ function EditionDate({ ev, data, onFermer, onFait }) {
         <Erreur erreur={erreur} />
       </div>
     </Modale>
+  )
+}
+
+/** Anniversaire de baptême des néophytes : notification + mail chaque année (8 h), texte modèle modifiable. */
+function Anniversaires() {
+  const notifier = useNotif()
+  const { data, erreur, setData } = useCharger(() => api('catechumenat.reglages', {}), [])
+  const [v, setV] = useState(null)
+  const [envoi, setEnvoi] = useState(false)
+  if (erreur) return <Erreur erreur={erreur} />
+  if (!data) return <Chargement />
+  const r = v || data
+  async function enregistrer() {
+    setEnvoi(true)
+    try { const x = await api('catechumenat.reglages', { ecrire: true, anniv_actif: r.anniv_actif, anniv_texte: r.anniv_texte }); setData(x); setV(null); notifier(x.anniv_actif ? 'Anniversaires activés' : 'Anniversaires désactivés') }
+    catch (e) { notifier(e.message, 'erreur') } finally { setEnvoi(false) }
+  }
+  const maj = (k, x) => setV({ ...r, [k]: x })
+  return (
+    <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
+      <section className="carte space-y-3 p-4">
+        <label className="flex items-center gap-2 font-medium"><input type="checkbox" className="h-4 w-4 accent-[#521a22]" checked={!!r.anniv_actif} onChange={(e) => maj('anniv_actif', e.target.checked)} />Souhaiter l'anniversaire de baptême des néophytes</label>
+        <p className="text-sm text-nuit-600/80">Chaque année, le jour anniversaire de l'étape « Baptême, confirmation, eucharistie » (vers 8 h) : notification sur leur téléphone, mail de la paroisse avec ce texte, et carte « Joyeux anniversaire de baptême » sur l'accueil de leur app toute la journée.</p>
+        <div><label className="etiquette">Texte du mail ({'{prenom}'} et {'{annees}'} sont remplacés)</label>
+          <textarea className="champ min-h-[220px]" value={r.anniv_texte} onChange={(e) => maj('anniv_texte', e.target.value)} /></div>
+        <div className="flex flex-wrap gap-2">
+          <button className="btn-clair" onClick={() => maj('anniv_texte', data.defaut)}>Rétablir le texte proposé</button>
+          <button className="btn-principal ml-auto" disabled={envoi || !v} onClick={enregistrer}>{envoi && <Loader2 className="h-4 w-4 animate-spin" />}Enregistrer</button>
+        </div>
+      </section>
+      <section className="carte p-4">
+        <h2 className="mb-2 text-lg font-semibold">Prochains anniversaires (60 jours)</h2>
+        {!data.prochains.length ? <p className="text-sm text-nuit-600/70">Aucun dans les 60 prochains jours.</p> : (
+          <ul className="divide-y divide-nuit-50 text-sm">{data.prochains.map((x) => <li key={x.id} className="flex items-center gap-2 py-1.5">
+            <span className="w-24 shrink-0 text-xs text-nuit-600/70">{dateCourte(x.date)}</span><span className="flex-1">{x.nom}</span>
+            <span className="text-xs text-or-600">{x.annees} an{x.annees > 1 ? 's' : ''}</span>{!x.mail && <span title="Pas d'adresse e-mail" className="text-xs text-red-700">sans mail</span>}</li>)}</ul>
+        )}
+      </section>
+    </div>
   )
 }

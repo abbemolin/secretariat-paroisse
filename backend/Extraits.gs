@@ -5,7 +5,7 @@
  */
 
 var COLONNES_EXTRAITS = ['id', 'cree_le', 'cree_par', 'dossier_id', 'nom', 'valeurs', 'statut', 'signe_par', 'signe_le',
-  'signature_id', 'pdf_id', 'envois', 'maj_le', 'maj_par'];
+  'signature_id', 'pdf_id', 'envois', 'maj_le', 'maj_par', 'demande'];
 
 /** Feuille créée automatiquement au premier usage (pas besoin de relancer installer). */
 function feuilleExtraits_() {
@@ -16,7 +16,7 @@ function feuilleExtraits_() {
     f.appendRow(COLONNES_EXTRAITS);
     f.setFrozenRows(1);
   }
-  return f;
+  return completerColonnes_(f, COLONNES_EXTRAITS);
 }
 
 function dossierExtraits_(annee) {
@@ -34,7 +34,8 @@ function extraitPublic_(x) {
   return {
     id: x.id, cree_le: x.cree_le, cree_par: x.cree_par, dossier_id: x.dossier_id, nom: x.nom,
     valeurs: json2_(x.valeurs, {}), statut: x.statut, signe_par: x.signe_par, signe_le: x.signe_le,
-    signature_id: x.signature_id, pdf_id: x.pdf_id, envois: json2_(x.envois, []), maj_le: x.maj_le, maj_par: x.maj_par
+    signature_id: x.signature_id, pdf_id: x.pdf_id, envois: json2_(x.envois, []), maj_le: x.maj_le, maj_par: x.maj_par,
+    demande: json2_(x.demande, null)
   };
 }
 

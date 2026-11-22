@@ -248,6 +248,11 @@ function actionEspace_(action, p) {
     demandeCorEspace_(d, p.preferences);
     return vueEspace_(trouverDossier_(d.id));
   }
+  if (action === 'esp.acte') {
+    if (!profilEspace_(d).neo) throw erreur_('INVALIDE', 'L\'acte de baptême se demande après le baptême.');
+    demanderActe_(d, p.motif);
+    return vueEspace_(trouverDossier_(d.id));
+  }
   if (action === 'esp.lu') {
     verrou_(function () {
       var t = lignes_('Textes').filter(function (y) { return y.id === p.texte; })[0];
@@ -307,6 +312,8 @@ function vueEspace_(d) {
     lettre: { texte: l.texte || '', statut: l.statut || '', remarque: l.remarque || '', validee_le: l.validee_le || '' },
     signalements: (don.signalements || []).slice(-30).reverse().map(function (z) { return { id: z.id, date: z.date, sujet: z.sujet, texte: z.texte, statut: z.statut, reponse: z.reponse || '', traite_le: z.traite_le || '' }; }),
     photo: photoMini_(d),
+    bapteme: pr.neo ? { date: dateBapteme_(d), lieu: [i.lieu_celebration, i.commune_celebration].filter(Boolean).join(', '), prenom_bapteme: i.prenom_bapteme || '', actes: actesEspace_(d), motifs: MOTIFS_ACTE, mail: mailDossier_(d) ? masquerMail_(mailDossier_(d)) : '' } : null,
+    anniversaire: (function () { var n = pr.neo ? anniversaireDuJour_(d) : 0; return n ? { annees: n, texte: texteAnniversaire_(d, n) } : null; })(),
     parrains: (don.parrains || []).map(function (z) { return parrainVue_(z, true); }), fraternite: frat,
     calendrier: cal, textes: textes, paroisse: reglages_().paroisse
   };
@@ -641,4 +648,116 @@ function ecrireCalendrier_(p, s) {
     ecrireLigne_('CalendrierCate', x);
   });
   return listerTextes_();
+}
+
+// ─── Néophytes : « Mon baptême » et demande d'acte de baptême ───
+
+var MOTIFS_ACTE = ['Mariage', 'Parrainage', 'Confirmation', 'Profession religieuse ou ordination', 'Autre'];
+function dateLongueFr_(iso) {
+  if (!iso) return '';
+  var d = new Date(String(iso).length === 10 ? iso + 'T12:00:00' : iso);
+  return isNaN(d) ? String(iso) : Utilities.formatDate(d, 'Europe/Paris', 'd MMMM yyyy').replace(/January|February|March|April|May|June|July|August|September|October|November|December/, function (m) {
+    return { January: 'janvier', February: 'février', March: 'mars', April: 'avril', May: 'mai', June: 'juin', July: 'juillet', August: 'août', September: 'septembre', October: 'octobre', November: 'novembre', December: 'décembre' }[m];
+  });
+}
+/** Extrait B14 pré-rempli depuis le dossier d'un catéchumène (mêmes règles que l'appli). */
+function valeursB14Catechumene_(d) {
+  var don = json2_(d.donnees, {}), i = don.infos || {}, r = reglages_();
+  var p = String(i.prenoms || '').trim(), b = String(i.prenom_bapteme || '').trim();
+  var sansAcc = function (t) { return sansAccents_(t); };
+  var prenoms = !b || sansAcc(p).split(/[\s,-]+/).indexOf(sansAcc(b)) > -1 ? p : [p, b].filter(String).join(' ');
+  return {
+    paroisse: r.paroisse, diocese: r.diocese, annee: i.registre_annee || '', acte: i.acte_numero || '', sexe: i.sexe || '',
+    prenoms: prenoms, nom: String(i.nom || '').toUpperCase(), ne_le: dateLongueFr_(i.naissance_date), ne_a: i.naissance_lieu || '',
+    baptise_le: '', eglise: i.lieu_celebration || r.eglise, de: i.commune_celebration || r.commune, diocese_de: i.diocese_celebration || r.diocese,
+    confirme_le: '', confirme_a: [i.lieu_celebration, i.commune_celebration].filter(Boolean).join(', '),
+    marie_le: dateLongueFr_(i.marie_religieusement_le), marie_a: i.marie_religieusement_a || '', fait_a: r.commune, fait_le: dateLongueFr_(maintenant_())
+  };
+}
+function demanderActe_(d, motif) {
+  if (MOTIFS_ACTE.indexOf(motif) === -1) throw erreur_('INVALIDE', 'Choisissez le motif de la demande.');
+  if (!mailDossier_(d)) throw erreur_('MAIL', 'Aucune adresse e-mail dans votre dossier : écrivez au secrétariat.');
+  feuilleExtraits_();
+  var enCours = lignes_('Extraits').filter(function (x) { return x.dossier_id === d.id && json2_(x.demande, null) && !json2_(x.envois, []).length; });
+  if (enCours.length) throw erreur_('DEJA', 'Une demande est déjà en cours : la paroisse va vous envoyer votre acte.');
+  var id = verrou_(function () {
+    var v = valeursB14Catechumene_(d);
+    var e = { id: uid_(), cree_le: maintenant_(), cree_par: 'Espace personnel', dossier_id: d.id, nom: [v.prenoms, v.nom].filter(String).join(' '), valeurs: JSON.stringify(v),
+              statut: 'brouillon', envois: '[]', maj_le: maintenant_(), maj_par: 'Espace personnel', demande: JSON.stringify({ motif: motif, le: maintenant_(), email: mailDossier_(d) }) };
+    ecrireLigne_('Extraits', e);
+    var x = trouverDossier_(d.id);
+    ajouterHistorique_(x, 'Espace personnel', 'Demande d\'acte de baptême (' + motif + ')');
+    ecrireLigne_('Dossiers', x);
+    return e.id;
+  });
+  lignes_('Utilisateurs').filter(estActif_).forEach(function (u) { notifier_(u.id, 'Demande d\'acte de baptême', d.nom + ' – ' + motif, '#/extraits/' + id); });
+}
+function actesEspace_(d) {
+  try {
+    if (!db_().getSheetByName('Extraits')) return [];
+    return lignes_('Extraits').filter(function (x) { return x.dossier_id === d.id && json2_(x.demande, null); })
+      .sort(function (a, b) { return String(b.cree_le).localeCompare(String(a.cree_le)); })
+      .map(function (x) { var dm = json2_(x.demande, {}), env = json2_(x.envois, []); return { motif: dm.motif, le: dm.le, envoye_le: env.length ? env[env.length - 1].date : '' }; });
+  } catch (e) { return []; }
+}
+
+// ─── Anniversaire de baptême des néophytes (chaque jour, 8 h) ───
+
+var ANNIV_DEFAUT = 'Bonjour {prenom},\n\nIl y a {annees}, lors de la Vigile pascale, vous receviez le baptême, la confirmation et l\'eucharistie à la paroisse La Croix glorieuse. Toute la paroisse rend grâce avec vous pour ce jour où vous êtes devenu(e) enfant de Dieu !\n\nPourquoi ne pas renouveler aujourd\'hui les promesses de votre baptême, et allumer votre cierge de baptême ?\n\nAvec l\'assurance de nos prières à toutes vos intentions,';
+function reglagesCatechumenat_() {
+  var r = json2_(props_().getProperty('CATECHUMENAT'), {});
+  return { anniv_actif: r.anniv_actif === true, anniv_texte: r.anniv_texte || ANNIV_DEFAUT };
+}
+/** Date (AAAA-MM-JJ) du baptême, d'après l'étape « Baptême, confirmation, eucharistie ». */
+function dateBapteme_(d) {
+  var et = (json2_(d.donnees, {}).etapes || {}).sacrements;
+  return et && et.fait && et.date ? Utilities.formatDate(new Date(et.date), 'Europe/Paris', 'yyyy-MM-dd') : '';
+}
+function anniversaireDuJour_(d, auj) {
+  var b = dateBapteme_(d); auj = auj || Utilities.formatDate(new Date(), 'Europe/Paris', 'yyyy-MM-dd');
+  if (!b || b.slice(5) !== auj.slice(5) || b.slice(0, 4) >= auj.slice(0, 4)) return 0;
+  return Number(auj.slice(0, 4)) - Number(b.slice(0, 4));
+}
+function texteAnniversaire_(d, n) {
+  var i = json2_(d.donnees, {}).infos || {};
+  return reglagesCatechumenat_().anniv_texte.replace(/\{prenom\}/g, i.prenoms || '').replace(/\{annees\}/g, n + (n > 1 ? ' ans' : ' an'));
+}
+/** Déclencheur quotidien : notification + mail aux néophytes dont c'est l'anniversaire de baptême. */
+function anniversairesBapteme() {
+  var r = reglagesCatechumenat_();
+  if (!r.anniv_actif) return;
+  var auj = Utilities.formatDate(new Date(), 'Europe/Paris', 'yyyy-MM-dd'), opts = optionsEnvoi_();
+  lignes_('Dossiers').filter(function (d) { return d.type === 'catechumene' && d.etat !== 'annule'; }).forEach(function (d) {
+    var n = anniversaireDuJour_(d, auj);
+    if (!n) return;
+    try { envoyerPush_('esp:' + d.id); } catch (e) {}
+    var m = mailDossier_(d);
+    if (m) try {
+      var t = texteAnniversaire_(d, n);
+      GmailApp.sendEmail(m, 'Joyeux anniversaire de baptême !', corpsTexte_(t, 'paroisse'), { name: opts.name, from: opts.from, htmlBody: corpsHtml_(t, 'paroisse') });
+    } catch (e) { console.error('anniversaire', e); }
+  });
+}
+function reglagesCatechumenatRoute_(p, s) {
+  if (p.ecrire) {
+    var r = { anniv_actif: !!p.anniv_actif, anniv_texte: String(p.anniv_texte || '').slice(0, 4000) || ANNIV_DEFAUT };
+    props_().setProperty('CATECHUMENAT', JSON.stringify(r));
+    ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === 'anniversairesBapteme') ScriptApp.deleteTrigger(t); });
+    if (r.anniv_actif) ScriptApp.newTrigger('anniversairesBapteme').timeBased().everyDays(1).atHour(8).inTimezone('Europe/Paris').create();
+    journaliser_(s, 'Catéchuménat : anniversaires de baptême', r.anniv_actif ? 'activés' : 'désactivés');
+  }
+  var res = reglagesCatechumenat_();
+  // prochains anniversaires (60 jours)
+  var auj = new Date(), proch = [];
+  lignes_('Dossiers').filter(function (d) { return d.type === 'catechumene' && d.etat !== 'annule'; }).forEach(function (d) {
+    var b = dateBapteme_(d); if (!b) return;
+    for (var k = 0; k < 60; k++) {
+      var j = new Date(auj.getTime() + k * 86400000), js = Utilities.formatDate(j, 'Europe/Paris', 'yyyy-MM-dd');
+      var n = anniversaireDuJour_(d, js);
+      if (n) { proch.push({ id: d.id, nom: d.nom, date: js, annees: n, mail: !!mailDossier_(d) }); break; }
+    }
+  });
+  res.prochains = proch.sort(function (a, b) { return a.date.localeCompare(b.date); });
+  res.defaut = ANNIV_DEFAUT;
+  return res;
 }

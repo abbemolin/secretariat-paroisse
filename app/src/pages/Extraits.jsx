@@ -156,6 +156,12 @@ function Extrait({ id }) {
         </div>
       </div>
 
+      {x.demande && (
+        <div className={`mb-4 rounded-xl px-4 py-2.5 text-sm ${x.envois.length ? 'bg-emerald-50 text-emerald-900' : 'bg-amber-50 text-amber-900'}`}>
+          <b>Demandé par la personne depuis son espace</b> le {dateCourte(x.demande.le)} · motif : {x.demande.motif} · à envoyer à {x.demande.email}.
+          {!x.envois.length && <> Complétez « baptisé(e) le » et « confirmé(e) le », signez, puis « Envoyer par e-mail » : elle verra « Envoyé » dans son app.</>}
+        </div>
+      )}
       <div className="grid gap-5 lg:grid-cols-[320px_1fr]">
         <div className="space-y-4">
           <section className="carte space-y-2 p-4">
@@ -197,8 +203,8 @@ function Extrait({ id }) {
       </div>
 
       {pad && <PadSignature nom={utilisateur.nom} onFermer={() => setPad(false)} onValider={signer} />}
-      {mail && <Redaction mode="nouveau" a={x.valeurs?._demandeur || ''} sujet={`Extrait de baptême – ${x.nom}`}
-        corps={`Bonjour,\n\nVeuillez trouver ci-joint l'extrait de baptême de ${x.nom}.\n\nAvec l'assurance de nos prières à toutes vos intentions,`}
+      {mail && <Redaction mode="nouveau" a={x.demande?.email || x.valeurs?._demandeur || ''} sujet={`Extrait de baptême – ${x.nom}`}
+        corps={x.demande ? `Bonjour,\n\nVoici l'extrait de baptême que vous avez demandé (${String(x.demande.motif).toLowerCase()}).` + `\n\nAvec l'assurance de nos prières à toutes vos intentions,` : `Bonjour,\n\nVeuillez trouver ci-joint l'extrait de baptême de ${x.nom}.\n\nAvec l'assurance de nos prières à toutes vos intentions,`}
         envoiPersonnalise={async ({ a, sujet, corps, signature }) => api('extraits.envoyer', { id, a, sujet, corps, signatureMail: signature })}
         onFermer={() => setMail(false)} onEnvoye={(r) => { setMail(false); if (r?.envois) setX(r); notifier('Extrait envoyé') }}
         noteJointe={`Extrait de baptême – ${x.nom}.pdf (signé)`} />}

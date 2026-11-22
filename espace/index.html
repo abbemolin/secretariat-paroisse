@@ -103,6 +103,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
       pieces: [{ cle: 'acte_naissance', nom: 'Acte de naissance', recu: true }, { cle: 'photo', nom: 'Photo d\'identité', recu: neo }, { cle: 'cert_parrain', nom: 'Certificat du parrain / de la marraine', recu: neo }],
       lettre: neo ? { texte: 'Monseigneur,\n\n(lettre d\'exemple)', statut: 'validee', remarque: '' } : { texte: '', statut: '', remarque: '' },
       signalements: [], photo: '',
+      bapteme: neo ? { date: joursPlus(-220), lieu: 'Église Saint-Louis, Strasbourg', prenom_bapteme: 'Thomas', actes: [], motifs: ['Mariage', 'Parrainage', 'Confirmation', 'Profession religieuse ou ordination', 'Autre'], mail: 'ex…@exemple.fr' } : null,
       parrains: [{ id: 'p1', role: 'marraine', nom: 'Sophie Exemple', email: 'sophie@exemple.fr', envoye_le: joursPlus(-10), cert_le: neo ? joursPlus(-240) : '', lien: 'https://app.croix-glorieuse.org/parrain/?apercu=1' }],
       fraternite: { etat: 'membre', annee: '', equipe: 'Exemple', chefs: [{ nom: 'Claire et Antoine Exemple', telephone: '06 00 00 00 01', email: 'chef@exemple.fr' }],
         membres: [{ prenoms: 'Claire et Antoine', chef: true }, { prenoms: neo ? 'Thomas' : 'Marie', chef: false }, { prenoms: 'Paul et Julie', chef: false }, { prenoms: 'Hugo', chef: false }],
@@ -187,6 +188,10 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
         (z.statut === 'traite' ? '<div class="reponse"><b>Réponse de la paroisse</b>' + (z.traite_le ? ' <span class="petit">(' + e(jour(z.traite_le, { day: 'numeric', month: 'long' })) + ')</span>' : '') + '<br>' + (z.reponse ? e(z.reponse) : 'C\'est corrigé. Merci !') + '</div>' : '') + '</div>';
     }).join('') + '</div>';
   }
+  // Le service worker reconnaît le jour anniversaire pour la notification
+  function memoriserAnniversaire() {
+    try { var b = d.bapteme && d.bapteme.date; if (b && 'caches' in window) caches.open('croix-glorieuse-infos').then(function (k) { k.put('anniv', new Response(String(b).slice(5, 10))); }); } catch (x) {}
+  }
   // ─── Taille du texte (retenue sur le téléphone) ───
   try { taille = Number(localStorage.getItem('esp_taille')) || 1; } catch (x) {}
   function appliquerTaille() { var m = document.querySelector('main'); m.classList.remove('t2', 't3'); if (taille > 1) m.classList.add('t' + taille); }
@@ -252,7 +257,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
 
   function pageAccueil() {
     var i = prochaineEtape(), nouveaux = d.textes.filter(function (t) { return !t.lu; });
-    var h = '<div class="carte"><h1>Bonjour ' + e(d.prenom) + '</h1>' +
+    var h = (d.anniversaire ? '<div class="carte" style="background:#fdf6e8;border:1px solid #ecd3a6"><h2>🕯️ Joyeux anniversaire de baptême !</h2><div class="corps">' + e(d.anniversaire.texte) + '</div></div>' : '') + '<div class="carte"><h1>Bonjour ' + e(d.prenom) + '</h1>' +
       (d.neophyte ? '<p>Vous avez reçu le baptême' + (d.annee ? ' à Pâques ' + e(d.annee) : '') + '. Bienvenue dans la famille des enfants de Dieu !</p>'
         : '<p>' + (d.annee ? 'Votre baptême est prévu à la Vigile pascale ' + e(d.annee) + '.' : 'Vous cheminez vers le baptême.') + '</p>' + (i > -1 ? '<div class="info">Prochaine étape : <b>' + e(ETAPES[i][1]) + '</b></div>' : '')) +
       (d.accompagnateur ? '<p class="petit">Accompagnement : ' + e(d.accompagnateur) + '</p>' : '') + '</div>';
@@ -263,7 +268,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     if (d.pieces.some(function (p) { return !p.recu; })) aFaire.push('Déposer vos pièces (' + d.pieces.filter(function (p) { return !p.recu; }).map(function (p) { return p.nom.toLowerCase(); }).join(', ') + ')');
     if (!d.neophyte && d.lettre.statut !== 'validee' && d.lettre.statut !== 'envoyee') aFaire.push(d.lettre.statut === 'a_corriger' ? 'Corriger votre lettre à l\'évêque' : 'Écrire votre lettre à l\'évêque');
     if (!d.infos.naissance_date || !d.infos.adresse) aFaire.push('Compléter vos informations');
-    if (aFaire.length) h += '<div class="carte"><h2>À faire</h2>' + aFaire.map(function (t) { return '<div class="etape"><div class="rond prochaine">•</div><div>' + e(t) + '</div></div>'; }).join('') + '<button class="bouton" data-vue="dossier">Mon dossier</button></div>';
+    if (aFaire.length && !d.neophyte) h += '<div class="carte"><h2>À faire</h2>' + aFaire.map(function (t) { return '<div class="etape"><div class="rond prochaine">•</div><div>' + e(t) + '</div></div>'; }).join('') + '<button class="bouton" data-vue="dossier">Mon dossier</button></div>';
     if (!d.neophyte) h += '<div class="carte"><h2>Mon parcours</h2>' + ETAPES.map(function (x, k) {
       var f = d.etapes[x[0]] && d.etapes[x[0]].fait;
       return '<div class="etape"><div class="rond ' + (f ? 'fait' : k === i ? 'prochaine' : '') + '">' + (f ? '✓' : k + 1) + '</div><div>' + e(x[1]) + (f && d.etapes[x[0]].date ? '<div class="petit">' + e(jour(d.etapes[x[0]].date, { day: 'numeric', month: 'long', year: 'numeric' })) + '</div>' : '') + '</div></div>';
@@ -301,7 +306,25 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
   function pageCalendrier() {
     return '<div id="agenda-place"></div><div class="carte"><h2>Mes dates</h2>' + (d.calendrier.length ? d.calendrier.map(carteEvenement).join('') : '<p class="petit">Aucune date pour le moment.</p>') + '</div>';
   }
+  // ─── Néophytes : « Mon baptême » (plus de dossier à compléter) ───
+  var motifActe = '';
+  function pageBapteme() {
+    var b = d.bapteme || { actes: [], motifs: [] }, ROLE = { parrain: 'Parrain', marraine: 'Marraine' };
+    var h = blocTaille() + '<div class="carte"><h2>Mon baptême</h2>' +
+      (b.date ? '<p><b style="text-transform:capitalize">' + e(jour(b.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })) + '</b>' + (b.lieu ? '<br>' + e(b.lieu) : '') + '</p>' : '<p class="petit">Date du baptême non indiquée.</p>') +
+      (b.prenom_bapteme ? '<p>Prénom de baptême : <b>' + e(b.prenom_bapteme) + '</b></p>' : '') +
+      ((d.parrains || []).length ? '<p>' + d.parrains.map(function (z) { return e(ROLE[z.role]) + ' : <b>' + e(z.nom) + '</b>'; }).join('<br>') + '</p>' : '') +
+      blocSignaler('Mon baptême') + '</div>';
+    var enCours = b.actes.filter(function (a) { return !a.envoye_le; }).length;
+    h += '<div class="carte"><h2>Acte de baptême</h2><p class="petit">Pour un mariage, un parrainage, une confirmation… La paroisse vous l\'envoie par mail' + (b.mail ? ' (' + e(b.mail) + ')' : '') + ', signé, au format PDF.</p>' +
+      b.actes.map(function (a) { return '<div class="parrain"><b>' + e(a.motif) + '</b><div class="petit">Demandé le ' + e(jour(a.le, { day: 'numeric', month: 'long', year: 'numeric' })) + ' · ' + (a.envoye_le ? '✅ envoyé le ' + e(jour(a.envoye_le, { day: 'numeric', month: 'long' })) : 'en préparation') + '</div></div>'; }).join('') +
+      (enCours ? '' : '<label>Pour quel motif ?</label><select id="acte-motif"><option value="">— choisir —</option>' + b.motifs.map(function (m) { return '<option' + (m === motifActe ? ' selected' : '') + '>' + e(m) + '</option>'; }).join('') + '</select>' +
+        '<button class="bouton principal" data-a="acte">Demander un acte de baptême</button>') + '<div id="zac" style="display:none"></div></div>';
+    h += '<div class="carte"><button class="lien" data-a="sortir">Se déconnecter</button></div>';
+    return h;
+  }
   function pageDossier() {
+    if (d.neophyte) return pageBapteme();
     var b = brouillon || (brouillon = JSON.parse(JSON.stringify(d.infos)));
     var h = blocTaille() + '<div class="carte"><h2>Mes informations</h2><p class="petit">Elles servent à votre dossier de baptême et aux registres. Merci de les vérifier.</p>' +
       CHAMPS.map(function (g) {
@@ -342,6 +365,8 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
   }
   function rendre() {
     $('nav').classList.remove('cache');
+    var bd = document.querySelector('.nav button[data-vue=dossier]'); if (bd) bd.lastChild.textContent = d.neophyte ? 'Mon baptême' : 'Mon dossier';
+    memoriserAnniversaire();
     Array.prototype.forEach.call(document.querySelectorAll('.nav button'), function (b) { b.classList.toggle('actif', b.dataset.vue === vue); });
     var n = d.textes.filter(function (t) { return !t.lu; }).length;
     $('nbn').textContent = n; $('nbn').classList.toggle('cache', !n);
@@ -385,6 +410,14 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     if (a === 'code') { b.disabled = true; appel('esp.code').then(function (r) { mailCode = r.mail; etape = 'code'; ecranConnexion(); }).catch(function (er) { b.disabled = false; message('zc', er.message); }); return; }
     if (a === 'retour') { ouvert = null; rendre(); return; }
     if (a === 'reessayer') { charger(); return; }
+    if (a === 'acte') {
+      motifActe = $('acte-motif').value;
+      if (!motifActe) { message('zac', 'Choisissez le motif.'); return; }
+      b.disabled = true;
+      appel('esp.acte', { motif: motifActe }).then(function (r) { d = r; motifActe = ''; rendre(); message('zac', 'Demande envoyée : vous recevrez votre acte par mail.', true); })
+        .catch(function (er) { b.disabled = false; message('zac', er.message); });
+      return;
+    }
     if (a === 'taille-plus' || a === 'taille-moins') { taille = Math.max(1, Math.min(3, taille + (a === 'taille-plus' ? 1 : -1))); try { localStorage.setItem('esp_taille', taille); } catch (x) {} appliquerTaille(); rendre(); return; }
     if (a === 'cor-demande') { demandeCor = true; rendre(); var tp = $('corprefs'); if (tp) tp.focus(); return; }
     if (a === 'cor-annuler') { demandeCor = false; rendre(); return; }
