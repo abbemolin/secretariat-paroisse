@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { UserPlus, Loader2, KeyRound } from 'lucide-react'
 import { api } from '../api.js'
+import VoirComme from './VoirComme.jsx'
 import { useApp } from '../App.jsx'
 import { Chargement, Erreur, Modale, useCharger, useNotif, dateHeure, ROLES } from '../ui.jsx'
 
@@ -15,6 +16,7 @@ export default function Utilisateurs() {
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div><h1 className="text-3xl font-semibold">Utilisateurs</h1><p className="text-sm text-nuit-600/80">Comptes de l'appli (indépendants de Google)</p></div>
         <div className="flex gap-2">
+          <VoirComme />
           <button className="btn-or" onClick={() => setEdition({})}><UserPlus className="h-4 w-4" />Ajouter</button>
         </div>
       </div>

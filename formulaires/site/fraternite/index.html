@@ -46,6 +46,7 @@ details summary{cursor:pointer;color:#7a6a64;font-size:14px}
 <body>
 <div class="entete"><img src="../logo-128.png" alt=""><div><b id="titre">Ma fraternité Cor Unum</b><span id="sous">Paroisse La Croix glorieuse</span></div><button id="sortie" class="sortie cache">Se déconnecter</button></div>
 <main>
+  <div id="bandeau-apercu" class="cache" style="background:#fff3d6;color:#7a4b00;border-radius:6px;padding:8px 12px;margin:0 0 12px;font-size:13.5px">Aperçu : vous voyez la page d'un chef de fraternité fictif. Rien n'est enregistré ni envoyé.</div>
   <div id="etat" class="info">Chargement…</div>
   <div id="connexion" class="carte connexion cache"></div>
   <div id="appli" class="cache">
@@ -71,14 +72,34 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   var URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzSjwHZONGGz0xfWXo_u4MJRYBon8eZZzyTvWNrgo6418zkoOXpzVDx3Q8nthP5rLAleg/exec";
   var PROFILS = { 'Catéchumène': 'p-cat', 'Confirmand': 'p-conf', 'Néophyte': 'p-neo', 'Nouveau à la paroisse': 'p-nouv', 'Recommençant': 'p-rec', 'Paroissien': '' };
   var q = new URLSearchParams(location.search), c = q.get('c') || '';
-  try { if (c) localStorage.setItem('cor_c', c); else c = localStorage.getItem('cor_c') || ''; } catch (e) {}
+  var APERCU = !!q.get('apercu');
+  if (APERCU) c = 'apercu';
+  else try { if (c) localStorage.setItem('cor_c', c); else c = localStorage.getItem('cor_c') || ''; } catch (e) {}
   var d = null, ouvert = {}, etatAcces = null;
   var CLE_S = 'cor_s_' + c;
   function lireSession() { try { return localStorage.getItem(CLE_S) || ''; } catch (x) { return ''; } }
   function ecrireSession(v) { try { if (v) localStorage.setItem(CLE_S, v); else localStorage.removeItem(CLE_S); } catch (x) {} }
   function $(id) { return document.getElementById(id); }
   function e(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  // ─── Aperçu (« Voir comme… » depuis l'appli) : fraternité fictive, rien n'est enregistré ni envoyé ───
+  function plus(n) { var x = new Date(); x.setDate(x.getDate() + n); return x.toISOString().slice(0, 10); }
+  var FICTIF = { annee: '', nom: 'Exemple', paroisse: 'Paroisse personnelle La Croix glorieuse', profils: ['Catéchumène', 'Confirmand', 'Néophyte', 'Nouveau à la paroisse', 'Recommençant', 'Paroissien'],
+    lien_inscription: 'https://secretariat.croix-glorieuse.org/rejoindre/?i=exemple',
+    membres: [{ id: 'm1', nom: 'Exemple', prenoms: 'Claire et Antoine', email: 'chef@exemple.fr', telephone: '06 00 00 00 01', adresse: '1 rue de l\'Exemple', profils: ['Paroissien'], nouveau: false, chef: true, statut: 'actif' },
+      { id: 'm2', nom: 'Exemple', prenoms: 'Marie', email: 'marie@exemple.fr', telephone: '06 00 00 00 02', adresse: '', profils: ['Catéchumène'], nouveau: true, chef: false, statut: 'actif' },
+      { id: 'm3', nom: 'Modèle', prenoms: 'Paul et Julie', email: 'paul@exemple.fr', telephone: '06 00 00 00 03', adresse: '', profils: ['Paroissien'], nouveau: false, chef: false, statut: 'actif' },
+      { id: 'm4', nom: 'Dupont', prenoms: 'Hugo', email: 'hugo@exemple.fr', telephone: '', adresse: '', profils: ['Recommençant'], nouveau: true, chef: false, statut: 'actif' }],
+    anciens: [{ id: 'm5', nom: 'Ancien', prenoms: 'Luc', email: '', telephone: '', adresse: '', profils: [], nouveau: false, chef: false, statut: 'ancien', note: 'A déménagé' }],
+    rencontres: [{ id: 'r1', date: plus(9), lieu: 'Chez Claire et Antoine', note: 'Repas partagé' }],
+    messages: [{ id: 'x1', date: plus(-3) + 'T19:00:00Z', auteur: 'Claire et Antoine Exemple', cote: 'chef', texte: 'Bonjour, pourriez-vous venir bénir notre prochaine rencontre ? (message d\'exemple)' }, { id: 'x2', date: plus(-2) + 'T08:00:00Z', auteur: 'abbé Florent Molin', cote: 'paroisse', texte: 'Avec joie ! (réponse d\'exemple)' }] };
   function appel(action, p) {
+    if (APERCU) return new Promise(function (ok, ko) {
+      setTimeout(function () {
+        if (action === 'chef.etat') return ok({ nom: 'Exemple', mot_de_passe: true, session: true, mails: [] });
+        if (action === 'chef.lire') { var y = new Date().getFullYear() - (new Date().getMonth() < 7 ? 1 : 0); FICTIF.annee = y + '-' + (y + 1); return ok(FICTIF); }
+        var er = new Error('Aperçu : rien n\'est enregistré ni envoyé.'); er.code = 'APERCU'; ko(er);
+      }, 150);
+    });
     p = p || {}; p.c = c; p.session = lireSession();
     return fetch(URL_SCRIPT, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: action, payload: p }) })
       .then(function (r) { return r.json(); }).then(function (r) {
@@ -323,6 +344,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     }).catch(function (err) { $('etat').style.display = 'block'; $('etat').className = 'erreur'; $('etat').textContent = err.message; });
   }
 
+  if (APERCU) $('bandeau-apercu').classList.remove('cache');
   if (!c) { $('etat').className = 'erreur'; $('etat').textContent = 'Lien incomplet. Ouvrez le lien reçu par mail de la paroisse.'; return; }
   demarrer();
 })();

@@ -60,7 +60,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
 </style></head>
 <body>
 <div class="entete"><img src="icon-192.png" alt=""><div><b>Croix glorieuse</b><span id="sous">Paroisse personnelle La Croix glorieuse</span></div></div>
-<main><div id="etat" class="info">Chargement…</div><div id="page"></div></main>
+<main><div id="bandeau-apercu" class="cache" style="background:#fff3d6;color:#7a4b00;border-radius:8px;padding:8px 12px;margin:0 0 12px;font-size:13.5px">Aperçu : vous voyez l'app comme <b id="apercu-qui"></b> fictif. Rien n'est enregistré ni envoyé.</div><div id="etat" class="info">Chargement…</div><div id="page"></div></main>
 <nav class="nav cache" id="nav">
   <button data-vue="accueil" class="actif"><b>⌂</b>Accueil</button>
   <button data-vue="textes"><b>✎</b>Textes<span class="pastille cache" id="nbn"></span></button>
@@ -81,14 +81,55 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     ['Parents', [['pere_prenom', 'Prénom du père'], ['pere_nom', 'Nom du père'], ['mere_prenom', 'Prénom de la mère'], ['mere_nom_jeune_fille', 'Nom de jeune fille de la mère']]],
     ['Prénom de baptême', [['prenom_bapteme', 'Prénom de baptême']], 'Choisir un nouveau prénom n\'est pas obligatoire, sauf si votre prénom de naissance n\'est pas celui d\'un saint ou d\'une sainte du calendrier catholique. Dans ce cas, choisissez le prénom d\'un saint ou d\'une sainte qui vous accompagnera : il s\'ajoutera à vos prénoms dans le registre des baptêmes.']];
   var q = new URLSearchParams(location.search), c = q.get('c') || '';
-  try { if (c) { localStorage.setItem('esp_c', c); history.replaceState(null, '', location.pathname); } else c = localStorage.getItem('esp_c') || ''; } catch (x) {}
+  var APERCU = q.get('apercu') === 'neophyte' ? 'neophyte' : q.get('apercu') ? 'catechumene' : '';
+  if (APERCU) c = 'apercu';
+  else try { if (c) { localStorage.setItem('esp_c', c); history.replaceState(null, '', location.pathname); } else c = localStorage.getItem('esp_c') || ''; } catch (x) {}
   var d = null, vue = 'accueil', ouvert = null, acces = null, etape = 'mdp', mailCode = '', brouillon = null, installer = null, signale = null, sigTexte = '', lettreB = null, horsLigne = false, taille = 1, ajoutParrain = false, retraitParrain = null, demandeCor = false;
   function $(id) { return document.getElementById(id); }
   function e(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   function liens(t) { return e(t).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>'); }
   function session() { try { return localStorage.getItem('esp_s_' + c) || ''; } catch (x) { return ''; } }
   function ecrireSession(v) { try { if (v) localStorage.setItem('esp_s_' + c, v); else localStorage.removeItem('esp_s_' + c); } catch (x) {} }
+  // ─── Aperçu (« Voir comme… » depuis l'appli) : personnage fictif, rien n'est enregistré ni envoyé ───
+  function joursPlus(n) { var x = new Date(); x.setDate(x.getDate() + n); return x.toISOString().slice(0, 10); }
+  function vueApercu() {
+    var neo = APERCU === 'neophyte', an = new Date().getFullYear() + (new Date().getMonth() > 4 ? 1 : 0);
+    var fait = function (j) { return { fait: true, date: joursPlus(j) + 'T12:00:00Z' }; };
+    var et = neo ? { accueil: fait(-700), accompagnateur: fait(-690), entree: fait(-600), lettre: fait(-300), appel: fait(-260), scrutins: fait(-230), sacrements: fait(-220), registre: fait(-219) }
+      : { accueil: fait(-120), accompagnateur: fait(-110), entree: fait(-60) };
+    return {
+      prenom: neo ? 'Thomas' : 'Marie', nom: 'Exemple', neophyte: neo, annee: String(neo ? an - 1 : an), accompagnateur: 'Claire et Antoine (accompagnateurs fictifs)',
+      etapes: et, infos: { prenom_bapteme: neo ? 'Thomas' : '', prenoms: neo ? 'Thomas' : 'Marie', nom: 'Exemple', sexe: neo ? 'Homme' : 'Femme', naissance_date: '1995-04-12', naissance_lieu: 'Strasbourg', adresse: '1 rue de l\'Exemple, Strasbourg', telephone: '06 00 00 00 00', email: 'exemple@exemple.fr', nom_jeune_fille: '', nationalite: 'Française', profession: 'Infirmière', situation: 'Célibataire', conjoint: '', pere_prenom: 'Jean', pere_nom: 'Exemple', mere_prenom: 'Anne', mere_nom_jeune_fille: 'Modèle', parrain_marraine: '', parrain_contact: '' },
+      pieces: [{ cle: 'acte_naissance', nom: 'Acte de naissance', recu: true }, { cle: 'photo', nom: 'Photo d\'identité', recu: neo }, { cle: 'cert_parrain', nom: 'Certificat du parrain / de la marraine', recu: neo }],
+      lettre: neo ? { texte: 'Monseigneur,\n\n(lettre d\'exemple)', statut: 'validee', remarque: '' } : { texte: '', statut: '', remarque: '' },
+      signalements: [], photo: '',
+      parrains: [{ id: 'p1', role: 'marraine', nom: 'Sophie Exemple', email: 'sophie@exemple.fr', envoye_le: joursPlus(-10), cert_le: neo ? joursPlus(-240) : '', lien: 'https://app.croix-glorieuse.org/parrain/?apercu=1' }],
+      fraternite: { etat: 'membre', annee: '', equipe: 'Exemple', chefs: [{ nom: 'Claire et Antoine Exemple', telephone: '06 00 00 00 01', email: 'chef@exemple.fr' }],
+        membres: [{ prenoms: 'Claire et Antoine', chef: true }, { prenoms: neo ? 'Thomas' : 'Marie', chef: false }, { prenoms: 'Paul et Julie', chef: false }, { prenoms: 'Hugo', chef: false }],
+        rencontres: [{ id: 'r1', date: joursPlus(9), lieu: 'Chez Claire et Antoine', note: 'Repas partagé' }] },
+      calendrier: (neo ? [{ date: joursPlus(20), heure_debut: '20:00', heure_fin: '21:30', titre: 'Rencontre des néophytes', lieu: 'Salle paroissiale' }]
+        : [{ date: joursPlus(5), heure_debut: '20:00', heure_fin: '21:30', titre: 'Rencontre des catéchumènes', lieu: 'Salle paroissiale' }, { date: joursPlus(80), heure_debut: '15:00', titre: 'Appel décisif', lieu: 'Cathédrale de Strasbourg' }])
+        .concat([{ date: joursPlus(9), heure_debut: '', titre: 'Fraternité Cor Unum Exemple', lieu: 'Chez Claire et Antoine', note: 'Repas partagé' }]),
+      textes: [
+        { id: 't1', date: joursPlus(-2) + 'T09:00:00Z', titre: 'Le Notre Père', corps: 'Pour notre prochaine rencontre, relisez Mt 6, 9-13 et méditez chaque demande du Notre Père.\n\nBonne préparation !', auteur: 'abbé Florent Molin', liens: [], fichiers: [], lu: false },
+        { id: 't2', date: joursPlus(-15) + 'T09:00:00Z', titre: 'Bienvenue dans le catéchuménat', corps: 'Quelques mots d\'accueil (texte d\'exemple). Lisez Jean 3, 16.', auteur: 'abbé Florent Molin', liens: [], fichiers: [], lu: true }
+      ],
+      paroisse: 'Paroisse personnelle La Croix glorieuse'
+    };
+  }
+  var APERCU_VUE = null;
+  function appelApercu(action) {
+    return new Promise(function (ok, ko) {
+      setTimeout(function () {
+        if (action === 'esp.etat') return ok({ prenom: 'Marie', mot_de_passe: true, mail: 'ex…@exemple.fr', session: true, cle_push: '' });
+        if (action === 'esp.lire') return ok(APERCU_VUE || (APERCU_VUE = vueApercu()));
+        if (action === 'esp.lu') return ok(true);
+        var er = new Error('Aperçu : rien n\'est enregistré ni envoyé.'); er.code = 'APERCU'; ko(er);
+      }, 150);
+    });
+  }
   function appel(action, p) {
+    if (APERCU) return appelApercu(action);
     p = p || {}; p.c = c; p.session = session();
     return fetch(URL_SCRIPT, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: action, payload: p }) })
       .then(function (r) { return r.json(); }).then(function (r) {
@@ -457,6 +498,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     appel('esp.etat').then(function (r) { acces = r; if (r.session) charger(); else { etape = 'mdp'; ecranConnexion(); } })
       .catch(function (er) { if (!er.code && reprendreHorsLigne()) return; $('nav').classList.add('cache'); $('etat').style.display = 'block'; $('etat').className = 'erreur'; $('etat').textContent = er.message; });
   }
+  if (APERCU) { $('bandeau-apercu').classList.remove('cache'); $('apercu-qui').textContent = APERCU === 'neophyte' ? 'un néophyte' : 'un catéchumène'; }
   if (!c) { $('etat').className = 'info'; $('etat').innerHTML = 'Bienvenue sur l\'application de la paroisse La Croix glorieuse.<br><br>Pour ouvrir votre espace personnel, utilisez le lien reçu par mail de la paroisse.'; return; }
   demarrer();
 })();

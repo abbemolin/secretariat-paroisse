@@ -4,7 +4,11 @@ import { api, fichierEnBase64 } from '../api.js'
 import { Chargement, Erreur, Modale, Vide, useCharger, useNotif, useConfirmer, Aide, dateCourte } from '../ui.jsx'
 
 /** Textes publiés dans l'app « Croix glorieuse » et calendrier des catéchumènes / néophytes. */
+import VoirComme from './VoirComme.jsx'
+import { useApp } from '../App.jsx'
+
 export default function Catechumenat() {
+  const { peut } = useApp()
   const [vue, setVue] = useState('textes')
   const { data, erreur, setData } = useCharger(() => api('textes.liste'), [], ['textes.liste', {}])
   const [texte, setTexte] = useState(null)
@@ -15,6 +19,7 @@ export default function Catechumenat() {
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div><h1 className="text-3xl font-semibold">Catéchuménat</h1><p className="text-sm text-nuit-600/80">Textes et calendrier de l'app « Croix glorieuse » (app.croix-glorieuse.org)</p></div>
         <div className="flex gap-2">
+          {peut('utilisateurs') && <VoirComme seulement={['catechumene', 'neophyte', 'parrain']} libelle="Aperçu" />}
           {vue === 'textes' ? <button className="btn-principal" disabled={!data} onClick={() => setTexte({ titre: '', corps: '', cible: data.promotions[1]?.cle || 'tous', liens: [], fichiers: [] })}><Plus className="h-4 w-4" />Nouveau texte</button>
             : <button className="btn-principal" disabled={!data} onClick={() => setEvt({ date: '', heure_debut: '', heure_fin: '', titre: '', lieu: '', cible: data.promotions[1]?.cle || 'tous', note: '' })}><Plus className="h-4 w-4" />Nouvelle date</button>}
           <Aide>Les catéchumènes et néophytes voient ces textes et ces dates dans leur espace personnel (lien envoyé depuis leur dossier). Un nouveau texte déclenche une notification sur leur téléphone.</Aide>

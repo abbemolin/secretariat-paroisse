@@ -24,15 +24,25 @@ h2{font-family:Georgia,serif;color:#521a22;font-size:19px;margin:0 0 10px}
 </style></head>
 <body>
 <div class="entete"><img src="../icon-192.png" alt=""><div><b>Croix glorieuse</b><span id="sous">Paroisse personnelle La Croix glorieuse</span></div></div>
-<main><div id="etat" class="info">Chargement…</div><div id="page"></div></main>
+<main><div id="bandeau-apercu" style="display:none;background:#fff3d6;color:#7a4b00;border-radius:8px;padding:8px 12px;margin:0 0 12px;font-size:13.5px">Aperçu : vous voyez la page d'une marraine fictive. Rien n'est enregistré ni envoyé.</div><div id="etat" class="info">Chargement…</div><div id="page"></div></main>
 <script>
 (function () {
   var URL_SCRIPT = __URL_SCRIPT__;
   var j = new URLSearchParams(location.search).get('p') || '';
+  var APERCU = !!new URLSearchParams(location.search).get('apercu');
+  if (APERCU) j = 'apercu';
   var d = null;
   function $(id) { return document.getElementById(id); }
   function e(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function plus(n) { var x = new Date(); x.setDate(x.getDate() + n); return x.toISOString().slice(0, 10); }
   function appel(action, p) {
+    if (APERCU) return new Promise(function (ok, ko) {
+      setTimeout(function () {
+        if (action === 'par.lire') return ok({ role: 'marraine', nom: 'Sophie Exemple', filleul: 'Marie', filleul_nom: 'Exemple', annee: String(new Date().getFullYear() + (new Date().getMonth() > 4 ? 1 : 0)), baptise: false, cert_le: '',
+          dates: [{ date: plus(80), heure_debut: '15:00', titre: 'Appel décisif', lieu: 'Cathédrale de Strasbourg' }, { date: plus(140), heure_debut: '21:00', titre: 'Vigile pascale – baptême', lieu: 'Église Saint-Louis' }], paroisse: 'Paroisse personnelle La Croix glorieuse' });
+        ko(new Error('Aperçu : rien n\'est enregistré ni envoyé.'));
+      }, 150);
+    });
     p = p || {}; p.p = j;
     return fetch(URL_SCRIPT, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: action, payload: p }) })
       .then(function (r) { return r.json(); }).then(function (r) { if (!r.ok) throw new Error(r.message || 'Erreur'); return r.data; });
@@ -70,6 +80,7 @@ h2{font-family:Georgia,serif;color:#521a22;font-size:19px;margin:0 0 10px}
       rd.readAsDataURL(x);
     };
   }
+  if (APERCU) $('bandeau-apercu').style.display = 'block';
   if (!j) { $('etat').className = 'erreur'; $('etat').textContent = 'Lien incomplet. Utilisez le lien reçu par mail.'; return; }
   appel('par.lire').then(function (r) { d = r; $('etat').style.display = 'none'; if (r.paroisse) $('sous').textContent = r.paroisse; rendre(); })
     .catch(function (er) { $('etat').className = 'erreur'; $('etat').textContent = er.message; });

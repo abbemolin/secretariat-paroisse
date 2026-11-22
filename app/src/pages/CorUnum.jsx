@@ -441,7 +441,11 @@ function Fil({ e, annee, onFermer }) {
   )
 }
 
+import VoirComme from './VoirComme.jsx'
+import { useApp } from '../App.jsx'
+
 function LienChef({ e, annee, chefs, onFermer, onMail }) {
+  const { peut } = useApp()
   const notifier = useNotif()
   const confirmer = useConfirmer()
   const [lien, setLien] = useState('')
@@ -463,6 +467,7 @@ function LienChef({ e, annee, chefs, onFermer, onMail }) {
   return (
     <Modale titre={`Lien du chef — ${e.nom}`} onFermer={onFermer}
       pied={<><button className="btn-clair mr-auto text-red-700" disabled={occupe || !lien} onClick={nouveau}><RefreshCw className="h-4 w-4" />Nouveau lien</button><button className="btn-principal" disabled={!lien || !chefs.some((c) => c.email)} onClick={envoyer}><Mail className="h-4 w-4" />Envoyer au chef</button></>}>
+      {peut('utilisateurs') && <div className="mb-2 flex justify-end"><VoirComme seulement={['chef']} libelle="Aperçu de la page du chef (fictive)" className="btn-clair px-2.5 py-1 text-xs" /></div>}
       <p className="mb-3 text-sm text-nuit-600">Page personnelle du chef, sans compte dans l'appli, protégée par un mot de passe : membres, ajout, corrections, départs, rencontres, mail à l'équipe et messages avec la paroisse.</p>
       {!lien ? <Chargement /> : (
         <div className="flex gap-2"><input className="champ text-xs" readOnly value={lien} onFocus={(ev) => ev.target.select()} /><button className="btn-clair" onClick={copier}><Copy className="h-4 w-4" /></button></div>

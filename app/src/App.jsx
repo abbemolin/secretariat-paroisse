@@ -205,7 +205,7 @@ function Cadre() {
           <div className="flex items-center gap-2"><img src="./logo-128.png" alt="" className="h-8 w-8 rounded-full" /><span className="font-titre text-lg font-semibold">La Croix glorieuse</span></div>
           <div className="flex items-center"><Cloche /><NavLink to="/compte" className="rounded-lg p-2 hover:bg-white/10"><UserCircle className="h-6 w-6" /></NavLink></div>
         </header>
-        {estDemo() && <div className="bg-or-100 px-4 py-1.5 text-center text-xs text-or-600">Mode démonstration — données fictives, rien n'est envoyé.</div>}
+        {estDemo() && <div className="bg-or-100 px-4 py-1.5 text-center text-xs text-or-600">{({ secretaire: 'Aperçu : vous voyez l\'appli comme une secrétaire. ', cure: 'Aperçu : vous voyez l\'appli comme un prêtre. ' })[new URLSearchParams(location.search).get('role')] || 'Mode démonstration — '}Données fictives, rien n'est enregistré ni envoyé.</div>}
 
         <main className="flex-1 overflow-y-auto px-4 pb-24 pt-5 sm:px-6 lg:px-10 lg:pb-10 lg:pt-8">
           <div className="mx-auto max-w-6xl">

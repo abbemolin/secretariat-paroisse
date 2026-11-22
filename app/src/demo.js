@@ -185,7 +185,8 @@ const attendre = () => new Promise((r) => setTimeout(r, 200))
 
 export async function demoApi(action, p) {
   await attendre()
-  const moi = etat.utilisateurs[0]
+  const role = new URLSearchParams(location.search).get('role')
+  const moi = etat.utilisateurs.find((u) => u.role === role) || etat.utilisateurs[0]
   switch (action) {
     case 'auth.login': return { token: 'demo', utilisateur: pub(moi) }
     case 'app.init': return { utilisateur: pub(moi), utilisateurs: etat.utilisateurs.map(({ id, nom, role }) => ({ id, nom, role })), reglages: etat.reglages, signatures: etat.signatures, reponses: etat.reponses, nonLues: etat.notifications.filter((n) => !n.lu).length }

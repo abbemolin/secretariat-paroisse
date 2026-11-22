@@ -12,6 +12,7 @@ export const urlApiFixe = () => !!URL_BUILD
 export function definirUrlApi(url) { localStorage.setItem(CLE_URL, url.trim()); kvEcrire('apiUrl', url.trim()) }
 export const lireToken = () => localStorage.getItem(CLE_TOKEN)
 export function ecrireToken(t) {
+  if (estDemo()) return   // l'aperçu ne touche pas à la connexion réelle
   if (t) localStorage.setItem(CLE_TOKEN, t); else { localStorage.removeItem(CLE_TOKEN); viderCache() }
   kvEcrire('token', t || '')
   kvEcrire('apiUrl', urlApi())
@@ -28,12 +29,14 @@ const CACHE = new Map()
 const cleCache = (action, payload) => 'cache:' + action + ':' + JSON.stringify(payload || {})
 /** Dernière réponse connue (ou undefined). */
 export function enCache(action, payload) {
+  if (estDemo()) return undefined   // l'aperçu ne lit ni n'écrit le cache de la vraie session
   const k = cleCache(action, payload)
   if (CACHE.has(k)) return CACHE.get(k)
   try { const v = sessionStorage.getItem(k) ?? localStorage.getItem(k); if (v) { const x = JSON.parse(v); CACHE.set(k, x); return x } } catch { /* ignore */ }
   return undefined
 }
 function memoriser(action, payload, data) {
+  if (estDemo()) return
   const k = cleCache(action, payload)
   CACHE.set(k, data)
   try {
