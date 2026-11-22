@@ -29,7 +29,7 @@ label{display:block;font-size:13px;color:#6b5b55;margin:10px 0 4px}
 .ok{background:#e8f5ec;color:#1d5e33;border-radius:8px;padding:10px 12px;margin:10px 0}
 .nav{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid #eee2d8;display:flex;padding-bottom:env(safe-area-inset-bottom);z-index:5}
 .nav button{flex:1;background:none;border:0;padding:9px 2px 8px;font-size:11.5px;color:#7a6a64;cursor:pointer;position:relative}
-.nav button b{display:block;font-size:21px;line-height:1.1;margin-bottom:2px;font-weight:400}
+.nav button b{display:flex;justify-content:center;line-height:1;margin-bottom:3px;font-weight:400}
 .nav button.actif{color:#521a22;font-weight:600}
 .pastille{position:absolute;top:5px;left:calc(50% + 8px);background:#d08c4c;color:#fff;border-radius:999px;font-size:10.5px;padding:1px 6px}
 .etape{display:flex;gap:12px;align-items:flex-start;padding:8px 0}
@@ -45,6 +45,45 @@ label{display:block;font-size:13px;color:#6b5b55;margin:10px 0 4px}
 .piece{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid #f1e8e1}.piece:first-of-type{border-top:0}
 .piece span{flex:1}
 .cache{display:none}
+.reglages-btn{background:none;border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:10px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none}
+.reglages-btn.cache{display:none}
+#demarrage{position:fixed;inset:0;z-index:50;background:#521a22;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#fff;transition:opacity .45s ease}
+#demarrage img{width:96px;height:96px;border-radius:50%;background:#fff;box-shadow:0 6px 24px rgba(0,0,0,.25);animation:respire 1.6s ease-in-out infinite}
+#demarrage b{font-family:Georgia,serif;font-size:24px;letter-spacing:.02em}
+#demarrage.fini{opacity:0;pointer-events:none}
+@keyframes respire{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+#page.entree{animation:entree .28s ease-out}
+@keyframes entree{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){#page.entree,#demarrage img{animation:none}}
+.bonjour{display:flex;gap:14px;align-items:center}
+.bonjour img{width:64px;height:64px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 2px 10px rgba(82,26,34,.18);flex:none}
+.fete{font-size:13.5px;color:#7a6a64;font-style:italic;margin-top:2px}
+.fete i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px;border:1px solid rgba(0,0,0,.2)}
+.rebours{display:flex;align-items:center;gap:14px;background:linear-gradient(135deg,#faf3ea,#f6e7d3);border-radius:12px;padding:12px 14px;margin-top:12px}
+.rebours b{font-family:Georgia,serif;font-size:34px;color:#521a22;line-height:1}
+.choix3{display:flex;gap:6px;flex-wrap:wrap}.choix3 button{flex:1;min-width:80px;border:1px solid #e6d8cc;background:#fff;border-radius:10px;padding:10px 6px;font:inherit;font-size:14px;color:#521a22;cursor:pointer}
+.choix3 button.actif{background:#521a22;color:#fff;border-color:#521a22}
+.interrupteur{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid #f1e8e1;cursor:pointer}.interrupteur:first-of-type{border-top:0}
+.interrupteur{font-size:15px;color:#2b2224;margin:0}.interrupteur span{flex:1}.interrupteur input{width:44px;height:24px;appearance:none;-webkit-appearance:none;background:#d9cfc8;border-radius:999px;position:relative;cursor:pointer;flex:none;padding:0;border:0;transition:background .2s}
+.interrupteur input::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .2s}
+.interrupteur input:checked{background:#521a22}.interrupteur input:checked::after{left:23px}
+main.t0{zoom:.9}
+/* Thème sombre */
+html.sombre,html.sombre body{background:#1c1517;color:#eee5e1}
+html.sombre .carte,html.sombre .cg-jour,html.sombre .bb,html.sombre .bb-barre{background:#2a2023;box-shadow:none}
+html.sombre h1,html.sombre h2,html.sombre .bb-texte h3,html.sombre .cg-titre,html.sombre .cg-num{color:#f0c9a8}
+html.sombre .petit,html.sombre .fete,html.sombre .cg-fetes{color:#b9aaa4}
+html.sombre input,html.sombre textarea,html.sombre select{background:#1f1719;border-color:#4a3a3e;color:#eee5e1}
+html.sombre .nav{background:#241b1e;border-top-color:#3a2d31}html.sombre .nav button{color:#b9aaa4}html.sombre .nav button.actif{color:#f0c9a8}
+html.sombre .bouton,html.sombre .choix3 button,html.sombre .taille button,html.sombre .bb-b,html.sombre .bb-livre,html.sombre .bb-livres button,html.sombre .bb-onglets button,html.sombre .cg-nav,html.sombre .cg-filtre button{background:#2f2427;color:#f0c9a8;border-color:#4a3a3e}
+html.sombre .principal,html.sombre .choix3 button.actif,html.sombre .bb-b.actif,html.sombre .bb-onglets button.actif,html.sombre .cg-filtre button[aria-pressed=true]{background:#8c2f3c!important;color:#fff!important;border-color:#8c2f3c!important}
+html.sombre .info,html.sombre .rebours,html.sombre .date,html.sombre .horsligne,html.sombre .membres span,html.sombre .reponse,html.sombre .bb-panneau,html.sombre .cg-liste li.perso,html.sombre .bb-v.fav{background:#33272a;color:#eee5e1}
+html.sombre .ok{background:#1f3326;color:#bfe3c9}html.sombre .erreur{background:#3a2020;color:#f3c1bb}
+html.sombre .bb-texte,html.sombre .cg-jour,html.sombre .cg-liste{color:#eee5e1}
+html.sombre .evenement,html.sombre .texte,html.sombre .piece,html.sombre .parrain,html.sombre .sig,html.sombre .interrupteur,html.sombre .cg-liste li,html.sombre .bb-res,html.sombre .bb-etat{border-color:#3a2d31}
+html.sombre .rebours b,html.sombre .date{color:#f0c9a8}
+html.sombre .interrupteur{color:#eee5e1}
+html.sombre a,html.sombre .lien{color:#e0a46e}
 main.t2{zoom:1.15}main.t3{zoom:1.3}
 .taille{display:flex;align-items:center;gap:6px;justify-content:flex-end;margin:-4px 0 8px}
 .taille button{border:1px solid #e6d8cc;background:#fff;color:#521a22;border-radius:8px;padding:4px 10px;cursor:pointer;font-weight:bold}
@@ -59,14 +98,15 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
 .reponse{background:#f6f1ec;border-radius:8px;padding:8px 10px;margin-top:6px;font-size:14.5px}
 </style></head>
 <body>
-<div class="entete"><img src="icon-192.png" alt=""><div><b>Croix glorieuse</b><span id="sous">Paroisse personnelle La Croix glorieuse</span></div></div>
+<div class="entete"><img src="icon-192.png" alt=""><div style="flex:1;min-width:0"><b>Croix glorieuse</b><span id="sous">Paroisse personnelle La Croix glorieuse</span></div><button id="btn-reglages" class="reglages-btn cache" data-vue="reglages" aria-label="Réglages"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button></div>
+<div id="demarrage"><img src="icon-192.png" alt=""><b>Croix glorieuse</b></div>
 <main><div id="bandeau-apercu" class="cache" style="background:#fff3d6;color:#7a4b00;border-radius:8px;padding:8px 12px;margin:0 0 12px;font-size:13.5px">Aperçu : vous voyez l'app comme <b id="apercu-qui"></b> fictif. Rien n'est enregistré ni envoyé.</div><div id="etat" class="info">Chargement…</div><div id="page"></div></main>
 <nav class="nav cache" id="nav">
-  <button data-vue="accueil" class="actif"><b>⌂</b>Accueil</button>
-  <button data-vue="textes"><b>✎</b>Textes<span class="pastille cache" id="nbn"></span></button>
-  <button data-vue="bible"><b>✝</b>Bible</button>
-  <button data-vue="calendrier"><b>▦</b>Calendrier</button>
-  <button data-vue="dossier"><b>☰</b>Mon dossier</button>
+  <button data-vue="accueil" class="actif"><b><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M10 21v-6h4v6"/></svg></b>Accueil</button>
+  <button data-vue="textes"><b><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/><path d="M10 13h6M10 17h6"/></svg></b>Textes<span class="pastille cache" id="nbn"></span></button>
+  <button data-vue="bible"><b><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v16H6.5A1.5 1.5 0 0 0 5 20.5z"/><path d="M5 20.5A1.5 1.5 0 0 0 6.5 22H19v-3"/><path d="M12 7v7M9.5 9.5h5"/></svg></b>Bible</button>
+  <button data-vue="calendrier"><b><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M8 14h2M14 14h2M8 17.5h2"/></svg></b>Calendrier</button>
+  <button data-vue="dossier"><b><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 21c1.2-4 4.2-6 7.5-6s6.3 2 7.5 6"/></svg></b>Mon dossier</button>
 </nav>
 <script src="agenda.js"></script>
 <script src="bible.js"></script>
@@ -84,7 +124,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
   var APERCU = q.get('apercu') === 'neophyte' ? 'neophyte' : q.get('apercu') ? 'catechumene' : '';
   if (APERCU) c = 'apercu';
   else try { if (c) { localStorage.setItem('esp_c', c); history.replaceState(null, '', location.pathname); } else c = localStorage.getItem('esp_c') || ''; } catch (x) {}
-  var d = null, vue = 'accueil', ouvert = null, acces = null, etape = 'mdp', mailCode = '', brouillon = null, installer = null, signale = null, sigTexte = '', lettreB = null, horsLigne = false, taille = 1, ajoutParrain = false, retraitParrain = null, demandeCor = false;
+  var d = null, vue = 'accueil', ouvert = null, acces = null, etape = 'mdp', mailCode = '', brouillon = null, installer = null, signale = null, sigTexte = '', lettreB = null, horsLigne = false, taille = 1, ajoutParrain = false, retraitParrain = null, demandeCor = false, theme = 'auto', fete = null;
   function $(id) { return document.getElementById(id); }
   function e(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   function liens(t) { return e(t).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>'); }
@@ -143,6 +183,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
 
   // ─── Connexion ───
   function ecranConnexion() {
+    finDemarrage();
     $('nav').classList.add('cache'); $('etat').style.display = 'none';
     var h = '<div class="carte"><h1>Bonjour' + (acces && acces.prenom ? ' ' + e(acces.prenom) : '') + '</h1>';
     if (etape === 'mdp' && acces.mot_de_passe) {
@@ -193,10 +234,20 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     try { var b = d.bapteme && d.bapteme.date; if (b && 'caches' in window) caches.open('croix-glorieuse-infos').then(function (k) { k.put('anniv', new Response(String(b).slice(5, 10))); }); } catch (x) {}
   }
   // ─── Taille du texte (retenue sur le téléphone) ───
-  try { taille = Number(localStorage.getItem('esp_taille')) || 1; } catch (x) {}
-  function appliquerTaille() { var m = document.querySelector('main'); m.classList.remove('t2', 't3'); if (taille > 1) m.classList.add('t' + taille); }
+  try { var t0 = localStorage.getItem('esp_taille'); taille = t0 === null ? 1 : Number(t0); if (!(taille >= 0 && taille <= 3)) taille = 1; } catch (x) {}
+  function appliquerTaille() { var m = document.querySelector('main'); m.classList.remove('t0', 't2', 't3'); if (taille !== 1) m.classList.add('t' + taille); }
+  // Thème : clair, sombre ou comme le téléphone
+  try { theme = localStorage.getItem('esp_theme') || 'auto'; } catch (x) {}
+  var mqSombre = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+  function appliquerTheme() {
+    var sombre = theme === 'sombre' || (theme === 'auto' && mqSombre && mqSombre.matches);
+    document.documentElement.classList.toggle('sombre', !!sombre);
+    var m = document.querySelector('meta[name=theme-color]'); if (m) m.content = sombre ? '#2a1216' : '#521a22';
+  }
+  appliquerTheme();
+  if (mqSombre && mqSombre.addEventListener) mqSombre.addEventListener('change', appliquerTheme);
   appliquerTaille();
-  function blocTaille() { return '<div class="taille"><span class="petit">Taille du texte</span><button data-a="taille-moins" ' + (taille <= 1 ? 'disabled' : '') + ' aria-label="Texte plus petit">A−</button><button data-a="taille-plus" ' + (taille >= 3 ? 'disabled' : '') + ' aria-label="Texte plus grand">A+</button></div>'; }
+  function blocTaille() { return '<div class="taille"><span class="petit">Taille du texte</span><button data-a="taille-moins" ' + (taille <= 0 ? 'disabled' : '') + ' aria-label="Texte plus petit">A−</button><button data-a="taille-plus" ' + (taille >= 3 ? 'disabled' : '') + ' aria-label="Texte plus grand">A+</button></div>'; }
   // ─── Hors connexion : dernière vue gardée, seulement les textes déjà ouverts ───
   function ouvertsLocaux() { try { return JSON.parse(localStorage.getItem('esp_ouverts_' + c) || '[]'); } catch (x) { return []; } }
   function noterOuvert(id) { try { var l = ouvertsLocaux(); if (l.indexOf(id) === -1) { l.push(id); localStorage.setItem('esp_ouverts_' + c, JSON.stringify(l)); } } catch (x) {} }
@@ -255,11 +306,67 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     return h + '<div id="zpr" style="display:none"></div></div>';
   }
 
+  function sansAccents(t) { return String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim(); }
+  function salutation() { var h = Number(new Intl.DateTimeFormat('fr-FR', { hour: 'numeric', hour12: false, timeZone: 'Europe/Paris' }).format(new Date())); return h >= 18 || h < 4 ? 'Bonsoir' : 'Bonjour'; }
+  // Pâques (calendrier grégorien) ; la Vigile pascale est la veille au soir
+  function paques(a) { var b = a % 19, c = Math.floor(a / 100), dd = a % 100, e1 = Math.floor(c / 4), f = c % 4, g = Math.floor((c + 8) / 25), h = Math.floor((c - g + 1) / 3), k = (19 * b + c - e1 - h + 15) % 30, l = Math.floor(dd / 4), m = dd % 4, n = (32 + 2 * f + 2 * l - k - m) % 7, o = Math.floor((b + 11 * k + 22 * n) / 451), mois = Math.floor((k + n - 7 * o + 114) / 31), jr = ((k + n - 7 * o + 114) % 31) + 1; return new Date(a, mois - 1, jr); }
+  function joursEntre(a, b) { return Math.round((Date.UTC(b.getFullYear(), b.getMonth(), b.getDate()) - Date.UTC(a.getFullYear(), a.getMonth(), a.getDate())) / 86400000); }
+  function rebours() {
+    var auj = new Date();
+    if (d.neophyte) {
+      var db = (d.bapteme && d.bapteme.date) || ((d.etapes.sacrements || {}).date || '').slice(0, 10);
+      if (!db) return '';
+      var n = joursEntre(new Date(db + 'T12:00:00'), auj);
+      return n >= 0 ? '<div class="rebours"><b>' + n + '</b><div>jour' + (n > 1 ? 's' : '') + ' depuis votre baptême<div class="petit">' + e(jour(db, { day: 'numeric', month: 'long', year: 'numeric' })) + '</div></div></div>' : '';
+    }
+    if (!/^\d{4}$/.test(d.annee || '')) return '';
+    var v = paques(Number(d.annee)); v.setDate(v.getDate() - 1);
+    var n2 = joursEntre(auj, v);
+    if (n2 < 0) return '';
+    return '<div class="rebours"><b>' + (n2 === 0 ? '🕯️' : n2) + '</b><div>' + (n2 === 0 ? 'C\'est ce soir : la Vigile pascale !' : n2 === 1 ? 'jour avant votre baptême' : 'jours avant votre baptême') + '<div class="petit">Vigile pascale, ' + e(v.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })) + '</div></div></div>';
+  }
+  // Fête liturgique du jour (calendrier de l'AppMesse)
+  var APP_MESSE = 'https://abbemolin.github.io/appMesse/', COULEURS_LIT = { blanc: '#f4f1e8', rouge: '#b3202e', vert: '#2e7d4a', violet: '#6b3a8c', rose: '#e39ab1', noir: '#222' };
+  function chargerFete() {
+    var j = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    var cal = null;
+    try { var c0 = JSON.parse(sessionStorage.getItem('cg-cal') || 'null'); if (c0 && c0.t > Date.now() - 6 * 3600000) cal = c0.d; } catch (x) {}
+    var titres = new Promise(function (ok) { if (window.titreFrancais) return ok(); var sc = document.createElement('script'); sc.src = APP_MESSE + 'titres.js'; sc.onload = sc.onerror = function () { ok(); }; document.head.appendChild(sc); });
+    (cal ? Promise.resolve(cal) : fetch(APP_MESSE + 'data/messe/calendrier.json').then(function (r) { return r.ok ? r.json() : {}; }).then(function (x) { try { sessionStorage.setItem('cg-cal', JSON.stringify({ t: Date.now(), d: x })); } catch (y) {} return x; }))
+      .then(function (calx) { return titres.then(function () { return calx; }); })
+      .then(function (calx) {
+        var c = calx && calx[j]; if (!c) return;
+        var t = c.titre_fr || c.titre; t = window.titreFrancais ? window.titreFrancais(t) : t;
+        fete = { titre: t, couleur: COULEURS_LIT[sansAccents(c.couleur)] || '#ddd' };
+        if (d && vue === 'accueil' && !horsLigne) rendre();
+      }).catch(function () {});
+  }
+  function blocInstallerCourt() {
+    var standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+    if (standalone) return '';
+    return '<div class="carte"><p class="petit" style="margin:0">Installez l\'application sur votre téléphone et activez les notifications : <button class="lien" data-vue="reglages" style="padding:0">Réglages</button>.</p></div>';
+  }
+  // ─── Réglages personnels ───
+  function pageReglages() {
+    var n = d.notifs || { textes: true, reponses: true, anniversaire: true };
+    var inter = function (k, libelle, aide) { return '<label class="interrupteur"><span>' + e(libelle) + (aide ? '<span class="petit" style="display:block">' + e(aide) + '</span>' : '') + '</span><input type="checkbox" data-notif="' + k + '"' + (n[k] ? ' checked' : '') + '></label>'; };
+    return '<button class="lien" data-vue="accueil">← Retour</button>' +
+      '<div class="carte"><h2>Taille du texte</h2><div class="choix3">' + ['Petit', 'Normal', 'Grand', 'Très grand'].map(function (l, k) { return '<button data-taille="' + k + '" class="' + (taille === k ? 'actif' : '') + '" style="font-size:' + [13, 15, 17, 19][k] + 'px">' + l + '</button>'; }).join('') + '</div></div>' +
+      '<div class="carte"><h2>Apparence</h2><div class="choix3">' + [['clair', 'Clair'], ['sombre', 'Sombre'], ['auto', 'Comme le téléphone']].map(function (x) { return '<button data-theme="' + x[0] + '" class="' + (theme === x[0] ? 'actif' : '') + '">' + x[1] + '</button>'; }).join('') + '</div></div>' +
+      '<div class="carte"><h2>Notifications</h2>' +
+      inter('textes', 'Nouveaux textes de la paroisse') + inter('reponses', 'Réponses de la paroisse', 'Quand une erreur que vous avez signalée est corrigée') +
+      (d.neophyte ? inter('anniversaire', 'Anniversaire de baptême') : '') + '<div id="znr" style="display:none"></div></div>' +
+      blocApp();
+  }
   function pageAccueil() {
     var i = prochaineEtape(), nouveaux = d.textes.filter(function (t) { return !t.lu; });
-    var h = (d.anniversaire ? '<div class="carte" style="background:#fdf6e8;border:1px solid #ecd3a6"><h2>🕯️ Joyeux anniversaire de baptême !</h2><div class="corps">' + e(d.anniversaire.texte) + '</div></div>' : '') + '<div class="carte"><h1>Bonjour ' + e(d.prenom) + '</h1>' +
-      (d.neophyte ? '<p>Vous avez reçu le baptême' + (d.annee ? ' à Pâques ' + e(d.annee) : '') + '. Bienvenue dans la famille des enfants de Dieu !</p>'
-        : '<p>' + (d.annee ? 'Votre baptême est prévu à la Vigile pascale ' + e(d.annee) + '.' : 'Vous cheminez vers le baptême.') + '</p>' + (i > -1 ? '<div class="info">Prochaine étape : <b>' + e(ETAPES[i][1]) + '</b></div>' : '')) +
+    var h = (d.anniversaire ? '<div class="carte" style="background:#fdf6e8;border:1px solid #ecd3a6"><h2>🕯️ Joyeux anniversaire de baptême !</h2><div class="corps">' + e(d.anniversaire.texte) + '</div></div>' : '') +
+      '<div class="carte"><div class="bonjour">' + (d.photo ? '<img src="' + e(d.photo) + '" alt="">' : '') + '<div><h1 style="margin:0">' + salutation() + ' ' + e(d.prenom) +
+      (d.infos.prenom_bapteme && sansAccents(d.infos.prenom_bapteme) !== sansAccents(d.prenom) ? ' <span style="font-weight:normal;font-size:.75em">(' + e(d.infos.prenom_bapteme) + ')</span>' : '') + '</h1>' +
+      (fete ? '<div class="fete"><i style="background:' + fete.couleur + '"></i>' + e(fete.titre) + '</div>' : '') + '</div></div>' +
+      rebours() +
+      (d.neophyte ? '<p>Bienvenue dans la famille des enfants de Dieu !</p>'
+        : (d.annee ? '' : '<p>Vous cheminez vers le baptême.</p>') + (i > -1 ? '<div class="info">Prochaine étape : <b>' + e(ETAPES[i][1]) + '</b></div>' : '')) +
       (d.accompagnateur ? '<p class="petit">Accompagnement : ' + e(d.accompagnateur) + '</p>' : '') + '</div>';
     if (nouveaux.length) h += '<div class="carte"><h2>Nouveau' + (nouveaux.length > 1 ? 'x textes' : ' texte') + '</h2>' + nouveaux.slice(0, 3).map(ligneTexte).join('') + '</div>';
     if (d.calendrier.length) h += '<div class="carte"><h2>Prochainement</h2>' + d.calendrier.slice(0, 2).map(carteEvenement).join('') + '</div>';
@@ -273,7 +380,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
       var f = d.etapes[x[0]] && d.etapes[x[0]].fait;
       return '<div class="etape"><div class="rond ' + (f ? 'fait' : k === i ? 'prochaine' : '') + '">' + (f ? '✓' : k + 1) + '</div><div>' + e(x[1]) + (f && d.etapes[x[0]].date ? '<div class="petit">' + e(jour(d.etapes[x[0]].date, { day: 'numeric', month: 'long', year: 'numeric' })) + '</div>' : '') + '</div></div>';
     }).join('') + blocSignaler('Mon parcours') + '</div>';
-    h += blocApp();
+    h += blocInstallerCourt();
     return h;
   }
   function ligneTexte(t) {
@@ -377,7 +484,9 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
       if (vue === 'bible') placerBible();
       return;
     }
-    $('page').innerHTML = vue === 'textes' ? pageTextes() : vue === 'calendrier' ? pageCalendrier() : vue === 'bible' ? pageBible() : vue === 'dossier' ? pageDossier() : pageAccueil();
+    $('btn-reglages').classList.remove('cache');
+    var pg = $('page'); if (pg.dataset.vue !== vue) { pg.classList.remove('entree'); void pg.offsetWidth; pg.classList.add('entree'); pg.dataset.vue = vue; }
+    $('page').innerHTML = vue === 'textes' ? pageTextes() : vue === 'calendrier' ? pageCalendrier() : vue === 'bible' ? pageBible() : vue === 'dossier' ? pageDossier() : vue === 'reglages' ? pageReglages() : pageAccueil();
     if (vue === 'calendrier') placerAgenda();
     if (vue === 'bible') placerBible();
   }
@@ -387,6 +496,12 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     var rb = ev.target.closest('a.bible-ref');
     if (rb) { ev.preventDefault(); var pr = rb.dataset.bible.split('|'); vue = 'bible'; ouvert = null; rendre(); window.scrollTo(0, 0); if (bible) bible.ouvrir(pr[0], pr[1], pr[2], pr[3] || pr[2]); return; }
     if (ev.target.closest('.bb')) return;
+    var rg = ev.target.closest('[data-taille],[data-theme]');
+    if (rg) {
+      if (rg.dataset.taille !== undefined) { taille = Number(rg.dataset.taille); try { localStorage.setItem('esp_taille', taille); } catch (x) {} appliquerTaille(); }
+      else { theme = rg.dataset.theme; try { localStorage.setItem('esp_theme', theme); } catch (x) {} appliquerTheme(); }
+      rendre(); return;
+    }
     var b = ev.target.closest('[data-vue],[data-a],[data-texte],[data-fichier]'); if (!b) return;
     if (b.dataset.vue) { vue = b.dataset.vue; ouvert = null; signale = null; ajoutParrain = false; retraitParrain = null; demandeCor = false; rendre(); window.scrollTo(0, 0); return; }
     if (b.dataset.texte) {
@@ -418,7 +533,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
         .catch(function (er) { b.disabled = false; message('zac', er.message); });
       return;
     }
-    if (a === 'taille-plus' || a === 'taille-moins') { taille = Math.max(1, Math.min(3, taille + (a === 'taille-plus' ? 1 : -1))); try { localStorage.setItem('esp_taille', taille); } catch (x) {} appliquerTaille(); rendre(); return; }
+    if (a === 'taille-plus' || a === 'taille-moins') { taille = Math.max(0, Math.min(3, taille + (a === 'taille-plus' ? 1 : -1))); try { localStorage.setItem('esp_taille', taille); } catch (x) {} appliquerTaille(); rendre(); return; }
     if (a === 'cor-demande') { demandeCor = true; rendre(); var tp = $('corprefs'); if (tp) tp.focus(); return; }
     if (a === 'cor-annuler') { demandeCor = false; rendre(); return; }
     if (a === 'cor-envoyer') {
@@ -485,6 +600,12 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
   });
   document.addEventListener('input', function (ev) { if (ev.target.id === 'sigtexte') sigTexte = ev.target.value; if (ev.target.id === 'lettre') lettreB = ev.target.value; var k = ev.target.dataset && ev.target.dataset.k; if (k && brouillon) brouillon[k] = ev.target.value; });
   document.addEventListener('change', function (ev) {
+    var nk = ev.target.dataset && ev.target.dataset.notif;
+    if (nk) {
+      var o = {}; o[nk] = ev.target.checked;
+      appel('esp.prefs', { notifs: o }).then(function (r) { d = r; }).catch(function (er) { ev.target.checked = !ev.target.checked; message('znr', er.message); });
+      return;
+    }
     var k = ev.target.dataset && ev.target.dataset.k; if (k && brouillon) brouillon[k] = ev.target.value;
     var piece = ev.target.dataset && ev.target.dataset.piece; if (!piece) return;
     var f = ev.target.files[0]; if (!f) return;
@@ -523,9 +644,11 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
 
   function charger() {
     $('etat').style.display = 'block'; $('etat').className = 'info'; $('etat').textContent = 'Chargement…';
-    appel('esp.lire').then(function (r) { d = r; horsLigne = false; brouillon = null; $('etat').style.display = 'none'; garderHorsLigne(); rendre(); })
+    appel('esp.lire').then(function (r) { d = r; horsLigne = false; brouillon = null; $('etat').style.display = 'none'; garderHorsLigne(); rendre(); finDemarrage(); chargerFete(); })
       .catch(function (er) { if (er.code === 'SESSION') return; if (!er.code && reprendreHorsLigne()) return; $('etat').className = 'erreur'; $('etat').textContent = er.message; });
   }
+  function finDemarrage() { var z = $('demarrage'); if (z && !z.classList.contains('fini')) { z.classList.add('fini'); setTimeout(function () { z.remove(); }, 500); } }
+  setTimeout(finDemarrage, 2500);   // au plus tard (connexion lente, écran de mot de passe…)
   function demarrer() {
     $('page').innerHTML = '';
     appel('esp.etat').then(function (r) { acces = r; if (r.session) charger(); else { etape = 'mdp'; ecranConnexion(); } })

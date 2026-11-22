@@ -6,7 +6,7 @@
  * les textes publiés pour elle. Notification sur le téléphone à chaque nouveau texte.
  */
 
-var COLONNES_ESPACES = ['dossier_id', 'jeton', 'hash', 'sel', 'mdp_maj', 'cree_le', 'derniere_visite'];
+var COLONNES_ESPACES = ['dossier_id', 'jeton', 'hash', 'sel', 'mdp_maj', 'cree_le', 'derniere_visite', 'prefs'];
 var COLONNES_TEXTES = ['id', 'cree_le', 'auteur', 'titre', 'corps', 'cible', 'fichiers', 'liens', 'lus', 'maj_le'];
 var COLONNES_CALENDRIER = ['id', 'date', 'heure_debut', 'heure_fin', 'titre', 'lieu', 'cible', 'note', 'parrains'];
 var ESPACE_SESSION_JOURS = 90;
@@ -51,7 +51,7 @@ function lignesCal_() {
   }
   return res;
 }
-function feuillesEspace_() { feuilleEsp_('Espaces', COLONNES_ESPACES); feuilleEsp_('Textes', COLONNES_TEXTES); completerColonnes_(feuilleEsp_('CalendrierCate', COLONNES_CALENDRIER), COLONNES_CALENDRIER); }
+function feuillesEspace_() { completerColonnes_(feuilleEsp_('Espaces', COLONNES_ESPACES), COLONNES_ESPACES); feuilleEsp_('Textes', COLONNES_TEXTES); completerColonnes_(feuilleEsp_('CalendrierCate', COLONNES_CALENDRIER), COLONNES_CALENDRIER); }
 function urlEspace_(jeton) { return 'https://app.croix-glorieuse.org/?c=' + jeton; }
 
 // ─── Promotion d'un dossier (pour les textes et le calendrier) ───
@@ -253,6 +253,15 @@ function actionEspace_(action, p) {
     demanderActe_(d, p.motif);
     return vueEspace_(trouverDossier_(d.id));
   }
+  if (action === 'esp.prefs') {
+    verrou_(function () {
+      var x = lignes_('Espaces').filter(function (y) { return y.dossier_id === esp.dossier_id; })[0];
+      var pr = json2_(x.prefs, {});
+      ['textes', 'reponses', 'anniversaire'].forEach(function (k) { if (p.notifs && typeof p.notifs[k] === 'boolean') pr[k] = p.notifs[k]; });
+      x.prefs = JSON.stringify(pr); ecrireLigne_('Espaces', x);
+    });
+    return vueEspace_(d);
+  }
   if (action === 'esp.lu') {
     verrou_(function () {
       var t = lignes_('Textes').filter(function (y) { return y.id === p.texte; })[0];
@@ -312,6 +321,7 @@ function vueEspace_(d) {
     lettre: { texte: l.texte || '', statut: l.statut || '', remarque: l.remarque || '', validee_le: l.validee_le || '' },
     signalements: (don.signalements || []).slice(-30).reverse().map(function (z) { return { id: z.id, date: z.date, sujet: z.sujet, texte: z.texte, statut: z.statut, reponse: z.reponse || '', traite_le: z.traite_le || '' }; }),
     photo: photoMini_(d),
+    notifs: prefsNotifsEspace_(d.id),
     bapteme: pr.neo ? { date: dateBapteme_(d), lieu: [i.lieu_celebration, i.commune_celebration].filter(Boolean).join(', '), prenom_bapteme: i.prenom_bapteme || '', actes: actesEspace_(d), motifs: MOTIFS_ACTE, mail: mailDossier_(d) ? masquerMail_(mailDossier_(d)) : '' } : null,
     anniversaire: (function () { var n = pr.neo ? anniversaireDuJour_(d) : 0; return n ? { annees: n, texte: texteAnniversaire_(d, n) } : null; })(),
     parrains: (don.parrains || []).map(function (z) { return parrainVue_(z, true); }), fraternite: frat,
@@ -523,7 +533,7 @@ function signalementEspace_(p, s) {
     }
     d.donnees = JSON.stringify(don); d.maj_le = maintenant_(); d.maj_par = s.nom;
     ecrireLigne_('Dossiers', d);
-    if (aPrevenir) try { envoyerPush_('esp:' + d.id); } catch (e) {}   // « Du nouveau dans votre espace » sur son téléphone
+    if (aPrevenir) pushEspace_(d.id, 'reponses');   // « Du nouveau dans votre espace » sur son téléphone
   });
   return etatEspace_(p);
 }
@@ -619,7 +629,7 @@ function ecrireTexte_(p, s) {
   });
   if (nouveau) {
     journaliser_(s, 'Texte publié', t.titre + ' → ' + libelleCible_(t.cible));
-    destinatairesCible_(t.cible).forEach(function (d) { try { envoyerPush_('esp:' + d.id); } catch (e) {} });
+    destinatairesCible_(t.cible).forEach(function (d) { pushEspace_(d.id, 'textes'); });
   }
   return listerTextes_();
 }
@@ -730,7 +740,7 @@ function anniversairesBapteme() {
   lignes_('Dossiers').filter(function (d) { return d.type === 'catechumene' && d.etat !== 'annule'; }).forEach(function (d) {
     var n = anniversaireDuJour_(d, auj);
     if (!n) return;
-    try { envoyerPush_('esp:' + d.id); } catch (e) {}
+    pushEspace_(d.id, 'anniversaire');
     var m = mailDossier_(d);
     if (m) try {
       var t = texteAnniversaire_(d, n);
@@ -760,4 +770,15 @@ function reglagesCatechumenatRoute_(p, s) {
   res.prochains = proch.sort(function (a, b) { return a.date.localeCompare(b.date); });
   res.defaut = ANNIV_DEFAUT;
   return res;
+}
+
+// ─── Notifications de l'espace, par sorte (réglages de la personne) ───
+function prefsNotifsEspace_(id) {
+  var x = null;
+  try { x = lignes_('Espaces').filter(function (y) { return y.dossier_id === id; })[0]; } catch (e) {}
+  var pr = json2_(x && x.prefs, {});
+  return { textes: pr.textes !== false, reponses: pr.reponses !== false, anniversaire: pr.anniversaire !== false };
+}
+function pushEspace_(id, sorte) {
+  try { if (prefsNotifsEspace_(id)[sorte] === false) return; envoyerPush_('esp:' + id); } catch (e) {}
 }
