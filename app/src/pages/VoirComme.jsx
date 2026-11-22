@@ -6,7 +6,7 @@ import { Modale } from '../ui.jsx'
 const APP = 'https://app.croix-glorieuse.org/'
 const base = () => location.origin + location.pathname
 export const APERCUS = [
-  { cle: 'catechumene', titre: 'Un catéchumène', texte: "Son app « Croix glorieuse » : accueil, textes, Bible, calendrier, mon dossier", url: () => APP + '?apercu=catechumene' },
+  { cle: 'catechumene', titre: 'Un catéchumène', texte: "Son app « La Croix glorieuse » : accueil, textes, Bible, calendrier, mon dossier", url: () => APP + '?apercu=catechumene' },
   { cle: 'neophyte', titre: 'Un néophyte', texte: 'La même app après le baptême', url: () => APP + '?apercu=neophyte' },
   { cle: 'chef', titre: 'Un chef de fraternité', texte: 'La page du chef : membres, rencontres, messages, inviter', url: () => base() + 'fraternite/?apercu=1' },
   { cle: 'parrain', titre: 'Un parrain ou une marraine', texte: 'Sa page : certificat à déposer, dates importantes', url: () => APP + 'parrain/?apercu=1' },

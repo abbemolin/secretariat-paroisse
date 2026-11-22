@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
-<title>Parrain et marraine – Croix glorieuse</title>
+<title>Parrain et marraine – La Croix glorieuse</title>
 <link rel="icon" href="../icon-192.png"><meta name="theme-color" content="#521a22">
 <style>
 *{box-sizing:border-box}
@@ -23,7 +23,7 @@ h2{font-family:Georgia,serif;color:#521a22;font-size:19px;margin:0 0 10px}
 .date b{display:block;font-size:20px;line-height:1}.date span{font-size:11.5px;text-transform:uppercase}
 </style></head>
 <body>
-<div class="entete"><img src="../icon-192.png" alt=""><div><b>Croix glorieuse</b><span id="sous">Paroisse personnelle La Croix glorieuse</span></div></div>
+<div class="entete"><img src="../icon-192.png" alt=""><div><b>La Croix glorieuse</b><span id="sous">Paroisse personnelle · Strasbourg</span></div></div>
 <main><div id="bandeau-apercu" style="display:none;background:#fff3d6;color:#7a4b00;border-radius:8px;padding:8px 12px;margin:0 0 12px;font-size:13.5px">Aperçu : vous voyez la page d'une marraine fictive. Rien n'est enregistré ni envoyé.</div><div id="etat" class="info">Chargement…</div><div id="page"></div></main>
 <script>
 (function () {
@@ -82,7 +82,7 @@ h2{font-family:Georgia,serif;color:#521a22;font-size:19px;margin:0 0 10px}
   }
   if (APERCU) $('bandeau-apercu').style.display = 'block';
   if (!j) { $('etat').className = 'erreur'; $('etat').textContent = 'Lien incomplet. Utilisez le lien reçu par mail.'; return; }
-  appel('par.lire').then(function (r) { d = r; $('etat').style.display = 'none'; if (r.paroisse) $('sous').textContent = r.paroisse; rendre(); })
+  appel('par.lire').then(function (r) { d = r; $('etat').style.display = 'none'; rendre(); })
     .catch(function (er) { $('etat').className = 'erreur'; $('etat').textContent = er.message; });
 })();
 </script>

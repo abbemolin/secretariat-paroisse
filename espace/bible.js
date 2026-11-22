@@ -1,4 +1,4 @@
-/* Bible (traduction Crampon) pour l'app « Croix glorieuse » — reprise de la Bible de l'AppMesse (mêmes données).
+/* Bible (traduction Crampon) pour l'app « La Croix glorieuse » — reprise de la Bible de l'AppMesse (mêmes données).
    Usage : var b = creerBible(); parent.appendChild(b.element); b.ouvrir('Jean', 3, 16, 18);
    Lecture : base de l'AppMesse ; hors connexion : toute la Bible téléchargée dans le téléphone (IndexedDB).
    Mes versets et le dernier chapitre lu restent sur le téléphone. */

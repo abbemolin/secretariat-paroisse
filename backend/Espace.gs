@@ -1,5 +1,5 @@
 /**
- * Espace personnel des catéchumènes et néophytes — app « Croix glorieuse » (app.croix-glorieuse.org).
+ * Espace personnel des catéchumènes et néophytes — app « La Croix glorieuse » (app.croix-glorieuse.org).
  * Sans compte dans l'appli : lien personnel + mot de passe choisi par la personne (code reçu par mail),
  * session de 90 jours. La personne complète son dossier (identité, parents, parrain/marraine), dépose
  * ses pièces, rédige sa lettre à l'évêque ; elle voit son parcours, le calendrier de sa promotion et
@@ -132,10 +132,10 @@ function actionEspace_(action, p) {
     compteurChef_('espenvoi_' + esp.dossier_id, 5, 3600, 'Trop de codes envoyés. Réessayez dans une heure.');
     var code = String(Math.floor(100000 + Math.random() * 900000));
     CacheService.getScriptCache().put('espcode_' + esp.dossier_id, JSON.stringify({ code: code, essais: 0 }), 900);
-    var t = 'Bonjour ' + (i0.prenoms || '') + ',\n\nVoici votre code pour choisir le mot de passe de votre espace personnel « Croix glorieuse » :\n\n' + code +
+    var t = 'Bonjour ' + (i0.prenoms || '') + ',\n\nVoici votre code pour choisir le mot de passe de votre espace personnel « La Croix glorieuse » :\n\n' + code +
       '\n\nIl est valable 15 minutes. Si vous n\'avez rien demandé, ignorez ce message.\n\nAvec l\'assurance de nos prières à toutes vos intentions,';
     var opts = optionsEnvoi_();
-    GmailApp.sendEmail(mail, 'Croix glorieuse – votre code : ' + code, corpsTexte_(t, 'paroisse'), { name: opts.name, from: opts.from, htmlBody: corpsHtml_(t, 'paroisse') });
+    GmailApp.sendEmail(mail, 'La Croix glorieuse – votre code : ' + code, corpsTexte_(t, 'paroisse'), { name: opts.name, from: opts.from, htmlBody: corpsHtml_(t, 'paroisse') });
     return { mail: masquerMail_(mail) };
   }
   if (action === 'esp.definir') {

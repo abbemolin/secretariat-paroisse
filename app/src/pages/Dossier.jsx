@@ -571,7 +571,7 @@ function ChoixFicheCor({ d, actuelle, onFermer, onChoisir }) {
   )
 }
 
-/** Espace personnel (app « Croix glorieuse ») du catéchumène / néophyte : lien, envoi, lettre à l'évêque. */
+/** Espace personnel (app « La Croix glorieuse ») du catéchumène / néophyte : lien, envoi, lettre à l'évêque. */
 /** Parrain et marraine : chacun a son lien (dépôt du certificat, dates importantes). */
 function ParrainsEspace({ d, liste, occupe, action }) {
   const notifier = useNotif()
@@ -662,7 +662,7 @@ function EspaceDossier({ d }) {
     <div className="mt-2 rounded-xl border border-nuit-100 bg-white px-3 py-2 text-sm">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <Smartphone className="h-4 w-4 shrink-0 text-or" />
-        <span className="min-w-0 flex-1"><b>Espace personnel</b> <span className="text-nuit-600/70">(app « Croix glorieuse »)</span>
+        <span className="min-w-0 flex-1"><b>Espace personnel</b> <span className="text-nuit-600/70">(app « La Croix glorieuse »)</span>
           {e.existe && <span className="block text-xs text-nuit-600/70">{e.mot_de_passe ? `Mot de passe choisi le ${dateCourte(e.mot_de_passe)}` : 'Mot de passe pas encore choisi'}{e.derniere_visite ? ` · dernière visite ${dateRelative(e.derniere_visite)}` : ''}{!e.mail ? ' · aucune adresse e-mail dans le dossier' : ''}</span>}</span>
         {!e.existe ? <button className="btn-clair px-2.5 py-1 text-xs" disabled={occupe} onClick={() => action('espace.lien', {}, 'Espace personnel créé')}>Créer son espace</button> : <span className="flex flex-wrap gap-1.5">
           <button className="btn-or px-2.5 py-1 text-xs" disabled={!e.mail} onClick={() => setMail(true)}><Mail className="h-3.5 w-3.5" />Envoyer le lien</button>
@@ -686,7 +686,7 @@ function EspaceDossier({ d }) {
       <ParrainsEspace d={d} liste={e.parrains || []} occupe={occupe} action={action} />
       {e.signalements?.length > 0 && <Signalements liste={e.signalements} occupe={occupe} action={action} />}
       {mail && <Redaction mode="nouveau" a={e.mail} sujet="Votre espace personnel – paroisse La Croix glorieuse"
-        corps={`Bonjour ${d.infos?.prenoms || ''},\n\nVoici le lien de votre espace personnel « Croix glorieuse ». Vous y trouverez votre parcours vers le baptême, le calendrier, les textes que nous vous enverrons, et vous pourrez compléter votre dossier (informations, pièces, lettre à l'évêque).\n[Bouton : ${B}]\n\nÀ la première visite, choisissez votre mot de passe : un code vous sera envoyé par mail. Vous pourrez ensuite installer l'application sur votre téléphone pour être prévenu(e) des nouveaux textes.\n\nAvec l'assurance de nos prières à toutes vos intentions,`}
+        corps={`Bonjour ${d.infos?.prenoms || ''},\n\nVoici le lien de votre espace personnel « La Croix glorieuse ». Vous y trouverez votre parcours vers le baptême, le calendrier, les textes que nous vous enverrons, et vous pourrez compléter votre dossier (informations, pièces, lettre à l'évêque).\n[Bouton : ${B}]\n\nÀ la première visite, choisissez votre mot de passe : un code vous sera envoyé par mail. Vous pourrez ensuite installer l'application sur votre téléphone pour être prévenu(e) des nouveaux textes.\n\nAvec l'assurance de nos prières à toutes vos intentions,`}
         boutons={[{ texte: B, url: e.lien }]} dossier={d} onFermer={() => setMail(false)} onEnvoye={() => { setMail(false); notifier('Lien envoyé') }} />}
     </div>
   )
