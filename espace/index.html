@@ -124,7 +124,8 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
   var APERCU = q.get('apercu') === 'neophyte' ? 'neophyte' : q.get('apercu') ? 'catechumene' : '';
   if (APERCU) c = 'apercu';
   else try { if (c) { localStorage.setItem('esp_c', c); history.replaceState(null, '', location.pathname); } else c = localStorage.getItem('esp_c') || ''; } catch (x) {}
-  var d = null, vue = 'accueil', ouvert = null, acces = null, etape = 'mdp', mailCode = '', brouillon = null, installer = null, signale = null, sigTexte = '', lettreB = null, horsLigne = false, taille = 1, ajoutParrain = false, retraitParrain = null, demandeCor = false, theme = 'auto', fete = null;
+  var lettrePages = [], lettrePdf = null, lettreConf = false;
+  var d = null, vue = 'accueil', ouvert = null, acces = null, etape = 'mdp', mailCode = '', brouillon = null, installer = null, signale = null, sigTexte = '', horsLigne = false, taille = 1, ajoutParrain = false, retraitParrain = null, demandeCor = false, theme = 'auto', fete = null;
   function $(id) { return document.getElementById(id); }
   function e(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   function liens(t) { return e(t).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>'); }
@@ -141,7 +142,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
       prenom: neo ? 'Thomas' : 'Marie', nom: 'Exemple', neophyte: neo, annee: String(neo ? an - 1 : an), accompagnateur: 'Claire et Antoine (accompagnateurs fictifs)',
       etapes: et, infos: { prenom_bapteme: neo ? 'Thomas' : '', prenoms: neo ? 'Thomas' : 'Marie', nom: 'Exemple', sexe: neo ? 'Homme' : 'Femme', naissance_date: '1995-04-12', naissance_lieu: 'Strasbourg', adresse: '1 rue de l\'Exemple, Strasbourg', telephone: '06 00 00 00 00', email: 'exemple@exemple.fr', nom_jeune_fille: '', nationalite: 'Française', profession: 'Infirmière', situation: 'Célibataire', conjoint: '', pere_prenom: 'Jean', pere_nom: 'Exemple', mere_prenom: 'Anne', mere_nom_jeune_fille: 'Modèle', parrain_marraine: '', parrain_contact: '' },
       pieces: [{ cle: 'acte_naissance', nom: 'Acte de naissance', recu: true }, { cle: 'photo', nom: 'Photo d\'identité', recu: neo }, { cle: 'cert_parrain', nom: 'Certificat du parrain / de la marraine', recu: neo }],
-      lettre: neo ? { texte: 'Monseigneur,\n\n(lettre d\'exemple)', statut: 'validee', remarque: '' } : { texte: '', statut: '', remarque: '' },
+      lettre: neo ? { texte: '', statut: 'validee', remarque: '' } : { texte: '', statut: '', remarque: '', adresse: '2, quai Charles Frey 67000 Strasbourg', consigne: 'Écrivez à la main votre lettre à Mgr Pascal Delannoy, archevêque de Strasbourg, pour lui demander le baptême : qui vous êtes, votre chemin vers le Christ, ce que vous attendez de l\'Église. Commencez par « Monseigneur, » et n\'oubliez pas de la signer.\n\nEnsuite, déposez-la ici (une photo nette de chaque page, ou un PDF), ou bien au presbytère : 2, quai Charles Frey 67000 Strasbourg.' },
       signalements: [], photo: '',
       bapteme: neo ? { date: joursPlus(-220), lieu: 'Église Saint-Louis, Strasbourg', prenom_bapteme: 'Thomas', actes: [], motifs: ['Mariage', 'Parrainage', 'Confirmation', 'Profession religieuse ou ordination', 'Autre'], mail: 'ex…@exemple.fr' } : null,
       parrains: [{ id: 'p1', role: 'marraine', nom: 'Sophie Exemple', email: 'sophie@exemple.fr', envoye_le: joursPlus(-10), cert_le: neo ? joursPlus(-240) : '', lien: 'https://app.croix-glorieuse.org/parrain/?apercu=1' }],
@@ -373,7 +374,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     h += blocFraternite();
     var aFaire = [];
     if (d.pieces.some(function (p) { return !p.recu; })) aFaire.push('Déposer vos pièces (' + d.pieces.filter(function (p) { return !p.recu; }).map(function (p) { return p.nom.toLowerCase(); }).join(', ') + ')');
-    if (!d.neophyte && d.lettre.statut !== 'validee' && d.lettre.statut !== 'envoyee') aFaire.push(d.lettre.statut === 'a_corriger' ? 'Corriger votre lettre à l\'évêque' : 'Écrire votre lettre à l\'évêque');
+    if (!d.neophyte && ['validee', 'envoyee', 'deposee', 'annoncee'].indexOf(d.lettre.statut) === -1) aFaire.push(d.lettre.statut === 'a_corriger' ? 'Revoir votre lettre à l\'évêque' : 'Écrire à la main votre lettre à l\'évêque, puis la déposer');
     if (!d.infos.naissance_date || !d.infos.adresse) aFaire.push('Compléter vos informations');
     if (aFaire.length && !d.neophyte) h += '<div class="carte"><h2>À faire</h2>' + aFaire.map(function (t) { return '<div class="etape"><div class="rond prochaine">•</div><div>' + e(t) + '</div></div>'; }).join('') + '<button class="bouton" data-vue="dossier">Mon dossier</button></div>';
     if (!d.neophyte) h += '<div class="carte"><h2>Mon parcours</h2>' + ETAPES.map(function (x, k) {
@@ -396,6 +397,50 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
         t.liens.map(function (l) { return '<a class="bouton" href="' + e(l.url) + '" target="_blank" rel="noopener">↗ ' + e(l.libelle || l.url) + '</a>'; }).join('') + '<div id="zf" style="display:none"></div></div>';
     }
     return '<div class="carte"><h2>Textes</h2>' + (horsLigne ? '<p class="petit">Hors connexion : seuls les textes déjà ouverts sur ce téléphone sont disponibles.</p>' : '') + (d.textes.length ? d.textes.map(ligneTexte).join('') : '<p class="petit">' + (horsLigne ? 'Aucun texte ouvert sur ce téléphone.' : 'Les textes que la paroisse vous enverra apparaîtront ici.') + '</p>') + '</div>';
+  }
+  // ─── Lettre à l'évêque : écrite à la main, déposée ici (photos / PDF) ou au presbytère ───
+  function blocLettre() {
+    var l = d.lettre, h = '<div class="carte"><h2>Lettre à l\'évêque</h2>';
+    if (l.statut === 'validee') return h + '<div class="ok">Votre lettre a bien été reçue. Merci !</div>' + (l.texte ? '<div class="corps">' + e(l.texte) + '</div>' : '') + '</div>';
+    if (l.statut === 'deposee') h += '<div class="ok">Lettre déposée le ' + e(jour(l.deposee_le, { day: 'numeric', month: 'long' })) + ' : elle va être relue. Merci !</div><p class="petit">Vous pouvez encore en déposer une autre version.</p>';
+    else if (l.statut === 'annoncee') h += '<div class="ok">Vous avez indiqué l\'avoir déposée au presbytère le ' + e(jour(l.annoncee_le, { day: 'numeric', month: 'long' })) + '. La paroisse confirmera sa réception.</div>';
+    else if (l.statut === 'envoyee') h += '<div class="ok">Votre lettre (écrite dans l\'app) va être relue.</div>';
+    else {
+      if (l.statut === 'a_corriger') h += '<div class="info"><b>À revoir :</b> ' + e(l.remarque || 'merci de reprendre votre lettre.') + '</div>';
+      h += '<p style="white-space:pre-line">' + e(l.consigne || '') + '</p>';
+    }
+    if (l.statut === 'annoncee') return h + '</div>';
+    if (lettrePdf || lettrePages.length) {
+      h += '<div class="info">' + (lettrePdf ? '📄 ' + e(lettrePdf.nom) : lettrePages.length + ' page' + (lettrePages.length > 1 ? 's' : '') + ' prête' + (lettrePages.length > 1 ? 's' : '')) + '</div>';
+      if (lettrePages.length) h += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0">' + lettrePages.map(function (pg, i) { return '<div style="position:relative"><img src="' + pg.mini + '" alt="Page ' + (i + 1) + '" style="width:64px;height:84px;object-fit:cover;border-radius:6px;border:1px solid #e6d8cc"><span class="petit" style="position:absolute;bottom:2px;left:4px;background:#fff;border-radius:4px;padding:0 3px">' + (i + 1) + '</span></div>'; }).join('') + '</div>';
+      h += '<div id="zl" style="display:none"></div><button class="bouton principal" data-a="lettre-envoyer">Envoyer ma lettre</button>' +
+        (lettrePages.length ? '<label class="bouton">+ Ajouter une page<input type="file" accept="image/*" multiple data-lettre="1" style="display:none"></label>' : '') +
+        '<button class="bouton" data-a="lettre-annuler">Recommencer</button>';
+    } else {
+      h += '<div id="zl" style="display:none"></div><label class="bouton principal">Déposer ma lettre (photos ou PDF)<input type="file" accept="image/*,application/pdf" multiple data-lettre="1" style="display:none"></label>';
+      if (l.statut !== 'deposee') h += lettreConf
+        ? '<div class="info" style="margin-top:8px">Vous confirmez avoir déposé votre lettre au presbytère (' + e(l.adresse || '') + ') ?</div><button class="bouton principal" data-a="lettre-presbytere">Oui, je l\'ai déposée</button><button class="bouton" data-a="lettre-conf">Annuler</button>'
+        : '<button class="bouton" data-a="lettre-conf">Je l\'ai déposée au presbytère</button>';
+    }
+    return h + blocSignaler('Lettre à l\'évêque') + '</div>';
+  }
+  // Photo d'une page : réduite à 1800 px (JPEG) sur le téléphone avant l'envoi
+  function pageLettre(f) {
+    return new Promise(function (ok, ko) {
+      var u = URL.createObjectURL(f), im = new Image();
+      im.onload = function () {
+        try {
+          var k = Math.min(1, 1800 / Math.max(im.width, im.height)), c = document.createElement('canvas');
+          c.width = Math.round(im.width * k); c.height = Math.round(im.height * k); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+          var grand = c.toDataURL('image/jpeg', 0.82);
+          var km = 160 / Math.max(c.width, c.height), m = document.createElement('canvas'); m.width = Math.round(c.width * km); m.height = Math.round(c.height * km); m.getContext('2d').drawImage(c, 0, 0, m.width, m.height);
+          ok({ b64: grand.split(',')[1], mini: m.toDataURL('image/jpeg', 0.7) });
+        } catch (x) { ko(x); }
+        URL.revokeObjectURL(u);
+      };
+      im.onerror = function () { URL.revokeObjectURL(u); ko(new Error('Image illisible : prenez une photo ou choisissez un PDF.')); };
+      im.src = u;
+    });
   }
   var bible = null;
   function placerBible() {
@@ -450,15 +495,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
       if (p.cle === 'photo' && d.photo) return '<div class="piece"><img src="' + e(d.photo) + '" alt="Ma photo" style="width:52px;height:52px;border-radius:50%;object-fit:cover;flex:none"><span>' + e(p.nom) + '<span class="petit" style="display:block">reçue</span></span><label class="bouton" style="margin:0">Remplacer<input type="file" accept="image/*" data-piece="photo" style="display:none"></label></div>';
       return '<div class="piece"><span>' + (p.recu ? '✅ ' : '◻️ ') + e(p.nom) + '</span>' + (p.recu ? '<span class="petit" style="flex:none">reçu</span>' : '<label class="bouton" style="margin:0">Déposer<input type="file" accept="' + (p.cle === 'photo' ? 'image/*' : 'image/*,application/pdf') + '" data-piece="' + p.cle + '" style="display:none"></label>') + '</div>';
     }).join('') + '<div id="zp" style="display:none"></div>' + blocSignaler('Pièces à déposer') + '</div>';
-    if (!d.neophyte || d.lettre.texte) {
-      var l = d.lettre, fini = l.statut === 'validee', envoyee = l.statut === 'envoyee';
-      h += '<div class="carte"><h2>Lettre à l\'évêque</h2>' +
-        (fini ? '<div class="ok">Votre lettre a été relue et transmise. Merci !</div><div class="corps">' + e(l.texte) + '</div>' :
-          (l.statut === 'a_corriger' ? '<div class="info"><b>À revoir :</b> ' + e(l.remarque || 'merci de reprendre votre lettre.') + '</div>' : '') +
-          (envoyee ? '<div class="ok">Lettre envoyée : elle va être relue. Vous pouvez encore la modifier.</div>' : '<p class="petit">Écrivez à l\'archevêque de Strasbourg pour lui demander le baptême : qui vous êtes, votre chemin vers le Christ, ce que vous attendez de l\'Église. Commencez par « Monseigneur, ».</p>') +
-          '<textarea id="lettre" style="min-height:260px" placeholder="Monseigneur,">' + e(lettreB !== null ? lettreB : l.texte) + '</textarea><div id="zl" style="display:none"></div>' +
-          '<button class="bouton" data-a="lettre">Enregistrer le brouillon</button><button class="bouton principal" data-a="lettre-envoyer">Envoyer pour relecture</button>') + blocSignaler('Lettre à l\'évêque') + '</div>';
-    }
+    if (!d.neophyte || d.lettre.texte || d.lettre.statut) h += blocLettre();
     h += blocSignalements();
     h += '<div class="carte"><button class="lien" data-a="sortir">Se déconnecter</button></div>';
     return h;
@@ -592,16 +629,24 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
         .catch(function (er) { b.disabled = false; message('zi', er.message); });
       return;
     }
-    if (a === 'lettre' || a === 'lettre-envoyer') {
+    if (a === 'lettre-conf') { lettreConf = !lettreConf; rendre(); return; }
+    if (a === 'lettre-annuler') { lettrePages = []; lettrePdf = null; rendre(); return; }
+    if (a === 'lettre-presbytere') {
       b.disabled = true;
-      appel('esp.lettre', { texte: $('lettre').value, envoyer: a === 'lettre-envoyer' }).then(function (r) { d = r; lettreB = null; rendre(); message('zl', a === 'lettre' ? 'Brouillon enregistré.' : 'Lettre envoyée pour relecture. Merci !', true); })
+      appel('esp.lettrePresbytere', {}).then(function (r) { d = r; lettreConf = false; rendre(); }).catch(function (er) { b.disabled = false; message('zl', er.message); });
+      return;
+    }
+    if (a === 'lettre-envoyer') {
+      b.disabled = true; message('zl', 'Envoi en cours…', true);
+      appel('esp.lettreDepot', lettrePdf ? { pdf: lettrePdf.b64 } : { pages: lettrePages.map(function (x) { return x.b64; }) })
+        .then(function (r) { d = r; lettrePages = []; lettrePdf = null; rendre(); message('zl', 'Lettre déposée. Merci !', true); })
         .catch(function (er) { b.disabled = false; message('zl', er.message); });
       return;
     }
     if (a === 'installer' && installer) { installer.prompt(); installer = null; return; }
     if (a === 'notifs') { activerNotifications(); return; }
   });
-  document.addEventListener('input', function (ev) { if (ev.target.id === 'sigtexte') sigTexte = ev.target.value; if (ev.target.id === 'lettre') lettreB = ev.target.value; var k = ev.target.dataset && ev.target.dataset.k; if (k && brouillon) brouillon[k] = ev.target.value; });
+  document.addEventListener('input', function (ev) { if (ev.target.id === 'sigtexte') sigTexte = ev.target.value; var k = ev.target.dataset && ev.target.dataset.k; if (k && brouillon) brouillon[k] = ev.target.value; });
   document.addEventListener('change', function (ev) {
     var nk = ev.target.dataset && ev.target.dataset.notif;
     if (nk) {
@@ -610,6 +655,20 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
       return;
     }
     var k = ev.target.dataset && ev.target.dataset.k; if (k && brouillon) brouillon[k] = ev.target.value;
+    if (ev.target.dataset && ev.target.dataset.lettre) {
+      var fs = [].slice.call(ev.target.files || []); if (!fs.length) return;
+      var pdfs = fs.filter(function (f) { return f.type === 'application/pdf'; });
+      if (pdfs.length) {
+        if (fs.length > 1 || lettrePages.length) { message('zl', 'Choisissez soit un seul PDF, soit des photos.'); return; }
+        if (pdfs[0].size > 10 * 1024 * 1024) { message('zl', 'Fichier trop lourd (10 Mo au plus).'); return; }
+        var rp = new FileReader(); rp.onload = function () { lettrePdf = { nom: pdfs[0].name, b64: String(rp.result).split(',')[1] }; rendre(); }; rp.readAsDataURL(pdfs[0]);
+        return;
+      }
+      if (lettrePages.length + fs.length > 12) { message('zl', '12 pages au plus.'); return; }
+      message('zl', 'Préparation des pages…', true);
+      Promise.all(fs.map(pageLettre)).then(function (l) { lettrePages = lettrePages.concat(l); rendre(); }).catch(function (er) { message('zl', er.message); });
+      return;
+    }
     var piece = ev.target.dataset && ev.target.dataset.piece; if (!piece) return;
     var f = ev.target.files[0]; if (!f) return;
     if (f.size > 10 * 1024 * 1024) { message('zp', 'Fichier trop lourd (10 Mo au plus).'); return; }

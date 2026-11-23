@@ -200,22 +200,42 @@ function actionEspace_(action, p) {
     });
     return vueEspace_(trouverDossier_(d.id));
   }
-  if (action === 'esp.lettre') {
+  if (action === 'esp.lettre') throw erreur_('ANCIEN', 'La lettre ne s\'écrit plus dans l\'app : déposez-la (photo ou PDF) ou indiquez que vous l\'avez déposée au presbytère.');
+  if (action === 'esp.lettreDepot') {
+    var pages = (p.pages || []).slice(0, 12);
+    if (!p.pdf && !pages.length) throw erreur_('VIDE', 'Choisissez le PDF ou les photos de votre lettre.');
+    var poids = String(p.pdf || '').length + pages.reduce(function (a, x) { return a + String(x || '').length; }, 0);
+    if (poids > 14000000) throw erreur_('TROP_GROS', 'Fichiers trop lourds (10 Mo au plus en tout).');
     verrou_(function () {
       var x = trouverDossier_(d.id), don = json2_(x.donnees, {});
       var l = don.lettre || {};
-      if (l.statut === 'validee') throw erreur_('VALIDEE', 'Votre lettre a déjà été validée.');
-      l.texte = String(p.texte || '').slice(0, 12000);
-      l.maj = maintenant_();
-      if (p.envoyer) {
-        if (l.texte.trim().length < 50) throw erreur_('COURT', 'Votre lettre est encore un peu courte.');
-        l.statut = 'envoyee'; l.envoyee_le = maintenant_();
-        ajouterHistorique_(x, 'Espace personnel', 'Lettre à l\'évêque envoyée pour relecture');
-      } else if (l.statut !== 'a_corriger') l.statut = 'brouillon';
-      don.lettre = l;
-      x.donnees = JSON.stringify(don); x.maj_le = maintenant_(); x.maj_par = 'Espace personnel';
+      if (l.statut === 'validee') throw erreur_('VALIDEE', 'Votre lettre a déjà été reçue et validée.');
+      var nom = nomFichierDossier_(x, 'Lettre à l\'évêque (déposée)', 'pdf'), blob;
+      if (p.pdf) blob = Utilities.newBlob(Utilities.base64Decode(p.pdf), 'application/pdf', nom);
+      else {
+        var html = '<html><head><style>@page{margin:0}body{margin:0}img{display:block;width:100%;page-break-after:always}</style></head><body>' +
+          pages.map(function (b) { return '<img src="data:image/jpeg;base64,' + String(b).replace(/[^A-Za-z0-9+/=]/g, '') + '">'; }).join('') + '</body></html>';
+        blob = Utilities.newBlob(html, 'text/html', 'lettre.html').getAs('application/pdf').setName(nom);
+      }
+      var f = dossierDriveDe_(x).createFile(blob);
+      l.statut = 'deposee'; l.mode = 'app'; l.deposee_le = maintenant_(); l.fichier = f.getId(); l.remarque = '';
+      don.lettre = l; x.donnees = JSON.stringify(don);
+      enregistrerPiece_(x, f, 'Lettre à l\'évêque (déposée, à relire)', '', { nom: 'Espace personnel' }, false);
+      prevenirEspace_(x, 'Lettre à l\'évêque déposée : à relire');
+    });
+    return vueEspace_(trouverDossier_(d.id));
+  }
+  if (action === 'esp.lettrePresbytere') {
+    verrou_(function () {
+      var x = trouverDossier_(d.id), don = json2_(x.donnees, {});
+      var l = don.lettre || {};
+      if (l.statut === 'validee') throw erreur_('VALIDEE', 'Votre lettre a déjà été reçue et validée.');
+      l.statut = 'annoncee'; l.mode = 'presbytere'; l.annoncee_le = maintenant_(); l.remarque = '';
+      don.lettre = l; x.donnees = JSON.stringify(don);
+      ajouterHistorique_(x, 'Espace personnel', 'Lettre à l\'évêque déposée au presbytère (à confirmer)');
+      x.maj_le = maintenant_(); x.maj_par = 'Espace personnel';
       ecrireLigne_('Dossiers', x);
-      if (p.envoyer) prevenirEspace_(x, 'Lettre à l\'évêque à relire');
+      prevenirEspace_(x, 'Lettre à l\'évêque déposée au presbytère : réception à confirmer');
     });
     return vueEspace_(trouverDossier_(d.id));
   }
@@ -334,7 +354,8 @@ function vueEspace_(d) {
     prenom: i.prenoms || '', nom: i.nom || '', neophyte: pr.neo, annee: pr.annee, accompagnateur: i.accompagnateurs || '',
     etapes: don.etapes || {}, infos: infos,
     pieces: Object.keys(PIECES_ESPACE).map(function (k) { return { cle: k, nom: PIECES_ESPACE[k], recu: !!(docs[k] && docs[k].recu) }; }),
-    lettre: { texte: l.texte || '', statut: l.statut || '', remarque: l.remarque || '', validee_le: l.validee_le || '' },
+    lettre: { texte: l.texte || '', statut: l.statut || '', remarque: l.remarque || '', validee_le: l.validee_le || '', mode: l.mode || '',
+              deposee_le: l.deposee_le || '', annoncee_le: l.annoncee_le || '', consigne: consigneLettre_(), adresse: reglages_().adresse || '' },
     signalements: (don.signalements || []).slice(-30).reverse().map(function (z) { return { id: z.id, date: z.date, sujet: z.sujet, texte: z.texte, statut: z.statut, reponse: z.reponse || '', traite_le: z.traite_le || '' }; }),
     photo: photoMini_(d),
     notifs: prefsNotifsEspace_(d.id),
@@ -522,7 +543,8 @@ function etatEspace_(p) {
   var x = espaceDuDossier_(d.id);
   var don0 = json2_(d.donnees, {}), l = don0.lettre || {};
   return { parrains: (don0.parrains || []).map(function (z) { return parrainVue_(z, true); }), signalements: (don0.signalements || []).slice().reverse(), existe: !!x, lien: x ? urlEspace_(x.jeton) : '', mot_de_passe: x ? x.mdp_maj : '', derniere_visite: x ? x.derniere_visite : '', mail: mailDossier_(d),
-           lettre: { texte: l.texte || '', statut: l.statut || '', remarque: l.remarque || '', envoyee_le: l.envoyee_le || '', validee_le: l.validee_le || '' } };
+           lettre: { texte: l.texte || '', statut: l.statut || '', remarque: l.remarque || '', envoyee_le: l.envoyee_le || '', validee_le: l.validee_le || '',
+                     mode: l.mode || '', deposee_le: l.deposee_le || '', annoncee_le: l.annoncee_le || '', fichier: l.fichier ? 'https://drive.google.com/file/d/' + l.fichier + '/view' : '' } };
 }
 function lienEspace_(p, s) {
   var d = trouverDossier_(p.id);
@@ -559,10 +581,33 @@ function lettreEspace_(p, s) {
   verrou_(function () {
     var d = trouverDossier_(p.id), don = json2_(d.donnees, {});
     var l = don.lettre || {};
-    if (!l.texte) throw erreur_('VIDE', 'Pas encore de lettre.');
+    if (!l.texte && !l.statut) throw erreur_('VIDE', 'Pas encore de lettre.');
+    var marquerRecue = function (texteHisto) {
+      l.statut = 'validee'; l.validee_le = maintenant_(); l.remarque = '';
+      don.etapes = don.etapes || {}; don.documents = don.documents || {};
+      if (!(don.etapes.lettre && don.etapes.lettre.fait)) don.etapes.lettre = { fait: true, date: maintenant_(), par: s.nom, libelle: 'Lettre à l\'évêque' };
+      don.documents.lettre_eveque = { recu: true, date: maintenant_() };
+      ajouterHistorique_(d, s.nom, texteHisto);
+    };
+    if (p.recue || (p.valider && (l.statut === 'deposee' || l.statut === 'annoncee'))) {
+      don.lettre = l; d.donnees = JSON.stringify(don);
+      if (p.fichier && p.fichier.base64) {   // scan facultatif de la lettre reçue au presbytère
+        var ext = p.fichier.type === 'application/pdf' ? 'pdf' : 'jpg';
+        var fs = dossierDriveDe_(d).createFile(Utilities.newBlob(Utilities.base64Decode(p.fichier.base64), p.fichier.type || 'application/pdf', nomFichierDossier_(d, 'Lettre à l\'évêque', ext)));
+        l.fichier = fs.getId();
+        enregistrerPiece_(d, fs, 'Lettre à l\'évêque (reçue au presbytère)', '', s, false);
+        don = json2_(d.donnees, {}); don.lettre = l;
+      }
+      marquerRecue(l.mode === 'presbytere' ? 'Lettre à l\'évêque reçue au presbytère' : 'Lettre à l\'évêque relue et validée');
+      don.lettre = l; d.donnees = JSON.stringify(don); d.maj_le = maintenant_(); d.maj_par = s.nom;
+      ecrireLigne_('Dossiers', d);
+      pushEspace_(d.id, 'reponses');
+      return;
+    }
     if (p.corriger) {
       l.statut = 'a_corriger'; l.remarque = String(p.remarque || '').slice(0, 2000);
       ajouterHistorique_(d, s.nom, 'Lettre à l\'évêque : correction demandée');
+      var prevenirCorr = true;
     } else if (p.valider) {
       var i = don.infos || {};
       var html = '<html><body style="font-family:Georgia,serif;font-size:12pt;line-height:1.55;margin:28mm 24mm">' +
@@ -581,6 +626,7 @@ function lettreEspace_(p, s) {
     }
     don.lettre = l; d.donnees = JSON.stringify(don); d.maj_le = maintenant_(); d.maj_par = s.nom;
     ecrireLigne_('Dossiers', d);
+    if (prevenirCorr) pushEspace_(d.id, 'reponses');
   });
   return etatEspace_(p);
 }
@@ -731,6 +777,18 @@ function actesEspace_(d) {
 // ─── Anniversaire de baptême des néophytes (chaque jour, 8 h) ───
 
 var ANNIV_DEFAUT = 'Bonjour {prenom},\n\nIl y a {annees}, lors de la Vigile pascale, vous receviez le baptême, la confirmation et l\'eucharistie à la paroisse La Croix glorieuse. Toute la paroisse rend grâce avec vous pour ce jour où vous êtes devenu(e) enfant de Dieu !\n\nPourquoi ne pas renouveler aujourd\'hui les promesses de votre baptême, et allumer votre cierge de baptême ?\n\nAvec l\'assurance de nos prières à toutes vos intentions,';
+var CONSIGNE_LETTRE_DEFAUT = 'Écrivez à la main votre lettre à Mgr Pascal Delannoy, archevêque de Strasbourg, pour lui demander le baptême : qui vous êtes, votre chemin vers le Christ, ce que vous attendez de l\'Église. Commencez par « Monseigneur, » et n\'oubliez pas de la signer.\n\nEnsuite, déposez-la ici (une photo nette de chaque page, ou un PDF), ou bien au presbytère : {adresse}.';
+function consigneLettre_() {
+  var r = json2_(props_().getProperty('CATECHUMENAT'), {});
+  return String(r.consigne_lettre || CONSIGNE_LETTRE_DEFAUT).replace(/\{adresse\}/g, reglages_().adresse || '');
+}
+/** Lettres à l'évêque à traiter : déposées dans l'app (à relire) ou annoncées au presbytère (à confirmer). */
+function lettresATraiter_() {
+  return lignes_('Dossiers').filter(function (d) { return d.type === 'catechumene' && d.etat !== 'annule'; }).map(function (d) {
+    var l = json2_(d.donnees, {}).lettre || {};
+    return { id: d.id, nom: d.nom, statut: l.statut || '', date: l.deposee_le || l.annoncee_le || l.envoyee_le || '' };
+  }).filter(function (x) { return x.statut === 'deposee' || x.statut === 'annoncee' || x.statut === 'envoyee'; });
+}
 function reglagesCatechumenat_() {
   var r = json2_(props_().getProperty('CATECHUMENAT'), {});
   return { anniv_actif: r.anniv_actif === true, anniv_texte: r.anniv_texte || ANNIV_DEFAUT };
@@ -766,8 +824,14 @@ function anniversairesBapteme() {
   });
 }
 function reglagesCatechumenatRoute_(p, s) {
-  if (p.ecrire) {
-    var r = { anniv_actif: !!p.anniv_actif, anniv_texte: String(p.anniv_texte || '').slice(0, 4000) || ANNIV_DEFAUT };
+  if (p.consigne_lettre !== undefined) {
+    var rc = json2_(props_().getProperty('CATECHUMENAT'), {});
+    rc.consigne_lettre = String(p.consigne_lettre || '').slice(0, 3000);
+    props_().setProperty('CATECHUMENAT', JSON.stringify(rc));
+    journaliser_(s, 'Catéchuménat : consigne de la lettre à l\'évêque', '');
+  } else if (p.ecrire) {
+    var r0 = json2_(props_().getProperty('CATECHUMENAT'), {});
+    var r = { consigne_lettre: r0.consigne_lettre || '', anniv_actif: !!p.anniv_actif, anniv_texte: String(p.anniv_texte || '').slice(0, 4000) || ANNIV_DEFAUT };
     props_().setProperty('CATECHUMENAT', JSON.stringify(r));
     ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === 'anniversairesBapteme') ScriptApp.deleteTrigger(t); });
     if (r.anniv_actif) ScriptApp.newTrigger('anniversairesBapteme').timeBased().everyDays(1).atHour(8).inTimezone('Europe/Paris').create();
@@ -786,6 +850,9 @@ function reglagesCatechumenatRoute_(p, s) {
   });
   res.prochains = proch.sort(function (a, b) { return a.date.localeCompare(b.date); });
   res.defaut = ANNIV_DEFAUT;
+  var rl = json2_(props_().getProperty('CATECHUMENAT'), {});
+  res.consigne_lettre = rl.consigne_lettre || CONSIGNE_LETTRE_DEFAUT; res.consigne_defaut = CONSIGNE_LETTRE_DEFAUT;
+  try { res.lettres = lettresATraiter_(); } catch (e) { res.lettres = []; }
   return res;
 }
 

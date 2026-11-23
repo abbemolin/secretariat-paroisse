@@ -610,6 +610,11 @@ function aFaire_(s) {
         if (peutLire_(s, 'registres')) Object.keys(REGISTRES).forEach(function (k) { var n = actesAInscrire_(k).length; if (n && !premier) premier = k; nReg += n; });
         if (nReg) l.push({ cle: 'registres', nombre: nReg, texte: nReg > 1 ? 'actes à inscrire au registre' : 'acte à inscrire au registre', lien: '/registres?r=' + premier });
       } catch (e) {}
+      if (peutLire_(s, 'catechumenat')) try {
+        var lt = lettresATraiter_(), rel = lt.filter(function (x) { return x.statut !== 'annoncee'; }).length, ann = lt.length - rel;
+        if (rel) l.push({ cle: 'lettres', nombre: rel, texte: rel > 1 ? 'lettres à l\'évêque à relire' : 'lettre à l\'évêque à relire', lien: '/catechumenat?vue=lettres' });
+        if (ann) l.push({ cle: 'lettres_presbytere', nombre: ann, texte: ann > 1 ? 'lettres à l\'évêque déposées au presbytère, à confirmer' : 'lettre à l\'évêque déposée au presbytère, à confirmer', lien: '/catechumenat?vue=lettres' });
+      } catch (e) {}
       if (bap) l.push({ cle: 'bapteme', nombre: bap, texte: bap > 1 ? 'confirmands dont le baptême est à trouver' : 'confirmand dont le baptême est à trouver', lien: '/dossiers?type=confirmand' });
     });
     essai(function () {

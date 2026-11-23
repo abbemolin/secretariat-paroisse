@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Cake, BookOpen, CalendarDays, Check, Eye, Link2, Loader2, Paperclip, Pencil, Plus, Send, Trash2, X } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { Cake, Mailbox, BookOpen, CalendarDays, Check, Eye, Link2, Loader2, Paperclip, Pencil, Plus, Send, Trash2, X } from 'lucide-react'
 import { api, fichierEnBase64 } from '../api.js'
 import { Chargement, Erreur, Modale, Vide, useCharger, useNotif, useConfirmer, Aide, dateCourte } from '../ui.jsx'
 
@@ -9,7 +10,8 @@ import { useApp } from '../App.jsx'
 
 export default function Catechumenat() {
   const { peut } = useApp()
-  const [vue, setVue] = useState('textes')
+  const [params] = useSearchParams()
+  const [vue, setVue] = useState(params.get('vue') || 'textes')
   const { data, erreur, setData } = useCharger(() => api('textes.liste'), [], ['textes.liste', {}])
   const [texte, setTexte] = useState(null)
   const [evt, setEvt] = useState(null)
@@ -20,15 +22,15 @@ export default function Catechumenat() {
         <div><h1 className="text-3xl font-semibold">Catéchuménat</h1><p className="text-sm text-nuit-600/80">Textes et calendrier de l'app « La Croix glorieuse » (app.croix-glorieuse.org)</p></div>
         <div className="flex gap-2">
           {peut('utilisateurs') && <VoirComme seulement={['catechumene', 'neophyte', 'parrain']} libelle="Aperçu" />}
-          {vue === 'anniversaires' ? null : vue === 'textes' ? <button className="btn-principal" disabled={!data} onClick={() => setTexte({ titre: '', corps: '', cible: data.promotions[1]?.cle || 'tous', liens: [], fichiers: [] })}><Plus className="h-4 w-4" />Nouveau texte</button>
+          {vue === 'anniversaires' || vue === 'lettres' ? null : vue === 'textes' ? <button className="btn-principal" disabled={!data} onClick={() => setTexte({ titre: '', corps: '', cible: data.promotions[1]?.cle || 'tous', liens: [], fichiers: [] })}><Plus className="h-4 w-4" />Nouveau texte</button>
             : <button className="btn-principal" disabled={!data} onClick={() => setEvt({ date: '', heure_debut: '', heure_fin: '', titre: '', lieu: '', cible: data.promotions[1]?.cle || 'tous', note: '' })}><Plus className="h-4 w-4" />Nouvelle date</button>}
           <Aide>Les catéchumènes et néophytes voient ces textes et ces dates dans leur espace personnel (lien envoyé depuis leur dossier). Un nouveau texte déclenche une notification sur leur téléphone.</Aide>
         </div>
       </div>
-      <div className="mb-4 flex gap-1.5">{[['textes', 'Textes', BookOpen], ['calendrier', 'Calendrier', CalendarDays], ['anniversaires', 'Anniversaires de baptême', Cake]].map(([k, l, I]) => (
-        <button key={k} className={`pastille gap-1 border px-3 py-1.5 text-sm ${vue === k ? 'border-nuit bg-nuit text-white' : 'border-nuit-100 bg-white text-nuit-600'}`} onClick={() => setVue(k)}><I className="h-4 w-4" />{l}</button>))}</div>
+      <div className="-mx-1 mb-4 flex gap-1.5 overflow-x-auto px-1">{[['textes', 'Textes', BookOpen], ['calendrier', 'Calendrier', CalendarDays], ['lettres', 'Lettres à l\'évêque', Mailbox], ['anniversaires', 'Anniversaires de baptême', Cake]].map(([k, l, I]) => (
+        <button key={k} className={`pastille shrink-0 gap-1 border px-3 py-1.5 text-sm ${vue === k ? 'border-nuit bg-nuit text-white' : 'border-nuit-100 bg-white text-nuit-600'}`} onClick={() => setVue(k)}><I className="h-4 w-4" />{l}</button>))}</div>
       <Erreur erreur={erreur} />
-      {vue === 'anniversaires' ? <Anniversaires /> : !data ? <Chargement /> : vue === 'textes' ? (
+      {vue === 'anniversaires' ? <Anniversaires /> : vue === 'lettres' ? <Lettres /> : !data ? <Chargement /> : vue === 'textes' ? (
         !data.textes.length ? <Vide icone={BookOpen} texte="Aucun texte publié. « Nouveau texte » pour écrire un enseignement, une prière, une consigne…" /> : (
           <div className="carte divide-y divide-nuit-100">
             {data.textes.map((t) => (
@@ -200,6 +202,45 @@ function Anniversaires() {
             <span className="w-24 shrink-0 text-xs text-nuit-600/70">{dateCourte(x.date)}</span><span className="flex-1">{x.nom}</span>
             <span className="text-xs text-or-600">{x.annees} an{x.annees > 1 ? 's' : ''}</span>{!x.mail && <span title="Pas d'adresse e-mail" className="text-xs text-red-700">sans mail</span>}</li>)}</ul>
         )}
+      </section>
+    </div>
+  )
+}
+
+/** Lettres à l'évêque : à relire (déposées dans l'app) ou à confirmer (déposées au presbytère) ; consigne affichée aux catéchumènes. */
+function Lettres() {
+  const notifier = useNotif()
+  const { data, erreur, setData } = useCharger(() => api('catechumenat.reglages', {}), [])
+  const [c, setC] = useState(null)
+  const [envoi, setEnvoi] = useState(false)
+  if (erreur) return <Erreur erreur={erreur} />
+  if (!data) return <Chargement />
+  const consigne = c ?? data.consigne_lettre
+  async function enregistrer() {
+    setEnvoi(true)
+    try { setData(await api('catechumenat.reglages', { consigne_lettre: consigne })); setC(null); notifier('Consigne enregistrée') }
+    catch (e) { notifier(e.message, 'erreur') } finally { setEnvoi(false) }
+  }
+  const ETAT = { deposee: 'déposée dans l\'app : à relire', envoyee: 'écrite dans l\'app : à relire', annoncee: 'déposée au presbytère : à confirmer' }
+  return (
+    <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
+      <section className="carte space-y-3 p-4">
+        <h2 className="text-lg font-semibold">Consigne affichée aux catéchumènes</h2>
+        <p className="text-sm text-nuit-600/80">Au-dessus des deux choix : « Déposer ma lettre » (photos ou PDF) et « Je l'ai déposée au presbytère ». {'{adresse}'} est remplacé par l'adresse de la paroisse.</p>
+        <textarea className="champ min-h-[200px]" value={consigne} onChange={(e) => setC(e.target.value)} />
+        <div className="flex flex-wrap gap-2">
+          <button className="btn-clair" onClick={() => setC(data.consigne_defaut)}>Rétablir le texte proposé</button>
+          <button className="btn-principal ml-auto" disabled={envoi || c === null} onClick={enregistrer}>{envoi && <Loader2 className="h-4 w-4 animate-spin" />}Enregistrer</button>
+        </div>
+      </section>
+      <section className="carte p-4">
+        <h2 className="mb-2 text-lg font-semibold">À traiter</h2>
+        {!data.lettres?.length ? <p className="text-sm text-nuit-600/70">Aucune lettre en attente.</p> : (
+          <ul className="divide-y divide-nuit-50 text-sm">{data.lettres.map((x) => <li key={x.id} className="py-2">
+            <Link to={`/dossiers/${x.id}`} className="font-medium hover:underline">{x.nom}</Link>
+            <span className="block text-xs text-nuit-600/70">{ETAT[x.statut]}{x.date ? ' · ' + dateCourte(x.date) : ''}</span></li>)}</ul>
+        )}
+        <p className="mt-3 text-xs text-nuit-600/60">Valider, demander une correction ou confirmer la réception : dans le dossier, encadré « Espace personnel ».</p>
       </section>
     </div>
   )

@@ -127,6 +127,7 @@ function verifierAcces_(action, p, s, route) {
   if (action === 'registres') ecrit = !!(p.inscrire || p.depart);
   if (action === 'statistiques') ecrit = false;
   if (action === 'tri.tester') ecrit = false;
+  if (action === 'catechumenat.reglages' && (p.ecrire || p.consigne_lettre !== undefined)) ecrit = true;
   if (zone === 'dossiers') return verifierDossier_(action, p, s, ecrit);
   if (!(ecrit ? peutModifier_ : peutLire_)(s, zone)) {
     throw interdit_(ecrit && peutLire_(s, zone) ? 'Lecture seule : vous ne pouvez pas modifier (' + NOMS_ZONES_[zone] + ').' : 'Vous n\'avez pas accès à cette partie de l\'appli (' + NOMS_ZONES_[zone] + ').');

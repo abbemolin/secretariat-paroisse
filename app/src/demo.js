@@ -292,7 +292,9 @@ export async function demoApi(action, p) {
     case 'cor.supprimer': etat.cor.membres = etat.cor.membres.filter((x) => x.id !== p.id); return corListe(p.annee)
     case 'cor.equipe': { const l = etat.cor.equipes[p.annee] ||= []; if (p.supprimer) { etat.cor.equipes[p.annee] = l.filter((e) => e.id !== p.supprimer); etat.cor.membres.forEach((m) => { if (m.equipe_id === p.supprimer) m.equipe_id = '' }) } else { const e = l.find((x) => x.id === p.equipe.id); if (e) Object.assign(e, p.equipe); else { const n = { ...p.equipe, id: 'q' + Date.now() }; l.push(n); n.chefs.forEach((c) => { const m = etat.cor.membres.find((x) => x.id === c); if (m) m.equipe_id = n.id }) } } return corListe(p.annee) }
     case 'cor.nouvelleAnnee': etat.cor.equipes[p.vers] = (etat.cor.equipes[p.de] || []).map((e) => ({ ...e, id: e.id + 'b' })); etat.cor.membres.filter((m) => m.annee === p.de && m.statut !== 'ancien' && m.equipe_id).forEach((m) => etat.cor.membres.push({ ...m, id: m.id + 'b', annee: p.vers, equipe_id: m.equipe_id + 'b', statut: 'ancien' })); etat.cor.equipes[p.vers].forEach((e) => { e.chefs = e.chefs.map((c) => c + 'b') }); return corListe(p.vers)
-    case 'catechumenat.reglages': { const d = etat.anniv ||= { anniv_actif: false, anniv_texte: 'Bonjour {prenom},\n\nIl y a {annees}…', defaut: 'Bonjour {prenom},\n\nIl y a {annees}…', prochains: [{ id: 'd5', nom: 'Khadija NDIAYE', date: '2026-12-05', annees: 1, mail: true }] }; if (p.ecrire) Object.assign(d, { anniv_actif: p.anniv_actif, anniv_texte: p.anniv_texte }); return { ...d } }
+    case 'catechumenat.reglages': { const d = etat.anniv ||= { anniv_actif: false, anniv_texte: 'Bonjour {prenom},\n\nIl y a {annees}…', defaut: 'Bonjour {prenom},\n\nIl y a {annees}…', prochains: [{ id: 'd5', nom: 'Khadija NDIAYE', date: '2026-12-05', annees: 1, mail: true }],
+      consigne_lettre: 'Écrivez à la main votre lettre à Mgr Pascal Delannoy, archevêque de Strasbourg…\n\nEnsuite, déposez-la ici (une photo nette de chaque page, ou un PDF), ou bien au presbytère : {adresse}.', consigne_defaut: 'Écrivez à la main votre lettre…',
+      lettres: [{ id: 'd2', nom: 'Sarah KESSLER', statut: 'deposee', date: '2026-11-22T18:00:00Z' }, { id: 'd5', nom: 'Khadija NDIAYE', statut: 'annoncee', date: '2026-11-21T10:00:00Z' }] }; if (p.consigne_lettre !== undefined) d.consigne_lettre = p.consigne_lettre; if (p.ecrire) Object.assign(d, { anniv_actif: p.anniv_actif, anniv_texte: p.anniv_texte }); return { ...d } }
     case 'cor.menage': {
       const x = etat.cor.membres.find((y) => y.id === p.id), z = etat.cor.membres.find((y) => y.id === p.avec)
       if (x.nom.toLowerCase() === z.nom.toLowerCase()) x.prenoms = x.prenoms + ' et ' + z.prenoms; else { x.prenoms = `${x.prenoms} ${x.nom.toUpperCase()} et ${z.prenoms}`; x.nom = z.nom }
@@ -379,7 +381,7 @@ export async function demoApi(action, p) {
     case 'espace.etat': case 'espace.lien': case 'espace.lettre': case 'espace.signalement': case 'parrain.ecrire': case 'parrain.envoyer': {
       etat.esp ||= {}
       const e = etat.esp[p.id] ||= { existe: p.id === 'd2', lien: 'https://app.croix-glorieuse.org/?c=' + 'f'.repeat(32), mot_de_passe: p.id === 'd2' ? '2026-11-20T10:00:00Z' : '', derniere_visite: p.id === 'd2' ? new Date(Date.now() - 3 * 3600e3).toISOString() : '', mail: 'sarah.k@example.fr',
-        lettre: p.id === 'd2' ? { texte: 'Monseigneur,\n\nJe m\'appelle Sarah, j\'ai 32 ans. Depuis deux ans je découvre le Christ à la paroisse La Croix glorieuse…\n\nJe vous demande humblement le baptême.\n\nSarah Kessler', statut: 'envoyee', remarque: '' } : { texte: '', statut: '' } }
+        lettre: p.id === 'd2' ? { texte: '', statut: 'deposee', mode: 'app', deposee_le: '2026-11-22T18:00:00Z', fichier: '#', remarque: '' } : p.id === 'd5' ? { texte: '', statut: 'annoncee', mode: 'presbytere', annoncee_le: '2026-11-21T10:00:00Z', remarque: '' } : { texte: '', statut: '' } }
       e.signalements ||= p.id === 'd2' ? [{ id: 's1', date: '2026-11-21T09:00:00Z', sujet: 'Mon parcours', texte: "L'étape « Entrée en catéchuménat » est cochée mais je ne l'ai pas encore vécue.", statut: 'ouvert' }] : []
       if (action === 'espace.signalement') { const z = e.signalements.find((x) => x.id === p.signalement); if (p.rouvrir) Object.assign(z, { statut: 'ouvert', traite_le: '' }); else Object.assign(z, { statut: 'traite', traite_le: new Date().toISOString(), traite_par: moi.nom, reponse: p.reponse }) }
       e.parrains ||= p.id === 'd2' ? [{ id: 'p1', role: 'marraine', nom: 'Anne Roth', email: 'anne.roth@example.fr', envoye_le: '2026-11-15T10:00:00Z', cert_le: '', lien: 'https://app.croix-glorieuse.org/parrain/?p=' + 'e'.repeat(32) }] : []
@@ -387,7 +389,7 @@ export async function demoApi(action, p) {
       if (action === 'parrain.envoyer') e.parrains.find((z) => z.id === p.parrain_id).envoye_le = new Date().toISOString()
       if (action === 'espace.lien') e.existe = true
       if (p.corriger) { e.lettre.statut = 'a_corriger'; e.lettre.remarque = p.remarque }
-      if (p.valider) e.lettre.statut = 'validee'
+      if (p.valider || p.recue) e.lettre.statut = 'validee'
       return e
     }
     case 'textes.liste': return etat.textes ||= { promotions: [{ cle: 'tous', nom: 'Tous (catéchumènes et néophytes)' }, { cle: 'cat:2027', nom: 'Catéchumènes – baptême 2027' }, { cle: 'cat:attente', nom: 'Catéchumènes en attente' }, { cle: 'neo:2026', nom: 'Néophytes – baptisés en 2026' }, { cle: 'neo:tous', nom: 'Tous les néophytes' }],
