@@ -207,6 +207,7 @@ var ROUTES = {
   'propositions.audio':    { fn: function (p, s) { return audioPropRoute_(p, s); } },
   'paroissiens.prieres':   { fn: function (p, s) { return prieresEquipe_(); } },
   'paroissiens.moderer':   { fn: function (p, s) { return modererPriere_(p, s); } },
+  'paroissiens.rgpd':      { fn: function (p, s) { return rgpdRoute_(p, s); } },
   'paroissiens.donsEcrire': { fn: function (p, s) { return ecrireCausesDons_(p, s); } },
   'charte.etat':           { fn: function (p, s) { return etatCharte_(s.uid); } },
   'charte.accepter':       { fn: function (p, s) { return accepterCharte_(p, s); } },

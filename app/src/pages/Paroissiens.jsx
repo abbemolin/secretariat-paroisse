@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, HeartHandshake, Check, X, HelpCircle, Mail, PauseCircle, PlayCircle, Trash2, Send, Users, ShieldCheck, Crown, Loader2, Search, FolderHeart, UserCheck, UserX } from 'lucide-react'
+import { Plus, HeartHandshake, Check, X, HelpCircle, Mail, PauseCircle, PlayCircle, Trash2, Send, Users, ShieldCheck, Crown, Loader2, Search, FolderHeart, UserCheck, UserX, Home, Eraser, RefreshCw, Archive } from 'lucide-react'
 import { api } from '../api.js'
 import { useApp } from '../App.jsx'
 import { Chargement, Erreur, EnTete, Modale, Vide, dateCourte, dateHeure, useCharger, useConfirmer, useNotif } from '../ui.jsx'
@@ -9,7 +9,7 @@ const COULEUR = {
   attente: 'bg-or-100 text-or-600', precisions: 'bg-or-50 text-or-600', invite: 'bg-nuit-50 text-nuit', actif: 'bg-green-50 text-green-800',
   refuse: 'bg-red-50 text-red-700', suspendu: 'bg-red-50 text-red-700', desactive: 'bg-nuit-50 text-nuit-600'
 }
-const VUES = [['demandes', 'Demandes'], ['comptes', 'Comptes'], ['priere', 'Prière'], ['inviter', 'Inviter'], ['dons', 'Dons']]
+const VUES = [['demandes', 'Demandes'], ['comptes', 'Comptes'], ['priere', 'Prière'], ['inviter', 'Inviter'], ['dons', 'Dons'], ['rgpd', 'RGPD']]
 
 /** Rappel RGPD affiché sur la page (données personnelles des paroissiens). */
 function RappelRgpd() {
@@ -82,6 +82,7 @@ export default function Paroissiens() {
                     <div className="font-medium">{c.prenom} {c.nom}{c.chef && <span className="ml-1.5 inline-flex items-center gap-0.5 text-xs text-or-600"><Crown className="h-3 w-3" />chef {c.chef}</span>}</div>
                     <div className="truncate text-xs text-nuit-600/70">{c.mail || 'sans adresse'}{c.derniere_visite ? ' · vu ' + dateCourte(c.derniere_visite) : ''}</div>
                   </div>
+                  {c.foyer && <span className="pastille bg-nuit-50 text-nuit" title={'Foyer avec ' + c.foyer}><Home className="h-3 w-3" />foyer</span>}
                   {c.dossier_id && <span className="pastille bg-nuit-50 text-nuit"><FolderHeart className="h-3 w-3" />catéchuménat</span>}
                   {c.cor && <span className="pastille bg-nuit-50 text-nuit">Cor Unum</span>}
                   <span className={`pastille ${COULEUR[c.statut] || ''}`}>{data.statuts[c.statut] || c.statut}</span>
@@ -90,7 +91,7 @@ export default function Paroissiens() {
             </div>
           )}
         </>
-      ) : vue === 'priere' ? <MurPriere /> : vue === 'dons' ? <Dons modifiable={utilisateur.role === 'admin' || utilisateur.role === 'cure'} /> : <Inviter onFait={recharger} />}
+      ) : vue === 'priere' ? <MurPriere /> : vue === 'rgpd' ? <EffacementsRgpd /> : vue === 'dons' ? <Dons modifiable={utilisateur.role === 'admin' || utilisateur.role === 'cure'} /> : <Inviter onFait={recharger} />}
       {ouvert?.mode === 'fiche' && <Fiche c={ouvert.c} statuts={data.statuts} occupe={occupe} operer={operer} onFermer={() => setOuvert(null)} />}
       {(ouvert?.mode === 'refuser' || ouvert?.mode === 'precisions') && <Reponse c={ouvert.c} mode={ouvert.mode} occupe={occupe} operer={operer} onFermer={() => setOuvert(null)} />}
     </>
@@ -109,6 +110,14 @@ function Rapprochement({ l }) {
 
 function Demande({ c, occupe, operer, onOuvrir, onPrecisions }) {
   const d = c.demande || {}
+  const confirmer = useConfirmer()
+  async function accepter() {
+    if (d.mineur && d.accord?.reponse !== 'oui') {
+      if (!(await confirmer({ titre: 'Accepter sans l\'accord du parent ?', texte: `Le parent de ${c.prenom} n'a pas encore répondu au mail. N'acceptez que si vous avez vérifié son accord autrement (rencontre, papier signé).`, bouton: 'Accepter quand même' }))) return
+      return operer(c, 'valider', { sans_accord: true }, 'Accès accepté : invitation envoyée par mail')
+    }
+    operer(c, 'valider', {}, 'Accès accepté : invitation envoyée par mail')
+  }
   return (
     <div className="carte p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -120,16 +129,38 @@ function Demande({ c, occupe, operer, onOuvrir, onPrecisions }) {
         {d.messe && <div><span className="text-nuit-600/70">Messe habituelle :</span> {d.messe}</div>}
         {d.liens?.length > 0 && <div><span className="text-nuit-600/70">À la paroisse :</span> {d.liens.join(', ')}</div>}
         {d.connait && <div><span className="text-nuit-600/70">Quelqu'un qui le/la connaît :</span> {d.connait}</div>}
-        {d.mineur && <div className="rounded bg-or-50 p-2 text-xs"><strong>Lycéen(ne), moins de 18 ans</strong> — accord d'un parent à vérifier : {d.parent_mail}. Pas de petites annonces ni de messages pour ce compte.</div>}
+        {d.mineur && <AccordParent c={c} occupe={occupe} operer={operer} />}
         {d.mot && <div className="whitespace-pre-wrap"><span className="text-nuit-600/70">Message :</span> {d.mot}</div>}
         {c.statut === 'precisions' && c.motif && <div className="rounded bg-nuit-50/70 p-2 text-xs"><strong>Question posée :</strong> {c.motif}</div>}
       </div>
       <Rapprochement l={c.rapprochement} />
       <div className="mt-3 flex flex-wrap gap-2">
-        <button className="btn-principal" disabled={!!occupe} onClick={() => operer(c, 'valider', {}, 'Accès accepté : invitation envoyée par mail')}>{occupe === c.id + 'valider' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}Accepter</button>
+        <button className="btn-principal" disabled={!!occupe} onClick={() => accepter()}>{occupe === c.id + 'valider' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}Accepter</button>
         <button className="btn-clair" disabled={!!occupe} onClick={onPrecisions}><HelpCircle className="h-4 w-4" />Demander des précisions</button>
         <button className="btn-clair text-red-700" disabled={!!occupe} onClick={onOuvrir}><X className="h-4 w-4" />Refuser</button>
       </div>
+    </div>
+  )
+}
+
+/** Lycéen(ne) : accord du parent demandé par mail. */
+function AccordParent({ c, occupe, operer }) {
+  const d = c.demande || {}, a = d.accord || {}
+  const [autre, setAutre] = useState(false)
+  const [mail, setMail] = useState(d.parent_mail || '')
+  return (
+    <div className={`rounded p-2 text-xs ${a.reponse === 'oui' ? 'bg-green-50 text-green-900' : 'bg-or-50'}`}>
+      <strong>Lycéen(ne), moins de 18 ans</strong> — pas de petites annonces ni de messages ; mur de prière : prier seulement.
+      <div className="mt-1">{a.reponse === 'oui' ? <>Accord donné par <strong>{a.par}</strong> le {dateCourte(a.le)} (lien envoyé à {d.parent_mail}).</>
+        : a.reponse === 'non' ? <>Le parent ({d.parent_mail}) a <strong>refusé</strong> le {dateCourte(a.le)}.</>
+        : <>Accord du parent <strong>attendu</strong> : mail envoyé à {d.parent_mail}{a.envoye_le ? ' le ' + dateCourte(a.envoye_le) : ''}{a.exp ? `, lien valable jusqu'au ${dateCourte(a.exp)}` : ''}.</>}</div>
+      {a.reponse !== 'oui' && (
+        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+          {autre && <input className="champ h-8 w-56 py-1 text-xs" type="email" value={mail} onChange={(e) => setMail(e.target.value)} />}
+          <button className="btn-clair h-8 py-1 text-xs" disabled={!!occupe} onClick={() => operer(c, 'relancerAccord', autre ? { parent_mail: mail } : {}, 'Mail renvoyé au parent')}><Mail className="h-3.5 w-3.5" />Renvoyer le mail au parent</button>
+          {!autre && <button className="text-xs text-or-600 underline" onClick={() => setAutre(true)}>autre adresse</button>}
+        </div>
+      )}
     </div>
   )
 }
@@ -169,6 +200,7 @@ function Fiche({ c, statuts, occupe, operer, onFermer }) {
         {ligne('Téléphone', c.telephone)}
         {ligne('Adresse postale', c.adresse)}
         {ligne('Chef de fraternité', c.chef)}
+        {ligne('Foyer', c.foyer ? 'relié au compte de ' + c.foyer : '')}
         {ligne('Compte créé', dateHeure(c.cree_le))}
         {ligne('Accepté par', c.valide_par ? `${c.valide_par}, ${dateCourte(c.valide_le)}` : '')}
         {ligne('Dernière visite', c.derniere_visite ? dateHeure(c.derniere_visite) : 'jamais')}
@@ -191,8 +223,10 @@ function Fiche({ c, statuts, occupe, operer, onFermer }) {
         {['actif', 'invite'].includes(c.statut) && <button className="btn-clair" disabled={!!occupe} onClick={() => operer(c, 'suspendre', {}, 'Compte suspendu')}><PauseCircle className="h-4 w-4" />Suspendre</button>}
         {['suspendu', 'desactive'].includes(c.statut) && <button className="btn-clair" disabled={!!occupe} onClick={() => operer(c, 'reactiver', {}, 'Compte réactivé')}><PlayCircle className="h-4 w-4" />Réactiver</button>}
         {c.statut === 'refuse' && <button className="btn-clair" disabled={!!occupe} onClick={() => operer(c, 'valider', {}, 'Accès accepté')}><Check className="h-4 w-4" />Accepter finalement</button>}
+        {c.foyer && <button className="btn-clair" disabled={!!occupe} onClick={() => operer(c, 'delierFoyer', {}, 'Lien de foyer défait')}><Home className="h-4 w-4" />Défaire le foyer</button>}
         <button className="btn-clair text-red-700" disabled={!!occupe} onClick={supprimer}><Trash2 className="h-4 w-4" />Effacer le compte</button>
       </div>
+      {c.demande?.mineur && <div className="mt-3"><AccordParent c={c} occupe={occupe} operer={operer} /></div>}
     </Modale>
   )
 }
@@ -324,6 +358,64 @@ function MurPriere() {
           <button className="btn-clair" onClick={() => setTout(!tout)}>{tout ? 'Masquer les autres intentions' : `Voir toutes les intentions (${l.length})`}</button>
           {tout && l.filter((x) => !aRelire.includes(x)).map(carte)}
         </div>
+      )}
+    </>
+  )
+}
+
+/** Effacements RGPD : liste du mois à confirmer (sinon effacement automatique au bout de 30 jours). */
+function EffacementsRgpd() {
+  const notifier = useNotif()
+  const confirmer = useConfirmer()
+  const [occupe, setOccupe] = useState('')
+  const [choix, setChoix] = useState({})
+  const { data, chargement, erreur, recharger, setData } = useCharger(() => api('paroissiens.rgpd'), [])
+  const el = data?.liste?.elements || []
+  const coches = el.filter((x) => choix[x.cle] !== false)
+  async function op(o, extra = {}, msg) {
+    setOccupe(o + (extra.cle || ''))
+    try { setData(await api('paroissiens.rgpd', { op: o, ...extra })); if (msg) notifier(msg) } catch (e) { notifier(e.message, 'erreur') } finally { setOccupe('') }
+  }
+  async function effacer() {
+    if (!(await confirmer({ titre: 'Effacer définitivement', texte: `${coches.length} élément(s) seront effacés : fiches Cor Unum supprimées, fiches santé et contacts d'urgence vidés (les inscriptions aux retraites restent). Ce n'est pas réversible.`, bouton: 'Effacer', danger: true }))) return
+    op('effacer', { cles: coches.map((x) => x.cle) }, 'Effacé et noté au journal')
+  }
+  if (chargement && !data) return <Chargement />
+  return (
+    <>
+      <Erreur erreur={erreur} reessayer={recharger} />
+      <div className="mb-3 rounded-lg bg-nuit-50/60 p-3 text-xs leading-relaxed text-nuit-700">
+        Chaque mois, l'app prépare la liste des données à effacer : les <strong>fiches Cor Unum</strong> des personnes sans activité depuis <strong>3 ans</strong>{' '}
+        (ni fraternité, ni connexion à l'app, ni nouvelle inscription) et les <strong>fiches santé et contacts d'urgence des retraites</strong> finies depuis plus d'<strong>un mois</strong>.
+        Confirmez, ou gardez une fiche un an de plus si la personne est encore là. Sans réponse, tout est effacé automatiquement au bout de 30 jours. Chaque effacement est noté au journal.
+      </div>
+      {!el.length ? (
+        <div className="carte p-6 text-center text-sm text-nuit-600">
+          <Archive className="mx-auto mb-2 h-6 w-6 text-nuit-600/50" />Rien à effacer pour le moment.
+          {data?.preparee_le && <div className="mt-1 text-xs text-nuit-600/70">Liste vérifiée le {dateCourte(data.preparee_le)}.</div>}
+          <button className="btn-clair mt-3" disabled={!!occupe} onClick={() => op('preparer', {}, 'Liste vérifiée')}>{occupe === 'preparer' ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}Vérifier maintenant</button>
+        </div>
+      ) : (
+        <>
+          <div className="mb-2 text-sm text-nuit-600">Liste du {dateCourte(data.liste.le)} — effacement automatique le <strong>{dateCourte(data.liste.auto_le)}</strong> si rien n'est fait.</div>
+          <div className="carte divide-y divide-nuit-50">
+            {el.map((x) => (
+              <label key={x.cle} className="flex items-center gap-3 px-4 py-3 text-sm">
+                <input type="checkbox" checked={choix[x.cle] !== false} onChange={(e) => setChoix({ ...choix, [x.cle]: e.target.checked })} />
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium">{x.nom}</div>
+                  <div className="text-xs text-nuit-600/70">{x.type === 'cor'
+                    ? `Cor Unum ${x.annees.join(', ')} · ${x.ids.length} fiche(s) · dernière activité : ${dateCourte(x.derniere)}`
+                    : `Retraite du ${dateCourte(x.date)} · ${x.nb} inscription(s) avec fiche santé ou contact d'urgence`}</div>
+                </div>
+                <button className="btn-clair h-8 py-1 text-xs" disabled={!!occupe} onClick={(e) => { e.preventDefault(); op('garder', { cle: x.cle }, 'Gardée un an de plus') }}>Garder un an</button>
+              </label>
+            ))}
+          </div>
+          <div className="mt-3 flex gap-2">
+            <button className="btn-principal bg-red-700" disabled={!!occupe || !coches.length} onClick={effacer}>{occupe === 'effacer' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eraser className="h-4 w-4" />}Effacer la sélection ({coches.length})</button>
+          </div>
+        </>
       )}
     </>
   )

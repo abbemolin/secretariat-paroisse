@@ -331,6 +331,7 @@ function actionEspace_(action, p) {
   if (/^esp\.prop\./.test(action)) return actionPropApp_({ uid: 'esp:' + d.id, heure: heureProps_(esp.prefs) }, action.slice(9), p);
   if (/^esp\.priere\./.test(action)) return actionPriere_(quiEspace_(d), action.slice(11), p);
   if (action === 'esp.inscriptions') return mesInscriptions_(mailDossier_(d));
+  if (action === 'esp.afaire') return { afaire: aFaireEspace_(d) };
   if (action === 'esp.messes') return { messes: messesProposees_(), mes_intentions: mesIntentions_(mailDossier_(d)), offrande: offrandeTexte_(), max: INT_APP_MAX };
   if (action === 'esp.demanderMesse') {
     var rm = demanderMessesApp_({ mail: mailDossier_(d), nom: ((i0.prenoms || '') + ' ' + (i0.nom || '')).trim() || d.nom }, p);

@@ -15,7 +15,7 @@
 
 var COLONNES_COMPTES = ['id', 'mail', 'prenom', 'nom', 'telephone', 'statut', 'dossier_id', 'cor_ids', 'hash', 'sel', 'mdp_maj', 'session_v',
   'jeton', 'jeton_exp', 'demande', 'rapprochement', 'cree_le', 'valide_par', 'valide_le', 'motif', 'derniere_visite', 'prefs', 'favoris',
-  'confidentialite_le', 'statut_le', 'maj_le', 'adresse'];
+  'confidentialite_le', 'statut_le', 'maj_le', 'adresse', 'foyer', 'foyer_invite'];
 // attente : demande à examiner · precisions : précisions demandées · invite : accès accordé, mot de passe à choisir
 // actif · refuse · suspendu · desactive (18 mois sans connexion)
 var STATUTS_COMPTE = { attente: 'Demande à examiner', precisions: 'Précisions demandées', invite: 'Invité (mot de passe à choisir)', actif: 'Actif',
@@ -95,6 +95,59 @@ function envoyerInvitation_(x, motif) {
     '\n\nEnsuite, vous vous connecterez avec votre adresse (' + x.mail + ') et ce mot de passe.' + FIN_MAIL_CPT + MENTION_RGPD_MAIL;
   mailCompte_(x.mail, 'La Croix glorieuse – ' + (motif === 'validee' ? 'votre accès est accepté' : 'invitation à l\'application de la paroisse'), t,
     [{ texte: 'Ouvrir mon compte', url: urlInvitation_(x.jeton) }]);
+}
+
+// ─── Accord parental des lycéens (15–17 ans) : par un lien envoyé au parent ───
+
+var ACCORD_JOURS = 30;
+function mailAccordParent_(x, demande) {
+  var a = demande.accord || {};
+  mailCompte_(demande.parent_mail, 'La Croix glorieuse – accord pour le compte de ' + x.prenom, 'Bonjour,\n\n' + (x.prenom + ' ' + x.nom).trim() + ' (' + x.mail + ') demande un accès à l\'application de la paroisse La Croix glorieuse et vous a indiqué(e) comme parent.' +
+    '\n\nAvec ce compte, ' + x.prenom + ' pourra lire les annonces, l\'agenda, la Bible et les propositions de la paroisse, demander une messe et prier avec le mur de prière (sans y déposer d\'intention). ' +
+    'Les petites annonces et les messages entre paroissiens restent fermés aux moins de 18 ans.' +
+    '\n\nPour donner (ou refuser) votre accord, utilisez le bouton ci-dessous (lien valable ' + ACCORD_JOURS + ' jours). Sans votre accord, le compte ne sera pas ouvert.' +
+    '\n\nSi vous ne connaissez pas cette demande, ignorez ce message.' + FIN_MAIL_CPT + MENTION_RGPD_MAIL,
+    [{ texte: 'Répondre à la demande', url: URL_APP_PAROISSIENS + '?accord=' + a.jeton }]);
+}
+function compteParAccord_(j) {
+  if (!/^[a-f0-9]{32}$/.test(String(j || ''))) throw erreur_('LIEN', 'Ce lien n\'est pas valable.');
+  var x = lignesComptes_().filter(function (y) { var dm = json2_(y.demande, {}) || {}; return dm.accord && dm.accord.jeton === j; })[0];
+  if (!x) throw erreur_('LIEN', 'Ce lien n\'est plus valable : la réponse a peut-être déjà été donnée.');
+  var a = json2_(x.demande, {}).accord;
+  if (a.exp && a.exp < maintenant_()) throw erreur_('LIEN', 'Ce lien a expiré. Demandez à la paroisse de vous le renvoyer : secretariat@croix-glorieuse.org.');
+  return x;
+}
+
+// ─── « Je veux rejoindre une fraternité » (paroissien sans fiche) : fiche Cor Unum « à répartir » ───
+
+function demandeCorCompte_(x, preferences) {
+  var f = fraterniteCompte_(x);
+  if (f.etat === 'membre') throw erreur_('DEJA', 'Vous êtes déjà dans une fraternité.');
+  if (f.etat === 'demande') return;
+  var prefs = String(preferences || '').trim().slice(0, 500);
+  verrou_(function () {
+    feuilleCor_();
+    var r = corReglages_(), annee = anneeCorCourante_(r), m = normMail_(x.mail);
+    // une fiche de l'année (ancien membre, autre adresse du foyer…) est reprise plutôt que doublée
+    var fiche = lignes_('CorUnum').filter(function (y) { return y.annee === annee && (correspond_(y, x.nom, x.prenom, m)); })[0];
+    var note = 'Demande depuis l\'app des paroissiens le ' + aujourdhui_();
+    if (fiche) {
+      fiche.statut = 'actif'; fiche.equipe_id = ''; fiche.equipe_proposee = '';
+      if (prefs) fiche.souhait = [fiche.souhait, prefs].filter(String).join(' ; ');
+      if (m && !contient_(fiche.email, m)) fiche.email = [fiche.email, m].filter(String).join(', ');
+      fiche.note = [fiche.note, note].filter(String).join(' ; ');
+      fiche.maj_le = maintenant_(); fiche.maj_par = 'App des paroissiens';
+    } else {
+      fiche = { id: uid_(), annee: annee, cree_le: maintenant_(), sources: '["app"]', nom: x.nom || '', prenoms: x.prenom || '', email: m, telephone: x.telephone || '', adresse: x.adresse || '',
+        profils: '["Paroissien"]', situation: '', deja_participe: 'Non', rester: '', chef_indique: '', chef_possible: '', souhait: prefs, groupe_service: '', equipe_id: '', equipe_proposee: '',
+        statut: 'actif', note: note, maj_le: maintenant_(), maj_par: 'App des paroissiens', dossiers_lies: '[]', dossiers_exclus: '[]' };
+    }
+    try { fiche.equipe_proposee = equipeProposee_(fiche, equipesDe_(r, annee), lignes_('CorUnum').filter(function (y) { return y.annee === annee; })) || ''; } catch (e) {}
+    ecrireLigne_('CorUnum', fiche);
+    var y = compteParId_(x.id), ids = json2_(y.cor_ids, []);
+    if (ids.indexOf(fiche.id) === -1) { y.cor_ids = JSON.stringify(ids.concat([fiche.id])); ecrireLigne_('Comptes', y); }
+    prevenirEquipeParoisse_('Cor Unum : demande pour rejoindre une fraternité', (x.prenom + ' ' + x.nom).trim() + ' (app)' + (prefs ? ' – ' + prefs.slice(0, 100) : ''), annee);
+  });
 }
 
 // ─── Rapprochement d'une demande avec les fichiers de la paroisse ───
@@ -231,7 +284,7 @@ function vueCompte_(x) {
     paroissien: true, id: x.id, prenom: x.prenom || '', nom: x.nom || '', mail: x.mail, telephone: x.telephone || '', adresse: x.adresse || '',
     confidentialite_le: x.confidentialite_le || '', notifs: prefsCompte_(x), favoris: json2_(x.favoris, { liste: [], maj: '' }),
     fraternite: frat, chefs: chefs, calendrier: cal, textes: [], annonces: annonces, espace: pontEspace_(x),
-    paroisse: reglages_().paroisse, cle_push: clePubliquePush_(), dons: causesPubliques_()
+    paroisse: reglages_().paroisse, cle_push: clePubliquePush_(), dons: causesPubliques_(), mineur: estMineur_(x), foyer: vueFoyer_(x)
   };
 }
 function noterVisiteCompte_(x) {
@@ -245,6 +298,8 @@ function mesDonnees_(x) {
   r.compte.demande = json2_(x.demande, null);
   r.compte.preferences = prefsCompte_(x);
   r.compte.versets_gardes = (json2_(x.favoris, {}).liste || []).length;
+  if (r.compte.demande && r.compte.demande.accord) delete r.compte.demande.accord.jeton;
+  var cjd = conjointDe_(x); r.compte.foyer = cjd ? 'relié au compte de ' + (cjd.prenom + ' ' + cjd.nom).trim() : '';
   if (x.dossier_id) try { var d = trouverDossier_(x.dossier_id); r.dossier = { type: (TYPES_DOSSIER[d.type] || {}).nom || d.type, informations: json2_(d.donnees, {}).infos || {} }; } catch (e) {}
   try { r.cor_unum = fichesCorDuCompte_(x).map(function (y) { return { annee: y.annee, nom: y.nom, prenoms: y.prenoms, email: y.email, telephone: y.telephone, adresse: y.adresse }; }); } catch (e) {}
   r.responsable = 'Paroisse La Croix glorieuse, représentée par le curé — secretariat@croix-glorieuse.org';
@@ -257,7 +312,7 @@ function mesDonnees_(x) {
 function actionCompte_(action, p) {
   var cache = CacheService.getScriptCache();
   // limite générale par adresse ou par session
-  var cleL = 'cptl_' + String(p.cs || p.mail || p.i || '').slice(0, 60);
+  var cleL = 'cptl_' + String(p.cs || p.mail || p.i || p.a || '').slice(0, 60);
   var nL = Number(cache.get(cleL) || 0);
   if (nL > 300) throw erreur_('LIMITE', 'Trop d\'actions en peu de temps. Réessayez dans une heure.');
   cache.put(cleL, String(nL + 1), 3600);
@@ -289,7 +344,12 @@ function actionCompte_(action, p) {
     if (chiffres_(tel).length < 9) throw erreur_('INVALIDE', 'Indiquez votre numéro de téléphone.');
     if (p.confidentialite !== true) throw erreur_('INVALIDE', 'Merci de lire et d\'accepter la page Confidentialité.');
     var demande = { messe: court(p.messe, 120), liens: (p.liens || []).slice(0, 10).map(function (z) { return court(z, 80); }), connait: court(p.connait, 200), mot: court(p.mot, 600) };
-    if (p.parent) { demande.mineur = true; demande.parent_mail = normMail_(p.parent_mail); if (!demande.parent_mail) throw erreur_('INVALIDE', 'Indiquez l\'adresse du parent qui donne son accord.'); }
+    if (p.parent) {
+      demande.mineur = true; demande.parent_mail = normMail_(p.parent_mail);
+      if (!demande.parent_mail) throw erreur_('INVALIDE', 'Indiquez l\'adresse du parent qui donne son accord.');
+      if (demande.parent_mail === m2) throw erreur_('INVALIDE', 'L\'adresse du parent doit être différente de la vôtre.');
+      demande.accord = { jeton: jeton_(), exp: new Date(Date.now() + ACCORD_JOURS * 86400000).toISOString(), envoye_le: maintenant_() };
+    }
     var rap = rapprocher_(m2, prenom, nom, tel);
     verrou_(function () {
       var x = compteParMail_(m2);
@@ -300,8 +360,29 @@ function actionCompte_(action, p) {
       ecrireLigne_('Comptes', x);
     });
     cache.remove('cptdem_' + m2);
-    prevenirValidateurs_('App des paroissiens : demande d\'accès', prenom + ' ' + nom + (rap.length ? ' – connu(e) : ' + rap[0].source : ' – inconnu(e) des fichiers'));
+    if (demande.mineur) { try { mailAccordParent_({ prenom: prenom, nom: nom, mail: m2 }, demande); } catch (e) { console.error('mail accord parent', e); } }
+    prevenirValidateurs_('App des paroissiens : demande d\'accès', prenom + ' ' + nom + (demande.mineur ? ' – lycéen(ne) : accord du parent attendu' : '') + (rap.length ? ' – connu(e) : ' + rap[0].source : ' – inconnu(e) des fichiers'));
     return { ok: true };
+  }
+  if (action === 'cpt.accord' || action === 'cpt.accordReponse') {
+    var xp = compteParAccord_(p.a), dp = json2_(xp.demande, {});
+    var infoA = { prenom: xp.prenom, nom: xp.nom, mail: masquerMail_(xp.mail), reponse: dp.accord.reponse || '', le: dp.accord.le || '' };
+    if (action === 'cpt.accord' || dp.accord.reponse) return infoA;
+    var oui = p.reponse === 'oui', parNom = String(p.nom_parent || '').trim().slice(0, 120);
+    if (oui && !parNom) throw erreur_('INVALIDE', 'Indiquez votre prénom et votre nom.');
+    if (oui && p.engagement !== true) throw erreur_('INVALIDE', 'Merci de cocher la case d\'accord.');
+    verrou_(function () {
+      var y = compteParId_(xp.id), dy = json2_(y.demande, {});
+      dy.accord.reponse = oui ? 'oui' : 'non'; dy.accord.le = maintenant_(); dy.accord.par = parNom; dy.accord.jeton = '';
+      y.demande = JSON.stringify(dy);
+      if (!oui) { y.statut = 'refuse'; y.statut_le = maintenant_(); y.motif = 'Le parent n\'a pas donné son accord.'; }
+      y.maj_le = maintenant_(); ecrireLigne_('Comptes', y);
+    });
+    if (oui) prevenirValidateurs_('App des paroissiens : accord parental reçu', (xp.prenom + ' ' + xp.nom).trim() + ' – accord donné par ' + parNom + ' : demande à examiner');
+    else try { mailCompte_(xp.mail, 'La Croix glorieuse – votre demande d\'accès', 'Bonjour ' + (xp.prenom || '') + ',\n\nVotre parent n\'a pas donné son accord pour votre compte dans l\'application de la paroisse : votre demande est donc close. Vous pourrez en refaire une plus tard.' + FIN_MAIL_CPT); } catch (e) {}
+    journaliser_({ nom: 'App des paroissiens' }, 'Accord parental ' + (oui ? 'donné' : 'refusé'), (xp.prenom + ' ' + xp.nom).trim());
+    infoA.reponse = oui ? 'oui' : 'non'; infoA.le = maintenant_();
+    return infoA;
   }
   if (action === 'cpt.connexion') {
     var m3 = normMail_(p.mail);
@@ -376,7 +457,11 @@ function actionCompte_(action, p) {
       if (p.notifs && p.notifs.prop_heure !== undefined) { var hh = Number(p.notifs.prop_heure); if (hh >= 5 && hh <= 22) pr.prop_heure = hh; }
       y.prefs = JSON.stringify(pr); ecrireLigne_('Comptes', y);
     });
-    if (p.notifs && typeof p.notifs.lettre_mail === 'boolean') changerAbonnementNewsletter_(x.mail, x.prenom, x.nom, p.notifs.lettre_mail);
+    if (p.notifs && typeof p.notifs.lettre_mail === 'boolean') {
+      changerAbonnementNewsletter_(x.mail, x.prenom, x.nom, p.notifs.lettre_mail);
+      var cj = p.notifs.lettre_mail ? conjointDe_(x) : null;   // foyer : une seule lettre par mail
+      if (cj) try { if (abonnementNewsletter_(cj.mail) === true) changerAbonnementNewsletter_(cj.mail, '', '', false); } catch (e) { console.error('foyer lettre', e); }
+    }
     return vueCompte_(compteParId_(x.id));
   }
   if (action === 'cpt.favoris') {
@@ -396,18 +481,25 @@ function actionCompte_(action, p) {
     return abonnerPush_({ endpoint: p.endpoint, appareil: p.appareil }, { uid: 'cpt:' + x.id });
   }
   if (action === 'cpt.mesDonnees') return mesDonnees_(x);
-  if (action === 'cpt.lettres') return { lettres: lettresApp_(), lettre_mail: abonnementNewsletter_(x.mail) };
+  if (action === 'cpt.lettres') {
+    var abo = abonnementNewsletter_(x.mail), cjl = abo ? null : conjointDe_(x), aboC = false;
+    if (cjl) try { aboC = abonnementNewsletter_(cjl.mail) === true; } catch (e) {}
+    return { lettres: lettresApp_(), lettre_mail: abo, lettre_foyer: aboC ? cjl.prenom : '' };
+  }
   if (action === 'cpt.lettre') return lettreApp_(p.id);
   if (action === 'cpt.sacrement') return demanderSacrementApp_({ mail: x.mail, prenom: x.prenom, nom: x.nom, telephone: x.telephone, adresse: x.adresse, compte_id: x.id }, p);
-  if (action === 'cpt.dossiers') return { dossiers: mesDossiers_(x.mail, x.dossier_id), actes: mesActes_(x.mail), motifs: MOTIFS_ACTE };
-  if (action === 'cpt.acteApp') { demanderActeApp_({ mail: x.mail, prenom: x.prenom, nom: x.nom }, p); return { actes: mesActes_(x.mail) }; }
+  if (action === 'cpt.dossiers') return { dossiers: dossiersFoyer_(x), actes: actesFoyer_(x), motifs: MOTIFS_ACTE };
+  if (action === 'cpt.acteApp') { demanderActeApp_({ mail: x.mail, prenom: x.prenom, nom: x.nom }, p); return { actes: actesFoyer_(x) }; }
+  if (action === 'cpt.afaire') return { afaire: aFaireCompte_(x) };
+  if (/^cpt\.foyer\./.test(action)) return actionFoyer_(x, action.slice(10), p);
+  if (action === 'cpt.corDemande') { demandeCorCompte_(x, p.preferences); return vueCompte_(compteParId_(x.id)); }
   if (/^cpt\.prop\./.test(action)) return actionPropApp_({ uid: 'cpt:' + x.id, heure: heureProps_(x.prefs) }, action.slice(9), p);
   if (/^cpt\.priere\./.test(action)) return actionPriere_(quiCompte_(x), action.slice(11), p);
   if (action === 'cpt.profil') return profilCompte_(x);
   if (action === 'cpt.profilModifier') return modifierProfil_(x, p);
   if (action === 'cpt.mailCode') return codeNouveauMail_(x, p.nouveau);
   if (action === 'cpt.mailChanger') return changerMail_(x, p.code);
-  if (action === 'cpt.inscriptions') return mesInscriptions_(x.mail);
+  if (action === 'cpt.inscriptions') return inscriptionsFoyer_(x);
   if (action === 'cpt.messes') return { messes: messesProposees_(), mes_intentions: mesIntentions_(x.mail), offrande: offrandeTexte_(), max: INT_APP_MAX };
   if (action === 'cpt.demanderMesse') {
     var rm = demanderMessesApp_({ mail: x.mail, nom: (x.prenom + ' ' + x.nom).trim() }, p);
@@ -452,6 +544,7 @@ function compteParJeton_(j) {
 }
 /** Effacement d'un compte (app) : le compte, ses abonnements, son accès à l'espace ; dossiers et registres restent. */
 function supprimerCompte_(x, par) {
+  try { if (x.foyer || x.foyer_invite || lignesComptes_().some(function (z) { var i = inviteFoyer_(z); return i && i.vers === x.id; })) delierFoyer_(x); } catch (e) { console.error('foyer suppression', e); }
   verrou_(function () {
     var y = compteParId_(x.id);
     if (!y) return;
@@ -467,10 +560,17 @@ function supprimerCompte_(x, par) {
 
 // ─── Secrétariat : page « App des paroissiens » ───
 
+function demandePublique_(x) {
+  var dm = json2_(x.demande, null);
+  if (dm && dm.accord) dm.accord = { reponse: dm.accord.reponse || '', le: dm.accord.le || '', par: dm.accord.par || '', envoye_le: dm.accord.envoye_le || '', exp: dm.accord.exp || '' };
+  return dm;
+}
 function comptePublic_(x) {
+  var cj = null; try { cj = conjointDe_(x); } catch (e) {}
   return {
+    foyer: cj ? (cj.prenom + ' ' + cj.nom).trim() : '',
     id: x.id, mail: x.mail, prenom: x.prenom, nom: x.nom, telephone: x.telephone, adresse: x.adresse || '', statut: x.statut, statut_le: x.statut_le || '', a_mot_de_passe: !!x.hash,
-    dossier_id: x.dossier_id || '', demande: json2_(x.demande, null), rapprochement: json2_(x.rapprochement, []), cree_le: x.cree_le, valide_par: x.valide_par || '',
+    dossier_id: x.dossier_id || '', demande: demandePublique_(x), rapprochement: json2_(x.rapprochement, []), cree_le: x.cree_le, valide_par: x.valide_par || '',
     valide_le: x.valide_le || '', motif: x.motif || '', derniere_visite: x.derniere_visite || '', confidentialite_le: x.confidentialite_le || '',
     invitation_exp: x.statut === 'invite' ? x.jeton_exp || '' : ''
   };
@@ -503,6 +603,8 @@ function modifierCompteRoute_(p, s) {
     var y = compteParId_(x.id);
     if (op === 'valider') {
       if (['attente', 'precisions', 'refuse'].indexOf(y.statut) === -1) throw erreur_('INVALIDE', 'Cette demande n\'est plus à examiner.');
+      var dmv = json2_(y.demande, {}) || {};
+      if (dmv.mineur && (!dmv.accord || dmv.accord.reponse !== 'oui') && p.sans_accord !== true) throw erreur_('ACCORD', 'Le parent n\'a pas encore donné son accord (mail envoyé à ' + dmv.parent_mail + ').');
       y.valide_par = s.nom; y.valide_le = maintenant_(); y.motif = '';
       if (y.hash) { y.statut = 'actif'; }
       else { y.statut = 'invite'; y.jeton = jeton_(); y.jeton_exp = new Date(Date.now() + CPT_INVITATION_JOURS * 86400000).toISOString(); }
@@ -527,6 +629,15 @@ function modifierCompteRoute_(p, s) {
       if (autre && autre.id !== y.id) throw erreur_('INVALIDE', 'Cette adresse est déjà celle d\'un autre compte (une adresse par adulte).');
       y.mail = nm;
       if (!y.hash && y.statut === 'invite') { y.jeton = jeton_(); y.jeton_exp = new Date(Date.now() + CPT_INVITATION_JOURS * 86400000).toISOString(); }
+    } else if (op === 'relancerAccord') {
+      var dr = json2_(y.demande, {}) || {};
+      if (!dr.mineur) throw erreur_('INVALIDE', 'Ce compte n\'est pas celui d\'un lycéen.');
+      if (p.parent_mail !== undefined) { var pm = normMail_(p.parent_mail); if (!pm || pm === normMail_(y.mail)) throw erreur_('INVALIDE', 'Adresse du parent invalide.'); dr.parent_mail = pm; }
+      dr.accord = { jeton: jeton_(), exp: new Date(Date.now() + ACCORD_JOURS * 86400000).toISOString(), envoye_le: maintenant_() };
+      y.demande = JSON.stringify(dr);
+      if (y.statut === 'refuse') { y.statut = 'attente'; y.motif = ''; }
+    } else if (op === 'delierFoyer') {
+      // fait plus bas (hors de cette écriture)
     } else if (op === 'lierDossier') {
       y.dossier_id = String(p.dossier_id || '');
     } else throw erreur_('INVALIDE', 'Opération inconnue.');
@@ -534,6 +645,8 @@ function modifierCompteRoute_(p, s) {
     ecrireLigne_('Comptes', y);
     x = y;
   });
+  if (op === 'delierFoyer') { delierFoyer_(x); x = compteParId_(x.id); }
+  if (op === 'relancerAccord') mailAccordParent_(x, json2_(x.demande, {}));
   if (op === 'valider' && x.statut === 'invite' && normMail_(x.mail)) envoyerInvitation_(x, 'validee');
   if (op === 'valider' && x.statut === 'actif') mailCompte_(x.mail, 'La Croix glorieuse – votre accès est accepté', 'Bonjour ' + x.prenom + ',\n\nVotre accès à l\'application de la paroisse est accepté. Connectez-vous avec votre adresse et votre mot de passe.' + FIN_MAIL_CPT, [{ texte: 'Ouvrir l\'application', url: URL_APP_PAROISSIENS }]);
   if (op === 'renvoyer' || (op === 'reactiver' && x.statut === 'invite' && normMail_(x.mail)) || (op === 'adresse' && x.statut === 'invite')) envoyerInvitation_(x, 'invitation');

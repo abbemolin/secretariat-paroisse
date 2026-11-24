@@ -21,6 +21,16 @@ var ETAPES_APP = {
   confirmand: [['accueil', 'Accueil'], ['parcours', 'Parcours de préparation'], ['lettre', 'Lettre à l\'évêque'], ['retraite', 'Retraite'], ['confirmation', 'Confirmation'], ['registre', 'Inscription au registre']]
 };
 
+/** Pièces que la personne apporte elle-même (les autres sont faites par la paroisse). */
+var DOCS_APP = {
+  bapteme: [['cert_parrain', 'certificat de baptême ou de confirmation du parrain'], ['cert_marraine', 'certificat de baptême ou de confirmation de la marraine']],
+  premiere_communion: [['cert_bapteme', 'certificat de baptême']],
+  profession_foi: [['cert_bapteme', 'certificat de baptême']],
+  confirmation_jeune: [['cert_bapteme', 'certificat de baptême'], ['lettre_eveque', 'lettre à l\'évêque'], ['cert_parrain', 'certificat du parrain ou de la marraine']],
+  mariage: [['bapteme_fiancee', 'acte de baptême récent de la fiancée'], ['bapteme_fiance', 'acte de baptême récent du fiancé'], ['intention_fiancee', 'déclaration d\'intention de la fiancée'], ['intention_fiance', 'déclaration d\'intention du fiancé']],
+  confirmand: [['cert_bapteme', 'certificat de baptême'], ['lettre_eveque', 'lettre à l\'évêque'], ['cert_parrain', 'certificat du parrain ou de la marraine'], ['photo', 'photo d\'identité']]
+};
+
 /** Demande de sacrement depuis l'app. qui : { mail, prenom, nom, telephone, adresse, compte_id } */
 function demanderSacrementApp_(qui, p) {
   var type = String(p.type || '');
@@ -63,7 +73,11 @@ function mesDossiers_(mail, dossierId) {
     var prochaine = etapes.filter(function (e) { return !e.fait; })[0];
     var qui = d.type === 'bapteme' ? [i.enfant_prenoms, i.enfant_nom].filter(Boolean).join(' ')
       : d.type === 'mariage' ? [i.fiancee_prenoms, i.fiance_prenoms].filter(Boolean).join(' et ') : d.nom;
-    return { id: d.id, type: (TYPES_DOSSIER[d.type] || {}).nom || d.type, qui: qui, etat: d.etat === 'clos' ? 'termine' : 'en_cours', recu_le: String(d.cree_le || '').slice(0, 10),
+    var docs = don.documents || {}, celebre = !!(et.celebration || {}).fait || !!(et.confirmation || {}).fait || !!(et.sacrements || {}).fait;
+    var aFournir = d.etat === 'ouvert' && !celebre ? (DOCS_APP[d.type] || []).filter(function (k) { return !(docs[k[0]] && docs[k[0]].recu); }).map(function (k) { return k[1]; }) : [];
+    if (d.type === 'bapteme' && !i.marraine_nom) aFournir = aFournir.filter(function (k) { return k.indexOf('marraine') === -1; });
+    if (d.type === 'bapteme' && !i.parrain_nom) aFournir = aFournir.filter(function (k) { return k.indexOf('du parrain') === -1; });
+    return { id: d.id, cle: d.type, a_fournir: aFournir, type: (TYPES_DOSSIER[d.type] || {}).nom || d.type, qui: qui, etat: d.etat === 'clos' ? 'termine' : 'en_cours', recu_le: String(d.cree_le || '').slice(0, 10),
       date_celebration: d.date_celebration || '', etapes: etapes, prochaine: prochaine ? prochaine.libelle : '' };
   }).sort(function (a, b) { return String(b.recu_le).localeCompare(String(a.recu_le)); });
 }
@@ -101,7 +115,7 @@ function mesActes_(mail) {
   if (!mail || !db_().getSheetByName('Extraits')) return [];
   return lignes_('Extraits').filter(function (x) { var dm = json2_(x.demande, null); return dm && dm.email === mail; })
     .sort(function (a, b) { return String(b.cree_le).localeCompare(String(a.cree_le)); }).slice(0, 20)
-    .map(function (x) { var dm = json2_(x.demande, {}), env = json2_(x.envois, []); return { nom: x.nom, motif: dm.motif, le: dm.le, envoye_le: env.length ? env[env.length - 1].date : '' }; });
+    .map(function (x) { var dm = json2_(x.demande, {}), env = json2_(x.envois, []); return { nom: x.nom, motif: dm.motif, pour: dm.pour || 'moi', le: dm.le, envoye_le: env.length ? env[env.length - 1].date : '' }; });
 }
 
 // ─── Dons (formulaires de don HelloAsso) ───

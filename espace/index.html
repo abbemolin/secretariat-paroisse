@@ -120,10 +120,10 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     ['Situation', [['situation', 'Situation familiale', ['', 'Célibataire', 'Marié(e)', 'Pacsé(e)', 'Vie maritale', 'Divorcé(e)', 'Veuf / veuve']], ['conjoint', 'Époux / épouse']]],
     ['Parents', [['pere_prenom', 'Prénom du père'], ['pere_nom', 'Nom du père'], ['mere_prenom', 'Prénom de la mère'], ['mere_nom_jeune_fille', 'Nom de jeune fille de la mère']]],
     ['Prénom de baptême', [['prenom_bapteme', 'Prénom de baptême']], 'Choisir un nouveau prénom n\'est pas obligatoire, sauf si votre prénom de naissance n\'est pas celui d\'un saint ou d\'une sainte du calendrier catholique. Dans ce cas, choisissez le prénom d\'un saint ou d\'une sainte qui vous accompagnera : il s\'ajoutera à vos prénoms dans le registre des baptêmes.']];
-  var q = new URLSearchParams(location.search), c = q.get('c') || '', INVIT = q.get('i') || '';
-  if (INVIT) try { history.replaceState(null, '', location.pathname); } catch (x) {}
+  var q = new URLSearchParams(location.search), c = q.get('c') || '', INVIT = q.get('i') || '', ACCORD = q.get('accord') || '';
+  if (INVIT || ACCORD) try { history.replaceState(null, '', location.pathname); } catch (x) {}
   // MODE : 'esp' (espace catéchumène / néophyte), 'p' (paroissien avec compte), 'v' (visiteur, sans compte)
-  var MODE = 'esp', formulaire = {}, etapeF = '', mailF = '';
+  var MODE = 'esp', formulaire = {}, etapeF = '', mailF = '', mineurF = false;
   function sessionCpt() { try { return localStorage.getItem('cpt_s') || ''; } catch (x) { return ''; } }
   function ecrireSessionCpt(v) { try { if (v) localStorage.setItem('cpt_s', v); else { localStorage.removeItem('cpt_s'); localStorage.removeItem('cpt_d'); } } catch (x) {} }
   var APERCU = q.get('apercu') === 'neophyte' ? 'neophyte' : q.get('apercu') ? 'catechumene' : '';
@@ -236,7 +236,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
       s('Quelles données ?', 'Votre nom, votre adresse e-mail, votre téléphone, ce que vous indiquez dans vos demandes, et vos réglages (taille du texte, notifications, versets gardés). Pour un dossier de sacrement : les informations et pièces nécessaires au dossier et aux registres.') +
       s('Qui les voit ?', 'Le curé, les prêtres et la secrétaire, qui ont signé une charte de confidentialité. Les chefs de fraternité voient seulement les prénoms et coordonnées des membres de leur fraternité. Les autres paroissiens ne voient rien de vous.') +
       s('Données liées à la foi', 'L\'appartenance à la paroisse et les sacrements sont des données sensibles : elles ne sortent jamais de la paroisse sans votre accord. Les registres de catholicité (baptême, mariage…) sont gardés sans limite de durée, comme le demande l\'Église.') +
-      s('Combien de temps ?', 'Votre compte est désactivé après 18 mois sans connexion (vous êtes prévenu(e) un mois avant), puis effacé. Une demande d\'accès refusée est effacée après 3 mois. Le journal technique est gardé 1 an.') +
+      s('Combien de temps ?', 'Votre compte est désactivé après 18 mois sans connexion (vous êtes prévenu(e) un mois avant), puis effacé. Une demande d\'accès refusée est effacée après 3 mois. Une fiche de fraternité Cor Unum est effacée 3 ans après votre dernière activité (fraternité ou connexion). Les informations de santé et le contact d\'urgence d\'une retraite sont effacés un mois après la retraite. Le journal technique est gardé 1 an.') +
       s('Où sont-elles ?', 'Dans le compte Google de la paroisse (serveur et documents). L\'application est publiée par GitHub ; les lectures liturgiques et les annonces viennent de Supabase ; la newsletter part par Brevo ; les paiements en ligne passent par HelloAsso. Sur votre téléphone, l\'application garde seulement votre session et vos réglages (pas de traceur, pas de publicité).') +
       s('Vos droits', 'Vous pouvez voir et télécharger vos données (Réglages → Mes données), les corriger, demander leur effacement ou vous opposer à leur usage, en écrivant à secretariat@croix-glorieuse.org, ou supprimer vous-même votre compte (Réglages). Vous pouvez aussi saisir la CNIL (www.cnil.fr).') + '</div>';
   }
@@ -254,7 +254,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
   }
   function pageDemande() {
     var f = formulaire, h = '<button class="lien" data-a="accueil-v">← Retour</button><div class="carte"><h1>Demander un accès</h1>';
-    if (etapeF === 'envoyee') return h + '<div class="ok">Merci ! Votre demande est envoyée. La paroisse va la vérifier ; vous recevrez un mail à ' + e(mailF) + '.</div></div>';
+    if (etapeF === 'envoyee') return h + '<div class="ok">Merci ! Votre demande est envoyée. ' + (mineurF ? 'Votre parent a reçu un mail pour donner son accord ; ensuite la paroisse vérifiera votre demande. ' : 'La paroisse va la vérifier ; ') + 'vous recevrez un mail à ' + e(mailF) + '.</div></div>';
     if (etapeF !== 'code') {
       return h + '<p class="petit">Commencez par votre adresse e-mail : vous allez recevoir un code pour la confirmer. Une adresse par personne (chaque adulte a son propre compte).</p><form id="fd1">' +
         champ('d-mail', 'Votre adresse e-mail', 'email', f.mail, ' autocomplete="email" required') +
@@ -298,13 +298,13 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
         'Confirmez avec votre mot de passe :<input id="sup-mdp" type="password" autocomplete="current-password" style="margin-top:8px"><button class="bouton principal" data-a="supprimer-ok" style="background:#8a1f17;border-color:#8a1f17">Supprimer définitivement</button><button class="bouton" data-a="supprimer-non">Annuler</button></div>'
         : '<div><button class="lien" data-a="supprimer" style="color:#8a1f17">Supprimer mon compte</button></div>') + '<div id="zmc" style="display:none"></div></div>';
   }
-  var suppression = false, invitation = null;
+  var suppression = false, invitation = null, accordInfo = null, afaire = null, afaireLe = 0, foyerQuitter = false;
   // ─── La lettre de la paroisse (newsletter) ───
   var lettres = null, lettreOuverte = null;
   function chargerLettres() {
     if (lettres && lettres.charge) return;
     lettres = { charge: true, liste: null };
-    appel('esp.lettres').then(function (r) { lettres = { charge: true, liste: r.lettres, lettre_mail: r.lettre_mail }; if (vue === 'lettres' || vue === 'reglages') rendre(); })
+    appel('esp.lettres').then(function (r) { lettres = { charge: true, liste: r.lettres, lettre_mail: r.lettre_mail, lettre_foyer: r.lettre_foyer || '' }; if (vue === 'lettres' || vue === 'reglages') rendre(); })
       .catch(function (er) { lettres = { charge: false, erreur: er.message, liste: [] }; if (vue === 'lettres') rendre(); });
   }
   function blocLettreAccueil() {
@@ -403,16 +403,16 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     if (!inscriptions.charge) return '<div class="carte"><h1>Mes inscriptions</h1><p class="petit">Chargement…</p></div>';
     if (inscriptions.erreur) return '<div class="carte"><h1>Mes inscriptions</h1><div class="erreur">' + e(inscriptions.erreur) + '</div></div>';
     var I = inscriptions, rien = !I.retraites.length && !I.catechisme.length && !I.livres.length && !I.paiements.length;
-    h += '<div class="carte"><h1>Mes inscriptions</h1><p class="petit">Retrouvées avec votre adresse e-mail. ' + (I.en_ligne ? 'Vous pouvez payer en ligne (HelloAsso) ou' : 'Le règlement se fait') + ' par chèque ou en espèces auprès de la paroisse.</p>' +
+    h += '<div class="carte"><h1>Mes inscriptions</h1><p class="petit">Retrouvées avec votre adresse e-mail' + (I.foyer ? ' et celle de ' + e(I.foyer) + ' (foyer)' : '') + '. ' + (I.en_ligne ? 'Vous pouvez payer en ligne (HelloAsso) ou' : 'Le règlement se fait') + ' par chèque ou en espèces auprès de la paroisse.</p>' +
       (rien ? '<p>Aucune inscription pour le moment.</p>' : '') + '</div>';
     if (I.retraites.length) h += '<div class="carte"><h2>Retraites</h2>' + I.retraites.map(function (r) {
       return '<div class="sig"><b>' + e(r.titre) + '</b>' + etatPaiement(r.du, r.reste) + '<div class="petit">' + e(majuscule(jour(r.date, { weekday: 'long', day: 'numeric', month: 'long' }))) + (r.date_fin && r.date_fin !== r.date ? ' → ' + e(jour(r.date_fin, { day: 'numeric', month: 'long' })) : '') + (r.lieu ? ' · ' + e(r.lieu) : '') + '</div>' +
-        (r.participants.length ? '<div class="petit">' + e(r.participants.join(', ')) + '</div>' : '') +
+        (r.participants.length ? '<div class="petit">' + e(r.participants.join(', ')) + (r.par ? ' · inscrit(e) par ' + e(r.par) : '') + '</div>' : '') +
         (r.du ? '<div class="petit">À régler à la paroisse : ' + euros(r.du) + (r.paye ? ' · payé : ' + euros(r.paye) : '') + (r.sur_place ? ' · sur place : ' + euros(r.sur_place) : '') + '</div>' : '') +
         lienBouton(r.lien_payer, 'Payer la retraite en ligne', true) + lienBouton(r.lien_ceremonie, 'Participer aux frais de la cérémonie') + lienBouton(r.lien_modifier, 'Modifier mon inscription') + '</div>';
     }).join('') + '</div>';
     if (I.catechisme.length) h += '<div class="carte"><h2>Catéchisme ' + e(I.catechisme[0].annee) + '</h2>' + I.catechisme.map(function (c) {
-      return '<div class="sig"><b>' + e(c.enfant) + '</b>' + etatPaiement(c.du, c.reste) + (c.groupe ? '<div class="petit">' + e(c.groupe) + '</div>' : '') + '</div>';
+      return '<div class="sig"><b>' + e(c.enfant) + '</b>' + etatPaiement(c.du, c.reste) + (c.groupe || c.par ? '<div class="petit">' + e([c.groupe, c.par ? 'inscrit(e) par ' + c.par : ''].filter(Boolean).join(' · ')) + '</div>' : '') + '</div>';
     }).join('') + lienBouton(I.lien_cotisation, 'Payer la cotisation en ligne', true) + '</div>';
     if (I.livres.length) h += '<div class="carte"><h2>Livres commandés</h2>' + I.livres.map(function (l) {
       return '<div class="sig"><b>' + e(l.lignes.join(', ') || 'Commande') + '</b>' + etatPaiement(l.total, l.reste) + '<div class="petit">' + e(jour(l.date, { day: 'numeric', month: 'long', year: 'numeric' })) + ' · ' + euros(l.total) + (l.remis ? ' · remis' : '') + '</div>' + lienBouton(l.lien_payer, 'Payer en ligne', true) + '</div>';
@@ -477,7 +477,8 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     if (sacrements.erreur) return h + '<div class="carte"><div class="erreur">' + e(sacrements.erreur) + '</div></div>';
     (sacrements.dossiers || []).forEach(function (s) {
       h += '<div class="carte"><h2>' + e(s.type) + (s.qui ? ' – ' + e(s.qui) : '') + '</h2><p class="petit">Demande reçue le ' + e(jour(s.recu_le, { day: 'numeric', month: 'long', year: 'numeric' })) +
-        (s.date_celebration ? ' · célébration : ' + e(jour(s.date_celebration, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })) : '') + (s.etat === 'termine' ? ' · terminé' : '') + '</p>' +
+        (s.date_celebration ? ' · célébration : ' + e(jour(s.date_celebration, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })) : '') + (s.etat === 'termine' ? ' · terminé' : '') + (s.par ? ' · demande faite par ' + e(s.par) : '') + '</p>' +
+        ((s.a_fournir || []).length ? '<div class="info">À fournir : ' + e(s.a_fournir.join(', ')) + ' (à apporter ou envoyer au secrétariat).</div>' : '') +
         s.etapes.map(function (x) { var proch = !x.fait && x.libelle === s.prochaine; return '<div class="etape"><div class="rond ' + (x.fait ? 'fait' : proch ? 'prochaine' : '') + '">' + (x.fait ? '✓' : '•') + '</div><div>' + e(x.libelle) + (x.date ? '<div class="petit">' + e(jour(x.date, { day: 'numeric', month: 'long', year: 'numeric' })) + '</div>' : '') + '</div></div>'; }).join('') + '</div>';
     });
     if ((sacrements.actes || []).length) h += '<div class="carte"><h2>Actes de baptême demandés</h2>' + sacrements.actes.map(function (a) {
@@ -584,14 +585,76 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     for (var hh = 5; hh <= 22; hh++) opts += '<option value="' + hh + '"' + (hh === hcur ? ' selected' : '') + '>' + hh + ' h</option>';
     return '<div class="carte"><h2>Parcours suivis</h2><label for="prop-heure">Recevoir l\'étape du jour à</label><select id="prop-heure" data-notif="prop_heure">' + opts + '</select><div id="zph" style="display:none"></div></div>';
   }
+  // ─── « À faire » : étape du jour, paiement à finir, pièce d'un dossier ───
+  function chargerAFaire() {
+    if (APERCU || MODE === 'v' || horsLigne) return;
+    if (afaire && Date.now() - afaireLe < 60000) return;
+    afaireLe = Date.now(); if (!afaire) afaire = [];
+    appel('esp.afaire').then(function (r) { var avant = JSON.stringify(afaire); afaire = r.afaire || []; if (vue === 'accueil' && JSON.stringify(afaire) !== avant) rendre(); }).catch(function () {});
+  }
+  function ligneAFaire(x) {
+    var act = x.type === 'etape' ? ' data-a="prop-ouvrir" data-id="' + e(x.id) + '"' : x.vue ? ' data-vue="' + e(x.vue) + '"' : '';
+    return '<div class="etape"><div class="rond prochaine">' + (x.type === 'etape' ? '✦' : x.type === 'paiement' ? '€' : '•') + '</div><div style="flex:1"><button class="lien" style="padding:0;text-align:left;color:inherit"' + act + '>' + e(x.texte) + '</button>' +
+      (x.lien ? '<div><a class="lien" href="' + e(x.lien) + '" target="_blank" rel="noopener" style="padding:0">Payer en ligne</a></div>' : '') + '</div></div>';
+  }
+  function blocAFaire() {
+    chargerAFaire();
+    if (!afaire || !afaire.length) return '';
+    return '<div class="carte"><h2>À faire</h2>' + afaire.map(ligneAFaire).join('') + '</div>';
+  }
+  // ─── Accord d'un parent (lycéens) : page ouverte depuis le mail ───
+  function ecranAccord() {
+    MODE = 'v'; d = { visiteur: true, calendrier: [], textes: [], annonces: [], etapes: {} };
+    appelCpt('cpt.accord', { a: ACCORD }).then(function (r) { accordInfo = r; vue = 'accord'; $('etat').style.display = 'none'; rendre(); finDemarrage(); })
+      .catch(function (er) { vue = 'accueil'; rendre(); finDemarrage(); $('etat').style.display = 'block'; $('etat').className = 'erreur'; $('etat').textContent = er.message; });
+  }
+  function pageAccord() {
+    var A = accordInfo, h = '<div class="carte"><h1>Accord d\'un parent</h1>';
+    if (A.reponse === 'oui') return h + '<div class="ok">Merci ! Votre accord est enregistré. La paroisse va examiner la demande de ' + e(A.prenom) + ' et lui écrira.</div></div>';
+    if (A.reponse === 'non') return h + '<div class="info">C\'est noté : vous n\'avez pas donné votre accord. La demande de ' + e(A.prenom) + ' est close.</div></div>';
+    return h + '<p><b>' + e(A.prenom + ' ' + A.nom) + '</b> (' + e(A.mail) + ') demande un accès à l\'application de la paroisse La Croix glorieuse.</p>' +
+      '<p class="petit">Avec ce compte, ' + e(A.prenom) + ' pourra lire les annonces, l\'agenda, la Bible et les propositions de la paroisse, demander une messe et prier avec le mur de prière (sans y déposer d\'intention). Les petites annonces et les messages entre paroissiens restent fermés aux moins de 18 ans.</p>' +
+      champ('ac-nom', 'Votre prénom et votre nom', 'text', '', ' autocomplete="name"') +
+      '<label class="interrupteur" style="font-size:14.5px"><span>Je suis son parent (ou son responsable légal) et j\'accepte que ' + e(A.prenom) + ' ait un compte dans l\'application de la paroisse.</span><input type="checkbox" id="ac-ok"></label>' +
+      '<button class="bouton principal" data-a="accord-oui">Je donne mon accord</button><button class="bouton" data-a="accord-non">Je refuse</button><div id="zac" style="display:none"></div>' +
+      mentionRgpd('Votre nom et la date de votre réponse sont gardés avec le compte de votre enfant, pour prouver votre accord ; seuls le curé, les prêtres et la secrétaire les voient.') + '</div>';
+  }
+  // ─── Mon foyer (réglages) ───
+  function blocFoyer() {
+    var F = d.foyer;
+    if (MODE !== 'p' || !F || !F.possible) return '';
+    var h = '<div class="carte"><h2>Mon foyer</h2>';
+    if (F.conjoint) {
+      h += '<p>Votre compte est relié à celui de <b>' + e(F.conjoint.prenom + ' ' + F.conjoint.nom) + '</b>.</p><p class="petit">Vous voyez chacun les inscriptions et les démarches pour vos enfants ; votre adresse postale est commune ; la lettre de la paroisse est envoyée une seule fois par mail.</p>' +
+        (foyerQuitter ? '<div class="info">Défaire le lien ? Chacun garde son compte, ses inscriptions et ses réglages ; ' + e(F.conjoint.prenom) + ' sera prévenu(e) par mail.<div><button class="bouton principal" data-a="foyer-quitter-ok">Défaire le lien</button><button class="bouton" data-a="foyer-quitter-non">Annuler</button></div></div>'
+          : '<button class="lien" data-a="foyer-quitter">Défaire le lien</button>');
+    } else {
+      (F.recues || []).forEach(function (x) {
+        h += '<div class="info"><b>' + e(x.prenom + ' ' + x.nom) + '</b> vous propose de relier vos comptes, comme un foyer.<div><button class="bouton principal" data-a="foyer-accepter" data-id="' + e(x.id) + '">Accepter</button><button class="bouton" data-a="foyer-refuser" data-id="' + e(x.id) + '">Refuser</button></div></div>';
+      });
+      h += '<p class="petit">Mariés ou parents ensemble ? Reliez vos deux comptes : vous verrez chacun les inscriptions et les démarches pour vos enfants, votre adresse postale sera commune, et la lettre de la paroisse ne sera envoyée qu\'une fois par mail. Votre conjoint doit avoir son propre compte et accepter.</p>';
+      if (F.envoyee) h += '<p>Proposition envoyée à ' + e(F.envoyee.mail) + ' le ' + e(jour(F.envoyee.le, { day: 'numeric', month: 'long' })) + '. Elle doit l\'accepter dans ses réglages.</p><button class="lien" data-a="foyer-annuler">Annuler la proposition</button>';
+      else h += champ('foyer-mail', 'Adresse e-mail du compte de votre conjoint', 'email', '', ' autocomplete="off"') + '<button class="bouton" data-a="foyer-inviter">Proposer de relier nos comptes</button>';
+    }
+    return h + '<div id="zfo" style="display:none"></div>' + mentionRgpd('Le lien n\'est fait que si vous l\'acceptez tous les deux ; chacun peut le défaire à tout moment.') + '</div>';
+  }
+  function majFoyer(r) {
+    d.foyer = r; foyerQuitter = false; inscriptions = null; sacrements = null; afaire = null; lettres = null;
+    try { localStorage.setItem('cpt_d', JSON.stringify(d)); } catch (x) {}
+    rendre();
+  }
   function pageAccueilParoissien() {
     var h = '<div class="carte"><h1 style="margin:0">' + salutation() + ' ' + e(d.prenom) + '</h1>' + (fete ? '<div class="fete"><i style="background:' + fete.couleur + '"></i>' + e(fete.titre) + '</div>' : '') + '</div>';
     (d.chefs || []).forEach(function (x) { h += '<div class="carte"><h2>♛ Fraternité ' + e(x.equipe) + '</h2><p class="petit">Vous êtes chef de cette fraternité : membres, rencontres, messages à la paroisse.</p><a class="bouton principal" href="' + e(x.lien) + '" target="_blank" rel="noopener">Ouvrir la page de ma fraternité</a>' +
       '<p class="petit">🔒 Les coordonnées des membres servent seulement à la fraternité : ne les transmettez pas et ne les gardez pas après l\'année.</p></div>'; });
     if (d.calendrier.length) h += '<div class="carte"><h2>Prochainement</h2>' + d.calendrier.slice(0, 3).map(carteEvenement).join('') + '</div>';
+    h += blocAFaire();
     if ((d.annonces || []).length) h += '<div class="carte"><h2>Annonces de la paroisse</h2>' + d.annonces.map(carteAnnonce).join('') + '</div>';
     if (d.fraternite && d.fraternite.etat === 'membre') h += blocFraternite();
-    return h + blocPropositionsAccueil() + blocPriereAccueil() + blocMesseAccueil() + blocSacrementsAccueil() + blocInscriptionsAccueil() + blocLettreAccueil() + blocDons() + blocInstallerCourt();
+    if ((d.foyer && d.foyer.recues || []).length) h += '<div class="carte"><h2>Mon foyer</h2><p>' + e(d.foyer.recues[0].prenom + ' ' + d.foyer.recues[0].nom) + ' vous propose de relier vos comptes.</p><button class="bouton principal" data-vue="reglages">Répondre</button></div>';
+    h += blocPropositionsAccueil() + blocPriereAccueil() + blocMesseAccueil() + blocSacrementsAccueil() + blocInscriptionsAccueil() + blocLettreAccueil() + blocDons();
+    if (!d.fraternite || d.fraternite.etat !== 'membre') h += blocFraternite();
+    return h + blocInstallerCourt();
   }
   function appliquerCompte(r) {
     ecrireSessionCpt(r.session || sessionCpt());
@@ -644,7 +707,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
       if (!formulaire.conf) { fin(); message('zd', 'Merci de lire et d\'accepter la page Confidentialité.'); return; }
       appelCpt('cpt.demande', { mail: formulaire.mail, code: formulaire.code, prenom: formulaire.prenom, nom: formulaire.nom, telephone: formulaire.telephone, messe: formulaire.messe, liens: formulaire.liens,
         connait: formulaire.connait, mot: formulaire.mot, parent: !!formulaire.mineur, parent_mail: formulaire.parent_mail, confidentialite: true, piege: $('d-site') ? $('d-site').value : '' })
-        .then(function () { mailF = formulaire.mail; formulaire = {}; etapeF = 'envoyee'; rendre(); window.scrollTo(0, 0); }).catch(function (er) { fin(); message('zd', er.message); });
+        .then(function () { mailF = formulaire.mail; mineurF = !!formulaire.mineur; formulaire = {}; etapeF = 'envoyee'; rendre(); window.scrollTo(0, 0); }).catch(function (er) { fin(); message('zd', er.message); });
     } else if (id === 'fo1') {
       formulaire.mail = $('o-mail').value;
       appelCpt('cpt.oubli', { mail: $('o-mail').value }).then(function () { mailF = formulaire.mail; etapeF = 'code'; rendre(); }).catch(function (er) { fin(); message('zo', er.message); });
@@ -749,7 +812,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
         (f.membres.length ? '<p class="petit" style="margin:12px 0 0">Membres</p><div class="membres">' + f.membres.map(function (m) { return '<span>' + (m.chef ? '♛ ' : '') + e(m.prenoms) + '</span>'; }).join('') + '</div>' : '') + '</div>';
     }
     if (f.etat === 'demande') return '<div class="carte"><h2>Fraternités Cor Unum</h2><div class="ok">Votre demande est envoyée : la paroisse va vous proposer une fraternité et vous mettre en relation avec son chef.</div></div>';
-    return '<div class="carte"><h2>Fraternités Cor Unum</h2><p>Les fraternités Cor Unum réunissent régulièrement quelques foyers et personnes de la paroisse, pour prier, partager et s\'entraider. Elles sont un beau soutien sur le chemin du baptême.</p>' +
+    return '<div class="carte"><h2>Fraternités Cor Unum</h2><p>Les fraternités Cor Unum réunissent régulièrement quelques foyers et personnes de la paroisse, pour prier, partager et s\'entraider. ' + (MODE === 'p' ? 'La paroisse vous propose une fraternité et vous met en relation avec son chef.' : 'Elles sont un beau soutien sur le chemin du baptême.') + '</p>' +
       (demandeCor ? '<label>Vos préférences (facultatif)</label><textarea id="corprefs" style="min-height:80px" placeholder="Quartier, jour de la semaine, personne que vous aimeriez retrouver…"></textarea><div id="zcor" style="display:none"></div>' +
         '<button class="bouton principal" data-a="cor-envoyer">Envoyer ma demande</button><button class="bouton" data-a="cor-annuler">Annuler</button>'
         : '<button class="bouton principal" data-a="cor-demande">Je veux rejoindre une fraternité Cor Unum</button>') + '</div>';
@@ -824,6 +887,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     var etat = lettres && lettres.liste !== null ? lettres.lettre_mail : undefined;
     if (etat === null) return '';   // pas d'adresse, ou Brevo pas encore réglé
     return '<div class="carte"><h2>La lettre de la paroisse</h2>' + (etat === undefined ? '<p class="petit">Chargement…</p>' :
+      (!etat && lettres.lettre_foyer ? '<div class="info">Pour votre foyer, la lettre est envoyée par mail à ' + e(lettres.lettre_foyer) + '. Si vous cochez, elle vous sera envoyée à vous à sa place.</div>' : '') +
       '<label class="interrupteur"><span>Recevoir aussi la lettre par mail<span class="petit" style="display:block">Vous pouvez la lire dans l\'application dans tous les cas.</span></span><input type="checkbox" data-notif="lettre_mail"' + (etat ? ' checked' : '') + '></label>') +
       '<p class="petit">🔒 L\'envoi par mail passe par Brevo, prestataire de la paroisse ; votre adresse n\'est utilisée que pour la lettre.</p><div id="znl" style="display:none"></div></div>';
   }
@@ -836,7 +900,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
       '<div class="carte"><h2>Apparence</h2><div class="choix3">' + [['clair', 'Clair'], ['sombre', 'Sombre'], ['auto', 'Comme le téléphone']].map(function (x) { return '<button data-theme="' + x[0] + '" class="' + (theme === x[0] ? 'actif' : '') + '">' + x[1] + '</button>'; }).join('') + '</div></div>' +
       '<div class="carte"><h2>Notifications</h2>' + inter('annonces', 'Annonces de la paroisse', 'Quand la paroisse publie une annonce importante') +
       (MODE === 'esp' ? inter('textes', 'Nouveaux textes de la paroisse') + inter('reponses', 'Réponses de la paroisse', 'Quand une erreur que vous avez signalée est corrigée') +
-      (d.neophyte ? inter('anniversaire', 'Anniversaire de baptême') : '') : '') + '<div id="znr" style="display:none"></div></div>' + (chargerProps(), blocHeureProps()) + blocLettreMail() +
+      (d.neophyte ? inter('anniversaire', 'Anniversaire de baptême') : '') : '') + '<div id="znr" style="display:none"></div></div>' + (chargerProps(), blocHeureProps()) + blocFoyer() + blocLettreMail() +
       blocApp() + blocMonCompte() + (MODE === 'p' ? '<div class="carte"><button class="lien" data-a="sortir">Se déconnecter</button></div>' : '<div class="carte"><p class="petit" style="margin:0">' + lienConf() + '</p></div>');
   }
   function pageAccueil() {
@@ -858,7 +922,10 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     if (d.pieces.some(function (p) { return !p.recu; })) aFaire.push('Déposer vos pièces (' + d.pieces.filter(function (p) { return !p.recu; }).map(function (p) { return p.nom.toLowerCase(); }).join(', ') + ')');
     if (!d.neophyte && ['validee', 'envoyee', 'deposee', 'annoncee'].indexOf(d.lettre.statut) === -1) aFaire.push(d.lettre.statut === 'a_corriger' ? 'Revoir votre lettre à l\'évêque' : 'Écrire à la main votre lettre à l\'évêque, puis la déposer');
     if (!d.infos.naissance_date || !d.infos.adresse) aFaire.push('Compléter vos informations');
-    if (aFaire.length && !d.neophyte) h += '<div class="carte"><h2>À faire</h2>' + aFaire.map(function (t) { return '<div class="etape"><div class="rond prochaine">•</div><div>' + e(t) + '</div></div>'; }).join('') + '<button class="bouton" data-vue="dossier">Mon dossier</button></div>';
+    if (d.neophyte) aFaire = [];
+    chargerAFaire();
+    if (aFaire.length || (afaire || []).length) h += '<div class="carte"><h2>À faire</h2>' + aFaire.map(function (t) { return '<div class="etape"><div class="rond prochaine">•</div><div>' + e(t) + '</div></div>'; }).join('') +
+      (afaire || []).map(ligneAFaire).join('') + (aFaire.length ? '<button class="bouton" data-vue="dossier">Mon dossier</button>' : '') + '</div>';
     if (!d.neophyte) h += '<div class="carte"><h2>Mon parcours</h2>' + ETAPES.map(function (x, k) {
       var f = d.etapes[x[0]] && d.etapes[x[0]].fait;
       return '<div class="etape"><div class="rond ' + (f ? 'fait' : k === i ? 'prochaine' : '') + '">' + (f ? '✓' : k + 1) + '</div><div>' + e(x[1]) + (f && d.etapes[x[0]].date ? '<div class="petit">' + e(jour(d.etapes[x[0]].date, { day: 'numeric', month: 'long', year: 'numeric' })) + '</div>' : '') + '</div></div>';
@@ -1013,7 +1080,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
       var pgv = $('page'); if (pgv.dataset.affiche !== vue) { pgv.classList.remove('entree'); void pgv.offsetWidth; pgv.classList.add('entree'); pgv.dataset.affiche = vue; }
       pgv.innerHTML = (horsLigne ? '<div class="horsligne">Hors connexion. <button class="lien" data-a="reessayer" style="padding:0">Réessayer</button></div>' : '') +
         (vue === 'propositions' && MODE === 'p' ? pagePropositions() : vue === 'priere' && MODE === 'p' ? pagePriere() : vue === 'sacrements' && MODE === 'p' ? pageSacrements() : vue === 'profil' && MODE === 'p' ? pageProfil() : vue === 'inscriptions' && MODE === 'p' ? pageInscriptions() : vue === 'messe' && MODE === 'p' ? pageMesse() : vue === 'lettres' && MODE === 'p' ? pageLettres() : vue === 'bible' ? pageBible() : vue === 'calendrier' ? pageCalendrier() : vue === 'conf' ? pageConfidentialite() : vue === 'demande' ? pageDemande() : vue === 'oubli' ? pageOubli()
-        : vue === 'invitation' && invitation ? pageInvitation(invitation) : vue === 'reglages' && MODE === 'p' ? pageReglages() : MODE === 'p' ? pageAccueilParoissien() : pageVisiteur());
+        : vue === 'invitation' && invitation ? pageInvitation(invitation) : vue === 'accord' && accordInfo ? pageAccord() : vue === 'reglages' && MODE === 'p' ? pageReglages() : MODE === 'p' ? pageAccueilParoissien() : pageVisiteur());
       if (vue === 'calendrier') placerAgenda();
       if (vue === 'bible') placerBible();
       if (vue === 'lettres') placerLettre();
@@ -1154,6 +1221,30 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     if (a === 'accueil-v') { vue = 'accueil'; etapeF = ''; rendre(); return; }
     if (a === 'mes-donnees') { b.disabled = true; appelCpt('cpt.mesDonnees').then(function (r) { b.disabled = false; telecharger('mes-donnees-la-croix-glorieuse.json', JSON.stringify(r, null, 2), 'application/json'); }).catch(function (er) { b.disabled = false; message('zmc', er.message); }); return; }
     if (a === 'partout') { b.disabled = true; appelCpt('cpt.partout').then(function () { deconnexionComplete(); }).catch(function (er) { b.disabled = false; message('zmc', er.message); }); return; }
+    if (a === 'accord-oui' || a === 'accord-non') {
+      var oui = a === 'accord-oui';
+      if (oui && !$('ac-nom').value.trim()) { message('zac', 'Indiquez votre prénom et votre nom.'); return; }
+      if (oui && !$('ac-ok').checked) { message('zac', 'Merci de cocher la case d\'accord.'); return; }
+      b.disabled = true;
+      appelCpt('cpt.accordReponse', { a: ACCORD, reponse: oui ? 'oui' : 'non', nom_parent: oui ? $('ac-nom').value : '', engagement: oui }).then(function (r) { accordInfo = r; rendre(); window.scrollTo(0, 0); })
+        .catch(function (er) { b.disabled = false; message('zac', er.message); });
+      return;
+    }
+    if (a === 'foyer-inviter') {
+      if (!$('foyer-mail').value.trim()) { message('zfo', 'Indiquez l\'adresse de votre conjoint.'); return; }
+      b.disabled = true;
+      appelCpt('cpt.foyer.inviter', { mail: $('foyer-mail').value }).then(function (r) { majFoyer(r); message('zfo', 'Si cette adresse est celle d\'un compte de la paroisse, votre conjoint verra votre proposition (et reçoit un mail).', true); })
+        .catch(function (er) { b.disabled = false; message('zfo', er.message); });
+      return;
+    }
+    if (a === 'foyer-annuler' || a === 'foyer-accepter' || a === 'foyer-refuser' || a === 'foyer-quitter-ok') {
+      b.disabled = true;
+      appelCpt('cpt.foyer.' + { 'foyer-annuler': 'annuler', 'foyer-accepter': 'accepter', 'foyer-refuser': 'refuser', 'foyer-quitter-ok': 'quitter' }[a], { id: b.dataset.id || '' })
+        .then(function (r) { majFoyer(r); if (a === 'foyer-accepter') message('zfo', 'Vos comptes sont reliés.', true); }).catch(function (er) { b.disabled = false; message('zfo', er.message); });
+      return;
+    }
+    if (a === 'foyer-quitter') { foyerQuitter = true; rendre(); return; }
+    if (a === 'foyer-quitter-non') { foyerQuitter = false; rendre(); return; }
     if (a === 'supprimer') { suppression = true; rendre(); return; }
     if (a === 'supprimer-non') { suppression = false; rendre(); return; }
     if (a === 'supprimer-ok') { b.disabled = true; appelCpt('cpt.supprimer', { mdp: $('sup-mdp').value }).then(function () { suppression = false; deconnexionComplete(); }).catch(function (er) { b.disabled = false; message('zmc', er.message); }); return; }
@@ -1256,7 +1347,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     if (ev.target.id === 'd-mineur') { lireDemande(); rendre(); return; }
     if (ev.target.dataset && ev.target.dataset.propfait) {
       var y2 = window.scrollY;
-      appel('esp.prop.fait', { id: propOuverte.id, etape: ev.target.dataset.propfait }).then(function (r) { propOuverte = r; rendre(); window.scrollTo(0, y2); }).catch(function () { ev.target.checked = !ev.target.checked; });
+      appel('esp.prop.fait', { id: propOuverte.id, etape: ev.target.dataset.propfait }).then(function (r) { propOuverte = r; afaire = null; rendre(); window.scrollTo(0, y2); }).catch(function () { ev.target.checked = !ev.target.checked; });
       return;
     }
     if (ev.target.dataset && ev.target.dataset.sac === 'pour') { lireSac(); if (fSac.pour === 'enfant') { fSac.prenoms = ''; } else { delete fSac.prenoms; } rendre(); return; }
@@ -1269,7 +1360,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
       var o = {}; o[nk] = ev.target.checked;
       if (nk === 'lettre_mail') {
         ev.target.disabled = true;
-        appel('esp.prefs', { notifs: o }).then(function (r) { d = r; lettres.lettre_mail = o.lettre_mail; ev.target.disabled = false; message('znl', o.lettre_mail ? 'Vous recevrez la lettre par mail.' : 'Vous ne recevrez plus la lettre par mail.', true); })
+        appel('esp.prefs', { notifs: o }).then(function (r) { d = r; lettres.lettre_mail = o.lettre_mail; if (o.lettre_mail) lettres.lettre_foyer = ''; ev.target.disabled = false; if (o.lettre_mail && d.foyer && d.foyer.conjoint) rendre(); message('znl', o.lettre_mail ? 'Vous recevrez la lettre par mail.' : 'Vous ne recevrez plus la lettre par mail.', true); })
           .catch(function (er) { ev.target.disabled = false; ev.target.checked = !ev.target.checked; message('znl', er.message); });
         return;
       }
@@ -1342,6 +1433,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
   if (APERCU) { $('bandeau-apercu').classList.remove('cache'); $('apercu-qui').textContent = APERCU === 'neophyte' ? 'un néophyte' : 'un catéchumène'; }
   if (APERCU) demarrer();
   else if (INVIT) ecranInvitation();
+  else if (ACCORD) ecranAccord();
   else if (c) demarrer();            // lien personnel (catéchumènes, néophytes) ou espace ouvert par le compte
   else if (sessionCpt()) chargerCompte();
   else visiteur();

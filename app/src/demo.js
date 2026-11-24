@@ -583,8 +583,12 @@ export async function demoApi(action, p) {
     case 'paroissiens.liste': return { migration: 'fait', statuts: { attente: 'Demande à examiner', precisions: 'Précisions demandées', invite: 'Invité (mot de passe à choisir)', actif: 'Actif', refuse: 'Refusé', suspendu: 'Suspendu', desactive: 'Désactivé (inactif)' },
       comptes: [
         { id: 'dp1', prenom: 'Jeanne', nom: 'Exemple', mail: 'jeanne@exemple.fr', telephone: '06 00 00 00 10', statut: 'attente', cree_le: new Date().toISOString(), demande: { messe: 'Dimanche 10 h 30', liens: ['Messe le dimanche'], connait: 'Famille Exemple', mot: '' }, rapprochement: [{ source: 'Cor Unum', id: 'x', nom: 'Jeanne Exemple', detail: 'pas encore dans une fraternité', raisons: ['même adresse'] }] },
-        { id: 'dp2', prenom: 'Louis', nom: 'Modèle', mail: 'louis@exemple.fr', telephone: '06 00 00 00 11', statut: 'actif', cree_le: '2026-10-01T10:00:00Z', derniere_visite: new Date().toISOString(), cor: true, chef: 'Saint-Joseph', rapprochement: [] }
+        { id: 'dp3', prenom: 'Léa', nom: 'Exemple', mail: 'lea@exemple.fr', telephone: '06 00 00 00 12', statut: 'attente', cree_le: new Date().toISOString(), demande: { mineur: true, parent_mail: 'parent@exemple.fr', liens: [], accord: { reponse: '', envoye_le: new Date().toISOString(), exp: new Date(Date.now() + 30 * 86400000).toISOString() } }, rapprochement: [] },
+        { id: 'dp2', prenom: 'Louis', nom: 'Modèle', mail: 'louis@exemple.fr', telephone: '06 00 00 00 11', statut: 'actif', cree_le: '2026-10-01T10:00:00Z', derniere_visite: new Date().toISOString(), cor: true, chef: 'Saint-Joseph', foyer: 'Marie Modèle', rapprochement: [] }
       ] }
+    case 'paroissiens.rgpd': return { preparee_le: new Date().toISOString(), liste: { le: new Date().toISOString(), auto_le: new Date(Date.now() + 30 * 86400000).toISOString(), elements: [
+      { cle: 'cor:x1', type: 'cor', nom: 'Marc Ancien', annees: ['2021-2022', '2022-2023'], ids: ['x1', 'x2'], derniere: '2023-08-31' },
+      { cle: 'sante:r0', type: 'sante', nom: 'Retraite de première communion', date: '2026-10-12', nb: 14 }] } }
     case 'paroissiens.dons': return [{ id: 'd1', titre: 'Soutenir la paroisse', texte: 'Démo', url: 'https://www.helloasso.com/', actif: true }]
     case 'paroissiens.prieres': return [{ id: 'pr1', cree_le: new Date().toISOString(), auteur: 'Jeanne Exemple', texte: 'Pour Paul Exemple qui est malade', statut: 'relecture', raisons: ['nom de personne'], priants: 0, signalements: 0 }]
     case 'propositions.liste': return [{ id: 'p1', type: 'parcours', titre: 'Avent : un pas par jour (exemple)', debut: '2026-11-29', fin: '2026-12-24', statut: 'publiee', nb_etapes: 26, abonnes: 12 }]

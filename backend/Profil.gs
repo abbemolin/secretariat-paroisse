@@ -74,7 +74,9 @@ function modifierProfil_(x, p) {
     var y = compteParId_(x.id);
     Object.keys(ch).forEach(function (k) { y[k] = ch[k]; });
     y.maj_le = maintenant_(); ecrireLigne_('Comptes', y);
-    return { y: y, reporte: reporterProfil_(y, ch, 'App des paroissiens') };
+    var rep = reporterProfil_(y, ch, 'App des paroissiens');
+    if (ch.adresse !== undefined) { var cj = adresseAuConjoint_(y, ch.adresse, 'App des paroissiens (foyer)'); if (cj) rep.push('compte de ' + cj + ' (foyer)'); }
+    return { y: y, reporte: rep };
   });
   prevenirValidateurs_('App des paroissiens : coordonnées modifiées', (res.y.prenom + ' ' + res.y.nom).trim() + (res.reporte.length ? ' – reporté : ' + res.reporte.join(', ') : ''));
   return { profil: profilCompte_(res.y), reporte: res.reporte };

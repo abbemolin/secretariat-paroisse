@@ -1,6 +1,7 @@
 /**
  * Entretien automatique (chaque nuit, ~3 h) et sauvegardes.
  * - Notifications de plus de 6 mois supprimées ; journal de plus d'un an retiré (RGPD).
+ * - RGPD : fiches Cor Unum (3 ans sans activité) et fiches santé des retraites (1 mois) — liste mensuelle à confirmer, effacement automatique après 30 jours (Rgpd.gs).
  * - App des paroissiens : comptes inactifs prévenus (17 mois), désactivés (18 mois) puis effacés ; demandes refusées effacées après 3 mois.
  * - Sauvegarde : chaque dimanche, copie complète de la base dans Drive « Sauvegardes » ; les 8 dernières sont gardées.
  * - Restaurer (administrateur) : une copie de la sauvegarde devient la base ; l'ancienne base est gardée et renommée.
@@ -30,6 +31,7 @@ function entretienNocturne() {
   try { purgerFeuille_('Journal', 'date', 365, false); } catch (e) { console.error('purge journal', e); }   // RGPD : journal gardé 1 an
   try { entretienComptes_(); } catch (e) { console.error('entretien comptes', e); }
   try { entretienPrieres_(); } catch (e) { console.error('entretien prières', e); }
+  try { entretienRgpd_(); } catch (e) { console.error('entretien RGPD', e); }
   try { desactiverAnnoncesExpirees_(); } catch (e) { console.error('annonces expirées', e); }
   var jour = Utilities.formatDate(new Date(), 'Europe/Paris', 'u');   // 7 = dimanche
   if (jour === '7') try { sauvegarder_('automatique'); } catch (e) { console.error('sauvegarde', e); }
