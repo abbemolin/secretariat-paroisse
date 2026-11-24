@@ -199,6 +199,8 @@ var ROUTES = {
   'paroissiens.inviter':   { fn: function (p, s) { return inviterComptesRoute_(p, s); } },
   'paroissiens.migrer':    { fn: function (p, s) { return migrerEspacesRoute_(p, s); } },
   'paroissiens.dons':      { fn: function (p, s) { return causesDons_(); } },
+  'paroissiens.prieres':   { fn: function (p, s) { return prieresEquipe_(); } },
+  'paroissiens.moderer':   { fn: function (p, s) { return modererPriere_(p, s); } },
   'paroissiens.donsEcrire': { fn: function (p, s) { return ecrireCausesDons_(p, s); } },
   'charte.etat':           { fn: function (p, s) { return etatCharte_(s.uid); } },
   'charte.accepter':       { fn: function (p, s) { return accepterCharte_(p, s); } },

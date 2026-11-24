@@ -327,6 +327,7 @@ function actionEspace_(action, p) {
   if (action === 'esp.sacrement') return demanderSacrementApp_({ mail: mailDossier_(d), prenom: i0.prenoms, nom: i0.nom, telephone: i0.telephone, adresse: i0.adresse }, p);
   if (action === 'esp.dossiers') return { dossiers: mesDossiers_(mailDossier_(d)).filter(function (z) { return z.id !== d.id; }), actes: mesActes_(mailDossier_(d)), motifs: MOTIFS_ACTE };
   if (action === 'esp.acteApp') { demanderActeApp_({ mail: mailDossier_(d), prenom: i0.prenoms, nom: i0.nom }, p); return { actes: mesActes_(mailDossier_(d)) }; }
+  if (/^esp\.priere\./.test(action)) return actionPriere_(quiEspace_(d), action.slice(11), p);
   if (action === 'esp.inscriptions') return mesInscriptions_(mailDossier_(d));
   if (action === 'esp.messes') return { messes: messesProposees_(), mes_intentions: mesIntentions_(mailDossier_(d)), offrande: offrandeTexte_(), max: INT_APP_MAX };
   if (action === 'esp.demanderMesse') {

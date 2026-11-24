@@ -495,6 +495,42 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
       return '<div class="parrain"><b>' + e(c.titre) + '</b>' + (c.texte ? '<div class="petit">' + e(c.texte) + '</div>' : '') + '<a class="bouton principal" href="' + e(c.url) + '" target="_blank" rel="noopener">Faire un don</a></div>';
     }).join('') + '<p class="petit">Paiement sécurisé par HelloAsso, qui vous envoie le reçu fiscal.</p></div>';
   }
+  // ─── Mur de prière ───
+  var priere = null, fPriere = '', priereMsg = '', graceOuverte = null;
+  function chargerPriere(force) {
+    if (priere && !force) return;
+    priere = { charge: false };
+    appel('esp.priere.mur').then(function (r) { priere = r; priere.charge = true; if (vue === 'priere') rendre(); })
+      .catch(function (er) { priere = { charge: true, erreur: er.message, mur: [], miennes: [] }; if (vue === 'priere') rendre(); });
+  }
+  function carteIntention(x) {
+    return '<div class="sig"><div style="white-space:pre-wrap;line-height:1.5">' + e(x.texte) + '</div>' +
+      (x.exaucee ? '<div class="reponse">🙏 <b>Prière exaucée</b>' + (x.grace ? ' — ' + e(x.grace) : '') + '</div>' : '') +
+      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px"><button class="bouton' + (x.je_prie ? ' principal' : '') + '" style="margin:0" data-a="prier" data-id="' + e(x.id) + '">' + (x.je_prie ? '✓ Je prie' : 'Je prie pour cette intention') + '</button>' +
+      '<span class="petit">' + (x.priants ? x.priants + ' personne' + (x.priants > 1 ? 's prient' : ' prie') : '') + '</span>' +
+      (x.mienne ? '<span class="petit" style="margin-left:auto">Votre intention</span>' : x.a_signale ? '<span class="petit" style="margin-left:auto">Signalée</span>' : '<button class="lien" style="margin-left:auto" data-a="priere-signaler" data-id="' + e(x.id) + '">Signaler</button>') + '</div></div>';
+  }
+  function pagePriere() {
+    chargerPriere();
+    var h = '<div class="carte"><h1>Mur de prière</h1><p class="petit">Portons ensemble les intentions des paroissiens. Elles sont anonymes.</p>';
+    if (!priere.charge) return h + '<p class="petit">Chargement…</p></div>';
+    if (priere.erreur) return h + '<div class="erreur">' + e(priere.erreur) + '</div></div>';
+    if (priereMsg) h += '<div class="ok">' + e(priereMsg) + '</div>';
+    if (priere.peut_deposer) h += '<label for="pr-texte">Confier une intention</label><textarea id="pr-texte" maxlength="1000" style="min-height:90px" placeholder="Ex. : pour ma maman qui est malade…">' + e(fPriere) + '</textarea>' +
+      '<button class="bouton principal" data-a="priere-deposer">Déposer mon intention</button><div id="zpri" style="display:none"></div>' +
+      mentionRgpd('Votre intention est publiée sans votre nom (évitez les noms et prénoms des personnes) ; seuls les prêtres et le secrétariat savent qu\'elle vient de vous. Elle reste 6 mois au plus, et vous pouvez la retirer à tout moment.');
+    h += '</div>';
+    var mien = (priere.miennes || []);
+    if (mien.length) h += '<div class="carte"><h2>Mes intentions</h2>' + mien.map(function (x) {
+      var st = x.statut === 'publiee' ? '' : x.statut === 'relecture' ? '<span class="statut ouvert">En relecture</span>' : x.statut === 'masquee' ? '<span class="statut ouvert">Masquée, en relecture</span>' : '<span class="statut ouvert">Non publiée</span>';
+      return '<div class="sig"><div style="white-space:pre-wrap">' + e(x.texte) + '</div>' + st + '<div class="petit">' + e(jour(x.date, { day: 'numeric', month: 'long' })) + (x.priants ? ' · ' + x.priants + ' personne' + (x.priants > 1 ? 's prient' : ' prie') + ' pour elle' : '') + (x.exaucee ? ' · exaucée' : '') + '</div>' +
+        (graceOuverte === x.id ? '<label>Un mot d\'action de grâce (facultatif)</label><textarea id="pr-grace" style="min-height:60px" maxlength="500"></textarea><button class="bouton principal" data-a="priere-exaucee-ok" data-id="' + e(x.id) + '">Rendre grâce</button><button class="bouton" data-a="priere-exaucee-non">Annuler</button>'
+          : (x.exaucee ? '' : '<button class="lien" data-a="priere-exaucee" data-id="' + e(x.id) + '">Prière exaucée</button> · ') + '<button class="lien" data-a="priere-retirer" data-id="' + e(x.id) + '">Retirer</button>') + '</div>';
+    }).join('') + '</div>';
+    h += '<div class="carte"><h2>Intentions des paroissiens</h2>' + ((priere.mur || []).length ? priere.mur.map(carteIntention).join('') : '<p class="petit">Aucune intention pour le moment.</p>') + '</div>';
+    return h;
+  }
+  function blocPriereAccueil() { return '<div class="carte"><h2>Mur de prière</h2><p class="petit">Confier une intention, prier pour celles des autres.</p><button class="bouton" data-vue="priere">Mur de prière</button></div>'; }
   function pageAccueilParoissien() {
     var h = '<div class="carte"><h1 style="margin:0">' + salutation() + ' ' + e(d.prenom) + '</h1>' + (fete ? '<div class="fete"><i style="background:' + fete.couleur + '"></i>' + e(fete.titre) + '</div>' : '') + '</div>';
     (d.chefs || []).forEach(function (x) { h += '<div class="carte"><h2>♛ Fraternité ' + e(x.equipe) + '</h2><p class="petit">Vous êtes chef de cette fraternité : membres, rencontres, messages à la paroisse.</p><a class="bouton principal" href="' + e(x.lien) + '" target="_blank" rel="noopener">Ouvrir la page de ma fraternité</a>' +
@@ -502,7 +538,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     if (d.calendrier.length) h += '<div class="carte"><h2>Prochainement</h2>' + d.calendrier.slice(0, 3).map(carteEvenement).join('') + '</div>';
     if ((d.annonces || []).length) h += '<div class="carte"><h2>Annonces de la paroisse</h2>' + d.annonces.map(carteAnnonce).join('') + '</div>';
     if (d.fraternite && d.fraternite.etat === 'membre') h += blocFraternite();
-    return h + blocMesseAccueil() + blocSacrementsAccueil() + blocInscriptionsAccueil() + blocLettreAccueil() + blocDons() + blocInstallerCourt();
+    return h + blocPriereAccueil() + blocMesseAccueil() + blocSacrementsAccueil() + blocInscriptionsAccueil() + blocLettreAccueil() + blocDons() + blocInstallerCourt();
   }
   function appliquerCompte(r) {
     ecrireSessionCpt(r.session || sessionCpt());
@@ -763,7 +799,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     if (nouveaux.length) h += '<div class="carte"><h2>Nouveau' + (nouveaux.length > 1 ? 'x textes' : ' texte') + '</h2>' + nouveaux.slice(0, 3).map(ligneTexte).join('') + '</div>';
     if (d.calendrier.length) h += '<div class="carte"><h2>Prochainement</h2>' + d.calendrier.slice(0, 2).map(carteEvenement).join('') + '</div>';
     if ((d.annonces || []).length) h += '<div class="carte"><h2>Annonces de la paroisse</h2>' + d.annonces.map(carteAnnonce).join('') + '</div>';
-    h += blocMesseAccueil() + blocSacrementsAccueil() + blocInscriptionsAccueil() + blocLettreAccueil() + blocDons();
+    h += blocPriereAccueil() + blocMesseAccueil() + blocSacrementsAccueil() + blocInscriptionsAccueil() + blocLettreAccueil() + blocDons();
     h += blocFraternite();
     var aFaire = [];
     if (d.pieces.some(function (p) { return !p.recu; })) aFaire.push('Déposer vos pièces (' + d.pieces.filter(function (p) { return !p.recu; }).map(function (p) { return p.nom.toLowerCase(); }).join(', ') + ')');
@@ -923,7 +959,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
       $('btn-reglages').classList.toggle('cache', MODE === 'v');
       var pgv = $('page'); if (pgv.dataset.affiche !== vue) { pgv.classList.remove('entree'); void pgv.offsetWidth; pgv.classList.add('entree'); pgv.dataset.affiche = vue; }
       pgv.innerHTML = (horsLigne ? '<div class="horsligne">Hors connexion. <button class="lien" data-a="reessayer" style="padding:0">Réessayer</button></div>' : '') +
-        (vue === 'sacrements' && MODE === 'p' ? pageSacrements() : vue === 'profil' && MODE === 'p' ? pageProfil() : vue === 'inscriptions' && MODE === 'p' ? pageInscriptions() : vue === 'messe' && MODE === 'p' ? pageMesse() : vue === 'lettres' && MODE === 'p' ? pageLettres() : vue === 'bible' ? pageBible() : vue === 'calendrier' ? pageCalendrier() : vue === 'conf' ? pageConfidentialite() : vue === 'demande' ? pageDemande() : vue === 'oubli' ? pageOubli()
+        (vue === 'priere' && MODE === 'p' ? pagePriere() : vue === 'sacrements' && MODE === 'p' ? pageSacrements() : vue === 'profil' && MODE === 'p' ? pageProfil() : vue === 'inscriptions' && MODE === 'p' ? pageInscriptions() : vue === 'messe' && MODE === 'p' ? pageMesse() : vue === 'lettres' && MODE === 'p' ? pageLettres() : vue === 'bible' ? pageBible() : vue === 'calendrier' ? pageCalendrier() : vue === 'conf' ? pageConfidentialite() : vue === 'demande' ? pageDemande() : vue === 'oubli' ? pageOubli()
         : vue === 'invitation' && invitation ? pageInvitation(invitation) : vue === 'reglages' && MODE === 'p' ? pageReglages() : MODE === 'p' ? pageAccueilParoissien() : pageVisiteur());
       if (vue === 'calendrier') placerAgenda();
       if (vue === 'bible') placerBible();
@@ -943,7 +979,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     }
     $('btn-reglages').classList.remove('cache');
     var pg = $('page'); if (pg.dataset.affiche !== vue) { pg.classList.remove('entree'); void pg.offsetWidth; pg.classList.add('entree'); pg.dataset.affiche = vue; }
-    $('page').innerHTML = vue === 'sacrements' ? pageSacrements() : vue === 'inscriptions' ? pageInscriptions() : vue === 'messe' ? pageMesse() : vue === 'lettres' ? pageLettres() : vue === 'textes' ? pageTextes() : vue === 'calendrier' ? pageCalendrier() : vue === 'bible' ? pageBible() : vue === 'dossier' ? pageDossier() : vue === 'reglages' ? pageReglages() : pageAccueil();
+    $('page').innerHTML = vue === 'priere' ? pagePriere() : vue === 'sacrements' ? pageSacrements() : vue === 'inscriptions' ? pageInscriptions() : vue === 'messe' ? pageMesse() : vue === 'lettres' ? pageLettres() : vue === 'textes' ? pageTextes() : vue === 'calendrier' ? pageCalendrier() : vue === 'bible' ? pageBible() : vue === 'dossier' ? pageDossier() : vue === 'reglages' ? pageReglages() : pageAccueil();
     if (vue === 'calendrier') placerAgenda();
     if (vue === 'bible') placerBible();
     if (vue === 'lettres') placerLettre();
@@ -972,7 +1008,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
       return;
     }
     var b = ev.target.closest('[data-vue],[data-a],[data-texte],[data-fichier]'); if (!b) return;
-    if (b.dataset.vue) { if (b.dataset.vue === 'sacrements') { demandeSac = ''; sacEnvoye = ''; chargerSacrements(true); } if (b.dataset.vue === 'inscriptions') inscriptions = null; if (b.dataset.vue === 'profil') { profil = null; etapeMail = ''; } if (b.dataset.vue === 'messe') { messeEnvoyee = 0; chargerMesses(true); } vue = b.dataset.vue; ouvert = null; lettreOuverte = null; signale = null; ajoutParrain = false; retraitParrain = null; demandeCor = false; rendre(); window.scrollTo(0, 0); return; }
+    if (b.dataset.vue) { if (b.dataset.vue === 'priere') { priereMsg = ''; chargerPriere(true); } if (b.dataset.vue === 'sacrements') { demandeSac = ''; sacEnvoye = ''; chargerSacrements(true); } if (b.dataset.vue === 'inscriptions') inscriptions = null; if (b.dataset.vue === 'profil') { profil = null; etapeMail = ''; } if (b.dataset.vue === 'messe') { messeEnvoyee = 0; chargerMesses(true); } vue = b.dataset.vue; ouvert = null; lettreOuverte = null; signale = null; ajoutParrain = false; retraitParrain = null; demandeCor = false; rendre(); window.scrollTo(0, 0); return; }
     if (b.dataset.texte) {
       vue = 'textes'; ouvert = b.dataset.texte;
       var t = d.textes.filter(function (x) { return x.id === ouvert; })[0];
@@ -991,6 +1027,24 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
       return;
     }
     var a = b.dataset.a;
+    if (a === 'priere-deposer') {
+      fPriere = $('pr-texte').value;
+      if (fPriere.trim().length < 5) { message('zpri', 'Écrivez votre intention en quelques mots.'); return; }
+      b.disabled = true;
+      appel('esp.priere.deposer', { texte: fPriere }).then(function (r) { var rel = r.relecture; priere = r; priere.charge = true; fPriere = ''; priereMsg = rel ? 'Merci. Votre intention sera relue avant d\'apparaître sur le mur (elle contient peut-être un nom ou des coordonnées).' : 'Votre intention est sur le mur. Merci !'; rendre(); window.scrollTo(0, 0); })
+        .catch(function (er) { b.disabled = false; message('zpri', er.message); });
+      return;
+    }
+    if (a === 'prier' || a === 'priere-signaler' || a === 'priere-retirer' || a === 'priere-exaucee-ok') {
+      var act = { prier: 'prier', 'priere-signaler': 'signaler', 'priere-retirer': 'retirer', 'priere-exaucee-ok': 'exaucee' }[a], pl = { id: b.dataset.id };
+      if (act === 'exaucee') pl.grace = $('pr-grace') ? $('pr-grace').value : '';
+      b.disabled = true; var y1 = window.scrollY;
+      appel('esp.priere.' + act, pl).then(function (r) { priere = r; priere.charge = true; graceOuverte = null; priereMsg = act === 'signaler' ? 'Merci : la paroisse va relire cette intention.' : ''; rendre(); window.scrollTo(0, y1); })
+        .catch(function (er) { b.disabled = false; message('zpri', er.message); });
+      return;
+    }
+    if (a === 'priere-exaucee') { graceOuverte = b.dataset.id; rendre(); return; }
+    if (a === 'priere-exaucee-non') { graceOuverte = null; rendre(); return; }
     if (a === 'sac-retour') { demandeSac = ''; rendre(); return; }
     if (a === 'sac-envoyer') {
       lireSac();

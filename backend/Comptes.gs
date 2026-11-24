@@ -400,6 +400,7 @@ function actionCompte_(action, p) {
   if (action === 'cpt.sacrement') return demanderSacrementApp_({ mail: x.mail, prenom: x.prenom, nom: x.nom, telephone: x.telephone, adresse: x.adresse, compte_id: x.id }, p);
   if (action === 'cpt.dossiers') return { dossiers: mesDossiers_(x.mail, x.dossier_id), actes: mesActes_(x.mail), motifs: MOTIFS_ACTE };
   if (action === 'cpt.acteApp') { demanderActeApp_({ mail: x.mail, prenom: x.prenom, nom: x.nom }, p); return { actes: mesActes_(x.mail) }; }
+  if (/^cpt\.priere\./.test(action)) return actionPriere_(quiCompte_(x), action.slice(11), p);
   if (action === 'cpt.profil') return profilCompte_(x);
   if (action === 'cpt.profilModifier') return modifierProfil_(x, p);
   if (action === 'cpt.mailCode') return codeNouveauMail_(x, p.nouveau);

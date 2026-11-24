@@ -9,7 +9,7 @@ const COULEUR = {
   attente: 'bg-or-100 text-or-600', precisions: 'bg-or-50 text-or-600', invite: 'bg-nuit-50 text-nuit', actif: 'bg-green-50 text-green-800',
   refuse: 'bg-red-50 text-red-700', suspendu: 'bg-red-50 text-red-700', desactive: 'bg-nuit-50 text-nuit-600'
 }
-const VUES = [['demandes', 'Demandes'], ['comptes', 'Comptes'], ['inviter', 'Inviter'], ['dons', 'Dons']]
+const VUES = [['demandes', 'Demandes'], ['comptes', 'Comptes'], ['priere', 'Prière'], ['inviter', 'Inviter'], ['dons', 'Dons']]
 
 /** Rappel RGPD affiché sur la page (données personnelles des paroissiens). */
 function RappelRgpd() {
@@ -90,7 +90,7 @@ export default function Paroissiens() {
             </div>
           )}
         </>
-      ) : vue === 'dons' ? <Dons modifiable={utilisateur.role === 'admin' || utilisateur.role === 'cure'} /> : <Inviter onFait={recharger} />}
+      ) : vue === 'priere' ? <MurPriere /> : vue === 'dons' ? <Dons modifiable={utilisateur.role === 'admin' || utilisateur.role === 'cure'} /> : <Inviter onFait={recharger} />}
       {ouvert?.mode === 'fiche' && <Fiche c={ouvert.c} statuts={data.statuts} occupe={occupe} operer={operer} onFermer={() => setOuvert(null)} />}
       {(ouvert?.mode === 'refuser' || ouvert?.mode === 'precisions') && <Reponse c={ouvert.c} mode={ouvert.mode} occupe={occupe} operer={operer} onFermer={() => setOuvert(null)} />}
     </>
@@ -276,6 +276,53 @@ function Dons({ modifiable }) {
             <button className="btn-principal" disabled={envoi || l === null} onClick={enregistrer}>{envoi && <Loader2 className="h-4 w-4 animate-spin" />}Enregistrer</button>
           </div>}
           {!modifiable && <p className="text-xs text-nuit-600/70">Seuls le curé et les administrateurs modifient les causes.</p>}
+        </div>
+      )}
+    </>
+  )
+}
+
+/** Mur de prière : relecture des intentions mises de côté (modérateur automatique ou signalements). */
+function MurPriere() {
+  const notifier = useNotif()
+  const confirmer = useConfirmer()
+  const { data, chargement, erreur, setData } = useCharger(() => api('paroissiens.prieres'), [])
+  const [tout, setTout] = useState(false)
+  const [occ, setOcc] = useState('')
+  const l = data || []
+  const aRelire = l.filter((x) => x.statut === 'relecture' || x.statut === 'masquee')
+  async function op(x, o) {
+    if (o === 'supprimer' && !(await confirmer({ titre: 'Supprimer l\'intention', texte: 'Elle disparaît du mur et de la liste du déposant.', bouton: 'Supprimer', danger: true }))) return
+    setOcc(x.id + o)
+    try { setData(await api('paroissiens.moderer', { id: x.id, op: o })); notifier(o === 'publier' ? 'Publiée' : o === 'refuser' ? 'Non publiée' : 'Supprimée') } catch (e) { notifier(e.message, 'erreur') } finally { setOcc('') }
+  }
+  const carte = (x) => (
+    <div key={x.id} className="carte p-4 text-sm">
+      <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-nuit-600/70"><span>{dateHeure(x.cree_le)}</span><span>· {x.auteur}</span>
+        {x.statut === 'masquee' && <span className="pastille bg-red-50 text-red-700">masquée ({x.signalements} signalements)</span>}
+        {x.statut === 'relecture' && <span className="pastille bg-or-100 text-or-600">à relire</span>}
+        {x.statut === 'refusee' && <span className="pastille bg-nuit-50 text-nuit-600">non publiée</span>}
+        {x.statut === 'publiee' && <span className="pastille bg-green-50 text-green-800">sur le mur · {x.priants} prient</span>}</div>
+      <p className="whitespace-pre-wrap">{x.texte}</p>
+      {x.grace && <p className="mt-1 text-xs text-nuit-600">Action de grâce : {x.grace}</p>}
+      {x.raisons?.length > 0 && <p className="mt-1 text-xs text-or-600">Mise de côté : {x.raisons.join(', ')}</p>}
+      <div className="mt-2 flex flex-wrap gap-2">
+        {x.statut !== 'publiee' && <button className="btn-principal" disabled={!!occ} onClick={() => op(x, 'publier')}><Check className="h-4 w-4" />Publier</button>}
+        {x.statut !== 'refusee' && <button className="btn-clair" disabled={!!occ} onClick={() => op(x, 'refuser')}><X className="h-4 w-4" />Ne pas publier</button>}
+        <button className="btn-clair text-red-700" disabled={!!occ} onClick={() => op(x, 'supprimer')}><Trash2 className="h-4 w-4" />Supprimer</button>
+      </div>
+    </div>
+  )
+  return (
+    <>
+      <p className="mb-3 text-sm text-nuit-600">Les intentions sont anonymes pour les paroissiens ; vous voyez l'auteur pour pouvoir relire. Le modérateur automatique met de côté celles qui contiennent un nom, des coordonnées, un lien, un mot déplacé ou un sujet sensible. Gardées 6 mois.</p>
+      <Erreur erreur={erreur} />
+      {chargement && !data ? <Chargement /> : (
+        <div className="space-y-3">
+          {!aRelire.length && <Vide icone={Check} texte="Aucune intention à relire." />}
+          {aRelire.map(carte)}
+          <button className="btn-clair" onClick={() => setTout(!tout)}>{tout ? 'Masquer les autres intentions' : `Voir toutes les intentions (${l.length})`}</button>
+          {tout && l.filter((x) => !aRelire.includes(x)).map(carte)}
         </div>
       )}
     </>

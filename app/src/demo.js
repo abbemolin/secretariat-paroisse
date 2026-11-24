@@ -586,7 +586,8 @@ export async function demoApi(action, p) {
         { id: 'dp2', prenom: 'Louis', nom: 'Modèle', mail: 'louis@exemple.fr', telephone: '06 00 00 00 11', statut: 'actif', cree_le: '2026-10-01T10:00:00Z', derniere_visite: new Date().toISOString(), cor: true, chef: 'Saint-Joseph', rapprochement: [] }
       ] }
     case 'paroissiens.dons': return [{ id: 'd1', titre: 'Soutenir la paroisse', texte: 'Démo', url: 'https://www.helloasso.com/', actif: true }]
-    case 'annonces.notifier': case 'paroissiens.donsEcrire':
+    case 'paroissiens.prieres': return [{ id: 'pr1', cree_le: new Date().toISOString(), auteur: 'Jeanne Exemple', texte: 'Pour Paul Exemple qui est malade', statut: 'relecture', raisons: ['nom de personne'], priants: 0, signalements: 0 }]
+    case 'annonces.notifier': case 'paroissiens.donsEcrire': case 'paroissiens.moderer':
     case 'paroissiens.modifier': case 'paroissiens.inviter': case 'paroissiens.migrer': throw new Error('Démo : rien n\'est enregistré ni envoyé.')
     case 'charte.etat': case 'charte.accepter': return { acceptee_le: new Date().toISOString(), a_accepter: false, texte: [], responsable: '', contact: '' }
     default: throw new Error('Démo : action non simulée ' + action)
