@@ -209,6 +209,7 @@ var ROUTES = {
   'liturgie.commentaires': { fn: function (p, s) { return commentairesBible_(p, s); }, droit: 'liturgie' },
   'liturgie.marques':      { fn: function (p, s) { return lireMarques_(p, s); }, droit: 'liturgie' },
   'liturgie.marquesEcrire': { fn: function (p, s) { return ecrireMarques_(p, s); }, droit: 'liturgie' },
+  'liturgie.ordo':         { fn: function (p, s) { return ordoMesses_(p, s); }, droit: 'liturgie' },
   'propre.lire':           { fn: function (p, s) { return lirePropre_(p, s); }, droit: 'liturgie' },
   'propre.ecrire':         { fn: function (p, s) { return ecrirePropre_(p, s); }, droit: 'liturgie' },
   'propre.annuler':        { fn: function (p, s) { return annulerPropre_(p, s); }, droit: 'liturgie' },

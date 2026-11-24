@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Moon, Sun } from 'lucide-react'
 import { basculerSombreLiturgie, estSombre } from '../affichage.js'
 
-/** Bouton ☾ / ☀ de la tuile « Bible et bréviaire » (mode sombre de la tuile seule, sur cet appareil). */
+/** Bouton ☾ / ☀ de la tuile « Liturgie » (mode sombre de la tuile seule, sur cet appareil). */
 export default function BoutonSombre({ className = 'btn-icone' }) {
   const [sombre, setSombre] = useState(estSombre)
   useEffect(() => {

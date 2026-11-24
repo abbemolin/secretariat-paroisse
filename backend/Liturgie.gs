@@ -1,5 +1,5 @@
 /**
- * Tuile « Bible et bréviaire ».
+ * Tuile « Liturgie ».
  *
  * Les offices, la Messe du jour et la Bible sont lus directement par l'appli (données publiques de l'AppMesse).
  * Le serveur ne sert que :
@@ -247,4 +247,15 @@ function testerLitReglages_() {
     return { github: '✓ Dépôt ' + PROPRE_DEPOT + ' : ' + d.calendrier.fetes.length + ' fêtes lues'
       + (e && e.erreur ? ' — mais état des calculs illisible (droit « Actions » en lecture ?)' : '') + '.' };
   } catch (e) { return { github: '✗ ' + e.message }; }
+}
+
+// ═══════════════════════════════ ORDO ═══════════════════════════════
+/** Messes de l'agenda public et intentions validées, du p.debut au p.fin (AAAA-MM-JJ, 45 jours au plus). */
+function ordoMesses_(p) {
+  var debut = String(p.debut || ''), fin = String(p.fin || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(debut) || !/^\d{4}-\d{2}-\d{2}$/.test(fin) || fin < debut) throw erreur_('INVALIDE', 'Période invalide.');
+  if (ajouterJours_(debut, 45) < fin) throw erreur_('INVALIDE', 'Période trop longue.');
+  var intentions = sb_('get', '/rest/v1/intentions?select=date_messe,heure_messe,nom_intention,type_intention,google_event_id'
+    + '&statut=eq.valide&date_messe=gte.' + debut + '&date_messe=lte.' + fin);
+  return { evenements: evenementsAgendaApi_(p.debutIso || debut + 'T00:00:00', p.finIso || fin + 'T23:59:59'), intentions: intentions || [] };
 }

@@ -31,6 +31,7 @@ import Breviaire from './pages/Breviaire.jsx'
 import MesseDuJour from './pages/MesseDuJour.jsx'
 import Bible from './pages/Bible.jsx'
 import CalendrierPropre from './pages/CalendrierPropre.jsx'
+import Ordo from './pages/Ordo.jsx'
 
 const CtxApp = createContext(null)
 export const useApp = () => useContext(CtxApp)
@@ -68,7 +69,7 @@ const TUILES = [
   { cle: 'secretariat', titre: 'Secrétariat', texte: 'Courrier, agenda, dossiers, catéchèse', icone: Mail, chemin: '/' },
   { cle: 'intentions', titre: 'Intentions de messe', texte: 'Intentions, calendrier des messes', icone: Church, bientot: true },
   { cle: 'annonces', titre: 'Annonces et newsletter', texte: 'Annonces, feuille de semaine, newsletter', icone: Megaphone, chemin: '/annonces', droit: 'annonces' },
-  { cle: 'liturgie', titre: 'Bible et bréviaire', texte: 'Bréviaire, Messe du jour, Bible Crampon', icone: BookOpenText, chemin: '/breviaire', droit: 'liturgie' }
+  { cle: 'liturgie', titre: 'Liturgie', texte: 'Bréviaire, messe du jour, ordo, Bible', icone: BookOpenText, chemin: '/breviaire', droit: 'liturgie' }
 ]
 const MENU_ANNONCES = [
   { to: '/annonces', label: 'Annonces', icone: Megaphone, bas: true },
@@ -78,16 +79,17 @@ const MENU_ANNONCES = [
 const MENU_LITURGIE = [
   { to: '/breviaire', label: 'Bréviaire', icone: Sun, bas: true },
   { to: '/messe', label: 'Messe du jour', icone: Cross, bas: true },
+  { to: '/ordo', label: 'Ordo', icone: ScrollText, bas: true },
   { to: '/bible', label: 'Bible', icone: BookHeart, bas: true },
-  { to: '/calendrier-propre', label: 'Calendrier propre', court: 'Calendrier', icone: CalendarRange, bas: true }
+  { to: '/calendrier-propre', label: 'Calendrier propre', icone: CalendarRange }
 ]
 const tuileDuChemin = (chemin) => {
   const p = chemin.split('/')[1]
   if (['annonces', 'semaine', 'newsletter'].includes(p)) return 'annonces'
-  if (['breviaire', 'messe', 'bible', 'calendrier-propre'].includes(p)) return 'liturgie'
+  if (['breviaire', 'messe', 'ordo', 'bible', 'calendrier-propre'].includes(p)) return 'liturgie'
   return 'secretariat'
 }
-const NOM_TUILE = { annonces: 'Annonces et newsletter', liturgie: 'Bible et bréviaire' }
+const NOM_TUILE = { annonces: 'Annonces et newsletter', liturgie: 'Liturgie' }
 
 function EcranTuiles({ tuiles }) {
   const { utilisateur, deconnecter } = useApp()
@@ -263,11 +265,11 @@ function Cadre() {
   const [plus, setPlus] = useState(false)
   const notifier = useNotif()
   const nav = useNavigate()
-  const zonePage = { courrier: 'courrier', agenda: 'agenda', extraits: 'extraits', registres: 'registres', catechisme: 'catechisme', catechumenat: 'catechumenat', 'cor-unum': 'cor_unum', retraites: 'retraites', documents: 'documents', annonces: 'annonces', semaine: 'annonces', newsletter: 'annonces', breviaire: 'liturgie', messe: 'liturgie', bible: 'liturgie', 'calendrier-propre': 'liturgie' }[loc.pathname.split('/')[1]]
+  const zonePage = { courrier: 'courrier', agenda: 'agenda', extraits: 'extraits', registres: 'registres', catechisme: 'catechisme', catechumenat: 'catechumenat', 'cor-unum': 'cor_unum', retraites: 'retraites', documents: 'documents', annonces: 'annonces', semaine: 'annonces', newsletter: 'annonces', breviaire: 'liturgie', messe: 'liturgie', bible: 'liturgie', ordo: 'liturgie', 'calendrier-propre': 'liturgie' }[loc.pathname.split('/')[1]]
   const tuilesActives = TUILES.filter((t) => !t.bientot && peut(t.droit))
   const avecTuiles = tuilesActives.length > 1
   const tuile = tuileDuChemin(loc.pathname)
-  // Mode sombre propre à la tuile « Bible et bréviaire »
+  // Mode sombre propre à la tuile « Liturgie »
   useEffect(() => { definirTuileLiturgie(tuile === 'liturgie') }, [tuile])
   useEffect(() => () => definirTuileLiturgie(false), [])
   // Écran des tuiles à l'ouverture de l'appli (une fois par session)
@@ -356,6 +358,7 @@ function Cadre() {
               {peut('liturgie') && <Route path="/messe" element={<MesseDuJour />} />}
               {peut('liturgie') && <Route path="/bible" element={<Bible />} />}
               {peut('liturgie') && <Route path="/calendrier-propre" element={<CalendrierPropre />} />}
+              {peut('liturgie') && <Route path="/ordo" element={<Ordo />} />}
               <Route path="/aide" element={<Aide />} />
               <Route path="/compte" element={<Compte />} />
               <Route path="*" element={<Navigate to="/" replace />} />

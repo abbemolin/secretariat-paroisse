@@ -28,7 +28,7 @@ function accesDuRole_(role) {
   var x = accesComplet_('m', [], role === 'cure' || role === 'vicaire');
   x.statistiques = '';
   x.annonces = role === 'cure' ? 'm' : '';   // tuile « Annonces et newsletter » : curé (et administrateurs)
-  x.liturgie = role === 'secretaire' ? '' : 'm';   // tuile « Bible et bréviaire » : prêtres et diacres
+  x.liturgie = role === 'secretaire' ? '' : 'm';   // tuile « Liturgie » : prêtres et diacres
   if (role === 'secretaire') { x.reglages = tous.filter(function (o) { return o !== 'Sauvegardes' && o !== 'Newsletter' && o !== 'Liturgie'; }); x.signer = true; }
   return x;
 }
@@ -88,7 +88,7 @@ function ongletPermis_(s, onglet) { return s.role === 'admin' || (s.acces && s.a
 function sortesLisibles_(s) { return SORTES_ACCES.filter(function (k) { return peutLire_(s, 'dossiers', k); }); }
 
 var NOMS_ZONES_ = { courrier: 'Courrier', agenda: 'Agenda', dossiers: 'Dossiers', extraits: 'Extraits de baptême', registres: 'Registres',
-  catechisme: 'Catéchisme', catechumenat: 'Catéchuménat', cor_unum: 'Cor Unum', retraites: 'Retraites', documents: 'Documents', statistiques: 'Statistiques', annonces: 'Annonces et newsletter', liturgie: 'Bible et bréviaire' };
+  catechisme: 'Catéchisme', catechumenat: 'Catéchuménat', cor_unum: 'Cor Unum', retraites: 'Retraites', documents: 'Documents', statistiques: 'Statistiques', annonces: 'Annonces et newsletter', liturgie: 'Liturgie' };
 var LECTURE_ = /\.(liste|lire|semaine|fil|piecejointe|libelles|groupes|evenements|etat|reglages|catalogue|invites|equipesCourantes|telecharger|chercher|quota|equipe|onglets|lienChef|lienInscription|invites)$/;
 var ONGLET_ROUTE_ = {
   'reglages.ecrire': 'Paroisse', 'sceau.ecrire': 'Paroisse', 'signatures.ecrire': 'Signatures', 'reponses.ecrire': 'Réponses types', 'tri.ecrire': 'Tri automatique',

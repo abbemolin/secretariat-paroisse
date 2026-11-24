@@ -17,7 +17,7 @@ export function appliquerAffichage(a = lireAffichage()) {
   if (a.taille === 'grand') h.classList.add('texte-grand')
   if (a.taille === 'tresgrand') h.classList.add('texte-tresgrand')
   let sombre = a.theme === 'sombre' || (a.theme === 'auto' && media?.matches)
-  // Tuile « Bible et bréviaire » : son propre choix (bouton ☾), sur cet appareil, l'emporte tant qu'on y est
+  // Tuile « Liturgie » : son propre choix (bouton ☾), sur cet appareil, l'emporte tant qu'on y est
   const lit = liturgieActive && themeLiturgie()
   if (lit) sombre = lit === 'sombre'
   h.classList.toggle('sombre', !!sombre)
@@ -26,7 +26,7 @@ export function appliquerAffichage(a = lireAffichage()) {
 }
 media?.addEventListener?.('change', () => appliquerAffichage())
 
-// ─── Thème de la tuile « Bible et bréviaire » : par défaut celui du compte ; le bouton ☾ le change pour la tuile seule ───
+// ─── Thème de la tuile « Liturgie » : par défaut celui du compte ; le bouton ☾ le change pour la tuile seule ───
 const CLE_LIT = 'liturgie.theme'
 let liturgieActive = false
 export function themeLiturgie() { try { const t = localStorage.getItem(CLE_LIT); return t === 'sombre' || t === 'clair' ? t : null } catch { return null } }

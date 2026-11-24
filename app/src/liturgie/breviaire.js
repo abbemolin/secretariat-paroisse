@@ -39,7 +39,7 @@ const GABARIT = `
 <div class="brev-content" data-r="contenu"><div class="brev-loading">Chargement de l'office…</div></div>
 <button type="button" class="brev-horsligne" data-r="horsligne" hidden></button>`
 
-export function monterBreviaire(racine) {
+export function monterBreviaire(racine, options = {}) {
   const vivant = { ok: true }
   racine.classList.add('liturgie', 'brev')
   racine.innerHTML = GABARIT
@@ -55,6 +55,11 @@ export function monterBreviaire(racine) {
   const scrollTo = (top) => defil().scrollTo({ top, behavior: 'instant' })
 
   let _offset = 0
+  if (/^\d{4}-\d{2}-\d{2}$/.test(options.date || '')) {   // ouvert depuis l'Ordo sur un jour donné
+    const [y, m, d] = options.date.split('-').map(Number)
+    const auj = new Date(); auj.setHours(0, 0, 0, 0)
+    _offset = Math.round((new Date(y, m - 1, d) - auj) / 86400000)
+  }
   let _heure = 'Laudes'
   let _lang = 'Latin'
   let _gregorien = false

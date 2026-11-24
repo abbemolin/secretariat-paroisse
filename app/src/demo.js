@@ -510,6 +510,16 @@ export async function demoApi(action, p) {
     case 'annonces.supprimer': etat.annoncesNl = etat.annoncesNl.filter((x) => x.id !== p.id); return true
     case 'annonces.ordre': p.ids.forEach((id, i) => { const a = etat.annoncesNl.find((x) => x.id === id); if (a) a.ordre = i }); return true
     case 'annonces.image': return { url: './logo.png' }
+    case 'liturgie.ordo': {
+      const ev = [], deb = new Date(p.debut + 'T12:00:00'), fin = new Date(p.fin + 'T12:00:00')
+      for (let d = new Date(deb); d <= fin; d.setDate(d.getDate() + 1)) {
+        const h = (hh, mm = 0) => { const x = new Date(d); x.setHours(hh, mm, 0, 0); return x.toISOString() }
+        if (d.getDay() === 0) ev.push({ id: 'g' + d.getDate(), summary: 'Grand\'messe', start: { dateTime: h(10, 30) }, end: { dateTime: h(12) } })
+        ev.push({ id: 'm' + d.getDate(), summary: 'Messe', start: { dateTime: h(18, 30) }, end: { dateTime: h(19, 15) } })
+      }
+      const i = (n, nom, type = 'Défunt') => { const d = new Date(deb); d.setDate(d.getDate() + n); return { date_messe: d.toISOString().slice(0, 10), heure_messe: '18:30', nom_intention: nom, type_intention: type } }
+      return { evenements: ev, intentions: [i(2, 'Joseph Muller'), i(9, 'Famille Schmitt', 'Action de grâce'), i(23, 'Marie Klein')] }
+    }
     case 'newsletter.semaine': {
       const j = (n, h, m = 0) => { const d = new Date(p.lundi + 'T12:00:00'); d.setDate(d.getDate() + n); d.setHours(h, m, 0, 0); return d.toISOString() }
       const ev = []
