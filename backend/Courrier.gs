@@ -167,7 +167,15 @@ function envoyerMail_(p, s) {
   var filId = message.getThread().getId();
   if (p.dossierId) lierFilAuDossier_(p.dossierId, filId, s, 'Mail envoyé : ' + (p.sujet || message.getSubject()));
   journaliser_(s, 'E-mail envoyé', (p.sujet || message.getSubject()) + ' → ' + (p.a || message.getTo()));
-  return { filId: filId };
+  // Réponse à un mail suivi (« À traiter » ou « En cours ») : il passe à « Traité »
+  var suivi = null;
+  if (p.filId) try {
+    verrou_(function () {
+      var x = lignes_('SuiviMails').filter(function (y) { return y.fil_id === p.filId; })[0];
+      if (x && (x.statut === 'À traiter' || x.statut === 'En cours')) { x.statut = 'Traité'; x.maj_le = maintenant_(); x.maj_par = s.nom; ecrireLigne_('SuiviMails', x); suivi = suiviPublic_(x); }
+    });
+  } catch (e) { console.error('suivi après réponse', e); }
+  return { filId: filId, suivi: suivi };
 }
 
 function listerLibelles_() {
@@ -184,9 +192,23 @@ function modifierFil_(p) {
   if (p.boiteReception) t.moveToInbox();
   if (p.corbeille) t.moveToTrash();
   if (p.nonLu) t.markUnread();
+  if (p.lu) t.markRead();
   if (p.important === true) t.getMessages()[0].star();
   if (p.important === false) t.getMessages().forEach(function (m) { m.unstar(); });
   return true;
+}
+
+/** Plusieurs mails d'un coup (sélection) : { ids, modif: {archiver, corbeille, lu, nonLu, important}, suivi: {statut, attribue_a} }. */
+function lotMails_(p, s) {
+  var ids = (p.ids || []).slice(0, 100), res = { faits: 0, suivis: {} };
+  ids.forEach(function (id) {
+    try {
+      if (p.modif) modifierFil_(Object.assign({ id: id }, p.modif));
+      if (p.suivi) res.suivis[id] = modifierSuiviMail_(Object.assign({ filId: id }, p.suivi), s);
+      res.faits++;
+    } catch (e) { console.error('lot', id, e); }
+  });
+  return res;
 }
 
 /** Statut, attribution, dossier lié. */

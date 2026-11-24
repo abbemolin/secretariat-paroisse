@@ -171,6 +171,7 @@ function filsAttribues_(s) {
 function verifierFilAttribue_(action, p, s) {
   if (/^(mail\.liste|mail\.libelles|mail\.groupes|mail\.quota|tri\.lire|tri\.tester)$/.test(action)) return;
   if (action === 'mail.envoiGroupe') throw interdit_('Les envois groupés sont réservés aux personnes qui voient tout le courrier.');
+  if (action === 'mail.lot') { var a = filsAttribues_(s); if ((p.ids || []).some(function (id) { return !a[id]; })) throw interdit_('Certains de ces mails ne vous sont pas attribués.'); return; }
   var fil = p.filId || (action === 'mail.fil' || action === 'mail.modifier' ? p.id : '');
   if (!fil && action === 'mail.piecejointe' && p.messageId) { try { fil = GmailApp.getMessageById(p.messageId).getThread().getId(); } catch (e) {} }
   if (!fil && action === 'mail.envoyer') return;   // nouveau message

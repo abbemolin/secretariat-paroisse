@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Inbox, Star, AlertTriangle, CheckCircle2, ScrollText, ExternalLink, Wand2, Send, MailOpen, Search, ArrowLeft, Reply, ReplyAll, Archive, Trash2, Paperclip, PenSquare, Download, Loader2, X, FolderOpen, Mail, UserCheck, ListTodo, Users, MessageSquare, FolderPlus, CalendarPlus, FolderHeart } from 'lucide-react'
+import { Inbox, Star, AlertTriangle, CheckCircle2, ScrollText, ExternalLink, Wand2, Send, MailOpen, Search, ArrowLeft, Reply, ReplyAll, Archive, Trash2, Paperclip, PenSquare, Download, Loader2, X, FolderOpen, Mail, UserCheck, ListTodo, Users, MessageSquare, FolderPlus, CalendarPlus, FolderHeart, CheckSquare, Square, Mail as MailFerme, Maximize2, Sparkles, Eye } from 'lucide-react'
 import { api, fichierEnBase64, telechargerBase64 } from '../api.js'
 import { useApp } from '../App.jsx'
 import { TYPES, ORDRE_TYPES, remplirModele } from '../types.js'
@@ -27,6 +27,17 @@ export const TRI = [
 ]
 const TRI_SPECIAUX = [{ cle: 'prioritaire', nom: 'Prioritaire' }, { cle: 'auto', nom: 'Réponse auto envoyée' }]
 const nomTri = (cle) => TRI.find((c) => c.cle === cle)?.nom || cle
+/** Réponse type suggérée d'après le tri automatique (baptême, mariage, horaires…). */
+export function reponseSuggeree(fil, reponses) {
+  for (const cle of fil?.tri?.categories || []) {
+    const c = TRI.find((x) => x.cle === cle)
+    if (!c?.reponse || (c.action === 'horaires' && fil.tri.auto)) continue
+    const r = reponses.find((x) => x.cle === c.reponse)
+    if (r) return r
+  }
+  return null
+}
+const STATUTS = ['À traiter', 'En cours', 'Traité']
 
 const FILTRES = [
   { cle: 'boite', nom: 'Boîte de réception', icone: Inbox },
@@ -53,6 +64,10 @@ export default function Courrier() {
   const [libelles, setLibelles] = useState([])
   const [redaction, setRedaction] = useState(null)
   const [groupe, setGroupe] = useState(false)
+  const [version, setVersion] = useState(0)       // relit le fil ouvert après un envoi
+  const [choix, setChoix] = useState(null)        // sélection multiple : Set d'ids (null = mode normal)
+  const { utilisateurs, utilisateur } = useApp()
+  const basculer = (id) => setChoix((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
 
   const changer = (p) => setParams(Object.fromEntries(Object.entries({ filtre, libelle, fil: ouvert, ...p }).filter(([, v]) => v)))
 
@@ -64,7 +79,7 @@ export default function Courrier() {
     } catch (e) { setErreur(e) } finally { setChargement(false) }
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { charger(0) }, [filtre, libelle])
+  useEffect(() => { charger(0); setChoix(null) }, [filtre, libelle])
   useEffect(() => { api('mail.libelles').then(setLibelles).catch(() => {}) }, [])
 
   async function agir(fil, modif, message) {
@@ -78,10 +93,44 @@ export default function Courrier() {
       await api('mail.modifier', { id: fil.id, ...modif })
       if (modif.archiver || modif.corbeille) { setFils((l) => l.filter((x) => x.id !== fil.id)); changer({ fil: '' }) }
       else setFils((l) => l.map((x) => (x.id === fil.id ? { ...x, ...(modif.important !== undefined ? { important: modif.important } : {}), ...(modif.nonLu ? { nonLu: true } : {}) } : x)))
-      if (message) notifier(message)
+      // Annulable : étoile, non lu
+      const inverse = modif.nonLu ? { lu: true } : modif.important !== undefined ? { important: !modif.important } : null
+      if (message || modif.nonLu) notifier(message || 'Marqué non lu', 'ok', inverse ? { action: { label: 'Annuler', fn: async () => {
+        await api('mail.modifier', { id: fil.id, ...inverse }).catch(() => {})
+        setFils((l) => l.map((x) => (x.id === fil.id ? { ...x, ...(inverse.lu ? { nonLu: false } : { important: inverse.important }) } : x)))
+      } } } : {})
     } catch (e) { notifier(e.message, 'erreur') }
   }
   const majSuivi = (id, suivi) => setFils((l) => l.map((x) => (x.id === id ? { ...x, suivi } : x)))
+
+  /** Actions sur la sélection (chacune annulable). */
+  async function lot(action, valeur) {
+    const ids = [...choix], sel = fils.filter((f) => choix.has(f.id)), avant = fils
+    const n = ids.length, s = n > 1 ? 's' : ''
+    if (action === 'archiver' || action === 'corbeille') {
+      setFils((l) => l.filter((x) => !choix.has(x.id))); setChoix(null); if (choix.has(ouvert)) changer({ fil: '' })
+      differer(action === 'archiver' ? `${n} mail${s} archivé${s}` : `${n} mail${s} mis à la corbeille`, () => api('mail.lot', { ids, modif: { [action]: true } }),
+        { onAnnule: () => setFils(avant), onErreur: () => setFils(avant) })
+      return
+    }
+    try {
+      if (action === 'lu' || action === 'nonLu') {
+        await api('mail.lot', { ids, modif: { [action]: true } })
+        setFils((l) => l.map((x) => (choix.has(x.id) ? { ...x, nonLu: action === 'nonLu' } : x))); setChoix(null)
+        notifier(action === 'lu' ? `${n} marqué${s} lu${s}` : `${n} marqué${s} non lu${s}`, 'ok', { action: { label: 'Annuler', fn: async () => {
+          await Promise.all(sel.map((f) => api('mail.modifier', { id: f.id, [f.nonLu ? 'nonLu' : 'lu']: true }))).catch(() => {}); setFils((l) => l.map((x) => sel.find((y) => y.id === x.id) || x))
+        } } })
+      } else {
+        const suivi = action === 'statut' ? { statut: valeur } : { attribue_a: valeur }
+        const r = await api('mail.lot', { ids, suivi })
+        setFils((l) => l.map((x) => (r.suivis[x.id] ? { ...x, suivi: r.suivis[x.id] } : x))); setChoix(null)
+        notifier(action === 'statut' ? `${n} mail${s} : ${valeur || 'sans statut'}` : valeur ? `${n} mail${s} attribué${s} à ${nomUtilisateur(valeur)}` : `Attribution retirée (${n})`, 'ok', { action: { label: 'Annuler', fn: async () => {
+          for (const f of sel) await api('mail.suivi', { filId: f.id, statut: f.suivi?.statut || '', attribue_a: f.suivi?.attribue_a || '' }).catch(() => {})
+          setFils((l) => l.map((x) => sel.find((y) => y.id === x.id) || x))
+        } } })
+      }
+    } catch (e) { notifier(e.message, 'erreur') }
+  }
 
   return (
     <>
@@ -116,10 +165,31 @@ export default function Courrier() {
             )}
           </div>
           <Erreur erreur={erreur} reessayer={() => charger(0)} />
+          {choix ? (
+            <div className="sticky top-0 z-10 mb-2 flex flex-wrap items-center gap-1 rounded-xl bg-nuit px-2 py-1.5 text-white shadow">
+              <button className="rounded-lg p-1.5 hover:bg-white/10" title="Quitter la sélection" onClick={() => setChoix(null)}><X className="h-4 w-4" /></button>
+              <button className="mr-auto rounded-lg px-1.5 py-1 text-sm hover:bg-white/10" onClick={() => setChoix(choix.size === fils.length ? new Set() : new Set(fils.map((f) => f.id)))}>{choix.size} sélectionné{choix.size > 1 ? 's' : ''} · {choix.size === fils.length ? 'aucun' : 'tous'}</button>
+              {choix.size > 0 && <>
+                <button className="rounded-lg p-1.5 hover:bg-white/10" title="Marquer lu" onClick={() => lot('lu')}><MailOpen className="h-4 w-4" /></button>
+                <button className="rounded-lg p-1.5 hover:bg-white/10" title="Marquer non lu" onClick={() => lot('nonLu')}><MailFerme className="h-4 w-4" /></button>
+                <select className="max-w-[7.5rem] rounded-lg border-0 bg-white/10 py-1 pl-2 pr-6 text-xs text-white" value="" onChange={(e) => e.target.value && lot('attribuer', e.target.value === '-' ? '' : e.target.value)} title="Attribuer">
+                  <option value="" className="text-nuit">Attribuer…</option>{utilisateurs.map((u) => <option key={u.id} value={u.id} className="text-nuit">{u.nom}{u.id === utilisateur.id ? ' (moi)' : ''}</option>)}<option value="-" className="text-nuit">Personne</option>
+                </select>
+                <select className="max-w-[6.5rem] rounded-lg border-0 bg-white/10 py-1 pl-2 pr-6 text-xs text-white" value="" onChange={(e) => e.target.value && lot('statut', e.target.value === '-' ? '' : e.target.value)} title="Statut">
+                  <option value="" className="text-nuit">Statut…</option>{STATUTS.map((x) => <option key={x} className="text-nuit">{x}</option>)}<option value="-" className="text-nuit">Aucun</option>
+                </select>
+                <button className="rounded-lg p-1.5 hover:bg-white/10" title="Archiver" onClick={() => lot('archiver')}><Archive className="h-4 w-4" /></button>
+                <button className="rounded-lg p-1.5 text-red-200 hover:bg-white/10" title="Corbeille" onClick={() => lot('corbeille')}><Trash2 className="h-4 w-4" /></button>
+              </>}
+            </div>
+          ) : fils.length > 0 && (
+            <div className="mb-1 flex justify-end"><button className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-nuit-600 hover:bg-nuit-50" onClick={() => setChoix(new Set())}><CheckSquare className="h-3.5 w-3.5" />Sélectionner</button></div>
+          )}
           <div className="carte divide-y divide-nuit-50 overflow-hidden">
             {chargement && !fils.length ? <Chargement /> : !fils.length ? <Vide icone={Mail} texte="Aucun message." /> : fils.map((f) => (
-              <button key={f.id} onClick={() => changer({ fil: f.id })} className={`block w-full px-4 py-3 text-left transition hover:bg-nuit-50/60 ${ouvert === f.id ? 'bg-or-50' : ''}`}>
+              <button key={f.id} onClick={() => (choix ? basculer(f.id) : changer({ fil: f.id }))} className={`block w-full px-4 py-3 text-left transition hover:bg-nuit-50/60 ${choix?.has(f.id) ? 'bg-or-50' : ouvert === f.id && !choix ? 'bg-or-50' : ''}`}>
                 <div className="flex items-center gap-2">
+                  {choix && (choix.has(f.id) ? <CheckSquare className="h-4 w-4 shrink-0 text-or-600" /> : <Square className="h-4 w-4 shrink-0 text-nuit-600/40" />)}
                   {f.nonLu && <span className="h-2 w-2 shrink-0 rounded-full bg-or" />}
                   <span className={`min-w-0 flex-1 truncate text-sm ${f.nonLu ? 'font-semibold' : ''}`}>{filtre === 'envoyes' ? 'À : ' + nomExpediteur(f.a) : nomExpediteur(f.de)}{f.nb > 1 && <span className="ml-1 text-xs text-nuit-600/60">({f.nb})</span>}</span>
                   {f.important && <Star className="h-3.5 w-3.5 fill-or text-or" />}
@@ -139,34 +209,54 @@ export default function Courrier() {
           </div>
         </div>
         {ouvert ? (
-          <Fil id={ouvert} onRetour={() => changer({ fil: '' })} onAgir={agir} onSuivi={majSuivi}
-            onRepondre={(fil, tous, reponse) => setRedaction({ mode: tous ? 'tous' : 'repondre', fil, reponse })} />
+          <Fil key={ouvert + ':' + version} id={ouvert} onRetour={() => changer({ fil: '' })} onAgir={agir} onSuivi={majSuivi} onLu={(id) => setFils((l) => l.map((x) => (x.id === id ? { ...x, nonLu: false } : x)))}
+            onRepondre={(fil, tous, reponse, corps) => setRedaction({ mode: tous ? 'tous' : 'repondre', fil, reponse, corps })} />
         ) : <div className="carte hidden flex-1 lg:block"><Vide icone={MailOpen} texte="Sélectionnez un message." /></div>}
       </div>
-      {redaction && <Redaction {...redaction} onFermer={() => setRedaction(null)} onEnvoye={() => { setRedaction(null); notifier('Message envoyé') }} />}
+      {redaction && <Redaction {...redaction} onFermer={() => setRedaction(null)} onEnvoye={(r) => {
+        setRedaction(null); notifier(r?.suivi ? 'Message envoyé · mail passé à « Traité »' : 'Message envoyé')
+        if (r?.suivi && redaction.fil) majSuivi(redaction.fil.id, r.suivi)
+        setVersion((v) => v + 1)
+      }} />}
       {groupe && <EnvoiGroupe onFermer={() => setGroupe(false)} />}
     </>
   )
 }
 
-function Fil({ id, onRetour, onAgir, onRepondre, onSuivi }) {
+function Fil({ id, onRetour, onAgir, onRepondre, onSuivi, onLu }) {
   const notifier = useNotif()
   const nav = useNavigate()
   const { utilisateurs, utilisateur, nomUtilisateur } = useApp()
   const [fil, setFil] = useState(null)
   const [erreur, setErreur] = useState(null)
   const [pj, setPj] = useState(null)
+  const [apercu, setApercu] = useState(null)   // pièce jointe ouverte dans l'appli
   const [commentaire, setCommentaire] = useState('')
   const [creation, setCreation] = useState(false)
   const [rdv, setRdv] = useState(null)
-  useEffect(() => { setFil(null); setCreation(false); setErreur(null); api('mail.fil', { id }).then(setFil).catch(setErreur) }, [id])
+  const zoneReponse = useRef(null)
+  const lire = () => api('mail.fil', { id }).then((f) => { setFil(f); onLu?.(id) })
+  useEffect(() => { setFil(null); setCreation(false); setErreur(null); lire().catch(setErreur) }, [id])   // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function telechargerPj(m, p) {
+  /** PDF et images : aperçu dans l'appli ; autres fichiers : téléchargés. */
+  async function ouvrirPj(m, p) {
     setPj(m.id + p.index)
-    try { telechargerBase64(await api('mail.piecejointe', { messageId: m.id, index: p.index })) } catch (e) { notifier(e.message, 'erreur') } finally { setPj(null) }
+    try {
+      const f = await api('mail.piecejointe', { messageId: m.id, index: p.index })
+      if (/^(application\/pdf|image\/(png|jpe?g|gif|webp|svg\+xml))$/i.test(f.type) || /\.(pdf|png|jpe?g|gif|webp)$/i.test(f.nom)) setApercu(f)
+      else telechargerBase64(f)
+    } catch (e) { notifier(e.message, 'erreur') } finally { setPj(null) }
   }
+  /** Statut, attribution… (annulable). */
   async function suivi(modif, msg) {
-    try { const s = await api('mail.suivi', { filId: id, ...modif }); setFil((f) => ({ ...f, suivi: s })); onSuivi(id, s); if (msg) notifier(msg) }
+    const avant = fil?.suivi
+    try {
+      const s = await api('mail.suivi', { filId: id, ...modif }); setFil((f) => ({ ...f, suivi: s })); onSuivi(id, s)
+      if (msg) notifier(msg, 'ok', avant !== undefined && (modif.statut !== undefined || modif.attribue_a !== undefined) ? { action: { label: 'Annuler', fn: async () => {
+        const r = await api('mail.suivi', { filId: id, statut: avant?.statut || '', attribue_a: avant?.attribue_a || '' }).catch(() => null)
+        if (r) { setFil((f) => ({ ...f, suivi: r })); onSuivi(id, r) }
+      } } } : {})
+    }
     catch (e) { notifier(e.message, 'erreur') }
   }
   async function commenter(e) {
@@ -182,10 +272,10 @@ function Fil({ id, onRetour, onAgir, onRepondre, onSuivi }) {
       <div className="mb-3 flex flex-wrap items-center gap-1">
         <button className="btn-icone lg:hidden" onClick={onRetour}><ArrowLeft className="h-5 w-5" /></button>
         {fil && <>
-          <button className="btn-clair" onClick={() => onRepondre(fil, false)}><Reply className="h-4 w-4" />Répondre</button>
+          <button className="btn-clair" onClick={() => zoneReponse.current?.ouvrir()}><Reply className="h-4 w-4" />Répondre</button>
           <button className="btn-icone" title="Répondre à tous" onClick={() => onRepondre(fil, true)}><ReplyAll className="h-4 w-4" /></button>
           <button className="btn-icone" title="Suivre (étoile)" onClick={() => onAgir(fil, { important: !fil.important }, fil.important ? 'Étoile retirée' : 'Étoile ajoutée')}><Star className={`h-4 w-4 ${fil.important ? 'fill-or text-or' : ''}`} /></button>
-          <button className="btn-icone" title="Marquer non lu" onClick={() => { onAgir(fil, { nonLu: true }); onRetour() }}><MailOpen className="h-4 w-4" /></button>
+          <button className="btn-icone" title="Marquer non lu" onClick={() => { onAgir(fil, { nonLu: true }); onRetour() }}><MailFerme className="h-4 w-4" /></button>
           <button className="btn-icone" title="Archiver" onClick={() => onAgir(fil, { archiver: true }, 'Archivé')}><Archive className="h-4 w-4" /></button>
           <button className="btn-icone text-red-700" title="Corbeille" onClick={() => onAgir(fil, { corbeille: true }, 'Mis à la corbeille')}><Trash2 className="h-4 w-4" /></button>
         </>}
@@ -198,7 +288,7 @@ function Fil({ id, onRetour, onAgir, onRepondre, onSuivi }) {
           <div className="carte grid gap-3 p-4 sm:grid-cols-3">
             <div><label className="etiquette">Statut</label>
               <select className="champ py-1.5" value={fil.suivi?.statut || ''} onChange={(e) => suivi({ statut: e.target.value }, 'Statut mis à jour')}>
-                <option value="">—</option>{['À traiter', 'En cours', 'Traité'].map((s) => <option key={s}>{s}</option>)}
+                <option value="">—</option>{STATUTS.map((s) => <option key={s}>{s}</option>)}
               </select></div>
             <div><label className="etiquette">Attribué à</label>
               <select className="champ py-1.5" value={fil.suivi?.attribue_a || ''} onChange={(e) => suivi({ attribue_a: e.target.value }, e.target.value ? 'Attribué à ' + nomUtilisateur(e.target.value) : 'Attribution retirée')}>
@@ -226,13 +316,16 @@ function Fil({ id, onRetour, onAgir, onRepondre, onSuivi }) {
                   </div>
                   <CorpsMail html={m.html} />
                   {m.pieces.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{m.pieces.map((p) => (
-                    <button key={p.index} onClick={() => telechargerPj(m, p)} className="btn-clair py-1.5 text-xs">
-                      {pj === m.id + p.index ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}{p.nom} <span className="text-nuit-600/50">{taille(p.taille)}</span></button>
+                    <button key={p.index} onClick={() => ouvrirPj(m, p)} className="btn-clair py-1.5 text-xs" title={/pdf|image/.test(p.type || '') ? 'Aperçu' : 'Télécharger'}>
+                      {pj === m.id + p.index ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : /pdf|image/.test(p.type || '') ? <Eye className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}{p.nom} <span className="text-nuit-600/50">{taille(p.taille)}</span></button>
                   ))}</div>}
                 </article>
               ))}
             </div>
           </div>
+
+          <ReponseRapide key={fil.id} ref={zoneReponse} fil={fil} onPlus={(texte, cle) => onRepondre(fil, false, cle, texte)}
+            onEnvoye={(r) => { if (r?.suivi) { setFil((f) => ({ ...f, suivi: r.suivi })); onSuivi(id, r.suivi) } lire().catch(() => {}) }} />
 
           {/* Commentaires internes */}
           <div className="carte p-4">
@@ -249,10 +342,117 @@ function Fil({ id, onRetour, onAgir, onRepondre, onSuivi }) {
           </div>
         </div>
       )}
+      {apercu && <ApercuPiece piece={apercu} onFermer={() => setApercu(null)} />}
       {creation && <DossierDepuisMail fil={fil} premier={premier} typeInitial={typeof creation === 'string' ? creation : 'bapteme'} onFermer={() => setCreation(false)} onCree={(d) => { notifier('Dossier créé'); nav(`/dossiers/${d.id}`) }} />}
       {rdv && <EditionEvenement evenement={{ titre: rdv.sujet, lieu: '', description: '', journee: false, debut: new Date(Date.now() + 86400000).toISOString().slice(0, 11) + '10:00:00', fin: new Date(Date.now() + 86400000).toISOString().slice(0, 11) + '11:00:00' }}
         onFermer={() => setRdv(null)} onFait={(m) => { setRdv(null); notifier(m) }} />}
     </div>
+  )
+}
+
+/** Réponse rapide, sous le fil : texte, réponse type (suggérée d'après le tri), signature ; 10 s pour annuler l'envoi. */
+const ReponseRapide = forwardRef(function ReponseRapide({ fil, onPlus, onEnvoye }, ref) {
+  const { utilisateur, signatures, reponses, reglages } = useApp()
+  const differer = useDifferer()
+  const notifier = useNotif()
+  const [texte, setTexte] = useState('')
+  const [ouvert, setOuvert] = useState(false)
+  const [signature, setSignature] = useState(utilisateur.signature || signatures[0]?.cle || '')
+  const [enAttente, setEnAttente] = useState(false)
+  const champ = useRef(null)
+  const dernier = fil.messages[fil.messages.length - 1]
+  const nom = nomExpediteur(dernier?.de || '')
+  const suggestion = reponseSuggeree(fil, reponses)
+  const ctx = { nom, type: '', url_horaires: reglages.url_horaires }
+  const ouvrir = () => { setOuvert(true); setTimeout(() => { champ.current?.focus(); champ.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }) }, 50) }
+  useImperativeHandle(ref, () => ({ ouvrir }))
+  useEffect(() => { const c = champ.current; if (c) { c.style.height = 'auto'; c.style.height = Math.min(Math.max(c.scrollHeight, 120), 480) + 'px' } }, [texte, ouvert])
+  const appliquer = (cle) => { const r = reponses.find((x) => x.cle === cle); if (r) { setTexte(remplirModele(r.corps, ctx)); ouvrir() } }
+
+  function envoyer() {
+    const corps = texte
+    if (!corps.trim()) return
+    setTexte(''); setOuvert(false); setEnAttente(true)
+    const reprendre = () => { setTexte(corps); setOuvert(true); setEnAttente(false) }
+    differer('Envoi dans 10 secondes…', async () => {
+      const r = await api('mail.envoyer', { corps, signature, filId: fil.id })
+      setEnAttente(false)
+      notifier(r?.suivi ? 'Message envoyé · mail passé à « Traité »' : 'Message envoyé')
+      onEnvoye(r)
+    }, { delai: 10000, onAnnule: reprendre, onErreur: reprendre })
+  }
+
+  if (enAttente) return <div className="carte flex items-center gap-2 p-3 text-sm text-nuit-600"><Loader2 className="h-4 w-4 animate-spin text-or" />Réponse sur le point de partir — « Annuler » en bas de l'écran pour la reprendre.</div>
+  if (!ouvert && !texte) return (
+    <div className="carte flex flex-wrap items-center gap-2 p-3">
+      <button className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-nuit-100 px-3 py-2.5 text-left text-sm text-nuit-600/70 hover:border-or" onClick={ouvrir}><Reply className="h-4 w-4 shrink-0" /><span className="truncate">Répondre à {nom}…</span></button>
+      {suggestion && <button className="btn-clair py-2 text-xs" onClick={() => appliquer(suggestion.cle)} title="Réponse type suggérée d'après le tri automatique"><Sparkles className="h-3.5 w-3.5 text-or" />{suggestion.titre}</button>}
+    </div>
+  )
+  return (
+    <div className="carte p-3">
+      <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-nuit-600">
+        <Reply className="h-3.5 w-3.5" /><span>À : <strong>{nom}</strong></span><span className="flex-1" />
+        {suggestion && !texte.trim() && <button className="pastille gap-1 border border-or/40 bg-or-50 py-1 text-or-600" onClick={() => appliquer(suggestion.cle)}><Sparkles className="h-3 w-3" />Suggestion : {suggestion.titre}</button>}
+        <select className="champ w-auto py-1 text-xs" value="" onChange={(e) => appliquer(e.target.value)}><option value="">Réponse type…</option>{reponses.map((r) => <option key={r.cle} value={r.cle}>{r.titre}</option>)}</select>
+      </div>
+      <textarea ref={champ} className="champ resize-none font-sans" value={texte} onChange={(e) => setTexte(e.target.value)} placeholder="Votre réponse…"
+        onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); envoyer() } }} />
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <select className="champ w-auto py-1.5 text-xs" value={signature} onChange={(e) => setSignature(e.target.value)} title="Signature">{signatures.map((s) => <option key={s.cle} value={s.cle}>{s.nom}</option>)}</select>
+        <span className="flex-1" />
+        <button className="btn-icone" title="Plus d'options : pièces jointes, documents, copie…" onClick={() => onPlus(texte)}><Maximize2 className="h-4 w-4" /></button>
+        <button className="btn-clair py-1.5" onClick={() => { setTexte(''); setOuvert(false) }}>Annuler</button>
+        <button className="btn-principal py-1.5" disabled={!texte.trim()} onClick={envoyer} title="Ctrl + Entrée"><Send className="h-4 w-4" />Envoyer</button>
+      </div>
+    </div>
+  )
+})
+
+/** Pièce jointe ouverte dans l'appli : PDF (pages dessinées, lisibles aussi sur téléphone) ou image. */
+function ApercuPiece({ piece, onFermer }) {
+  const [url] = useState(() => {
+    const bin = atob(piece.base64), o = new Uint8Array(bin.length)
+    for (let i = 0; i < bin.length; i++) o[i] = bin.charCodeAt(i)
+    return URL.createObjectURL(new Blob([o], { type: piece.type }))
+  })
+  useEffect(() => () => URL.revokeObjectURL(url), [url])
+  const pdf = /pdf/i.test(piece.type) || /\.pdf$/i.test(piece.nom)
+  const zone = useRef(null)
+  const [etat, setEtat] = useState(pdf ? 'chargement' : '')
+  useEffect(() => {
+    if (!pdf) return
+    let fini = false
+    ;(async () => {
+      try {
+        const pdfjs = await import('pdfjs-dist')
+        pdfjs.GlobalWorkerOptions.workerSrc = (await import('pdfjs-dist/build/pdf.worker.min.mjs?url')).default
+        const doc = await pdfjs.getDocument({ url }).promise
+        const largeur = Math.min(zone.current?.clientWidth || 700, 900)
+        for (let n = 1; n <= Math.min(doc.numPages, 40) && !fini; n++) {
+          const page = await doc.getPage(n)
+          const v0 = page.getViewport({ scale: 1 }), k = largeur / v0.width, dpr = window.devicePixelRatio || 1
+          const v = page.getViewport({ scale: k * dpr })
+          const c = document.createElement('canvas')
+          c.width = v.width; c.height = v.height; c.style.width = '100%'; c.className = 'mb-3 rounded border border-nuit-100 bg-white shadow-sm'
+          await page.render({ canvasContext: c.getContext('2d'), viewport: v }).promise
+          if (fini) return
+          zone.current?.appendChild(c)
+          if (n === 1) setEtat('')
+        }
+      } catch { if (!fini) setEtat('erreur') }
+    })()
+    return () => { fini = true }
+  }, [pdf, url])
+  return (
+    <Modale large titre={piece.nom} onFermer={onFermer}
+      pied={<><button className="btn-clair" onClick={onFermer}>Fermer</button><button className="btn-principal" onClick={() => telechargerBase64(piece)}><Download className="h-4 w-4" />Télécharger</button></>}>
+      {pdf ? <>
+        {etat === 'chargement' && <Chargement />}
+        {etat === 'erreur' && <p className="text-sm text-nuit-600">Aperçu impossible pour ce PDF. <button className="underline" onClick={() => telechargerBase64(piece)}>Le télécharger</button></p>}
+        <div ref={zone} className="mx-auto max-w-[900px]" />
+      </> : <img src={url} alt={piece.nom} className="mx-auto max-h-[75vh] rounded-lg" />}
+    </Modale>
   )
 }
 
@@ -383,6 +583,8 @@ export function Redaction({ mode, fil, dossier, a: aInit = '', sujet: sujetInit 
   const [choixDoc, setChoixDoc] = useState(false)
   const [envoi, setEnvoi] = useState(false)
   const [erreur, setErreur] = useState(null)
+  const [cache, setCache] = useState(false)
+  const differer = useDifferer()
 
   function appliquerModele(cle) {
     const m = reponses.find((r) => r.cle === cle)
@@ -395,11 +597,16 @@ export function Redaction({ mode, fil, dossier, a: aInit = '', sujet: sujetInit 
     try {
       if (envoiPersonnalise) { onEnvoye(await envoiPersonnalise({ a, sujet, corps, signature })); return }
       const pieces = await Promise.all(fichiers.map(async (f) => ({ nom: f.name, type: f.type, base64: await fichierEnBase64(f) })))
-      const r = await api('mail.envoyer', { a, cc, sujet, corps, signature, fichiers: pieces, documentsDrive: docs.map((d) => d.id),
-        filId: mode === 'nouveau' ? undefined : fil.id, tous: mode === 'tous', dossierId: dossier?.id, boutons })
-      onEnvoye(r)
-    } catch (e) { setErreur(e) } finally { setEnvoi(false) }
+      const charge = { a, cc, sujet, corps, signature, fichiers: pieces, documentsDrive: docs.map((d) => d.id),
+        filId: mode === 'nouveau' ? undefined : fil.id, tous: mode === 'tous', dossierId: dossier?.id, boutons }
+      // 10 secondes pour annuler : la fenêtre se cache et revient telle quelle si on annule
+      setCache(true)
+      differer('Envoi dans 10 secondes…', async () => { const r = await api('mail.envoyer', charge); onEnvoye(r) },
+        { delai: 10000, onAnnule: () => { setCache(false); setEnvoi(false) }, onErreur: (e) => { setCache(false); setEnvoi(false); setErreur(e) } })
+    } catch (e) { setErreur(e); setEnvoi(false) }
   }
+  const suggestion = mode !== 'nouveau' && !reponse && fil ? reponseSuggeree(fil, reponses) : null
+  if (cache) return null
 
   return (
     <Modale large titre={mode === 'nouveau' ? 'Nouveau message' : `Réponse${mode === 'tous' ? ' à tous' : ''}`} onFermer={onFermer}
@@ -420,6 +627,7 @@ export function Redaction({ mode, fil, dossier, a: aInit = '', sujet: sujetInit 
             <div><label className="etiquette">Cc</label><input className="champ" value={cc} onChange={(e) => setCc(e.target.value)} /></div>
             <div><label className="etiquette">Objet</label><input className="champ" value={sujet} onChange={(e) => setSujet(e.target.value)} /></div>
           </> : <p className="text-sm text-nuit-600">À : <strong>{dernier ? nomExpediteur(dernier.de) : ''}</strong> — {fil.sujet}</p>}
+          {suggestion && !corps.trim() && <button className="pastille gap-1 border border-or/40 bg-or-50 py-1 text-or-600" onClick={() => appliquerModele(suggestion.cle)}><Sparkles className="h-3 w-3" />Suggestion : {suggestion.titre}</button>}
           <textarea className="champ min-h-[260px] font-sans" value={corps} onChange={(e) => setCorps(e.target.value)} autoFocus />
           {boutons.length > 0 && <div className="space-y-1.5 text-xs text-nuit-600/70"><div>Boutons du mail (placés là où le texte indique « [Bouton : …] », sinon à la fin) :</div>
             {boutons.map((b) => <div key={b.texte}>{!b.imageSeule && <span className="inline-block rounded-lg bg-nuit px-4 py-2 text-sm font-semibold text-white">{b.texte}</span>}{b.image && <img src={b.image} alt="" className="mt-1.5 w-72 rounded-lg border border-nuit-100" />}</div>)}</div>}

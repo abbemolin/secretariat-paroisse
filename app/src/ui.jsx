@@ -152,7 +152,7 @@ function FournisseurToasts({ children }) {
     setTimeout(() => retirer(id), opts.duree || (opts.action ? 6500 : 3500))
     return id
   }, [])
-  const differer = useCallback((texte, executer, { onAnnule, onErreur, ids = [] } = {}) => {
+  const differer = useCallback((texte, executer, { onAnnule, onErreur, ids = [], delai = 6000 } = {}) => {
     let annule = false
     ids.forEach((x) => enSuppression.add(x))
     const id = Math.random()
@@ -163,7 +163,7 @@ function FournisseurToasts({ children }) {
       retirer(id)
       if (annule) return
       try { await executer() } catch (e) { rendre(); onErreur?.(e); setListe((l) => [...l, { id: Math.random(), texte: e.message, type: 'erreur' }]) }
-    }, 6000)
+    }, delai)
   }, [])
   return (
     <CtxNotif.Provider value={notifier}>
@@ -174,7 +174,7 @@ function FournisseurToasts({ children }) {
         {liste.map((n) => (
           <div key={n.id} className={`pointer-events-auto flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm text-white shadow-lg ${n.type === 'erreur' ? 'bg-red-700' : 'bg-nuit'}`}>
             {n.type === 'erreur' ? <AlertCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4 text-or-100" />}{n.texte}
-            {n.action && <button className="ml-2 rounded-md bg-white/15 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide hover:bg-white/25" onClick={n.action.fn}>{n.action.label}</button>}
+            {n.action && <button className="ml-2 rounded-md bg-white/15 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide hover:bg-white/25" onClick={() => { n.action.fn(); retirer(n.id) }}>{n.action.label}</button>}
           </div>
         ))}
       </div>

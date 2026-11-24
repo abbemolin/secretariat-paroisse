@@ -133,6 +133,7 @@ var ROUTES = {
   'mail.libelles':         { fn: function (p, s) { return listerLibelles_(p, s); }, droit: 'mail' },
   'mail.modifier':         { fn: function (p, s) { return modifierFil_(p, s); }, droit: 'mail' },
   'mail.suivi':            { fn: function (p, s) { return modifierSuiviMail_(p, s); }, droit: 'mail' },
+  'mail.lot':              { fn: function (p, s) { return lotMails_(p, s); }, droit: 'mail' },
   'mail.commenter':        { fn: function (p, s) { return commenterMail_(p, s); }, droit: 'mail' },
   'mail.groupes':          { fn: function (p, s) { return listerGroupesContacts_(p, s); }, droit: 'mail' },
   'mail.envoiGroupe':      { fn: function (p, s) { return envoyerAuGroupe_(p, s); }, droit: 'mail' },
