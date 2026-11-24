@@ -324,6 +324,11 @@ function actionEspace_(action, p) {
   }
   if (action === 'esp.lettres') return { lettres: lettresApp_(), lettre_mail: abonnementNewsletter_(mailDossier_(d)) };
   if (action === 'esp.lettre') return lettreApp_(p.id);
+  if (action === 'esp.messes') return { messes: messesProposees_(), mes_intentions: mesIntentions_(mailDossier_(d)), offrande: offrandeTexte_(), max: INT_APP_MAX };
+  if (action === 'esp.demanderMesse') {
+    var rm = demanderMessesApp_({ mail: mailDossier_(d), nom: ((i0.prenoms || '') + ' ' + (i0.nom || '')).trim() || d.nom }, p);
+    return { nombre: rm.nombre, mes_intentions: mesIntentions_(mailDossier_(d)), messes: messesProposees_() };
+  }
   if (action === 'esp.push') {
     if (p.desabonner) return desabonnerPush_({ endpoint: p.endpoint });
     return abonnerPush_({ endpoint: p.endpoint, appareil: p.appareil }, { uid: 'esp:' + d.id });

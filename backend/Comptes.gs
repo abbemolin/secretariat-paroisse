@@ -397,6 +397,11 @@ function actionCompte_(action, p) {
   if (action === 'cpt.mesDonnees') return mesDonnees_(x);
   if (action === 'cpt.lettres') return { lettres: lettresApp_(), lettre_mail: abonnementNewsletter_(x.mail) };
   if (action === 'cpt.lettre') return lettreApp_(p.id);
+  if (action === 'cpt.messes') return { messes: messesProposees_(), mes_intentions: mesIntentions_(x.mail), offrande: offrandeTexte_(), max: INT_APP_MAX };
+  if (action === 'cpt.demanderMesse') {
+    var rm = demanderMessesApp_({ mail: x.mail, nom: (x.prenom + ' ' + x.nom).trim() }, p);
+    return { nombre: rm.nombre, mes_intentions: mesIntentions_(x.mail), messes: messesProposees_() };
+  }
   if (action === 'cpt.partout') {
     verrou_(function () { var y = compteParId_(x.id); y.session_v = Number(y.session_v || 0) + 1; ecrireLigne_('Comptes', y); });
     return true;

@@ -227,3 +227,80 @@ function verifierNouvellesIntentions() {
     if (u.role === 'admin' || (u.acces || {}).intentions) notifier_(u.id, 'Intention de messe : nouvelle demande', texte, '#/intentions/gerer');
   });
 }
+
+// ─── App des paroissiens : « Demander une messe » et « Mes intentions » ───
+// Même circuit que le formulaire du site : demande « en attente » sur une messe de l'agenda public,
+// créneaux déjà pris (intention validée ou en attente) grisés ; les prêtres valident dans la tuile
+// (notification par le déclencheur des nouvelles demandes). Offrande hors ligne seulement.
+
+var INT_APP_JOURS = 60;        // messes proposées : les 60 prochains jours
+var INT_APP_MAX = 10;          // messes au plus par demande
+var INT_TYPES_APP = ['Défunt', 'Vivant', 'Action de grâce'];
+function delaiIntentionsJours_() { var v = props_().getProperty('INT_DELAI_JOURS'), n = Number(v); return v !== null && v !== '' && n >= 0 && n <= 30 ? n : 1; }
+var estMesseAgenda_ = function (e) { return /^(messe|grand.?messe)/i.test(String(e.summary || '').trim()); };
+
+/** Messes proposées (agenda public), avec les créneaux déjà pris. */
+function messesProposees_() {
+  var cache = CacheService.getScriptCache(), c = cache.get('int_app_messes');
+  if (c) return JSON.parse(c);
+  var debutJ = ajouterJours_(aujourdhui_(), delaiIntentionsJours_()), finJ = ajouterJours_(aujourdhui_(), INT_APP_JOURS);
+  var evs = evenementsAgendaApi_(debutJ + 'T00:00:00+01:00', finJ + 'T23:59:00+01:00').filter(function (e) { return e.start.dateTime && estMesseAgenda_(e) && e.start.dateTime.slice(0, 10) >= debutJ && e.start.dateTime.slice(0, 10) <= finJ; });
+  var prises = {};
+  (sb_('get', '/rest/v1/intentions?select=date_messe,heure_messe,statut,en_edition&date_messe=gte.' + debutJ + '&date_messe=lte.' + finJ) || []).forEach(function (i) {
+    if (i.statut === 'valide' || i.statut === 'en_attente' || i.en_edition) prises[i.date_messe + ' ' + String(i.heure_messe || '').slice(0, 5)] = 1;
+  });
+  var l = evs.map(function (e) {
+    var date = e.start.dateTime.slice(0, 10), heure = e.start.dateTime.slice(11, 16);
+    return { id: e.id, date: date, heure: heure, titre: e.summary, pris: !!prises[date + ' ' + heure] };
+  });
+  cache.put('int_app_messes', JSON.stringify(l), 600);
+  return l;
+}
+/** Demande depuis l'app : une ou plusieurs messes, une ligne « en attente » par messe. */
+function demanderMessesApp_(qui, p) {
+  var type = INT_TYPES_APP.indexOf(p.type) > -1 ? p.type : '';
+  if (!type) throw erreur_('INVALIDE', 'Choisissez le type d\'intention.');
+  var intention = String(p.intention || '').trim().slice(0, 200);
+  if (!intention) throw erreur_('INVALIDE', 'Veuillez indiquer l\'intention de messe.');
+  var choix = (p.messes || []).map(String).filter(function (x, k, a) { return a.indexOf(x) === k; });
+  if (!choix.length) throw erreur_('INVALIDE', 'Choisissez au moins une messe.');
+  if (choix.length > INT_APP_MAX) throw erreur_('INVALIDE', INT_APP_MAX + ' messes au plus par demande. Pour une neuvaine ou un trentain, écrivez à la paroisse.');
+  var mail = normMail_(qui.mail);
+  if (!mail) throw erreur_('INVALIDE', 'Aucune adresse e-mail n\'est connue : la paroisse ne pourrait pas vous répondre.');
+  var message = String(p.message || '').trim().slice(0, 1000);
+  var verrou = LockService.getScriptLock(); verrou.waitLock(20000);
+  try {
+    CacheService.getScriptCache().remove('int_app_messes');
+    var dispo = {}; messesProposees_().forEach(function (m) { dispo[m.id] = m; });
+    var messes = choix.map(function (id) {
+      var m = dispo[id];
+      if (!m) throw erreur_('INVALIDE', 'Une des messes choisies n\'est plus proposée. Rechargez la page.');
+      if (m.pris) throw erreur_('DOUBLON', 'La messe du ' + m.date.split('-').reverse().join('/') + ' à ' + m.heure.replace(':', 'h') + ' vient d\'être prise. Choisissez-en une autre.');
+      return m;
+    });
+    var lignes = messes.map(function (m) {
+      return { nom_donateur: qui.nom, email_donateur: mail, type_intention: type, nom_intention: intention, date_messe: m.date, heure_messe: m.heure,
+        statut: 'en_attente', google_event_id: m.id, commentaire: (message ? message + '\n' : '') + '(demande depuis l\'app' + (messes.length > 1 ? ', ' + messes.length + ' messes' : '') + ')',
+        mail_envoye: false, en_edition: false };
+    });
+    sbEcrire_('post', '/rest/v1/intentions', lignes);
+    CacheService.getScriptCache().remove('int_app_messes');
+  } finally { verrou.releaseLock(); }
+  return { nombre: choix.length };
+}
+/** « Mes intentions » : les demandes faites avec l'adresse de la personne (app ou site). */
+function mesIntentions_(mail) {
+  mail = normMail_(mail);
+  if (!mail) return [];
+  var l = sb_('get', '/rest/v1/intentions?select=id,created_at,type_intention,nom_intention,date_messe,heure_messe,statut,celebre_le,date_alternative,heure_alternative&email_donateur=eq.'
+    + encodeURIComponent(mail) + '&order=date_messe.desc&limit=60') || [];
+  return l.filter(function (i) { return i.statut !== 'annule'; }).map(function (i) {
+    var etat = i.celebre_le ? 'celebree' : i.statut === 'valide' ? 'acceptee' : i.statut === 'refuse' ? 'refusee' : 'attente';
+    return { id: i.id, type: i.type_intention, intention: i.nom_intention, date: i.date_messe, heure: String(i.heure_messe || '').slice(0, 5), etat: etat,
+      alternative: i.statut === 'refuse' && i.date_alternative ? { date: i.date_alternative, heure: String(i.heure_alternative || '').slice(0, 5) } : null };
+  });
+}
+function offrandeTexte_() {
+  return 'L\'offrande recommandée est de 18 € par messe, selon les possibilités de chacun (neuvaine : 180 € ; trentain grégorien : 595 €). ' +
+    'Vous pouvez déposer votre offrande à l\'église Saint-Louis-en-Ville de Strasbourg, ou l\'envoyer au presbytère, 2 quai Charles Frey, 67000 Strasbourg.';
+}

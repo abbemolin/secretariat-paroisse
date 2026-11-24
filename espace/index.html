@@ -325,6 +325,53 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     f.srcdoc = '<base target="_blank">' + lettreOuverte.html;
     f.onload = function () { try { f.style.height = Math.max(400, f.contentDocument.body.scrollHeight + 20) + 'px'; } catch (x) {} };
   }
+  // ─── Demander une messe ───
+  var messesApp = null, choixMesses = [], fMesse = { type: '', intention: '', message: '' }, messeEnvoyee = 0;
+  var ETATS_INT = { attente: ['En attente', 'ouvert'], acceptee: ['Acceptée', 'traite'], celebree: ['Célébrée', 'traite'], refusee: ['Non retenue', 'ouvert'] };
+  function chargerMesses(force) {
+    if (messesApp && !force) return;
+    messesApp = { charge: false };
+    appel('esp.messes').then(function (r) { messesApp = r; messesApp.charge = true; if (vue === 'messe') rendre(); })
+      .catch(function (er) { messesApp = { charge: true, erreur: er.message, messes: [], mes_intentions: [] }; if (vue === 'messe') rendre(); });
+  }
+  function blocMesseAccueil() {
+    return '<div class="carte"><h2>Faire célébrer une messe</h2><p class="petit">Pour un défunt, pour un vivant, en action de grâce.</p><button class="bouton" data-vue="messe">Demander une messe</button></div>';
+  }
+  function majuscule(s) { s = String(s || ''); return s.charAt(0).toUpperCase() + s.slice(1); }
+  function heureFr(h) { return String(h || '').replace(':', ' h ').replace(/ h 00$/, ' h'); }
+  function pageMesse() {
+    chargerMesses();
+    var h = '<div class="carte"><h1>Faire célébrer une messe</h1>';
+    if (!messesApp || !messesApp.charge) return h + '<p class="petit">Chargement…</p></div>';
+    if (messesApp.erreur) return h + '<div class="erreur">' + e(messesApp.erreur) + '</div></div>';
+    if (messeEnvoyee) h += '<div class="ok">Merci ! Votre demande (' + messeEnvoyee + ' messe' + (messeEnvoyee > 1 ? 's' : '') + ') est transmise. Un prêtre va la confirmer ; vous recevrez un mail.</div>';
+    h += '<label>Type d\'intention</label><div class="choix3">' + [['Défunt', '✝ Pour un défunt'], ['Vivant', '🙏 Pour un vivant'], ['Action de grâce', '✨ Action de grâce']].map(function (x) {
+      return '<button data-typeint="' + e(x[0]) + '" class="' + (fMesse.type === x[0] ? 'actif' : '') + '">' + e(x[1]) + '</button>'; }).join('') + '</div>' +
+      '<label for="m-int">Intention (pour qui ?)</label><input id="m-int" value="' + e(fMesse.intention) + '" placeholder="Ex. : Jean Dupont (†)">' +
+      '<label for="m-msg">Message à la paroisse (facultatif)</label><textarea id="m-msg" style="min-height:70px">' + e(fMesse.message) + '</textarea>';
+    var parJour = {}; (messesApp.messes || []).forEach(function (m) { (parJour[m.date] = parJour[m.date] || []).push(m); });
+    var jours = Object.keys(parJour).sort();
+    h += '<label>Choisissez la messe (' + (messesApp.max > 1 ? 'une ou plusieurs, ' + messesApp.max + ' au plus' : 'une') + ')</label>';
+    h += jours.length ? '<div style="max-height:360px;overflow-y:auto;border:1px solid #eee2d8;border-radius:10px;padding:4px 10px">' + jours.map(function (j) {
+      return '<div style="padding:6px 0;border-top:1px solid #f1e8e1"><b style="font-size:14.5px">' + e(majuscule(jour(j))) + '</b><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">' +
+        parJour[j].map(function (m) {
+          var choisi = choixMesses.indexOf(m.id) > -1;
+          return '<button data-messe="' + e(m.id) + '"' + (m.pris ? ' disabled' : '') + ' style="border:1px solid ' + (choisi ? '#521a22' : '#e6d8cc') + ';background:' + (choisi ? '#521a22' : m.pris ? '#f3eeea' : '#fff') + ';color:' + (choisi ? '#fff' : m.pris ? '#a8998f' : '#521a22') +
+            ';border-radius:8px;padding:6px 10px;font-size:14px;cursor:' + (m.pris ? 'default' : 'pointer') + '" title="' + e(m.titre) + '">' + e(heureFr(m.heure)) + (m.pris ? ' · réservée' : '') + '</button>';
+        }).join('') + '</div></div>';
+    }).join('') + '</div>' : '<p class="petit">Aucune messe disponible pour le moment. Écrivez à la paroisse : secretariat@croix-glorieuse.org.</p>';
+    if (choixMesses.length) h += '<p class="petit">' + choixMesses.length + ' messe' + (choixMesses.length > 1 ? 's choisies' : ' choisie') + '.</p>';
+    h += '<div class="info">' + e(messesApp.offrande || '') + '</div>' +
+      '<button class="bouton principal" data-a="messe-envoyer">Envoyer ma demande</button><div id="zme" style="display:none"></div>' +
+      mentionRgpd('Votre nom, votre adresse et l\'intention servent seulement à préparer la messe et à vous répondre ; seuls les prêtres et le secrétariat les voient. L\'intention peut être lue à la messe.') + '</div>';
+    var mi = messesApp.mes_intentions || [];
+    if (mi.length) h += '<div class="carte"><h2>Mes intentions</h2>' + mi.map(function (i) {
+      var et = ETATS_INT[i.etat] || ETATS_INT.attente;
+      return '<div class="sig"><b>' + e(i.intention) + '</b><span class="statut ' + et[1] + '">' + et[0] + '</span><div class="petit">' + e(majuscule(jour(i.date))) + ', ' + e(heureFr(i.heure)) + ' · ' + e(i.type) + '</div>' +
+        (i.alternative ? '<div class="petit">Proposition de la paroisse : ' + e(jour(i.alternative.date)) + ' à ' + e(heureFr(i.alternative.heure)) + ' (voir votre mail)</div>' : '') + '</div>';
+    }).join('') + '</div>';
+    return h;
+  }
   function pageAccueilParoissien() {
     var h = '<div class="carte"><h1 style="margin:0">' + salutation() + ' ' + e(d.prenom) + '</h1>' + (fete ? '<div class="fete"><i style="background:' + fete.couleur + '"></i>' + e(fete.titre) + '</div>' : '') + '</div>';
     (d.chefs || []).forEach(function (x) { h += '<div class="carte"><h2>♛ Fraternité ' + e(x.equipe) + '</h2><p class="petit">Vous êtes chef de cette fraternité : membres, rencontres, messages à la paroisse.</p><a class="bouton principal" href="' + e(x.lien) + '" target="_blank" rel="noopener">Ouvrir la page de ma fraternité</a>' +
@@ -332,7 +379,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     if (d.calendrier.length) h += '<div class="carte"><h2>Prochainement</h2>' + d.calendrier.slice(0, 3).map(carteEvenement).join('') + '</div>';
     if ((d.annonces || []).length) h += '<div class="carte"><h2>Annonces de la paroisse</h2>' + d.annonces.map(carteAnnonce).join('') + '</div>';
     if (d.fraternite && d.fraternite.etat === 'membre') h += blocFraternite();
-    return h + blocLettreAccueil() + blocInstallerCourt();
+    return h + blocMesseAccueil() + blocLettreAccueil() + blocInstallerCourt();
   }
   function appliquerCompte(r) {
     ecrireSessionCpt(r.session || sessionCpt());
@@ -581,7 +628,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     if (nouveaux.length) h += '<div class="carte"><h2>Nouveau' + (nouveaux.length > 1 ? 'x textes' : ' texte') + '</h2>' + nouveaux.slice(0, 3).map(ligneTexte).join('') + '</div>';
     if (d.calendrier.length) h += '<div class="carte"><h2>Prochainement</h2>' + d.calendrier.slice(0, 2).map(carteEvenement).join('') + '</div>';
     if ((d.annonces || []).length) h += '<div class="carte"><h2>Annonces de la paroisse</h2>' + d.annonces.map(carteAnnonce).join('') + '</div>';
-    h += blocLettreAccueil();
+    h += blocMesseAccueil() + blocLettreAccueil();
     h += blocFraternite();
     var aFaire = [];
     if (d.pieces.some(function (p) { return !p.recu; })) aFaire.push('Déposer vos pièces (' + d.pieces.filter(function (p) { return !p.recu; }).map(function (p) { return p.nom.toLowerCase(); }).join(', ') + ')');
@@ -741,7 +788,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
       $('btn-reglages').classList.toggle('cache', MODE === 'v');
       var pgv = $('page'); if (pgv.dataset.affiche !== vue) { pgv.classList.remove('entree'); void pgv.offsetWidth; pgv.classList.add('entree'); pgv.dataset.affiche = vue; }
       pgv.innerHTML = (horsLigne ? '<div class="horsligne">Hors connexion. <button class="lien" data-a="reessayer" style="padding:0">Réessayer</button></div>' : '') +
-        (vue === 'lettres' && MODE === 'p' ? pageLettres() : vue === 'bible' ? pageBible() : vue === 'calendrier' ? pageCalendrier() : vue === 'conf' ? pageConfidentialite() : vue === 'demande' ? pageDemande() : vue === 'oubli' ? pageOubli()
+        (vue === 'messe' && MODE === 'p' ? pageMesse() : vue === 'lettres' && MODE === 'p' ? pageLettres() : vue === 'bible' ? pageBible() : vue === 'calendrier' ? pageCalendrier() : vue === 'conf' ? pageConfidentialite() : vue === 'demande' ? pageDemande() : vue === 'oubli' ? pageOubli()
         : vue === 'invitation' && invitation ? pageInvitation(invitation) : vue === 'reglages' && MODE === 'p' ? pageReglages() : MODE === 'p' ? pageAccueilParoissien() : pageVisiteur());
       if (vue === 'calendrier') placerAgenda();
       if (vue === 'bible') placerBible();
@@ -761,7 +808,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     }
     $('btn-reglages').classList.remove('cache');
     var pg = $('page'); if (pg.dataset.affiche !== vue) { pg.classList.remove('entree'); void pg.offsetWidth; pg.classList.add('entree'); pg.dataset.affiche = vue; }
-    $('page').innerHTML = vue === 'lettres' ? pageLettres() : vue === 'textes' ? pageTextes() : vue === 'calendrier' ? pageCalendrier() : vue === 'bible' ? pageBible() : vue === 'dossier' ? pageDossier() : vue === 'reglages' ? pageReglages() : pageAccueil();
+    $('page').innerHTML = vue === 'messe' ? pageMesse() : vue === 'lettres' ? pageLettres() : vue === 'textes' ? pageTextes() : vue === 'calendrier' ? pageCalendrier() : vue === 'bible' ? pageBible() : vue === 'dossier' ? pageDossier() : vue === 'reglages' ? pageReglages() : pageAccueil();
     if (vue === 'calendrier') placerAgenda();
     if (vue === 'bible') placerBible();
     if (vue === 'lettres') placerLettre();
@@ -778,8 +825,17 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
       else { theme = rg.dataset.theme; try { localStorage.setItem('esp_theme', theme); } catch (x) {} appliquerTheme(); }
       rendre(); return;
     }
+    var bm = ev.target.closest('[data-typeint],[data-messe]');
+    if (bm) {
+      var mi1 = $('m-int'), mm1 = $('m-msg'); if (mi1) fMesse.intention = mi1.value; if (mm1) fMesse.message = mm1.value;
+      if (bm.dataset.typeint) fMesse.type = bm.dataset.typeint;
+      else { var k1 = choixMesses.indexOf(bm.dataset.messe); if (k1 > -1) choixMesses.splice(k1, 1); else if (choixMesses.length < ((messesApp && messesApp.max) || 10)) choixMesses.push(bm.dataset.messe); }
+      messeEnvoyee = 0; var y0 = window.scrollY, z0 = bm.closest('div[style*="overflow-y"]'), s0 = z0 ? z0.scrollTop : 0; rendre(); window.scrollTo(0, y0);
+      var z1 = document.querySelector('div[style*="overflow-y"]'); if (z1) z1.scrollTop = s0;
+      return;
+    }
     var b = ev.target.closest('[data-vue],[data-a],[data-texte],[data-fichier]'); if (!b) return;
-    if (b.dataset.vue) { vue = b.dataset.vue; ouvert = null; lettreOuverte = null; signale = null; ajoutParrain = false; retraitParrain = null; demandeCor = false; rendre(); window.scrollTo(0, 0); return; }
+    if (b.dataset.vue) { if (b.dataset.vue === 'messe') { messeEnvoyee = 0; chargerMesses(true); } vue = b.dataset.vue; ouvert = null; lettreOuverte = null; signale = null; ajoutParrain = false; retraitParrain = null; demandeCor = false; rendre(); window.scrollTo(0, 0); return; }
     if (b.dataset.texte) {
       vue = 'textes'; ouvert = b.dataset.texte;
       var t = d.textes.filter(function (x) { return x.id === ouvert; })[0];
@@ -798,6 +854,17 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
       return;
     }
     var a = b.dataset.a;
+    if (a === 'messe-envoyer') {
+      fMesse.intention = $('m-int').value; fMesse.message = $('m-msg').value;
+      if (!fMesse.type) { message('zme', 'Choisissez le type d\'intention.'); return; }
+      if (!fMesse.intention.trim()) { message('zme', 'Indiquez l\'intention de messe.'); return; }
+      if (!choixMesses.length) { message('zme', 'Choisissez au moins une messe.'); return; }
+      b.disabled = true;
+      appel('esp.demanderMesse', { type: fMesse.type, intention: fMesse.intention, message: fMesse.message, messes: choixMesses }).then(function (r) {
+        messeEnvoyee = r.nombre; choixMesses = []; fMesse = { type: '', intention: '', message: '' }; messesApp.mes_intentions = r.mes_intentions; messesApp.messes = r.messes; rendre(); window.scrollTo(0, 0);
+      }).catch(function (er) { b.disabled = false; message('zme', er.message); if (er.code === 'DOUBLON') { chargerMesses(true); } });
+      return;
+    }
     if (a === 'lettre') {
       var lid = b.dataset.id, l0 = (lettres.liste || []).filter(function (x) { return String(x.id) === lid; })[0] || {};
       lettreOuverte = { id: lid, sujet: l0.sujet || '', html: '' }; rendre(); window.scrollTo(0, 0);
