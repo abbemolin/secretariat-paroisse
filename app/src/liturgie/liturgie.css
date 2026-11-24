@@ -1,0 +1,119 @@
+/* Tuile « Bible et bréviaire » : les textes de l'AppMesse, aux couleurs du secrétariat. */
+.liturgie {
+  --ink: #2b1a1d; --ink-soft: #4a3236; --ink-muted: #8a7276;
+  --rubric: #a3221c; --gold: #a8652a; --gold-pale: #fcf4ea;
+  --vellum: #faf7f2; --vellum-light: #ffffff; --border-soft: #ecd8db;
+  --serif: 'Cormorant Garamond', Georgia, serif;
+  --brev-encre: var(--ink);
+}
+html.sombre .liturgie {
+  --ink: #eee2df; --ink-soft: #d9c4c1; --ink-muted: #9b8a87;
+  --rubric: #e8796f; --gold: #e6a86c; --gold-pale: #3a2a1b;
+  --vellum: #171012; --vellum-light: #231a1c; --border-soft: #3a2b2e;
+}
+
+/* ── Bréviaire ── */
+.brev { margin: -1.25rem -1rem 0; background: var(--vellum); min-height: 60vh; }
+@media (min-width: 640px) { .brev { margin: -1.25rem -1.5rem 0; } }
+@media (min-width: 1024px) { .brev { margin: -2rem 0 0; border-radius: 1rem; overflow: clip; border: 1px solid var(--border-soft); } }
+.brev.plein { position: fixed; inset: 0; z-index: 70; margin: 0; border-radius: 0; border: 0; overflow-y: auto; overscroll-behavior: contain; }
+.brev:fullscreen { overflow-y: auto; background: var(--vellum); }
+
+.brev-hero { background: #521a22; position: relative; padding: .7rem 0 .75rem; }
+.brev.plein .brev-hero { padding-top: max(.7rem, env(safe-area-inset-top)); }
+.brev-hero-body { text-align: center; padding: 0 52px; }
+.brev-hero-fete { display: block; font-family: var(--serif); font-size: 1.2rem; font-weight: 600; line-height: 1.2; color: #fff; }
+.brev-hero-date { display: block; margin-top: 2px; font-size: .78rem; color: rgba(255,255,255,.62); }
+.brev-nav-jour { position: absolute; top: 0; bottom: 0; width: 52px; display: flex; align-items: center; justify-content: center; background: none; border: 0; cursor: pointer; }
+.brev-nav-jour:hover { background: rgba(255,255,255,.06); }
+.brev-nav-jour-left { left: 0; } .brev-nav-jour-right { right: 0; }
+.brev-nav-arrow { color: #d08c4c; font-size: 1.7rem; line-height: 1; }
+
+.heures-tabs { display: flex; overflow-x: auto; gap: 2px; padding: 6px 10px 0; background: var(--vellum-light); border-bottom: 1px solid var(--border-soft); scrollbar-width: none; }
+.heures-tabs::-webkit-scrollbar { display: none; }
+.heure-tab { flex-shrink: 0; white-space: nowrap; cursor: pointer; padding: 8px 11px; font-size: .82rem; font-weight: 500; color: var(--ink-muted); background: none; border: 0; border-bottom: 2px solid transparent; }
+.heure-tab.active { color: var(--rubric); border-bottom-color: var(--rubric); }
+.heure-tab:hover:not(.active) { color: var(--ink); }
+
+.brev-toolbar { display: flex; align-items: center; gap: 6px; padding: 7px 12px; background: var(--vellum); border-bottom: 1px solid var(--border-soft); position: sticky; top: 0; z-index: 40; }
+.lang-toggle { display: flex; border: 1px solid var(--border-soft); border-radius: .5rem; overflow: hidden; background: var(--vellum-light); }
+.lang-btn { padding: 5px 11px; font-size: .78rem; font-weight: 500; border: 0; cursor: pointer; background: none; color: var(--ink-muted); }
+.lang-btn.active { background: #521a22; color: #fff; }
+.lang-btn[hidden] { display: none; }
+.brev-toolbar-filler { flex: 1; }
+.taille-btn { min-width: 34px; padding: 5px 8px; font-size: .8rem; line-height: 1.1; cursor: pointer; color: var(--ink-soft); background: var(--vellum-light); border: 1px solid var(--border-soft); border-radius: .5rem; }
+.taille-btn:disabled { opacity: .35; cursor: default; }
+
+.greg-options { display: flex; justify-content: flex-end; padding: 10px 16px 0; max-width: 720px; margin: 0 auto; }
+.greg-options[hidden] { display: none; }
+.greg-btn { padding: 6px 10px; font-size: .78rem; cursor: pointer; color: var(--ink-muted); background: none; border: 1px solid var(--border-soft); border-radius: .5rem; }
+.greg-btn.active { color: var(--gold); border-color: var(--gold); }
+
+.brev-parties { display: flex; overflow-x: auto; gap: 2px; padding: 0 10px; position: sticky; top: var(--haut-barre, 46px); z-index: 39; background: var(--vellum); border-bottom: 1px solid var(--border-soft); scrollbar-width: none; }
+.brev-parties::-webkit-scrollbar { display: none; }
+.brev-parties[hidden] { display: none; }
+.partie-tab { flex-shrink: 0; white-space: nowrap; cursor: pointer; font-family: var(--serif); font-size: 1.05rem; font-weight: 500; color: var(--rubric); opacity: .75; padding: 8px 10px 6px; background: none; border: 0; border-bottom: 2px solid transparent; }
+.partie-tab.active { opacity: 1; border-bottom-color: var(--rubric); }
+
+.brev-content { padding: 18px 16px 40px; max-width: 720px; margin: 0 auto; transition: opacity .16s ease; }
+.brev-content.brev-fondu { opacity: 0; }
+.brev-content.par-partie .brev-ligne { display: none; border-bottom: none; }
+.brev-content.par-partie .brev-ligne.active { display: block; }
+.brev-ligne { padding: 10px 0; border-bottom: 1px solid var(--border-soft); }
+.brev-ligne .brev-text { white-space: normal; }
+.brev-ligne.entre-g { animation: litEntreG .22s ease both; }
+.brev-ligne.entre-d { animation: litEntreD .22s ease both; }
+@keyframes litEntreG { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+@keyframes litEntreD { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .brev-ligne.entre-g, .brev-ligne.entre-d { animation: none; } .brev-content { transition: none; } }
+
+.brev-text { font-family: var(--serif); font-size: calc(1.2rem * var(--brev-k, 1)); line-height: 1.7; color: var(--brev-encre); hyphens: auto; }
+.liturgie .do-rubr { color: var(--rubric); }
+.liturgie .do-titre { color: var(--rubric); font-family: var(--serif); font-size: .82em; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; font-style: normal; }
+.liturgie .do-titre b, .liturgie .do-titre i { font-style: normal; font-weight: 600; }
+.liturgie .do-petit { color: var(--rubric); font-size: .82em; }
+.liturgie .do-initiale { color: var(--rubric); font-weight: 700; }
+.do-partie { display: block; margin: 18px 0 6px; font-family: var(--serif); font-size: .82em; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--rubric); }
+.brev-text > .do-partie:first-child { margin-top: 0; }
+.do-psaume { display: block; margin: 18px 0 14px; font-family: var(--serif); font-size: 1.75em; font-weight: 500; line-height: 1.15; color: var(--brev-encre); }
+.brev-text > .do-psaume:first-child { margin-top: 4px; }
+.do-psaume.masque { font-size: 0; margin: 12px 0 0; }
+.do-psaume.masque .ps-ref { font-size: .9rem; }
+.do-psaume .ps-ref { display: block; text-align: right; margin-top: 2px; font-size: .58em; font-style: italic; color: var(--rubric); }
+.brev-text .v { display: grid; grid-template-columns: 2.1em 1fr; margin: 0 0 .75em; }
+.brev-text .vn { color: var(--rubric); font-size: .68em; line-height: 2.5; user-select: none; font-variant-numeric: tabular-nums; }
+.brev-text .v1, .brev-text .v2 { display: block; }
+.brev-text .ast { color: var(--rubric); }
+.brev-text sup.vnum { font-size: .62em; color: var(--brev-encre); opacity: .7; margin-right: 3px; font-style: normal; user-select: none; }
+
+.gregorien-score { margin: 8px 0 10px; overflow: hidden; color: var(--brev-encre); }
+.gregorien-score svg { display: block; max-width: 100%; height: auto; fill: currentColor; }
+.gregorien-score svg [stroke="#000"] { stroke: currentColor; }
+.gregorien-score svg [fill="#000"], .gregorien-score svg text { fill: currentColor; }
+.gregorien-score svg text.dropCap { fill: var(--rubric); }
+.gregorien-versets { margin: 4px 0 8px; }
+.gregorien-versets .verset { display: block; margin-bottom: 4px; }
+.gregorien-versets b { font-weight: 700; }
+.gregorien-versets i { font-style: italic; color: var(--rubric); }
+.greg-ecoute { display: block; margin: 6px 0 -2px auto; padding: 2px 0; font-size: .72rem; color: var(--ink-muted); background: none; border: none; cursor: pointer; }
+.greg-trad { margin: 2px 0 12px; padding-left: 10px; border-left: 2px solid var(--border-soft); font-size: .92em; line-height: 1.55; opacity: .85; }
+
+.brev-loading, .brev-empty { text-align: center; padding: 50px 20px; color: var(--ink-muted); font-family: var(--serif); font-style: italic; font-size: 1.1rem; }
+.brev-loading::before { content: '✦'; display: block; color: var(--gold); font-size: 1.2rem; margin-bottom: 14px; animation: litPulse 1.4s ease-in-out infinite; }
+@keyframes litPulse { 0%, 100% { opacity: .25 } 50% { opacity: 1 } }
+.brev-horsligne { display: block; margin: 0 auto; padding: 0 16px 24px; text-align: center; font-size: .75rem; color: var(--ink-muted); background: none; border: none; cursor: pointer; }
+.brev-horsligne[hidden] { display: none; }
+
+/* ── Messe du jour ── */
+.messe-piece { font-family: var(--serif); font-size: calc(1.2rem * var(--brev-k, 1)); line-height: 1.65; color: var(--ink); }
+.messe-piece .do-titre { display: block; margin-bottom: 6px; }
+.messe-piece .do-note { display: block; color: var(--ink-muted); font-size: .85em; font-style: italic; }
+.messe-piece a.ref-bible { color: var(--rubric); text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }
+
+/* ── Bible ── */
+.bible-texte { font-family: var(--serif); font-size: calc(1.25rem * var(--brev-k, 1)); line-height: 1.75; color: var(--ink); }
+.bible-texte .verset-num { font-family: Inter, system-ui, sans-serif; font-size: .55em; color: var(--rubric); margin: 0 3px 0 1px; vertical-align: super; font-weight: 600; }
+.bible-texte .verset { border-radius: 3px; transition: background .4s; cursor: pointer; }
+.bible-texte .verset.eclaire { background: var(--gold-pale); }
+.bible-texte .verset.marque { background: linear-gradient(transparent 62%, rgba(208,140,76,.28) 62%); }
+.bible-texte .btn-comm { font-size: .7em; vertical-align: super; margin-left: 2px; color: var(--gold); background: none; border: 0; cursor: pointer; }

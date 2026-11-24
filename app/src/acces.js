@@ -2,7 +2,7 @@
 export const PAGES_ACCES = [
   ['courrier', 'Courrier'], ['agenda', 'Agenda'], ['extraits', 'Extraits de baptême'], ['registres', 'Registres'],
   ['catechisme', 'Catéchisme (et livres)'], ['catechumenat', 'Catéchuménat (textes, calendrier, espaces)'], ['cor_unum', 'Cor Unum'],
-  ['retraites', 'Retraites'], ['documents', 'Documents'], ['statistiques', 'Statistiques'], ['annonces', 'Annonces et newsletter']
+  ['retraites', 'Retraites'], ['documents', 'Documents'], ['statistiques', 'Statistiques'], ['annonces', 'Annonces et newsletter'], ['liturgie', 'Bible et bréviaire']
 ]
 export const SORTES_ACCES = [
   ['bapteme', 'Baptêmes'], ['premiere_communion', 'Premières communions'], ['profession_foi', 'Professions de foi'], ['confirmation_jeune', 'Confirmations (jeunes)'],
@@ -24,6 +24,7 @@ export function accesDuRole(role) {
   const a = complet('m', [], role === 'cure' || role === 'vicaire')
   a.statistiques = ''
   a.annonces = role === 'cure' ? 'm' : ''   // tuile « Annonces et newsletter » : curé (et administrateurs)
+  a.liturgie = role === 'secretaire' ? '' : 'm'   // tuile « Bible et bréviaire » : prêtres et diacres
   if (role === 'secretaire') { a.reglages = ONGLETS_REGLAGES.filter((o) => o !== 'Sauvegardes' && o !== 'Newsletter'); a.signer = true }
   return a
 }

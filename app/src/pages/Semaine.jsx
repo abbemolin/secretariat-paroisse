@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, FileDown, Send, RotateCcw, GripVertical, X, Plus, Loader2, AlignCenter } from 'lucide-react'
 import { api } from '../api.js'
 import { Chargement, EnTete, Erreur, EtatEnregistrement, dateHeure, useConfirmer, useNotif } from '../ui.jsx'
+import { chargerCalendrier } from '../liturgie/calendrier.js'
 import { bornesSemaine, calendrierHtml, construireSemaine, decalerSemaine, docxSemaine, escHtml, libelleSemaine, lundiDe, noteAlign, noteHtml, nomFichierSemaine, telecharger } from '../annonces/semaine.js'
 
 const COULEUR_DOT = { Blanc: '#d4af37', Rouge: '#9b2020', Vert: '#3a6644', Violet: '#5c2d7a', Rose: '#d4688a', Noir: '#1a1108' }
@@ -42,7 +43,7 @@ export default function Semaine() {
   useEffect(() => {
     let annule = false
     setDonnees(null); setJours(null); setErreur(null); setEtat(''); touche.current = false
-    api('newsletter.semaine', { lundi, ...bornesSemaine(lundi) }).then((d) => {
+    Promise.all([api('newsletter.semaine', { lundi, ...bornesSemaine(lundi) }), chargerCalendrier()]).then(([d]) => {
       if (annule) return
       setDonnees(d)
       setJours(d.preparee?.jours?.length === 7 ? d.preparee.jours : construireSemaine(lundi, d.evenements, d.intentions))

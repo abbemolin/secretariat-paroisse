@@ -9,6 +9,17 @@ precacheAndRoute(self.__WB_MANIFEST)
 registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html'), { denylist: [/\/(formulaires|premiere-communion|profession-de-foi|fraternite|rejoindre|retraite|paiement|livres)\//] }))
 self.addEventListener('activate', () => self.clients.claim())
 
+// Polices (Google Fonts) gardées sur l'appareil : le bréviaire et la Bible gardent leur apparence hors ligne
+self.addEventListener('fetch', (event) => {
+  const u = new URL(event.request.url)
+  if (event.request.method !== 'GET' || !/^fonts\.(googleapis|gstatic)\.com$/.test(u.hostname)) return
+  event.respondWith(caches.open('polices-v1').then(async (cache) => {
+    const copie = await cache.match(event.request)
+    const reseau = fetch(event.request).then((r) => { if (r.ok || r.type === 'opaque') cache.put(event.request, r.clone()); return r }).catch(() => copie)
+    return copie || reseau
+  }))
+})
+
 function lire(cle) {
   return new Promise((ok) => {
     const r = indexedDB.open('secretariat', 1)

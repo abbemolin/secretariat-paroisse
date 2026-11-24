@@ -1,8 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { BoutonRecherche } from './pages/RechercheGlobale.jsx'
-import { Home, Mail, CalendarDays, FolderHeart, FolderOpen, Users, Settings, UserCircle, LogOut, Bell, ScrollText, GraduationCap, HeartHandshake, Mountain, Flame, BookOpen, BookMarked, BarChart3, LifeBuoy, MoreHorizontal, X, Megaphone, CalendarRange, Newspaper, LayoutGrid, Church, BookOpenText } from 'lucide-react'
-import { api, ecrireToken, lireToken, quandSessionExpire, estDemo, suivreFile, viderFile } from './api.js'
+import { Home, Mail, CalendarDays, FolderHeart, FolderOpen, Users, Settings, UserCircle, LogOut, Bell, ScrollText, GraduationCap, HeartHandshake, Mountain, Flame, BookOpen, BookMarked, BarChart3, LifeBuoy, MoreHorizontal, X, Megaphone, CalendarRange, Newspaper, LayoutGrid, Church, BookOpenText, Sun, Cross, BookHeart } from 'lucide-react'
+import { api, ecrireToken, enCache, lireToken, quandSessionExpire, estDemo, suivreFile, viderFile } from './api.js'
 import { Chargement, FournisseurNotif, ROLES, dateRelative, useNotif } from './ui.jsx'
 import Connexion from './pages/Connexion.jsx'
 import { peutVoir, peutModifier } from './acces.js'
@@ -26,6 +26,9 @@ import Statistiques from './pages/Statistiques.jsx'
 import Annonces from './pages/Annonces.jsx'
 import Semaine from './pages/Semaine.jsx'
 import Newsletter from './pages/Newsletter.jsx'
+import Breviaire from './pages/Breviaire.jsx'
+import MesseDuJour from './pages/MesseDuJour.jsx'
+import Bible from './pages/Bible.jsx'
 
 const CtxApp = createContext(null)
 export const useApp = () => useContext(CtxApp)
@@ -63,14 +66,25 @@ const TUILES = [
   { cle: 'secretariat', titre: 'Secrétariat', texte: 'Courrier, agenda, dossiers, catéchèse', icone: Mail, chemin: '/' },
   { cle: 'intentions', titre: 'Intentions de messe', texte: 'Intentions, calendrier des messes', icone: Church, bientot: true },
   { cle: 'annonces', titre: 'Annonces et newsletter', texte: 'Annonces, feuille de semaine, newsletter', icone: Megaphone, chemin: '/annonces', droit: 'annonces' },
-  { cle: 'breviaire', titre: 'Bréviaire et Bible', texte: 'Offices, Bible Crampon', icone: BookOpenText, bientot: true }
+  { cle: 'liturgie', titre: 'Bible et bréviaire', texte: 'Bréviaire, Messe du jour, Bible Crampon', icone: BookOpenText, chemin: '/breviaire', droit: 'liturgie' }
 ]
 const MENU_ANNONCES = [
   { to: '/annonces', label: 'Annonces', icone: Megaphone, bas: true },
   { to: '/semaine', label: 'Feuille de semaine', icone: CalendarRange, bas: true },
   { to: '/newsletter', label: 'Newsletter', icone: Newspaper, bas: true }
 ]
-const tuileDuChemin = (chemin) => (['annonces', 'semaine', 'newsletter'].includes(chemin.split('/')[1]) ? 'annonces' : 'secretariat')
+const MENU_LITURGIE = [
+  { to: '/breviaire', label: 'Bréviaire', icone: Sun, bas: true },
+  { to: '/messe', label: 'Messe du jour', icone: Cross, bas: true },
+  { to: '/bible', label: 'Bible', icone: BookHeart, bas: true }
+]
+const tuileDuChemin = (chemin) => {
+  const p = chemin.split('/')[1]
+  if (['annonces', 'semaine', 'newsletter'].includes(p)) return 'annonces'
+  if (['breviaire', 'messe', 'bible'].includes(p)) return 'liturgie'
+  return 'secretariat'
+}
+const NOM_TUILE = { annonces: 'Annonces et newsletter', liturgie: 'Bible et bréviaire' }
 
 function EcranTuiles({ tuiles }) {
   const { utilisateur, deconnecter } = useApp()
@@ -148,7 +162,13 @@ export default function App() {
   const [pret, setPret] = useState(false)
 
   const charger = useCallback(async () => {
-    try { setDonnees(await api('app.init')) } catch { ecrireToken(null); setDonnees(null) }
+    try { setDonnees({ ...(await api('app.init')), horsLigne: false }) } catch (e) {
+      // Sans connexion : on démarre avec la dernière session connue (bréviaire, Bible… restent utilisables)
+      const copie = e.code === 'RESEAU' && enCache('app.init')
+      if (copie) { setDonnees({ ...copie, horsLigne: true }); return }
+      if (e.code !== 'RESEAU') ecrireToken(null)
+      setDonnees(null)
+    }
   }, [])
 
   useEffect(() => {
@@ -156,6 +176,14 @@ export default function App() {
     if (!lireToken() && !estDemo()) { setPret(true); window.finDemarrage?.(); return }
     charger().finally(() => { setPret(true); window.finDemarrage?.() })
   }, [charger])
+  // Retour de la connexion après un démarrage hors ligne : session et données rafraîchies
+  useEffect(() => {
+    if (!donnees?.horsLigne) return
+    const f = () => charger()
+    window.addEventListener('online', f)
+    const t = setInterval(f, 60000)
+    return () => { window.removeEventListener('online', f); clearInterval(t) }
+  }, [donnees?.horsLigne, charger])
 
   if (!pret) return <Chargement />
 
@@ -227,12 +255,12 @@ function Cloche() {
 }
 
 function Cadre() {
-  const { utilisateur, peut, ecrit, deconnecter } = useApp()
+  const { utilisateur, peut, ecrit, deconnecter, horsLigne } = useApp()
   const loc = useLocation()
   const [plus, setPlus] = useState(false)
   const notifier = useNotif()
   const nav = useNavigate()
-  const zonePage = { courrier: 'courrier', agenda: 'agenda', extraits: 'extraits', registres: 'registres', catechisme: 'catechisme', catechumenat: 'catechumenat', 'cor-unum': 'cor_unum', retraites: 'retraites', documents: 'documents', annonces: 'annonces', semaine: 'annonces', newsletter: 'annonces' }[loc.pathname.split('/')[1]]
+  const zonePage = { courrier: 'courrier', agenda: 'agenda', extraits: 'extraits', registres: 'registres', catechisme: 'catechisme', catechumenat: 'catechumenat', 'cor-unum': 'cor_unum', retraites: 'retraites', documents: 'documents', annonces: 'annonces', semaine: 'annonces', newsletter: 'annonces', breviaire: 'liturgie', messe: 'liturgie', bible: 'liturgie' }[loc.pathname.split('/')[1]]
   const tuilesActives = TUILES.filter((t) => !t.bientot && peut(t.droit))
   const avecTuiles = tuilesActives.length > 1
   const tuile = tuileDuChemin(loc.pathname)
@@ -252,15 +280,15 @@ function Cadre() {
     viderFile()
     return () => { fin(); window.removeEventListener('file-erreur', refus) }
   }, [notifier])
-  const menu = tuile === 'annonces' ? MENU_ANNONCES : MENU.map((m) => (m.items ? { ...m, items: m.items.filter((x) => peut(x.droit)) } : m)).filter((m) => (m.items ? m.items.length : peut(m.droit)))
+  const menu = tuile === 'annonces' ? MENU_ANNONCES : tuile === 'liturgie' ? MENU_LITURGIE : MENU.map((m) => (m.items ? { ...m, items: m.items.filter((x) => peut(x.droit)) } : m)).filter((m) => (m.items ? m.items.length : peut(m.droit)))
   const bas = aplatir(menu).filter((m) => m.bas)
-  if (avecTuiles && loc.pathname === '/tuiles') return <EcranTuiles tuiles={TUILES} />
+  if (avecTuiles && loc.pathname === '/tuiles') return <EcranTuiles tuiles={TUILES.filter((t) => t.bientot || peut(t.droit))} />
   return (
     <div className="flex h-full">
       <aside className="hidden w-60 shrink-0 flex-col bg-nuit text-white lg:flex">
         <div className="flex items-center gap-3 px-5 py-6">
           <img src="./logo-128.png" alt="" className="h-12 w-12 rounded-full" />
-          <div className="leading-tight"><div className="font-titre text-lg font-semibold">La Croix glorieuse</div><div className="text-xs text-white/60">{tuile === 'annonces' ? 'Annonces et newsletter' : 'Secrétariat paroissial'}</div></div>
+          <div className="leading-tight"><div className="font-titre text-lg font-semibold">La Croix glorieuse</div><div className="text-xs text-white/60">{NOM_TUILE[tuile] || 'Secrétariat paroissial'}</div></div>
         </div>
         {avecTuiles && <NavLink to="/tuiles" className="mx-3 mb-2 flex items-center gap-3 rounded-lg border border-white/15 px-3 py-2 text-sm text-white/80 hover:bg-white/5 hover:text-white"><LayoutGrid className="h-4 w-4" />Tuiles</NavLink>}
         <BoutonRecherche />
@@ -286,9 +314,10 @@ function Cadre() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center justify-between bg-nuit px-4 py-2.5 text-white lg:hidden" style={{ paddingTop: 'max(0.6rem, env(safe-area-inset-top))' }}>
-          <div className="flex min-w-0 items-center gap-2"><img src="./logo-128.png" alt="" className="h-8 w-8 rounded-full" /><span className="truncate font-titre text-lg font-semibold">{tuile === 'annonces' ? 'Annonces et newsletter' : 'La Croix glorieuse'}</span></div>
+          <div className="flex min-w-0 items-center gap-2"><img src="./logo-128.png" alt="" className="h-8 w-8 rounded-full" /><span className="truncate font-titre text-lg font-semibold">{NOM_TUILE[tuile] || 'La Croix glorieuse'}</span></div>
           <div className="flex items-center">{avecTuiles && <NavLink to="/tuiles" className="rounded-lg p-2 hover:bg-white/10" aria-label="Tuiles" title="Tuiles"><LayoutGrid className="h-5 w-5" /></NavLink>}<BoutonRecherche mobile /><Cloche /><NavLink to="/compte" className="rounded-lg p-2 hover:bg-white/10"><UserCircle className="h-6 w-6" /></NavLink></div>
         </header>
+        {horsLigne && <div className="bg-nuit-50 px-4 py-1.5 text-center text-xs text-nuit-600">Hors connexion : l'appli fonctionne avec ce qui est gardé sur l'appareil.</div>}
         {lectureSeule && <div className="bg-nuit-50 px-4 py-1.5 text-center text-xs text-nuit-600">Lecture seule : vous pouvez consulter cette page, mais pas la modifier.</div>}
         {attente > 0 && <div className="bg-nuit-50 px-4 py-1.5 text-center text-xs text-nuit-600">{attente > 1 ? `${attente} modifications gardées` : '1 modification gardée'} sur l'appareil — {attente > 1 ? 'elles seront envoyées' : 'elle sera envoyée'} dès le retour de la connexion. <button className="underline" onClick={() => viderFile()}>Réessayer</button></div>}
         {estDemo() && <div className="bg-or-100 px-4 py-1.5 text-center text-xs text-or-600">{({ secretaire: 'Aperçu : vous voyez l\'appli comme une secrétaire. ', cure: 'Aperçu : vous voyez l\'appli comme un prêtre. ', diacre: 'Aperçu : vous voyez l\'appli comme un diacre aux accès ajustés. ' })[new URLSearchParams(location.search).get('role')] || 'Mode démonstration — '}Données fictives, rien n'est enregistré ni envoyé.</div>}
@@ -317,6 +346,9 @@ function Cadre() {
               {peut('annonces') && <Route path="/annonces" element={<Annonces />} />}
               {peut('annonces') && <Route path="/semaine" element={<Semaine />} />}
               {peut('annonces') && <Route path="/newsletter" element={<Newsletter />} />}
+              {peut('liturgie') && <Route path="/breviaire" element={<Breviaire />} />}
+              {peut('liturgie') && <Route path="/messe" element={<MesseDuJour />} />}
+              {peut('liturgie') && <Route path="/bible" element={<Bible />} />}
               <Route path="/aide" element={<Aide />} />
               <Route path="/compte" element={<Compte />} />
               <Route path="*" element={<Navigate to="/" replace />} />
@@ -326,7 +358,7 @@ function Cadre() {
 
         <nav className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-nuit-100 bg-white safe-bottom lg:hidden">
           {bas.map((x) => <LienMenu key={x.to} {...x} mobile />)}
-          {tuile === 'annonces'
+          {NOM_TUILE[tuile]
             ? <NavLink to="/tuiles" className="flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] text-nuit-600/70"><LayoutGrid className="h-5 w-5" />Tuiles</NavLink>
             : <button onClick={() => setPlus(true)} className="flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] text-nuit-600/70"><MoreHorizontal className="h-5 w-5" />Plus</button>}
         </nav>

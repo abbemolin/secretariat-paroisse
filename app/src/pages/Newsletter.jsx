@@ -4,6 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, RefreshCw, Smartphone, Monitor, Link2, Plus, RotateCcw, CalendarClock, Send, Trash2, Loader2, CheckCircle2, AlertTriangle, CalendarDays, MailCheck } from 'lucide-react'
 import { api } from '../api.js'
 import { Chargement, EnTete, Erreur, Modale, dateHeure, useConfirmer, useNotif, versLocal } from '../ui.jsx'
+import { chargerCalendrier } from '../liturgie/calendrier.js'
 import { bornesSemaine, calendrierHtml, construireSemaine, decalerSemaine, isoLocal, JOURS_FR, lundiDe, MOIS_FR } from '../annonces/semaine.js'
 import { genEmailHTML, sujetNewsletter } from '../annonces/gabarit.js'
 import { creerEditeur, migrerBrouillon } from '../annonces/editeur.js'
@@ -56,7 +57,7 @@ export default function Newsletter() {
       choixAuto.current = false
       let html = d.calendrier?.html
       if (!html) {
-        const s = await api('newsletter.semaine', { lundi, ...bornesSemaine(lundi) })
+        const [s] = await Promise.all([api('newsletter.semaine', { lundi, ...bornesSemaine(lundi) }), chargerCalendrier()])
         html = calendrierHtml(construireSemaine(lundi, s.evenements, s.intentions))
       }
       if (annule) return

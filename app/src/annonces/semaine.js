@@ -1,6 +1,6 @@
 // Feuille de semaine : reprise du fonctionnement de calendrier_semaine.html (AppMesse).
 // Construction des 7 jours (ordo 1962 + agenda public + intentions validées), calendrier HTML de la newsletter, Word.
-import Ordo1962 from './ordo1962.js'
+import { jourLiturgique } from '../liturgie/calendrier.js'
 
 export const JOURS_FR = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi']
 export const MOIS_FR = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
@@ -54,7 +54,7 @@ export function construireSemaine(lundi, evenements, intentions) {
     const d = new Date(l); d.setDate(l.getDate() + i)
     const dow = d.getDay(), iso = isoLocal(d)
     const dateFr = `${JOURS_FR[dow]} ${d.getDate()} ${MOIS_FR[d.getMonth()]}`
-    const ordoJour = Ordo1962.getDay(d.getFullYear(), d.getMonth() + 1, d.getDate()) || null
+    const ordoJour = jourLiturgique(d.getFullYear(), d.getMonth() + 1, d.getDate()) || null
     const evtsJour = (evenements || [])
       .filter((e) => (e.start.dateTime || e.start.date || '').startsWith(iso))
       .sort((a, b) => (a.start.dateTime || a.start.date).localeCompare(b.start.dateTime || b.start.date))
