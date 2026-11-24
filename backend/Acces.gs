@@ -11,7 +11,7 @@
  * }
  * Les administrateurs ont toujours tout (et seuls eux gèrent les utilisateurs).
  */
-var PAGES_ACCES = ['courrier', 'agenda', 'extraits', 'registres', 'catechisme', 'catechumenat', 'cor_unum', 'retraites', 'documents', 'statistiques', 'annonces', 'liturgie', 'intentions', 'paroissiens'];
+var PAGES_ACCES = ['courrier', 'agenda', 'extraits', 'registres', 'catechisme', 'catechumenat', 'cor_unum', 'retraites', 'documents', 'statistiques', 'annonces', 'liturgie', 'intentions', 'paroissiens', 'propositions'];
 var SORTES_ACCES = ['bapteme', 'premiere_communion', 'profession_foi', 'confirmation_jeune', 'mariage', 'obseques', 'catechumene', 'confirmand'];
 var ONGLETS_REGLAGES = ['Paroisse', 'Signatures', 'Réponses types', 'Modèles', 'Tri automatique', 'Catéchisme', 'Confirmands', 'Cor Unum', 'Paiements en ligne', 'Newsletter', 'Liturgie', 'Journal', 'Sauvegardes'];
 
@@ -30,7 +30,8 @@ function accesDuRole_(role) {
   x.annonces = role === 'cure' ? 'm' : '';   // tuile « Annonces et newsletter » : curé (et administrateurs)
   x.liturgie = role === 'secretaire' ? '' : 'm';
   x.paroissiens = role === 'cure' || role === 'vicaire' || role === 'secretaire' ? 'm' : '';   // App des paroissiens : demandes d'accès et comptes
-  x.intentions = role === 'cure' || role === 'vicaire' ? 'm' : '';   // tuile « Intentions de messe » : prêtres (et administrateurs)   // tuile « Liturgie » : prêtres et diacres
+  x.intentions = role === 'cure' || role === 'vicaire' ? 'm' : '';
+  x.propositions = role === 'cure' || role === 'vicaire' ? 'm' : '';   // propositions spirituelles : curé et prêtres   // tuile « Intentions de messe » : prêtres (et administrateurs)   // tuile « Liturgie » : prêtres et diacres
   if (role === 'secretaire') { x.reglages = tous.filter(function (o) { return o !== 'Sauvegardes' && o !== 'Newsletter' && o !== 'Liturgie'; }); x.signer = true; }
   return x;
 }
@@ -53,6 +54,7 @@ function accesDe_(u) {
   if (a.liturgie === undefined) r.liturgie = base.liturgie;
   if (a.intentions === undefined) r.intentions = base.intentions;
   if (a.paroissiens === undefined) r.paroissiens = base.paroissiens;
+  if (a.propositions === undefined) r.propositions = base.propositions;
   return r;
 }
 /** Nettoie les accès envoyés par l'administrateur. */
@@ -74,6 +76,7 @@ function droitsDe_(role, a) {
   if (a.liturgie) d.push('liturgie');
   if (a.intentions) d.push('intentions');
   if (a.paroissiens) d.push('paroissiens');
+  if (a.propositions) d.push('propositions');
   if (role === 'admin') d.push('utilisateurs');
   if (a.reglages.length) d.push('reglages');
   return d;
@@ -94,7 +97,7 @@ function ongletPermis_(s, onglet) { return s.role === 'admin' || (s.acces && s.a
 function sortesLisibles_(s) { return SORTES_ACCES.filter(function (k) { return peutLire_(s, 'dossiers', k); }); }
 
 var NOMS_ZONES_ = { courrier: 'Courrier', agenda: 'Agenda', dossiers: 'Dossiers', extraits: 'Extraits de baptême', registres: 'Registres',
-  catechisme: 'Catéchisme', catechumenat: 'Catéchuménat', cor_unum: 'Cor Unum', retraites: 'Retraites', documents: 'Documents', statistiques: 'Statistiques', annonces: 'Annonces et newsletter', liturgie: 'Liturgie', intentions: 'Intentions de messe', paroissiens: 'App des paroissiens' };
+  catechisme: 'Catéchisme', catechumenat: 'Catéchuménat', cor_unum: 'Cor Unum', retraites: 'Retraites', documents: 'Documents', statistiques: 'Statistiques', annonces: 'Annonces et newsletter', liturgie: 'Liturgie', intentions: 'Intentions de messe', paroissiens: 'App des paroissiens', propositions: 'Propositions spirituelles' };
 var LECTURE_ = /\.(liste|lire|semaine|fil|piecejointe|libelles|groupes|evenements|etat|reglages|catalogue|invites|equipesCourantes|telecharger|chercher|quota|equipe|onglets|lienChef|lienInscription|invites)$/;
 var ONGLET_ROUTE_ = {
   'reglages.ecrire': 'Paroisse', 'sceau.ecrire': 'Paroisse', 'signatures.ecrire': 'Signatures', 'reponses.ecrire': 'Réponses types', 'tri.ecrire': 'Tri automatique',
@@ -121,6 +124,7 @@ function zoneAction_(action) {
   if (/^(liturgie|propre)\./.test(action)) return 'liturgie';
   if (/^intentions\./.test(action)) return 'intentions';
   if (/^paroissiens\./.test(action)) return 'paroissiens';
+  if (/^propositions\./.test(action)) return 'propositions';
   return null;
 }
 function interdit_(texte) { return erreur_('INTERDIT', texte || 'Vous n\'avez pas accès à cette fonction.'); }

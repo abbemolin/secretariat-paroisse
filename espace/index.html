@@ -531,6 +531,59 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     return h;
   }
   function blocPriereAccueil() { return '<div class="carte"><h2>Mur de prière</h2><p class="petit">Confier une intention, prier pour celles des autres.</p><button class="bouton" data-vue="priere">Mur de prière</button></div>'; }
+  // ─── Propositions spirituelles ───
+  var props = null, propOuverte = null;
+  function chargerProps(force) {
+    if (props && !force) return;
+    props = { charge: false };
+    appel('esp.prop.liste').then(function (r) { props = r; props.charge = true; if (vue === 'propositions' || vue === 'reglages' || (vue === 'accueil' && MODE !== 'v')) rendre(); })
+      .catch(function (er) { props = { charge: true, erreur: er.message, propositions: [] }; if (vue === 'propositions') rendre(); });
+  }
+  function dateCourteFr(iso) { return jour(iso, { day: 'numeric', month: 'long' }); }
+  function pagePropositions() {
+    chargerProps();
+    if (propOuverte) {
+      var P = propOuverte;
+      if (!P.etapes) return '<button class="lien" data-a="props-retour">← Propositions</button><div class="carte"><p class="petit">Chargement…</p></div>';
+      var h = '<button class="lien" data-a="props-retour">← Propositions</button>' + blocTaille() + '<div class="carte">' + (P.image ? '<img src="' + e(P.image) + '" alt="" style="width:100%;border-radius:10px;margin-bottom:10px">' : '') +
+        '<h1>' + e(P.titre) + '</h1>' + (P.resume ? '<p class="corps">' + e(P.resume) + '</p>' : '') +
+        (P.type === 'parcours' ? '<p class="petit">Du ' + e(dateCourteFr(P.debut)) + ' au ' + e(dateCourteFr(P.fin)) + '</p>' +
+          (P.abonne ? '<p class="petit">✓ Vous suivez ce parcours : l\'étape du jour vous est envoyée à ' + (props.heure || 8) + ' h (Réglages). <button class="lien" data-a="prop-quitter" data-id="' + e(P.id) + '" style="padding:0">Ne plus suivre</button></p>'
+            : '<button class="bouton principal" data-a="prop-suivre" data-id="' + e(P.id) + '">Suivre ce parcours</button>') : '') + '<div id="zprop" style="display:none"></div></div>';
+      h += P.etapes.map(function (x) {
+        if (!x.ouverte) return '<div class="carte" style="opacity:.6"><h2>' + (P.type === 'parcours' ? 'Jour ' + x.ordre + ' · ' : '') + e(x.titre || '') + '</h2><p class="petit">🔒 ' + e(majuscule(jour(x.jour))) + '</p></div>';
+        var ref = x.bible ? (window.lierReferencesBibliques ? window.lierReferencesBibliques(e(x.bible)) : e(x.bible)) : '';
+        return '<div class="carte"' + (x.aujourdhui ? ' style="border:2px solid #d08c4c"' : '') + '><h2>' + (P.type === 'parcours' ? 'Jour ' + x.ordre + (x.aujourdhui ? ' · aujourd\'hui' : '') + ' · ' : '') + e(x.titre || '') + '</h2>' +
+          (P.type === 'parcours' ? '<p class="petit">' + e(majuscule(jour(x.jour))) + '</p>' : '') +
+          (x.image ? '<img src="' + e(x.image) + '" alt="" loading="lazy" style="width:100%;border-radius:10px;margin:6px 0">' : '') +
+          (ref ? '<p>📖 ' + ref + '</p>' : '') + (x.texte ? '<div class="corps">' + (window.lierReferencesBibliques ? window.lierReferencesBibliques(liens(x.texte)) : liens(x.texte)) + '</div>' : '') +
+          (x.audio ? '<audio controls preload="none" src="' + e(x.audio) + '" style="width:100%;margin-top:10px"></audio>' : '') +
+          (P.type === 'parcours' && P.abonne ? '<label class="interrupteur" style="margin-top:8px"><span>' + (x.faite ? 'Fait ✓' : 'Je l\'ai fait') + '</span><input type="checkbox" data-propfait="' + e(x.id) + '"' + (x.faite ? ' checked' : '') + '></label>' : '') + '</div>';
+      }).join('');
+      return h;
+    }
+    var h2 = '<div class="carte"><h1>Propositions</h1><p class="petit">Parcours jour par jour, vies de saints, temps liturgiques : proposés par les prêtres de la paroisse.</p></div>';
+    if (!props.charge) return h2 + '<div class="carte"><p class="petit">Chargement…</p></div>';
+    if (props.erreur) return h2 + '<div class="carte"><div class="erreur">' + e(props.erreur) + '</div></div>';
+    if (!props.propositions.length) return h2 + '<div class="carte"><p class="petit">Aucune proposition pour le moment.</p></div>';
+    return h2 + props.propositions.map(function (x) {
+      return '<div class="carte texte" data-a="prop-ouvrir" data-id="' + e(x.id) + '" style="cursor:pointer"><b>' + e(x.titre) + '</b>' + (x.abonne ? '<span class="nouveau">suivi</span>' : '') +
+        '<div class="petit">' + (x.type === 'parcours' ? (x.a_venir ? 'Commence le ' + e(dateCourteFr(x.debut)) : 'Parcours · ' + x.ouvertes + ' / ' + x.nb_etapes + ' jours' + (x.abonne ? ' · ' + x.faites + ' fait' + (x.faites > 1 ? 's' : '') : '')) : e(dateCourteFr(x.debut))) + '</div>' +
+        (x.resume ? '<div class="petit" style="margin-top:4px">' + e(x.resume) + '</div>' : '') + '</div>';
+    }).join('');
+  }
+  function blocPropositionsAccueil() {
+    chargerProps();
+    var l = (props && props.propositions) || [], suivis = l.filter(function (x) { return x.abonne && !x.a_venir; });
+    return '<div class="carte"><h2>Propositions</h2>' + (suivis.length ? suivis.slice(0, 2).map(function (x) { return '<div class="texte" data-a="prop-ouvrir" data-id="' + e(x.id) + '"><b>' + e(x.titre) + '</b><div class="petit">Jour ' + x.ouvertes + ' sur ' + x.nb_etapes + '</div></div>'; }).join('')
+      : '<p class="petit">Parcours, vies de saints, temps liturgiques.' + (l.length ? ' ' + l.length + ' proposition' + (l.length > 1 ? 's' : '') + '.' : '') + '</p>') +
+      '<button class="bouton" data-vue="propositions">Voir les propositions</button></div>';
+  }
+  function blocHeureProps() {
+    var hcur = (props && props.heure) || 8, opts = '';
+    for (var hh = 5; hh <= 22; hh++) opts += '<option value="' + hh + '"' + (hh === hcur ? ' selected' : '') + '>' + hh + ' h</option>';
+    return '<div class="carte"><h2>Parcours suivis</h2><label for="prop-heure">Recevoir l\'étape du jour à</label><select id="prop-heure" data-notif="prop_heure">' + opts + '</select><div id="zph" style="display:none"></div></div>';
+  }
   function pageAccueilParoissien() {
     var h = '<div class="carte"><h1 style="margin:0">' + salutation() + ' ' + e(d.prenom) + '</h1>' + (fete ? '<div class="fete"><i style="background:' + fete.couleur + '"></i>' + e(fete.titre) + '</div>' : '') + '</div>';
     (d.chefs || []).forEach(function (x) { h += '<div class="carte"><h2>♛ Fraternité ' + e(x.equipe) + '</h2><p class="petit">Vous êtes chef de cette fraternité : membres, rencontres, messages à la paroisse.</p><a class="bouton principal" href="' + e(x.lien) + '" target="_blank" rel="noopener">Ouvrir la page de ma fraternité</a>' +
@@ -538,7 +591,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     if (d.calendrier.length) h += '<div class="carte"><h2>Prochainement</h2>' + d.calendrier.slice(0, 3).map(carteEvenement).join('') + '</div>';
     if ((d.annonces || []).length) h += '<div class="carte"><h2>Annonces de la paroisse</h2>' + d.annonces.map(carteAnnonce).join('') + '</div>';
     if (d.fraternite && d.fraternite.etat === 'membre') h += blocFraternite();
-    return h + blocPriereAccueil() + blocMesseAccueil() + blocSacrementsAccueil() + blocInscriptionsAccueil() + blocLettreAccueil() + blocDons() + blocInstallerCourt();
+    return h + blocPropositionsAccueil() + blocPriereAccueil() + blocMesseAccueil() + blocSacrementsAccueil() + blocInscriptionsAccueil() + blocLettreAccueil() + blocDons() + blocInstallerCourt();
   }
   function appliquerCompte(r) {
     ecrireSessionCpt(r.session || sessionCpt());
@@ -783,7 +836,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
       '<div class="carte"><h2>Apparence</h2><div class="choix3">' + [['clair', 'Clair'], ['sombre', 'Sombre'], ['auto', 'Comme le téléphone']].map(function (x) { return '<button data-theme="' + x[0] + '" class="' + (theme === x[0] ? 'actif' : '') + '">' + x[1] + '</button>'; }).join('') + '</div></div>' +
       '<div class="carte"><h2>Notifications</h2>' + inter('annonces', 'Annonces de la paroisse', 'Quand la paroisse publie une annonce importante') +
       (MODE === 'esp' ? inter('textes', 'Nouveaux textes de la paroisse') + inter('reponses', 'Réponses de la paroisse', 'Quand une erreur que vous avez signalée est corrigée') +
-      (d.neophyte ? inter('anniversaire', 'Anniversaire de baptême') : '') : '') + '<div id="znr" style="display:none"></div></div>' + blocLettreMail() +
+      (d.neophyte ? inter('anniversaire', 'Anniversaire de baptême') : '') : '') + '<div id="znr" style="display:none"></div></div>' + (chargerProps(), blocHeureProps()) + blocLettreMail() +
       blocApp() + blocMonCompte() + (MODE === 'p' ? '<div class="carte"><button class="lien" data-a="sortir">Se déconnecter</button></div>' : '<div class="carte"><p class="petit" style="margin:0">' + lienConf() + '</p></div>');
   }
   function pageAccueil() {
@@ -799,7 +852,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     if (nouveaux.length) h += '<div class="carte"><h2>Nouveau' + (nouveaux.length > 1 ? 'x textes' : ' texte') + '</h2>' + nouveaux.slice(0, 3).map(ligneTexte).join('') + '</div>';
     if (d.calendrier.length) h += '<div class="carte"><h2>Prochainement</h2>' + d.calendrier.slice(0, 2).map(carteEvenement).join('') + '</div>';
     if ((d.annonces || []).length) h += '<div class="carte"><h2>Annonces de la paroisse</h2>' + d.annonces.map(carteAnnonce).join('') + '</div>';
-    h += blocPriereAccueil() + blocMesseAccueil() + blocSacrementsAccueil() + blocInscriptionsAccueil() + blocLettreAccueil() + blocDons();
+    h += blocPropositionsAccueil() + blocPriereAccueil() + blocMesseAccueil() + blocSacrementsAccueil() + blocInscriptionsAccueil() + blocLettreAccueil() + blocDons();
     h += blocFraternite();
     var aFaire = [];
     if (d.pieces.some(function (p) { return !p.recu; })) aFaire.push('Déposer vos pièces (' + d.pieces.filter(function (p) { return !p.recu; }).map(function (p) { return p.nom.toLowerCase(); }).join(', ') + ')');
@@ -959,7 +1012,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
       $('btn-reglages').classList.toggle('cache', MODE === 'v');
       var pgv = $('page'); if (pgv.dataset.affiche !== vue) { pgv.classList.remove('entree'); void pgv.offsetWidth; pgv.classList.add('entree'); pgv.dataset.affiche = vue; }
       pgv.innerHTML = (horsLigne ? '<div class="horsligne">Hors connexion. <button class="lien" data-a="reessayer" style="padding:0">Réessayer</button></div>' : '') +
-        (vue === 'priere' && MODE === 'p' ? pagePriere() : vue === 'sacrements' && MODE === 'p' ? pageSacrements() : vue === 'profil' && MODE === 'p' ? pageProfil() : vue === 'inscriptions' && MODE === 'p' ? pageInscriptions() : vue === 'messe' && MODE === 'p' ? pageMesse() : vue === 'lettres' && MODE === 'p' ? pageLettres() : vue === 'bible' ? pageBible() : vue === 'calendrier' ? pageCalendrier() : vue === 'conf' ? pageConfidentialite() : vue === 'demande' ? pageDemande() : vue === 'oubli' ? pageOubli()
+        (vue === 'propositions' && MODE === 'p' ? pagePropositions() : vue === 'priere' && MODE === 'p' ? pagePriere() : vue === 'sacrements' && MODE === 'p' ? pageSacrements() : vue === 'profil' && MODE === 'p' ? pageProfil() : vue === 'inscriptions' && MODE === 'p' ? pageInscriptions() : vue === 'messe' && MODE === 'p' ? pageMesse() : vue === 'lettres' && MODE === 'p' ? pageLettres() : vue === 'bible' ? pageBible() : vue === 'calendrier' ? pageCalendrier() : vue === 'conf' ? pageConfidentialite() : vue === 'demande' ? pageDemande() : vue === 'oubli' ? pageOubli()
         : vue === 'invitation' && invitation ? pageInvitation(invitation) : vue === 'reglages' && MODE === 'p' ? pageReglages() : MODE === 'p' ? pageAccueilParoissien() : pageVisiteur());
       if (vue === 'calendrier') placerAgenda();
       if (vue === 'bible') placerBible();
@@ -979,7 +1032,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     }
     $('btn-reglages').classList.remove('cache');
     var pg = $('page'); if (pg.dataset.affiche !== vue) { pg.classList.remove('entree'); void pg.offsetWidth; pg.classList.add('entree'); pg.dataset.affiche = vue; }
-    $('page').innerHTML = vue === 'priere' ? pagePriere() : vue === 'sacrements' ? pageSacrements() : vue === 'inscriptions' ? pageInscriptions() : vue === 'messe' ? pageMesse() : vue === 'lettres' ? pageLettres() : vue === 'textes' ? pageTextes() : vue === 'calendrier' ? pageCalendrier() : vue === 'bible' ? pageBible() : vue === 'dossier' ? pageDossier() : vue === 'reglages' ? pageReglages() : pageAccueil();
+    $('page').innerHTML = vue === 'propositions' ? pagePropositions() : vue === 'priere' ? pagePriere() : vue === 'sacrements' ? pageSacrements() : vue === 'inscriptions' ? pageInscriptions() : vue === 'messe' ? pageMesse() : vue === 'lettres' ? pageLettres() : vue === 'textes' ? pageTextes() : vue === 'calendrier' ? pageCalendrier() : vue === 'bible' ? pageBible() : vue === 'dossier' ? pageDossier() : vue === 'reglages' ? pageReglages() : pageAccueil();
     if (vue === 'calendrier') placerAgenda();
     if (vue === 'bible') placerBible();
     if (vue === 'lettres') placerLettre();
@@ -1008,7 +1061,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
       return;
     }
     var b = ev.target.closest('[data-vue],[data-a],[data-texte],[data-fichier]'); if (!b) return;
-    if (b.dataset.vue) { if (b.dataset.vue === 'priere') { priereMsg = ''; chargerPriere(true); } if (b.dataset.vue === 'sacrements') { demandeSac = ''; sacEnvoye = ''; chargerSacrements(true); } if (b.dataset.vue === 'inscriptions') inscriptions = null; if (b.dataset.vue === 'profil') { profil = null; etapeMail = ''; } if (b.dataset.vue === 'messe') { messeEnvoyee = 0; chargerMesses(true); } vue = b.dataset.vue; ouvert = null; lettreOuverte = null; signale = null; ajoutParrain = false; retraitParrain = null; demandeCor = false; rendre(); window.scrollTo(0, 0); return; }
+    if (b.dataset.vue) { if (b.dataset.vue === 'propositions') { propOuverte = null; chargerProps(true); } if (b.dataset.vue === 'priere') { priereMsg = ''; chargerPriere(true); } if (b.dataset.vue === 'sacrements') { demandeSac = ''; sacEnvoye = ''; chargerSacrements(true); } if (b.dataset.vue === 'inscriptions') inscriptions = null; if (b.dataset.vue === 'profil') { profil = null; etapeMail = ''; } if (b.dataset.vue === 'messe') { messeEnvoyee = 0; chargerMesses(true); } vue = b.dataset.vue; ouvert = null; lettreOuverte = null; signale = null; ajoutParrain = false; retraitParrain = null; demandeCor = false; rendre(); window.scrollTo(0, 0); return; }
     if (b.dataset.texte) {
       vue = 'textes'; ouvert = b.dataset.texte;
       var t = d.textes.filter(function (x) { return x.id === ouvert; })[0];
@@ -1027,6 +1080,19 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
       return;
     }
     var a = b.dataset.a;
+    if (a === 'prop-ouvrir') {
+      var pid = b.dataset.id; vue = 'propositions'; propOuverte = { id: pid }; rendre(); window.scrollTo(0, 0);
+      appel('esp.prop.lire', { id: pid }).then(function (r) { if (propOuverte && propOuverte.id === pid) { propOuverte = r; rendre(); var a0 = document.querySelector('[style*="border:2px solid"]'); if (a0) a0.scrollIntoView({ block: 'start' }); } })
+        .catch(function (er) { propOuverte = null; rendre(); message('etat', er.message); });
+      return;
+    }
+    if (a === 'props-retour') { propOuverte = null; chargerProps(true); rendre(); return; }
+    if (a === 'prop-suivre' || a === 'prop-quitter') {
+      b.disabled = true;
+      appel('esp.prop.' + (a === 'prop-suivre' ? 'suivre' : 'quitter'), { id: b.dataset.id }).then(function (r) { propOuverte = r; props = null; chargerProps(); rendre(); if (a === 'prop-suivre' && !('Notification' in window && Notification.permission === 'granted')) message('zprop', 'Pour recevoir l\'étape du jour, activez les notifications (Réglages).', true); })
+        .catch(function (er) { b.disabled = false; message('zprop', er.message); });
+      return;
+    }
     if (a === 'priere-deposer') {
       fPriere = $('pr-texte').value;
       if (fPriere.trim().length < 5) { message('zpri', 'Écrivez votre intention en quelques mots.'); return; }
@@ -1188,8 +1254,17 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
   document.addEventListener('input', function (ev) { if (ev.target.id === 'sigtexte') sigTexte = ev.target.value; var k = ev.target.dataset && ev.target.dataset.k; if (k && brouillon) brouillon[k] = ev.target.value; });
   document.addEventListener('change', function (ev) {
     if (ev.target.id === 'd-mineur') { lireDemande(); rendre(); return; }
+    if (ev.target.dataset && ev.target.dataset.propfait) {
+      var y2 = window.scrollY;
+      appel('esp.prop.fait', { id: propOuverte.id, etape: ev.target.dataset.propfait }).then(function (r) { propOuverte = r; rendre(); window.scrollTo(0, y2); }).catch(function () { ev.target.checked = !ev.target.checked; });
+      return;
+    }
     if (ev.target.dataset && ev.target.dataset.sac === 'pour') { lireSac(); if (fSac.pour === 'enfant') { fSac.prenoms = ''; } else { delete fSac.prenoms; } rendre(); return; }
     var nk = ev.target.dataset && ev.target.dataset.notif;
+    if (nk === 'prop_heure') {
+      appel('esp.prefs', { notifs: { prop_heure: Number(ev.target.value) } }).then(function (r) { d = r; if (props) props.heure = Number(ev.target.value); message('zph', 'Enregistré.', true); }).catch(function (er) { message('zph', er.message); });
+      return;
+    }
     if (nk) {
       var o = {}; o[nk] = ev.target.checked;
       if (nk === 'lettre_mail') {

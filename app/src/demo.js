@@ -587,6 +587,9 @@ export async function demoApi(action, p) {
       ] }
     case 'paroissiens.dons': return [{ id: 'd1', titre: 'Soutenir la paroisse', texte: 'Démo', url: 'https://www.helloasso.com/', actif: true }]
     case 'paroissiens.prieres': return [{ id: 'pr1', cree_le: new Date().toISOString(), auteur: 'Jeanne Exemple', texte: 'Pour Paul Exemple qui est malade', statut: 'relecture', raisons: ['nom de personne'], priants: 0, signalements: 0 }]
+    case 'propositions.liste': return [{ id: 'p1', type: 'parcours', titre: 'Avent : un pas par jour (exemple)', debut: '2026-11-29', fin: '2026-12-24', statut: 'publiee', nb_etapes: 26, abonnes: 12 }]
+    case 'propositions.lire': return { id: 'p1', type: 'parcours', titre: 'Avent : un pas par jour (exemple)', resume: '', image: '', debut: '2026-11-29', statut: 'publiee', etapes: [{ id: 'e1', titre: 'Veillez', texte: 'Texte d\'exemple', bible: 'Mt 24, 42', jour: '2026-11-29' }] }
+    case 'propositions.ecrire': case 'propositions.dupliquer': case 'propositions.supprimer': case 'propositions.audio':
     case 'annonces.notifier': case 'paroissiens.donsEcrire': case 'paroissiens.moderer':
     case 'paroissiens.modifier': case 'paroissiens.inviter': case 'paroissiens.migrer': throw new Error('Démo : rien n\'est enregistré ni envoyé.')
     case 'charte.etat': case 'charte.accepter': return { acceptee_le: new Date().toISOString(), a_accepter: false, texte: [], responsable: '', contact: '' }

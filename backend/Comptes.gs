@@ -373,6 +373,7 @@ function actionCompte_(action, p) {
     verrou_(function () {
       var y = compteParId_(x.id), pr = json2_(y.prefs, {});
       ['textes', 'reponses', 'annonces'].forEach(function (k) { if (p.notifs && typeof p.notifs[k] === 'boolean') pr[k] = p.notifs[k]; });
+      if (p.notifs && p.notifs.prop_heure !== undefined) { var hh = Number(p.notifs.prop_heure); if (hh >= 5 && hh <= 22) pr.prop_heure = hh; }
       y.prefs = JSON.stringify(pr); ecrireLigne_('Comptes', y);
     });
     if (p.notifs && typeof p.notifs.lettre_mail === 'boolean') changerAbonnementNewsletter_(x.mail, x.prenom, x.nom, p.notifs.lettre_mail);
@@ -400,6 +401,7 @@ function actionCompte_(action, p) {
   if (action === 'cpt.sacrement') return demanderSacrementApp_({ mail: x.mail, prenom: x.prenom, nom: x.nom, telephone: x.telephone, adresse: x.adresse, compte_id: x.id }, p);
   if (action === 'cpt.dossiers') return { dossiers: mesDossiers_(x.mail, x.dossier_id), actes: mesActes_(x.mail), motifs: MOTIFS_ACTE };
   if (action === 'cpt.acteApp') { demanderActeApp_({ mail: x.mail, prenom: x.prenom, nom: x.nom }, p); return { actes: mesActes_(x.mail) }; }
+  if (/^cpt\.prop\./.test(action)) return actionPropApp_({ uid: 'cpt:' + x.id, heure: heureProps_(x.prefs) }, action.slice(9), p);
   if (/^cpt\.priere\./.test(action)) return actionPriere_(quiCompte_(x), action.slice(11), p);
   if (action === 'cpt.profil') return profilCompte_(x);
   if (action === 'cpt.profilModifier') return modifierProfil_(x, p);

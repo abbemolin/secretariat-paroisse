@@ -300,6 +300,7 @@ function actionEspace_(action, p) {
       var x = lignes_('Espaces').filter(function (y) { return y.dossier_id === esp.dossier_id; })[0];
       var pr = json2_(x.prefs, {});
       ['textes', 'reponses', 'anniversaire', 'annonces'].forEach(function (k) { if (p.notifs && typeof p.notifs[k] === 'boolean') pr[k] = p.notifs[k]; });
+      if (p.notifs && p.notifs.prop_heure !== undefined) { var hh = Number(p.notifs.prop_heure); if (hh >= 5 && hh <= 22) pr.prop_heure = hh; }
       x.prefs = JSON.stringify(pr); ecrireLigne_('Espaces', x);
     });
     if (p.notifs && typeof p.notifs.lettre_mail === 'boolean') { var i1 = json2_(d.donnees, {}).infos || {}; changerAbonnementNewsletter_(mailDossier_(d), i1.prenoms, i1.nom, p.notifs.lettre_mail); }
@@ -327,6 +328,7 @@ function actionEspace_(action, p) {
   if (action === 'esp.sacrement') return demanderSacrementApp_({ mail: mailDossier_(d), prenom: i0.prenoms, nom: i0.nom, telephone: i0.telephone, adresse: i0.adresse }, p);
   if (action === 'esp.dossiers') return { dossiers: mesDossiers_(mailDossier_(d)).filter(function (z) { return z.id !== d.id; }), actes: mesActes_(mailDossier_(d)), motifs: MOTIFS_ACTE };
   if (action === 'esp.acteApp') { demanderActeApp_({ mail: mailDossier_(d), prenom: i0.prenoms, nom: i0.nom }, p); return { actes: mesActes_(mailDossier_(d)) }; }
+  if (/^esp\.prop\./.test(action)) return actionPropApp_({ uid: 'esp:' + d.id, heure: heureProps_(esp.prefs) }, action.slice(9), p);
   if (/^esp\.priere\./.test(action)) return actionPriere_(quiEspace_(d), action.slice(11), p);
   if (action === 'esp.inscriptions') return mesInscriptions_(mailDossier_(d));
   if (action === 'esp.messes') return { messes: messesProposees_(), mes_intentions: mesIntentions_(mailDossier_(d)), offrande: offrandeTexte_(), max: INT_APP_MAX };

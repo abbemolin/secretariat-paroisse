@@ -1,0 +1,41 @@
+// node tests/test-propositions.js — propositions spirituelles (services simulés)
+const { SS, props } = require('./mocks.js');
+const fs = require('fs'), vm = require('vm'), path = require('path');
+const dir = path.join(__dirname, '..', 'backend');
+vm.runInThisContext(fs.readdirSync(dir).filter(f => f.endsWith('.gs')).map(f => fs.readFileSync(path.join(dir, f), 'utf8')).join('\n') +
+  ';globalThis.__t={doPost,FEUILLES,hacher_,ecrireLigne_,actionCompte_,lignes_,nouvelleSessionCpt_,oublierLignes_,envoyerEtapesDuJour,aujourdhui_,ajouterJours_};');
+const T = globalThis.__t;
+let ok = 0, ko = 0; const verif = (c, m) => { if (c) ok++; else { ko++; console.log('ÉCHEC :', m); } };
+const post = (action, payload, token) => JSON.parse(T.doPost({ postData: { contents: JSON.stringify({ action, payload, token }) } }).t);
+Object.keys(T.FEUILLES).forEach(n => SS.insertSheet(n).appendRow(T.FEUILLES[n]));
+[['cure', 'cure'], ['sec', 'secretaire']].forEach(([id, role]) => T.ecrireLigne_('Utilisateurs', { id, identifiant: id, nom: id, role, sel: 's', hash: T.hacher_('motdepasse', 's'), actif: 'true' }));
+const tok = post('auth.login', { identifiant: 'cure', motdepasse: 'motdepasse' }).data.token;
+const tokS = post('auth.login', { identifiant: 'sec', motdepasse: 'motdepasse' }).data.token;
+verif(post('propositions.liste', {}, tokS).code === 'INTERDIT', 'secrétaire : pas d\'accès');
+const auj = T.aujourdhui_(), hier = T.ajouterJours_(auj, -1);
+const r = post('propositions.ecrire', { type: 'parcours', titre: 'Avent', resume: 'Un texte par jour', debut: hier, statut: 'publiee',
+  etapes: [{ titre: 'Jour 1', texte: 'Veillez', bible: 'Mt 24, 42' }, { titre: 'Jour 2', texte: 'Préparez le chemin' }, { titre: 'Jour 3', texte: 'Réjouissez-vous' }] }, tok);
+verif(r.ok && r.data.etapes.length === 3 && r.data.etapes[1].jour === auj && r.data.etapes[2].jour === T.ajouterJours_(auj, 1), 'parcours : une étape par jour à partir du premier jour');
+const pid = r.data.id;
+post('propositions.ecrire', { type: 'texte', titre: 'Brouillon', debut: auj, etapes: [{ titre: 'x', texte: 'y' }] }, tok);
+vm.runInThisContext('feuilleComptes_()');
+T.ecrireLigne_('Comptes', { id: 'j1', mail: 'j@ex.fr', prenom: 'J', nom: 'X', statut: 'actif', sel: 's', hash: 'h', session_v: 0, prefs: JSON.stringify({ prop_heure: Number(new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Paris' }).slice(11, 13)) }) });
+const cs = T.nouvelleSessionCpt_(T.lignes_('Comptes')[0]);
+const l = T.actionCompte_('cpt.prop.liste', { cs });
+verif(l.propositions.length === 1 && l.propositions[0].ouvertes === 2, 'paroissien : seulement les propositions publiées ; 2 étapes ouvertes');
+let p = T.actionCompte_('cpt.prop.lire', { cs, id: pid });
+verif(p.etapes[2].ouverte === false && p.etapes[2].texte === '' && p.etapes[1].aujourdhui, 'étape de demain fermée, celle du jour marquée');
+p = T.actionCompte_('cpt.prop.suivre', { cs, id: pid }); verif(p.abonne, 'abonné');
+p = T.actionCompte_('cpt.prop.fait', { cs, id: pid, etape: p.etapes[0].id }); verif(p.etapes[0].faite, 'étape cochée');
+verif(post('propositions.liste', {}, tok).data.find(x => x.id === pid).abonnes === 1, 'la paroisse voit seulement le nombre d\'abonnés');
+global.fetches.length = 0;
+T.ecrireLigne_('Push', { uid: 'cpt:j1', endpoint: 'https://fcm.googleapis.com/j1', appareil: '', cree_le: '' });
+props.VAPID_PRIVEE = 'c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721'; props.VAPID_PUBLIQUE = 'x';
+T.envoyerEtapesDuJour();
+verif(global.fetches.length === 1 && JSON.parse(props.NOTIF_PUBLIQUE).type === 'proposition', 'notification de l\'étape du jour à l\'heure choisie');
+const d = post('propositions.dupliquer', { id: pid, debut: '2027-11-28' }, tok).data;
+verif(d.statut === 'brouillon' && d.etapes.length === 3 && d.etapes[0].jour === '2027-11-28' && d.etapes[2].jour === '2027-11-30', 'dupliqué sur les nouvelles dates, en brouillon');
+T.actionCompte_('cpt.prop.quitter', { cs, id: pid });
+verif(!T.actionCompte_('cpt.prop.lire', { cs, id: pid }).abonne, 'désabonné');
+console.log(ok + ' vérifications réussies, ' + ko + ' échec(s)');
+process.exit(ko ? 1 : 0);
