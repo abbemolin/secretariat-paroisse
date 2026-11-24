@@ -6,7 +6,8 @@
  * Écriture sans suppression de ligne (pas de décalage même si deux personnes enregistrent en même temps).
  */
 var CLES_FEUILLE = ['ACCUEIL_PREFS', 'AGENDAS', 'CATE', 'CATECHUMENAT', 'CONF', 'COR_UNUM', 'FORMULAIRES', 'NOTIF_PREFS',
-  'PROMOTIONS', 'REGLAGES', 'REPONSES', 'SIGNATURES', 'TRI', 'TRI_VUS', 'MODELES', 'REGISTRES'];
+  'PROMOTIONS', 'REGLAGES', 'REPONSES', 'SIGNATURES', 'TRI', 'TRI_VUS', 'MODELES', 'REGISTRES',
+  'NL_SEMAINES', 'NL_BROUILLONS'];
 var MORCEAU_STOCK = 40000;   // une cellule contient au plus 50 000 caractères
 var STOCKAGE_ = null;
 

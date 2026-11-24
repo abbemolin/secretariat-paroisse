@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { BoutonRecherche } from './pages/RechercheGlobale.jsx'
-import { Home, Mail, CalendarDays, FolderHeart, FolderOpen, Users, Settings, UserCircle, LogOut, Bell, ScrollText, GraduationCap, HeartHandshake, Mountain, Flame, BookOpen, BookMarked, BarChart3, LifeBuoy, MoreHorizontal, X } from 'lucide-react'
+import { Home, Mail, CalendarDays, FolderHeart, FolderOpen, Users, Settings, UserCircle, LogOut, Bell, ScrollText, GraduationCap, HeartHandshake, Mountain, Flame, BookOpen, BookMarked, BarChart3, LifeBuoy, MoreHorizontal, X, Megaphone, CalendarRange, Newspaper, LayoutGrid, Church, BookOpenText } from 'lucide-react'
 import { api, ecrireToken, lireToken, quandSessionExpire, estDemo, suivreFile, viderFile } from './api.js'
 import { Chargement, FournisseurNotif, ROLES, dateRelative, useNotif } from './ui.jsx'
 import Connexion from './pages/Connexion.jsx'
@@ -23,6 +23,9 @@ import Catechumenat from './pages/Catechumenat.jsx'
 import Aide from './pages/Aide.jsx'
 import Registres from './pages/Registres.jsx'
 import Statistiques from './pages/Statistiques.jsx'
+import Annonces from './pages/Annonces.jsx'
+import Semaine from './pages/Semaine.jsx'
+import Newsletter from './pages/Newsletter.jsx'
 
 const CtxApp = createContext(null)
 export const useApp = () => useContext(CtxApp)
@@ -54,6 +57,54 @@ const MENU = [
   ] }
 ]
 const aplatir = (m) => m.flatMap((x) => (x.items ? x.items : [x]))
+
+// ─── Tuiles : après la connexion, choix de l'espace (une seule tuile active → entrée directe) ───
+const TUILES = [
+  { cle: 'secretariat', titre: 'Secrétariat', texte: 'Courrier, agenda, dossiers, catéchèse', icone: Mail, chemin: '/' },
+  { cle: 'intentions', titre: 'Intentions de messe', texte: 'Intentions, calendrier des messes', icone: Church, bientot: true },
+  { cle: 'annonces', titre: 'Annonces et newsletter', texte: 'Annonces, feuille de semaine, newsletter', icone: Megaphone, chemin: '/annonces', droit: 'annonces' },
+  { cle: 'breviaire', titre: 'Bréviaire et Bible', texte: 'Offices, Bible Crampon', icone: BookOpenText, bientot: true }
+]
+const MENU_ANNONCES = [
+  { to: '/annonces', label: 'Annonces', icone: Megaphone, bas: true },
+  { to: '/semaine', label: 'Feuille de semaine', icone: CalendarRange, bas: true },
+  { to: '/newsletter', label: 'Newsletter', icone: Newspaper, bas: true }
+]
+const tuileDuChemin = (chemin) => (['annonces', 'semaine', 'newsletter'].includes(chemin.split('/')[1]) ? 'annonces' : 'secretariat')
+
+function EcranTuiles({ tuiles }) {
+  const { utilisateur, deconnecter } = useApp()
+  const nav = useNavigate()
+  const prenom = String(utilisateur.nom || '').replace(/^(abbé|père)\s+/i, '')
+  return (
+    <div className="flex min-h-full flex-col bg-parchemin">
+      <header className="flex items-center gap-3 bg-nuit px-4 py-3 text-white sm:px-8" style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}>
+        <img src="./logo-128.png" alt="" className="h-9 w-9 rounded-full" />
+        <span className="flex-1 font-titre text-xl font-semibold">La Croix glorieuse</span>
+        <Cloche />
+        <button onClick={deconnecter} className="rounded-lg p-2 text-white/80 hover:bg-white/10 hover:text-white" aria-label="Se déconnecter" title="Se déconnecter"><LogOut className="h-5 w-5" /></button>
+      </header>
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-8 sm:py-14">
+        <h1 className="text-4xl font-semibold text-nuit">Bonjour{prenom ? ', ' + (utilisateur.nom.match(/^abbé/i) ? 'abbé ' + prenom.split(' ').slice(-1)[0] : prenom.split(' ')[0]) : ''}</h1>
+        <p className="mt-1 text-sm capitalize text-nuit-600">{new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+        <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
+          {tuiles.map((t) => {
+            const I = t.icone
+            return (
+              <button key={t.cle} disabled={t.bientot} onClick={() => nav(t.chemin)}
+                className={`carte flex min-h-[170px] flex-col items-start gap-2 p-4 text-left transition sm:p-5 ${t.bientot ? 'cursor-default opacity-55' : 'hover:-translate-y-0.5 hover:shadow-md'}`}>
+                <span className={`mb-1 flex h-11 w-11 items-center justify-center rounded-full ${t.cle === 'secretariat' ? 'bg-nuit-50 text-nuit' : 'bg-or-50 text-or-600'}`}><I className="h-6 w-6" /></span>
+                <span className="font-titre text-xl font-semibold leading-tight text-nuit">{t.titre}</span>
+                <span className="text-xs leading-snug text-nuit-600">{t.texte}</span>
+                {t.bientot && <span className="pastille mt-auto bg-nuit-50 text-nuit-600">Bientôt</span>}
+              </button>
+            )
+          })}
+        </div>
+      </main>
+    </div>
+  )
+}
 
 /** Lien de menu : tient compte de « ?type=… » (Confirmands est une vue de Dossiers). */
 function LienMenu({ to, label, icone: I, mobile, onClick }) {
@@ -180,7 +231,18 @@ function Cadre() {
   const loc = useLocation()
   const [plus, setPlus] = useState(false)
   const notifier = useNotif()
-  const zonePage = { courrier: 'courrier', agenda: 'agenda', extraits: 'extraits', registres: 'registres', catechisme: 'catechisme', catechumenat: 'catechumenat', 'cor-unum': 'cor_unum', retraites: 'retraites', documents: 'documents' }[loc.pathname.split('/')[1]]
+  const nav = useNavigate()
+  const zonePage = { courrier: 'courrier', agenda: 'agenda', extraits: 'extraits', registres: 'registres', catechisme: 'catechisme', catechumenat: 'catechumenat', 'cor-unum': 'cor_unum', retraites: 'retraites', documents: 'documents', annonces: 'annonces', semaine: 'annonces', newsletter: 'annonces' }[loc.pathname.split('/')[1]]
+  const tuilesActives = TUILES.filter((t) => !t.bientot && peut(t.droit))
+  const avecTuiles = tuilesActives.length > 1
+  const tuile = tuileDuChemin(loc.pathname)
+  // Écran des tuiles à l'ouverture de l'appli (une fois par session)
+  useEffect(() => {
+    if (!avecTuiles) return
+    try { if (sessionStorage.getItem('tuiles-vues')) return; sessionStorage.setItem('tuiles-vues', '1') } catch { /* ignore */ }
+    if (loc.pathname === '/') nav('/tuiles', { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [avecTuiles])
   const lectureSeule = (zonePage && !ecrit(zonePage)) || (loc.pathname === '/dossiers' && !ecrit('dossiers'))
   const [attente, setAttente] = useState(0)
   useEffect(() => {
@@ -190,15 +252,17 @@ function Cadre() {
     viderFile()
     return () => { fin(); window.removeEventListener('file-erreur', refus) }
   }, [notifier])
-  const menu = MENU.map((m) => (m.items ? { ...m, items: m.items.filter((x) => peut(x.droit)) } : m)).filter((m) => (m.items ? m.items.length : peut(m.droit)))
+  const menu = tuile === 'annonces' ? MENU_ANNONCES : MENU.map((m) => (m.items ? { ...m, items: m.items.filter((x) => peut(x.droit)) } : m)).filter((m) => (m.items ? m.items.length : peut(m.droit)))
   const bas = aplatir(menu).filter((m) => m.bas)
+  if (avecTuiles && loc.pathname === '/tuiles') return <EcranTuiles tuiles={TUILES} />
   return (
     <div className="flex h-full">
       <aside className="hidden w-60 shrink-0 flex-col bg-nuit text-white lg:flex">
         <div className="flex items-center gap-3 px-5 py-6">
           <img src="./logo-128.png" alt="" className="h-12 w-12 rounded-full" />
-          <div className="leading-tight"><div className="font-titre text-lg font-semibold">La Croix glorieuse</div><div className="text-xs text-white/60">Secrétariat paroissial</div></div>
+          <div className="leading-tight"><div className="font-titre text-lg font-semibold">La Croix glorieuse</div><div className="text-xs text-white/60">{tuile === 'annonces' ? 'Annonces et newsletter' : 'Secrétariat paroissial'}</div></div>
         </div>
+        {avecTuiles && <NavLink to="/tuiles" className="mx-3 mb-2 flex items-center gap-3 rounded-lg border border-white/15 px-3 py-2 text-sm text-white/80 hover:bg-white/5 hover:text-white"><LayoutGrid className="h-4 w-4" />Tuiles</NavLink>}
         <BoutonRecherche />
         <nav className="flex-1 space-y-1 overflow-y-auto px-3">
           {menu.map((m, i) => m.items ? (
@@ -222,8 +286,8 @@ function Cadre() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center justify-between bg-nuit px-4 py-2.5 text-white lg:hidden" style={{ paddingTop: 'max(0.6rem, env(safe-area-inset-top))' }}>
-          <div className="flex items-center gap-2"><img src="./logo-128.png" alt="" className="h-8 w-8 rounded-full" /><span className="font-titre text-lg font-semibold">La Croix glorieuse</span></div>
-          <div className="flex items-center"><BoutonRecherche mobile /><Cloche /><NavLink to="/compte" className="rounded-lg p-2 hover:bg-white/10"><UserCircle className="h-6 w-6" /></NavLink></div>
+          <div className="flex min-w-0 items-center gap-2"><img src="./logo-128.png" alt="" className="h-8 w-8 rounded-full" /><span className="truncate font-titre text-lg font-semibold">{tuile === 'annonces' ? 'Annonces et newsletter' : 'La Croix glorieuse'}</span></div>
+          <div className="flex items-center">{avecTuiles && <NavLink to="/tuiles" className="rounded-lg p-2 hover:bg-white/10" aria-label="Tuiles" title="Tuiles"><LayoutGrid className="h-5 w-5" /></NavLink>}<BoutonRecherche mobile /><Cloche /><NavLink to="/compte" className="rounded-lg p-2 hover:bg-white/10"><UserCircle className="h-6 w-6" /></NavLink></div>
         </header>
         {lectureSeule && <div className="bg-nuit-50 px-4 py-1.5 text-center text-xs text-nuit-600">Lecture seule : vous pouvez consulter cette page, mais pas la modifier.</div>}
         {attente > 0 && <div className="bg-nuit-50 px-4 py-1.5 text-center text-xs text-nuit-600">{attente > 1 ? `${attente} modifications gardées` : '1 modification gardée'} sur l'appareil — {attente > 1 ? 'elles seront envoyées' : 'elle sera envoyée'} dès le retour de la connexion. <button className="underline" onClick={() => viderFile()}>Réessayer</button></div>}
@@ -250,6 +314,9 @@ function Cadre() {
               {peut('statistiques') && <Route path="/statistiques" element={<Statistiques />} />}
               {peut('utilisateurs') && <Route path="/utilisateurs" element={<Utilisateurs />} />}
               {peut('reglages') && <Route path="/reglages" element={<Reglages />} />}
+              {peut('annonces') && <Route path="/annonces" element={<Annonces />} />}
+              {peut('annonces') && <Route path="/semaine" element={<Semaine />} />}
+              {peut('annonces') && <Route path="/newsletter" element={<Newsletter />} />}
               <Route path="/aide" element={<Aide />} />
               <Route path="/compte" element={<Compte />} />
               <Route path="*" element={<Navigate to="/" replace />} />
@@ -259,7 +326,9 @@ function Cadre() {
 
         <nav className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-nuit-100 bg-white safe-bottom lg:hidden">
           {bas.map((x) => <LienMenu key={x.to} {...x} mobile />)}
-          <button onClick={() => setPlus(true)} className="flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] text-nuit-600/70"><MoreHorizontal className="h-5 w-5" />Plus</button>
+          {tuile === 'annonces'
+            ? <NavLink to="/tuiles" className="flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] text-nuit-600/70"><LayoutGrid className="h-5 w-5" />Tuiles</NavLink>
+            : <button onClick={() => setPlus(true)} className="flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] text-nuit-600/70"><MoreHorizontal className="h-5 w-5" />Plus</button>}
         </nav>
         {plus && <MenuPlus menu={menu} onFermer={() => setPlus(false)} />}
       </div>

@@ -7,6 +7,7 @@ import { Chargement, Erreur, useCharger, useNotif, useConfirmer, dateHeure, Inte
 import { ApercuSignature } from './Courrier.jsx'
 import { VARIABLES_COURRIER } from './Courriers.jsx'
 import { ONGLETS_REGLAGES, ongletPermis } from '../acces.js'
+import NewsletterReglages from './NewsletterReglages.jsx'
 
 
 export default function Reglages() {
@@ -28,6 +29,7 @@ export default function Reglages() {
       {onglet === 'Confirmands' && <ConfirmandsReglages />}
       {onglet === 'Cor Unum' && <CorUnumReglages />}
       {onglet === 'Paiements en ligne' && <PaiementsReglages />}
+      {onglet === 'Newsletter' && <NewsletterReglages />}
       {onglet === 'Journal' && <Journal />}
       {onglet === 'Sauvegardes' && <Sauvegardes />}
     </>

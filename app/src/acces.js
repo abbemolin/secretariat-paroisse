@@ -2,13 +2,13 @@
 export const PAGES_ACCES = [
   ['courrier', 'Courrier'], ['agenda', 'Agenda'], ['extraits', 'Extraits de baptême'], ['registres', 'Registres'],
   ['catechisme', 'Catéchisme (et livres)'], ['catechumenat', 'Catéchuménat (textes, calendrier, espaces)'], ['cor_unum', 'Cor Unum'],
-  ['retraites', 'Retraites'], ['documents', 'Documents'], ['statistiques', 'Statistiques']
+  ['retraites', 'Retraites'], ['documents', 'Documents'], ['statistiques', 'Statistiques'], ['annonces', 'Annonces et newsletter']
 ]
 export const SORTES_ACCES = [
   ['bapteme', 'Baptêmes'], ['premiere_communion', 'Premières communions'], ['profession_foi', 'Professions de foi'], ['confirmation_jeune', 'Confirmations (jeunes)'],
   ['mariage', 'Mariages'], ['obseques', 'Obsèques'], ['catechumene', 'Catéchumènes'], ['confirmand', 'Confirmands adultes']
 ]
-export const ONGLETS_REGLAGES = ['Paroisse', 'Signatures', 'Réponses types', 'Modèles', 'Tri automatique', 'Catéchisme', 'Confirmands', 'Cor Unum', 'Paiements en ligne', 'Journal', 'Sauvegardes']
+export const ONGLETS_REGLAGES = ['Paroisse', 'Signatures', 'Réponses types', 'Modèles', 'Tri automatique', 'Catéchisme', 'Confirmands', 'Cor Unum', 'Paiements en ligne', 'Newsletter', 'Journal', 'Sauvegardes']
 const ANCIENS = ['mail', 'agenda', 'documents', 'utilisateurs', 'reglages']
 const N = { '': 0, l: 1, m: 2 }
 
@@ -23,7 +23,8 @@ export function accesDuRole(role) {
   if (role === 'admin') return complet('m', [...ONGLETS_REGLAGES], true)
   const a = complet('m', [], role === 'cure' || role === 'vicaire')
   a.statistiques = ''
-  if (role === 'secretaire') { a.reglages = ONGLETS_REGLAGES.filter((o) => o !== 'Sauvegardes'); a.signer = true }
+  a.annonces = role === 'cure' ? 'm' : ''   // tuile « Annonces et newsletter » : curé (et administrateurs)
+  if (role === 'secretaire') { a.reglages = ONGLETS_REGLAGES.filter((o) => o !== 'Sauvegardes' && o !== 'Newsletter'); a.signer = true }
   return a
 }
 export function niveau(u, zone, sorte) {

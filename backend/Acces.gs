@@ -3,7 +3,7 @@
  * Le rôle pré-coche des accès ; l'administrateur les ajuste ensuite personne par personne.
  *
  * acces = {
- *   courrier, agenda, extraits, registres, catechisme, catechumenat, cor_unum, retraites, documents, statistiques : '' | 'l' | 'm'
+ *   courrier, agenda, extraits, registres, catechisme, catechumenat, cor_unum, retraites, documents, statistiques, annonces : '' | 'l' | 'm'
  *   dossiers : { bapteme, premiere_communion, … : '' | 'l' | 'm' }     (par sorte de dossier)
  *   courrier_tout : true (toute la boîte) | false (seulement les mails qui lui sont attribués)
  *   reglages : ['Paroisse', 'Signatures', …]                         (onglets permis)
@@ -11,9 +11,9 @@
  * }
  * Les administrateurs ont toujours tout (et seuls eux gèrent les utilisateurs).
  */
-var PAGES_ACCES = ['courrier', 'agenda', 'extraits', 'registres', 'catechisme', 'catechumenat', 'cor_unum', 'retraites', 'documents', 'statistiques'];
+var PAGES_ACCES = ['courrier', 'agenda', 'extraits', 'registres', 'catechisme', 'catechumenat', 'cor_unum', 'retraites', 'documents', 'statistiques', 'annonces'];
 var SORTES_ACCES = ['bapteme', 'premiere_communion', 'profession_foi', 'confirmation_jeune', 'mariage', 'obseques', 'catechumene', 'confirmand'];
-var ONGLETS_REGLAGES = ['Paroisse', 'Signatures', 'Réponses types', 'Modèles', 'Tri automatique', 'Catéchisme', 'Confirmands', 'Cor Unum', 'Paiements en ligne', 'Journal', 'Sauvegardes'];
+var ONGLETS_REGLAGES = ['Paroisse', 'Signatures', 'Réponses types', 'Modèles', 'Tri automatique', 'Catéchisme', 'Confirmands', 'Cor Unum', 'Paiements en ligne', 'Newsletter', 'Journal', 'Sauvegardes'];
 
 function accesComplet_(niveau, onglets, signer) {
   var a = { dossiers: {}, courrier_tout: true, reglages: onglets || [], signer: !!signer };
@@ -27,7 +27,8 @@ function accesDuRole_(role) {
   if (role === 'admin') { var a = accesComplet_('m', tous, true); a.statistiques = 'm'; return a; }
   var x = accesComplet_('m', [], role === 'cure' || role === 'vicaire');
   x.statistiques = '';
-  if (role === 'secretaire') { x.reglages = tous.filter(function (o) { return o !== 'Sauvegardes'; }); x.signer = true; }
+  x.annonces = role === 'cure' ? 'm' : '';   // tuile « Annonces et newsletter » : curé (et administrateurs)
+  if (role === 'secretaire') { x.reglages = tous.filter(function (o) { return o !== 'Sauvegardes' && o !== 'Newsletter'; }); x.signer = true; }
   return x;
 }
 var NIVEAUX_ = { '': 0, l: 1, m: 2 };
@@ -45,6 +46,7 @@ function accesDe_(u) {
   var r = { dossiers: {}, courrier_tout: a.courrier_tout !== false, reglages: (a.reglages || []).filter(function (o) { return ONGLETS_REGLAGES.indexOf(o) > -1; }), signer: !!a.signer };
   PAGES_ACCES.forEach(function (k) { r[k] = NIVEAUX_[a[k]] !== undefined ? a[k] : ''; });
   SORTES_ACCES.forEach(function (k) { r.dossiers[k] = NIVEAUX_[(a.dossiers || {})[k]] !== undefined ? a.dossiers[k] : ''; });
+  if (a.annonces === undefined) r.annonces = base.annonces;   // accès choisis avant l'arrivée de la tuile : ceux du rôle
   return r;
 }
 /** Nettoie les accès envoyés par l'administrateur. */
@@ -62,6 +64,7 @@ function droitsDe_(role, a) {
   if (a.agenda) d.push('agenda');
   if (SORTES_ACCES.some(function (k) { return a.dossiers[k]; }) || ['extraits', 'registres', 'catechisme', 'catechumenat', 'cor_unum', 'retraites'].some(function (k) { return a[k]; })) d.push('dossiers');
   if (a.documents) d.push('documents');
+  if (a.annonces) d.push('annonces');
   if (role === 'admin') d.push('utilisateurs');
   if (a.reglages.length) d.push('reglages');
   return d;
@@ -82,12 +85,13 @@ function ongletPermis_(s, onglet) { return s.role === 'admin' || (s.acces && s.a
 function sortesLisibles_(s) { return SORTES_ACCES.filter(function (k) { return peutLire_(s, 'dossiers', k); }); }
 
 var NOMS_ZONES_ = { courrier: 'Courrier', agenda: 'Agenda', dossiers: 'Dossiers', extraits: 'Extraits de baptême', registres: 'Registres',
-  catechisme: 'Catéchisme', catechumenat: 'Catéchuménat', cor_unum: 'Cor Unum', retraites: 'Retraites', documents: 'Documents', statistiques: 'Statistiques' };
-var LECTURE_ = /\.(liste|lire|fil|piecejointe|libelles|groupes|evenements|etat|reglages|catalogue|invites|equipesCourantes|telecharger|chercher|quota|equipe|onglets|lienChef|lienInscription|invites)$/;
+  catechisme: 'Catéchisme', catechumenat: 'Catéchuménat', cor_unum: 'Cor Unum', retraites: 'Retraites', documents: 'Documents', statistiques: 'Statistiques', annonces: 'Annonces et newsletter' };
+var LECTURE_ = /\.(liste|lire|semaine|fil|piecejointe|libelles|groupes|evenements|etat|reglages|catalogue|invites|equipesCourantes|telecharger|chercher|quota|equipe|onglets|lienChef|lienInscription|invites)$/;
 var ONGLET_ROUTE_ = {
   'reglages.ecrire': 'Paroisse', 'sceau.ecrire': 'Paroisse', 'signatures.ecrire': 'Signatures', 'reponses.ecrire': 'Réponses types', 'tri.ecrire': 'Tri automatique',
   'cate.reglagesEcrire': 'Catéchisme', 'conf.reglagesEcrire': 'Confirmands', 'cor.reglagesEcrire': 'Cor Unum', 'journal.liste': 'Journal',
-  'paiements.reglages': 'Paiements en ligne', 'paiements.reglagesEcrire': 'Paiements en ligne', 'paiements.tester': 'Paiements en ligne', 'sauvegardes': 'Sauvegardes'
+  'paiements.reglages': 'Paiements en ligne', 'paiements.reglagesEcrire': 'Paiements en ligne', 'paiements.tester': 'Paiements en ligne', 'sauvegardes': 'Sauvegardes',
+  'newsletter.reglages': 'Newsletter', 'newsletter.reglagesEcrire': 'Newsletter', 'newsletter.tester': 'Newsletter'
 };
 /** Zone d'une action (null = pas de contrôle particulier). */
 function zoneAction_(action) {
@@ -103,6 +107,7 @@ function zoneAction_(action) {
   if (/^documents\./.test(action)) return 'documents';
   if (action === 'registres') return 'registres';
   if (action === 'statistiques') return 'statistiques';
+  if (/^(annonces|newsletter)\./.test(action)) return 'annonces';
   return null;
 }
 function interdit_(texte) { return erreur_('INTERDIT', texte || 'Vous n\'avez pas accès à cette fonction.'); }

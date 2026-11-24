@@ -9,6 +9,12 @@ const ins = (id, prenoms, nom, classe, groupe, email, extra = {}) => ({ id, anne
 const cor = (id, prenoms, nom, equipe_id, extra = {}) => ({ id, annee: '2026-2027', prenoms, nom, email: cleDemo(nom) + '@example.fr', telephone: '06 11 22 33 ' + id.slice(1).padStart(2, '0'), adresse: 'Strasbourg', profils: ['Paroissien'], situation: 'Marié(e)', deja_participe: 'Oui', rester: 'Oui', chef_indique: '', chef_possible: false, souhait: '', groupe_service: 'Non', equipe_id, equipe_proposee: '', statut: 'actif', note: '', dossiers: [], ...extra })
 function cleDemo(t) { return String(t).toLowerCase().normalize('NFD').replace(/[^a-z]/g, '') }
 const etat = {
+  annoncesNl: [
+    { id: 1, titre: 'Retraite de l\'Avent', description: 'Samedi 5 décembre, de 9 h à 16 h, à la crypte. Inscription au secrétariat.', event_date: '2026-12-05', event_heure: '09:00:00', date_debut: null, date_fin: '2026-12-05', image_url: '', lien: 'https://www.croix-glorieuse.org', lien_label: 'S\'inscrire', prioritaire: true, actif: true, dans_newsletter: true, dans_feuille: true, ordre: 0, created_at: '2026-11-20T10:00:00Z' },
+    { id: 2, titre: 'Confessions avant Noël', description: 'Horaires élargis à partir du 14 décembre.', event_date: null, event_heure: null, date_debut: null, date_fin: null, image_url: '', lien: '', lien_label: '', prioritaire: false, actif: true, dans_newsletter: true, dans_feuille: false, ordre: 1, created_at: '2026-11-18T10:00:00Z' },
+    { id: 3, titre: 'Quête pour le chauffage', description: 'Merci de votre générosité.', event_date: null, event_heure: null, date_debut: null, date_fin: null, image_url: '', lien: '', lien_label: '', prioritaire: false, actif: false, dans_newsletter: false, dans_feuille: true, ordre: 2, created_at: '2026-11-10T10:00:00Z' }
+  ],
+  nlSemaines: {}, nlBrouillons: {}, nlCampagne: null,
   retraites: [
     { id: 'r1', annee: '2026-2027', type: 'premiere_communion', titre: '', date_debut: '2027-05-15', date_fin: '2027-05-16', heure_debut: '09:30', heure_fin: '16:00', lieu: 'Mont Sainte-Odile', adresse: '67530 Ottrott',
       prix: [{ id: 'a', libelle: 'Repas (3)', montant: 30, obligatoire: true }, { id: 'b', libelle: 'Nuit au Mont (chambre partagée)', montant: 25, obligatoire: false }], ceremonie_suggestion: '15', ceremonie_texte: 'Cierge, fleurs, livret de la célébration',
@@ -486,6 +492,29 @@ export async function demoApi(action, p) {
     case 'sceau.ecrire': etat.sceau = 'data:' + p.type + ';base64,' + p.base64; return etat.sceau
     case 'documents.chercher': return Object.values(dossiersDrive).flatMap((d) => d.fichiers).filter((f) => f.nom.toLowerCase().includes(String(p.texte).toLowerCase()))
     case 'documents.envoyer': case 'documents.dossier': case 'documents.renommer': case 'documents.deplacer': return true
+    case 'annonces.liste': return etat.annoncesNl.slice().sort((a, b) => (b.prioritaire ? 1 : 0) - (a.prioritaire ? 1 : 0) || (a.ordre ?? 1e9) - (b.ordre ?? 1e9))
+    case 'annonces.ecrire': { if (p.id) { const a = etat.annoncesNl.find((x) => x.id === p.id); Object.assign(a, p); return a } const a = { id: Date.now(), created_at: new Date().toISOString(), ordre: null, ...p }; etat.annoncesNl.push(a); return a }
+    case 'annonces.supprimer': etat.annoncesNl = etat.annoncesNl.filter((x) => x.id !== p.id); return true
+    case 'annonces.ordre': p.ids.forEach((id, i) => { const a = etat.annoncesNl.find((x) => x.id === id); if (a) a.ordre = i }); return true
+    case 'annonces.image': return { url: './logo.png' }
+    case 'newsletter.semaine': {
+      const j = (n, h, m = 0) => { const d = new Date(p.lundi + 'T12:00:00'); d.setDate(d.getDate() + n); d.setHours(h, m, 0, 0); return d.toISOString() }
+      const ev = []
+      for (let n = 0; n < 6; n++) ev.push({ id: 'm' + n, summary: 'Messe', start: { dateTime: j(n, 18, 30) }, end: { dateTime: j(n, 19, 15) } })
+      ev.push({ id: 'c5', summary: 'Confessions', start: { dateTime: j(5, 10) }, end: { dateTime: j(5, 12) } })
+      ev.push({ id: 'a3', summary: 'Adoration', start: { dateTime: j(3, 20) }, end: { dateTime: j(3, 21) } })
+      ev.push({ id: 'd1', summary: 'Grand\'messe', start: { dateTime: j(6, 10, 30) }, end: { dateTime: j(6, 12) } }, { id: 'd2', summary: 'Messe', start: { dateTime: j(6, 18, 30) }, end: { dateTime: j(6, 19, 30) } })
+      ev.sort((a, b) => a.start.dateTime.localeCompare(b.start.dateTime))
+      const iso = (n) => { const d = new Date(p.lundi + 'T12:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10) }
+      return { lundi: p.lundi, evenements: ev, intentions: [{ date_messe: iso(1), heure_messe: '18:30', nom_intention: 'Joseph M.', type_intention: 'Défunt', google_event_id: 'm1' }, { date_messe: iso(3), heure_messe: '18:30', nom_intention: 'Pour une naissance', type_intention: 'Action de grâce', google_event_id: '' }], preparee: etat.nlSemaines[p.lundi] || null }
+    }
+    case 'newsletter.semaineEcrire': { if (p.effacer) { delete etat.nlSemaines[p.lundi]; return null } const x = etat.nlSemaines[p.lundi] ||= {}; if (p.jours) Object.assign(x, { jours: p.jours, par: moi.nom, le: new Date().toISOString() }); if (p.html) Object.assign(x, { html: p.html, envoye_par: moi.nom, envoye_le: new Date().toISOString() }); return x }
+    case 'newsletter.lire': return { lundi: p.lundi, annonces: etat.annoncesNl.filter((a) => a.actif && a.dans_newsletter), calendrier: etat.nlSemaines[p.lundi]?.html ? { html: etat.nlSemaines[p.lundi].html, par: etat.nlSemaines[p.lundi].envoye_par, le: etat.nlSemaines[p.lundi].envoye_le } : null, semaines_envoyees: Object.keys(etat.nlSemaines).filter((k) => etat.nlSemaines[k].html), brouillon: etat.nlBrouillons[p.lundi] || null, campagne: etat.nlCampagne, autres_programmees: etat.nlCampagne ? [{ id: etat.nlCampagne.id, sujet: etat.nlCampagne.sujet, envoi_le: etat.nlCampagne.envoi_le }] : [], brevo_ok: true, prochain_envoi: (() => { const d = new Date(); d.setDate(d.getDate() + ((7 - d.getDay()) % 7 || 7)); d.setHours(12, 0, 0, 0); return d.toISOString() })() }
+    case 'newsletter.brouillon': if (p.html) etat.nlBrouillons[p.lundi] = { html: p.html, par: moi.nom, le: new Date().toISOString() }; else delete etat.nlBrouillons[p.lundi]; return etat.nlBrouillons[p.lundi] || null
+    case 'newsletter.programmer': { const d = new Date(); d.setDate(d.getDate() + ((7 - d.getDay()) % 7 || 7)); d.setHours(12, 0, 0, 0); return (etat.nlCampagne = { id: 101, lundi: p.lundi, sujet: p.sujet, envoi_le: d.toISOString(), par: moi.nom, statut: 'queued' }) }
+    case 'newsletter.annuler': etat.nlCampagne = null; return true
+    case 'newsletter.reglages': case 'newsletter.reglagesEcrire': return { liste: 3, jour: 0, heure: '12:00', expediteur_nom: 'Paroisse La Croix Glorieuse', expediteur_email: 'secretariat@croix-glorieuse.org', supabase_url: 'https://pmeaimfcwtykhqtueomd.supabase.co', supabase_secret_ok: false, brevo_ok: true, prochain_envoi: new Date(Date.now() + 3 * 86400000).toISOString() }
+    case 'newsletter.tester': return { supabase: '✓ Base des annonces : 3 annonce(s) lue(s) avec la clé publique.', brevo: '✓ Brevo : compte secretariat@croix-glorieuse.org — liste « Newsletter » (412 abonnés).' }
     default: throw new Error('Démo : action non simulée ' + action)
   }
 }

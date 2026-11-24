@@ -14,6 +14,7 @@
  *   Confirmands.gs formulaire Google des confirmands adultes
  *   CorUnum.gs    fraternités Cor Unum (formulaire Google, équipes, chefs, anciens)
  *   Tri.gs        tri automatique des mails entrants (mots-clés, réponse auto horaires)
+ *   Newsletter.gs tuile « Annonces et newsletter » (annonces, feuille de semaine, newsletter Brevo)
  *   Installation.gs  installer() à lancer une fois
  */
 
@@ -190,6 +191,20 @@ var ROUTES = {
   'paiements.reglages':    { fn: function (p, s) { return lireHaReglages_(p, s); }, droit: 'reglages' },
   'paiements.reglagesEcrire': { fn: function (p, s) { return ecrireHaReglages_(p, s); }, droit: 'reglages' },
   'paiements.tester':      { fn: function (p, s) { return testerHelloAsso_(p, s); }, droit: 'reglages' },
+  'annonces.liste':        { fn: function (p, s) { return listerAnnonces_(p, s); }, droit: 'annonces' },
+  'annonces.ecrire':       { fn: function (p, s) { return ecrireAnnonce_(p, s); }, droit: 'annonces' },
+  'annonces.supprimer':    { fn: function (p, s) { return supprimerAnnonce_(p, s); }, droit: 'annonces' },
+  'annonces.ordre':        { fn: function (p, s) { return ordonnerAnnonces_(p, s); }, droit: 'annonces' },
+  'annonces.image':        { fn: function (p, s) { return imageAnnonce_(p, s); }, droit: 'annonces' },
+  'newsletter.semaine':    { fn: function (p, s) { return semaineNewsletter_(p, s); }, droit: 'annonces' },
+  'newsletter.semaineEcrire': { fn: function (p, s) { return ecrireSemaineNewsletter_(p, s); }, droit: 'annonces' },
+  'newsletter.lire':       { fn: function (p, s) { return lireNewsletter_(p, s); }, droit: 'annonces' },
+  'newsletter.brouillon':  { fn: function (p, s) { return ecrireBrouillonNewsletter_(p, s); }, droit: 'annonces' },
+  'newsletter.programmer': { fn: function (p, s) { return programmerNewsletter_(p, s); }, droit: 'annonces' },
+  'newsletter.annuler':    { fn: function (p, s) { return annulerNewsletter_(p, s); }, droit: 'annonces' },
+  'newsletter.reglages':   { fn: function (p, s) { return lireNlReglages_(p, s); }, droit: 'reglages' },
+  'newsletter.reglagesEcrire': { fn: function (p, s) { return ecrireNlReglages_(p, s); }, droit: 'reglages' },
+  'newsletter.tester':     { fn: function (p, s) { return testerNewsletter_(p, s); }, droit: 'reglages' },
   'livres.liste':          { fn: function (p, s) { return listerLivres_(p, s); }, droit: 'dossiers' },
   'livres.catalogue':      { fn: function (p, s) { return ecrireCatalogue_(p, s); }, droit: 'dossiers' },
   'livres.commande':       { fn: function (p, s) { return modifierCommande_(p, s); }, droit: 'dossiers' },
