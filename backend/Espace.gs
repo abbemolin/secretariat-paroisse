@@ -324,6 +324,9 @@ function actionEspace_(action, p) {
   }
   if (action === 'esp.lettres') return { lettres: lettresApp_(), lettre_mail: abonnementNewsletter_(mailDossier_(d)) };
   if (action === 'esp.lettre') return lettreApp_(p.id);
+  if (action === 'esp.sacrement') return demanderSacrementApp_({ mail: mailDossier_(d), prenom: i0.prenoms, nom: i0.nom, telephone: i0.telephone, adresse: i0.adresse }, p);
+  if (action === 'esp.dossiers') return { dossiers: mesDossiers_(mailDossier_(d)).filter(function (z) { return z.id !== d.id; }), actes: mesActes_(mailDossier_(d)), motifs: MOTIFS_ACTE };
+  if (action === 'esp.acteApp') { demanderActeApp_({ mail: mailDossier_(d), prenom: i0.prenoms, nom: i0.nom }, p); return { actes: mesActes_(mailDossier_(d)) }; }
   if (action === 'esp.inscriptions') return mesInscriptions_(mailDossier_(d));
   if (action === 'esp.messes') return { messes: messesProposees_(), mes_intentions: mesIntentions_(mailDossier_(d)), offrande: offrandeTexte_(), max: INT_APP_MAX };
   if (action === 'esp.demanderMesse') {
@@ -379,7 +382,8 @@ function vueEspace_(d) {
     anniversaire: (function () { var n = pr.neo ? anniversaireDuJour_(d) : 0; return n ? { annees: n, texte: texteAnniversaire_(d, n) } : null; })(),
     parrains: (don.parrains || []).map(function (z) { return parrainVue_(z, true); }), fraternite: frat,
     calendrier: cal, textes: textes, paroisse: reglages_().paroisse,
-    annonces: annoncesPubliques_()
+    annonces: annoncesPubliques_(),
+    dons: causesPubliques_()
   };
 }
 
@@ -567,7 +571,13 @@ function lienEspace_(p, s) {
   if (d.type !== 'catechumene') throw erreur_('INVALIDE', 'Réservé aux catéchumènes et néophytes.');
   verrou_(function () {
     var x = espaceDuDossier_(d.id);
-    if (!x) { ecrireLigne_('Espaces', { dossier_id: d.id, jeton: jeton_(), hash: '', sel: '', mdp_maj: '', cree_le: maintenant_(), derniere_visite: '' }); return; }
+    if (!x) {
+      // la personne a déjà un compte dans l'app (même adresse) : son espace s'y rattache, avec son mot de passe
+      var cp = null; try { var m0 = normMail_(mailDossier_(d)); cp = m0 ? compteParMail_(m0) : null; } catch (e) {}
+      if (cp && !cp.dossier_id) { cp.dossier_id = d.id; ecrireLigne_('Comptes', cp); }
+      ecrireLigne_('Espaces', { dossier_id: d.id, jeton: jeton_(), hash: cp && cp.statut === 'actif' ? cp.hash : '', sel: cp && cp.statut === 'actif' ? cp.sel : '', mdp_maj: '', cree_le: maintenant_(), derniere_visite: '' });
+      return;
+    }
     if (p.nouveau) { x.jeton = jeton_(); ecrireLigne_('Espaces', x); }
   });
   if (p.nouveau) journaliser_(s, 'Espace personnel : nouveau lien', d.nom);

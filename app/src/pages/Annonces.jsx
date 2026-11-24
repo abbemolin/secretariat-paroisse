@@ -211,6 +211,8 @@ function Fiche({ annonce, onFermer, onEnregistre }) {
   const [imageOk, setImageOk] = useState(true)
   const fichier = useRef(null)
   const ch = (k) => (e) => setF({ ...f, [k]: e.target.value })
+  const [causes, setCauses] = useState(null)
+  useEffect(() => { api('paroissiens.dons').then(setCauses).catch(() => setCauses([])) }, [])
 
   async function envoyerImage(e) {
     const x = e.target.files?.[0]
@@ -255,6 +257,10 @@ function Fiche({ annonce, onFermer, onEnregistre }) {
           <div><label className="etiquette" htmlFor="an-lien">Lien (facultatif)</label><input id="an-lien" type="url" className="champ" placeholder="https://…" value={f.lien} onChange={ch('lien')} /></div>
           <div><label className="etiquette" htmlFor="an-ll">Texte du lien (facultatif)</label><input id="an-ll" className="champ" maxLength={60} placeholder="En savoir plus…" value={f.lien_label} onChange={ch('lien_label')} /></div>
         </div>
+        {causes?.length > 0 && <div><label className="etiquette" htmlFor="an-don">Bouton « Faire un don » (HelloAsso)</label>
+          <select id="an-don" className="champ" value={causes.find((c) => c.url === f.lien)?.id || ''} onChange={(e) => { const c = causes.find((x) => x.id === e.target.value); setF({ ...f, lien: c ? c.url : '', lien_label: c ? 'Faire un don' : '' }) }}>
+            <option value="">— aucun —</option>{causes.map((c) => <option key={c.id} value={c.id}>{c.titre}</option>)}
+          </select><p className="mt-1 text-xs text-nuit-600/70">Remplit le lien de l'annonce avec le formulaire de don choisi (causes réglées dans App des paroissiens → Dons).</p></div>}
         <div>
           <div className="etiquette">Publication</div>
           <div className="grid gap-2 sm:grid-cols-2">

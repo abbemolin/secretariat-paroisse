@@ -228,10 +228,10 @@ function vueCompte_(x) {
   var cal = (frat.rencontres || []).map(function (r) { return { date: r.date, heure_debut: '', titre: 'Fraternité Cor Unum ' + frat.equipe, lieu: r.lieu, note: r.note }; });
   var annonces = []; try { annonces = annoncesPubliques_(); } catch (e) {}
   return {
-    paroissien: true, id: x.id, prenom: x.prenom || '', nom: x.nom || '', mail: x.mail, telephone: x.telephone || '',
+    paroissien: true, id: x.id, prenom: x.prenom || '', nom: x.nom || '', mail: x.mail, telephone: x.telephone || '', adresse: x.adresse || '',
     confidentialite_le: x.confidentialite_le || '', notifs: prefsCompte_(x), favoris: json2_(x.favoris, { liste: [], maj: '' }),
     fraternite: frat, chefs: chefs, calendrier: cal, textes: [], annonces: annonces, espace: pontEspace_(x),
-    paroisse: reglages_().paroisse, cle_push: clePubliquePush_()
+    paroisse: reglages_().paroisse, cle_push: clePubliquePush_(), dons: causesPubliques_()
   };
 }
 function noterVisiteCompte_(x) {
@@ -397,6 +397,9 @@ function actionCompte_(action, p) {
   if (action === 'cpt.mesDonnees') return mesDonnees_(x);
   if (action === 'cpt.lettres') return { lettres: lettresApp_(), lettre_mail: abonnementNewsletter_(x.mail) };
   if (action === 'cpt.lettre') return lettreApp_(p.id);
+  if (action === 'cpt.sacrement') return demanderSacrementApp_({ mail: x.mail, prenom: x.prenom, nom: x.nom, telephone: x.telephone, adresse: x.adresse, compte_id: x.id }, p);
+  if (action === 'cpt.dossiers') return { dossiers: mesDossiers_(x.mail, x.dossier_id), actes: mesActes_(x.mail), motifs: MOTIFS_ACTE };
+  if (action === 'cpt.acteApp') { demanderActeApp_({ mail: x.mail, prenom: x.prenom, nom: x.nom }, p); return { actes: mesActes_(x.mail) }; }
   if (action === 'cpt.profil') return profilCompte_(x);
   if (action === 'cpt.profilModifier') return modifierProfil_(x, p);
   if (action === 'cpt.mailCode') return codeNouveauMail_(x, p.nouveau);

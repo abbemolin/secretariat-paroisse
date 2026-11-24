@@ -248,6 +248,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
       champ('cx-mdp', 'Mot de passe', 'password', '', ' autocomplete="current-password" required') + '<button class="bouton principal" type="submit">Se connecter</button></form><div id="zcx" style="display:none"></div>' +
       '<button class="lien" data-a="oubli">Mot de passe oublié ?</button></div>';
     h += '<div class="carte"><h2>Vous êtes paroissien(ne) ?</h2><p class="petit">Demandez votre accès : annonces de la paroisse, agenda, votre fraternité, et bien d\'autres choses à venir. La paroisse vérifie chaque demande.</p><button class="bouton principal" data-a="demande">Demander un accès</button></div>';
+    h += blocDons();
     h += '<div class="carte"><p class="petit" style="margin:0">Vous avez reçu un lien personnel de la paroisse (catéchuménat) ? Il fonctionne toujours. · ' + lienConf() + '</p></div>';
     return h + blocInstallerCourt();
   }
@@ -422,6 +423,78 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     return h;
   }
   function blocInscriptionsAccueil() { return '<div class="carte"><h2>Mes inscriptions</h2><p class="petit">Retraites, catéchisme des enfants, livres, paiements.</p><button class="bouton" data-vue="inscriptions">Voir mes inscriptions</button></div>'; }
+  // ─── Sacrements : demandes, suivi des dossiers, acte de baptême ───
+  var sacrements = null, demandeSac = '', fSac = {}, sacEnvoye = '';
+  var FORMS_SAC = {
+    bapteme: { titre: 'Baptême d\'un enfant', intro: 'Vous souhaitez faire baptiser votre enfant ? La paroisse vous recontactera pour la préparation.', champs: [
+      ['g', 'L\'enfant'], ['enfant_prenoms', 'Prénoms', 1], ['enfant_nom', 'Nom', 1], ['sexe', 'Garçon ou fille', 0, ['', 'Garçon', 'Fille']], ['enfant_naissance_date', 'Date de naissance', 1, 'date'], ['enfant_naissance_lieu', 'Lieu de naissance'],
+      ['g', 'Les parents (au moins un)'], ['pere_prenom', 'Prénom du père'], ['pere_nom', 'Nom du père'], ['mere_prenom', 'Prénom de la mère'], ['mere_nom_jeune_fille', 'Nom de jeune fille de la mère'], ['adresse', 'Adresse'], ['telephone', 'Téléphone', 1, 'tel'],
+      ['g', 'Parrain et marraine'], ['parrain_nom', 'Parrain (prénom et nom)'], ['marraine_nom', 'Marraine (prénom et nom)'],
+      ['g', 'Le baptême'], ['date_souhaitee', 'Date souhaitée', 0, 'date'], ['message', 'Message (facultatif)', 0, 'zone']] },
+    mariage: { titre: 'Mariage', intro: 'Vous souhaitez vous marier à l\'église ? Prenez contact le plus tôt possible, idéalement un an avant la date envisagée.', champs: [
+      ['g', 'La fiancée'], ['fiancee_prenoms', 'Prénoms', 1], ['fiancee_nom', 'Nom', 1], ['g', 'Le fiancé'], ['fiance_prenoms', 'Prénoms', 1], ['fiance_nom', 'Nom', 1],
+      ['g', 'Le mariage'], ['telephone', 'Téléphone', 1, 'tel'], ['date_souhaitee', 'Date souhaitée', 0, 'date'], ['message', 'Message (facultatif)', 0, 'zone']] },
+    catechumene: { titre: 'Baptême (adulte)', intro: 'Vous êtes adulte et vous souhaitez recevoir le baptême ? Un prêtre vous recontactera.', champs: [['prenoms', 'Prénom', 1], ['nom', 'Nom', 1], ['telephone', 'Téléphone', 1, 'tel'], ['message', 'Message (facultatif)', 0, 'zone']] },
+    confirmand: { titre: 'Confirmation (adulte)', intro: 'Vous êtes baptisé(e) et vous souhaitez recevoir la confirmation ? Nous vous recontacterons.', champs: [['prenoms', 'Prénom', 1], ['nom', 'Nom', 1], ['telephone', 'Téléphone', 1, 'tel'], ['message', 'Message (facultatif)', 0, 'zone']] },
+    acte: { titre: 'Acte de baptême', intro: 'Pour vous ou pour votre enfant, baptisé à la paroisse La Croix glorieuse. La paroisse vous l\'envoie par mail, signé, au format PDF.', champs: [
+      ['pour', 'Pour qui ?', 1, ['moi', 'enfant'], ['Pour moi', 'Pour mon enfant']], ['prenoms', 'Prénoms de la personne baptisée', 1], ['nom', 'Nom', 1], ['naissance', 'Date de naissance', 1, 'date'], ['lieu_naissance', 'Lieu de naissance'],
+      ['parents', 'Noms des parents (facultatif)'], ['annee_bapteme', 'Année du baptême (si vous la connaissez)', 0, 'num'], ['motif', 'Motif', 1, 'motif'], ['message', 'Message (facultatif)', 0, 'zone']] }
+  };
+  function chargerSacrements(force) {
+    if (sacrements && !force) return;
+    sacrements = { charge: false };
+    appel('esp.dossiers').then(function (r) { sacrements = r; sacrements.charge = true; if (vue === 'sacrements') rendre(); })
+      .catch(function (er) { sacrements = { charge: true, erreur: er.message, dossiers: [], actes: [] }; if (vue === 'sacrements') rendre(); });
+  }
+  function prerempli(k) {
+    if (k === 'telephone') return d.telephone || (d.infos && d.infos.telephone) || '';
+    if (k === 'adresse') return d.adresse || (d.infos && d.infos.adresse) || '';
+    if (k === 'prenoms') return demandeSac === 'acte' && fSac.pour === 'enfant' ? '' : (d.prenom || '');
+    if (k === 'nom') return d.nom || (d.infos && d.infos.nom) || '';
+    return '';
+  }
+  function formSacrement(type) {
+    var F = FORMS_SAC[type], h = '<button class="lien" data-a="sac-retour">← Sacrements</button><div class="carte"><h1>' + e(F.titre) + '</h1><p class="petit">' + e(F.intro) + '</p>';
+    if (type === 'acte' && !fSac.pour) fSac.pour = 'moi';
+    h += F.champs.map(function (c) {
+      if (c[0] === 'g') return '<h3 style="font-size:15px;color:#a8662e;margin:16px 0 0">' + e(c[1]) + '</h3>';
+      var k = c[0], v = fSac[k] !== undefined ? fSac[k] : prerempli(k), lib = c[1] + (c[2] ? ' *' : '');
+      if (c[3] === 'zone') return '<label for="s-' + k + '">' + e(lib) + '</label><textarea id="s-' + k + '" data-sac="' + k + '" style="min-height:70px">' + e(v) + '</textarea>';
+      if (c[3] === 'motif') return '<label for="s-' + k + '">' + e(lib) + '</label><select id="s-' + k + '" data-sac="' + k + '"><option value="">— choisir —</option>' + ((sacrements && sacrements.motifs) || []).map(function (m) { return '<option' + (m === v ? ' selected' : '') + '>' + e(m) + '</option>'; }).join('') + '</select>';
+      if (Array.isArray(c[3])) return '<label for="s-' + k + '">' + e(lib) + '</label><select id="s-' + k + '" data-sac="' + k + '">' + c[3].map(function (o, j) { return '<option value="' + e(o) + '"' + (o === v ? ' selected' : '') + '>' + e((c[4] || c[3])[j] || '—') + '</option>'; }).join('') + '</select>';
+      return champ('s-' + k, lib, c[3] === 'num' ? 'text' : c[3] || 'text', v, ' data-sac="' + k + '"' + (c[3] === 'num' ? ' inputmode="numeric" maxlength="4"' : ''));
+    }).join('');
+    return h + '<button class="bouton principal" data-a="sac-envoyer">Envoyer ma demande</button><div id="zsac" style="display:none"></div>' +
+      mentionRgpd('Ces informations servent seulement à préparer le sacrement et à tenir les registres de la paroisse ; seuls les prêtres et le secrétariat les voient. Les registres sont gardés sans limite, comme le demande l\'Église.') + '</div>';
+  }
+  function pageSacrements() {
+    chargerSacrements();
+    if (demandeSac) return formSacrement(demandeSac);
+    var h = '<div class="carte"><h1>Sacrements</h1>' + (sacEnvoye ? '<div class="ok">' + e(sacEnvoye) + '</div>' : '') + '<p class="petit">Faire une demande :</p>' +
+      [['bapteme', 'Baptême d\'un enfant'], ['mariage', 'Mariage'], ['catechumene', 'Baptême (adulte)'], ['confirmand', 'Confirmation (adulte)'], ['acte', 'Acte de baptême']].map(function (x) {
+        return '<button class="bouton" data-sac-type="' + x[0] + '">' + e(x[1]) + '</button>'; }).join('') + '</div>';
+    if (!sacrements || !sacrements.charge) return h + '<div class="carte"><p class="petit">Chargement…</p></div>';
+    if (sacrements.erreur) return h + '<div class="carte"><div class="erreur">' + e(sacrements.erreur) + '</div></div>';
+    (sacrements.dossiers || []).forEach(function (s) {
+      h += '<div class="carte"><h2>' + e(s.type) + (s.qui ? ' – ' + e(s.qui) : '') + '</h2><p class="petit">Demande reçue le ' + e(jour(s.recu_le, { day: 'numeric', month: 'long', year: 'numeric' })) +
+        (s.date_celebration ? ' · célébration : ' + e(jour(s.date_celebration, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })) : '') + (s.etat === 'termine' ? ' · terminé' : '') + '</p>' +
+        s.etapes.map(function (x) { var proch = !x.fait && x.libelle === s.prochaine; return '<div class="etape"><div class="rond ' + (x.fait ? 'fait' : proch ? 'prochaine' : '') + '">' + (x.fait ? '✓' : '•') + '</div><div>' + e(x.libelle) + (x.date ? '<div class="petit">' + e(jour(x.date, { day: 'numeric', month: 'long', year: 'numeric' })) + '</div>' : '') + '</div></div>'; }).join('') + '</div>';
+    });
+    if ((sacrements.actes || []).length) h += '<div class="carte"><h2>Actes de baptême demandés</h2>' + sacrements.actes.map(function (a) {
+      return '<div class="sig"><b>' + e(a.nom) + '</b><span class="statut ' + (a.envoye_le ? 'traite">Envoyé' : 'ouvert">En préparation') + '</span><div class="petit">' + e(a.motif) + ' · demandé le ' + e(jour(a.le, { day: 'numeric', month: 'long', year: 'numeric' })) + '</div></div>';
+    }).join('') + '</div>';
+    return h;
+  }
+  function blocSacrementsAccueil() { return '<div class="carte"><h2>Sacrements</h2><p class="petit">Baptême, mariage, confirmation, acte de baptême ; suivi de vos demandes.</p><button class="bouton" data-vue="sacrements">Sacrements</button></div>'; }
+  // ─── Dons (formulaires HelloAsso) ───
+  var donsPublics = null;
+  function blocDons() {
+    var l = (d && d.dons) || donsPublics || [];
+    if (!l.length) return '';
+    return '<div class="carte"><h2>Soutenir la paroisse</h2>' + l.map(function (c) {
+      return '<div class="parrain"><b>' + e(c.titre) + '</b>' + (c.texte ? '<div class="petit">' + e(c.texte) + '</div>' : '') + '<a class="bouton principal" href="' + e(c.url) + '" target="_blank" rel="noopener">Faire un don</a></div>';
+    }).join('') + '<p class="petit">Paiement sécurisé par HelloAsso, qui vous envoie le reçu fiscal.</p></div>';
+  }
   function pageAccueilParoissien() {
     var h = '<div class="carte"><h1 style="margin:0">' + salutation() + ' ' + e(d.prenom) + '</h1>' + (fete ? '<div class="fete"><i style="background:' + fete.couleur + '"></i>' + e(fete.titre) + '</div>' : '') + '</div>';
     (d.chefs || []).forEach(function (x) { h += '<div class="carte"><h2>♛ Fraternité ' + e(x.equipe) + '</h2><p class="petit">Vous êtes chef de cette fraternité : membres, rencontres, messages à la paroisse.</p><a class="bouton principal" href="' + e(x.lien) + '" target="_blank" rel="noopener">Ouvrir la page de ma fraternité</a>' +
@@ -429,7 +502,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     if (d.calendrier.length) h += '<div class="carte"><h2>Prochainement</h2>' + d.calendrier.slice(0, 3).map(carteEvenement).join('') + '</div>';
     if ((d.annonces || []).length) h += '<div class="carte"><h2>Annonces de la paroisse</h2>' + d.annonces.map(carteAnnonce).join('') + '</div>';
     if (d.fraternite && d.fraternite.etat === 'membre') h += blocFraternite();
-    return h + blocMesseAccueil() + blocInscriptionsAccueil() + blocLettreAccueil() + blocInstallerCourt();
+    return h + blocMesseAccueil() + blocSacrementsAccueil() + blocInscriptionsAccueil() + blocLettreAccueil() + blocDons() + blocInstallerCourt();
   }
   function appliquerCompte(r) {
     ecrireSessionCpt(r.session || sessionCpt());
@@ -452,6 +525,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     });
   }
   function visiteur() {
+    if (donsPublics === null) { donsPublics = []; appelCpt('public.dons').then(function (r) { donsPublics = r || []; if (MODE === 'v' && vue === 'accueil') rendre(); }).catch(function () {}); }
     MODE = 'v'; d = { visiteur: true, calendrier: [], textes: [], annonces: [], etapes: {} }; vue = vue === 'demande' || vue === 'oubli' || vue === 'conf' ? vue : 'accueil';
     $('etat').style.display = 'none'; rendre(); finDemarrage(); chargerFete();
   }
@@ -689,7 +763,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     if (nouveaux.length) h += '<div class="carte"><h2>Nouveau' + (nouveaux.length > 1 ? 'x textes' : ' texte') + '</h2>' + nouveaux.slice(0, 3).map(ligneTexte).join('') + '</div>';
     if (d.calendrier.length) h += '<div class="carte"><h2>Prochainement</h2>' + d.calendrier.slice(0, 2).map(carteEvenement).join('') + '</div>';
     if ((d.annonces || []).length) h += '<div class="carte"><h2>Annonces de la paroisse</h2>' + d.annonces.map(carteAnnonce).join('') + '</div>';
-    h += blocMesseAccueil() + blocInscriptionsAccueil() + blocLettreAccueil();
+    h += blocMesseAccueil() + blocSacrementsAccueil() + blocInscriptionsAccueil() + blocLettreAccueil() + blocDons();
     h += blocFraternite();
     var aFaire = [];
     if (d.pieces.some(function (p) { return !p.recu; })) aFaire.push('Déposer vos pièces (' + d.pieces.filter(function (p) { return !p.recu; }).map(function (p) { return p.nom.toLowerCase(); }).join(', ') + ')');
@@ -849,7 +923,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
       $('btn-reglages').classList.toggle('cache', MODE === 'v');
       var pgv = $('page'); if (pgv.dataset.affiche !== vue) { pgv.classList.remove('entree'); void pgv.offsetWidth; pgv.classList.add('entree'); pgv.dataset.affiche = vue; }
       pgv.innerHTML = (horsLigne ? '<div class="horsligne">Hors connexion. <button class="lien" data-a="reessayer" style="padding:0">Réessayer</button></div>' : '') +
-        (vue === 'profil' && MODE === 'p' ? pageProfil() : vue === 'inscriptions' && MODE === 'p' ? pageInscriptions() : vue === 'messe' && MODE === 'p' ? pageMesse() : vue === 'lettres' && MODE === 'p' ? pageLettres() : vue === 'bible' ? pageBible() : vue === 'calendrier' ? pageCalendrier() : vue === 'conf' ? pageConfidentialite() : vue === 'demande' ? pageDemande() : vue === 'oubli' ? pageOubli()
+        (vue === 'sacrements' && MODE === 'p' ? pageSacrements() : vue === 'profil' && MODE === 'p' ? pageProfil() : vue === 'inscriptions' && MODE === 'p' ? pageInscriptions() : vue === 'messe' && MODE === 'p' ? pageMesse() : vue === 'lettres' && MODE === 'p' ? pageLettres() : vue === 'bible' ? pageBible() : vue === 'calendrier' ? pageCalendrier() : vue === 'conf' ? pageConfidentialite() : vue === 'demande' ? pageDemande() : vue === 'oubli' ? pageOubli()
         : vue === 'invitation' && invitation ? pageInvitation(invitation) : vue === 'reglages' && MODE === 'p' ? pageReglages() : MODE === 'p' ? pageAccueilParoissien() : pageVisiteur());
       if (vue === 'calendrier') placerAgenda();
       if (vue === 'bible') placerBible();
@@ -869,7 +943,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     }
     $('btn-reglages').classList.remove('cache');
     var pg = $('page'); if (pg.dataset.affiche !== vue) { pg.classList.remove('entree'); void pg.offsetWidth; pg.classList.add('entree'); pg.dataset.affiche = vue; }
-    $('page').innerHTML = vue === 'inscriptions' ? pageInscriptions() : vue === 'messe' ? pageMesse() : vue === 'lettres' ? pageLettres() : vue === 'textes' ? pageTextes() : vue === 'calendrier' ? pageCalendrier() : vue === 'bible' ? pageBible() : vue === 'dossier' ? pageDossier() : vue === 'reglages' ? pageReglages() : pageAccueil();
+    $('page').innerHTML = vue === 'sacrements' ? pageSacrements() : vue === 'inscriptions' ? pageInscriptions() : vue === 'messe' ? pageMesse() : vue === 'lettres' ? pageLettres() : vue === 'textes' ? pageTextes() : vue === 'calendrier' ? pageCalendrier() : vue === 'bible' ? pageBible() : vue === 'dossier' ? pageDossier() : vue === 'reglages' ? pageReglages() : pageAccueil();
     if (vue === 'calendrier') placerAgenda();
     if (vue === 'bible') placerBible();
     if (vue === 'lettres') placerLettre();
@@ -886,6 +960,8 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
       else { theme = rg.dataset.theme; try { localStorage.setItem('esp_theme', theme); } catch (x) {} appliquerTheme(); }
       rendre(); return;
     }
+    var bs = ev.target.closest('[data-sac-type]');
+    if (bs) { demandeSac = bs.dataset.sacType; fSac = {}; sacEnvoye = ''; rendre(); window.scrollTo(0, 0); return; }
     var bm = ev.target.closest('[data-typeint],[data-messe]');
     if (bm) {
       var mi1 = $('m-int'), mm1 = $('m-msg'); if (mi1) fMesse.intention = mi1.value; if (mm1) fMesse.message = mm1.value;
@@ -896,7 +972,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
       return;
     }
     var b = ev.target.closest('[data-vue],[data-a],[data-texte],[data-fichier]'); if (!b) return;
-    if (b.dataset.vue) { if (b.dataset.vue === 'inscriptions') inscriptions = null; if (b.dataset.vue === 'profil') { profil = null; etapeMail = ''; } if (b.dataset.vue === 'messe') { messeEnvoyee = 0; chargerMesses(true); } vue = b.dataset.vue; ouvert = null; lettreOuverte = null; signale = null; ajoutParrain = false; retraitParrain = null; demandeCor = false; rendre(); window.scrollTo(0, 0); return; }
+    if (b.dataset.vue) { if (b.dataset.vue === 'sacrements') { demandeSac = ''; sacEnvoye = ''; chargerSacrements(true); } if (b.dataset.vue === 'inscriptions') inscriptions = null; if (b.dataset.vue === 'profil') { profil = null; etapeMail = ''; } if (b.dataset.vue === 'messe') { messeEnvoyee = 0; chargerMesses(true); } vue = b.dataset.vue; ouvert = null; lettreOuverte = null; signale = null; ajoutParrain = false; retraitParrain = null; demandeCor = false; rendre(); window.scrollTo(0, 0); return; }
     if (b.dataset.texte) {
       vue = 'textes'; ouvert = b.dataset.texte;
       var t = d.textes.filter(function (x) { return x.id === ouvert; })[0];
@@ -915,6 +991,21 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
       return;
     }
     var a = b.dataset.a;
+    if (a === 'sac-retour') { demandeSac = ''; rendre(); return; }
+    if (a === 'sac-envoyer') {
+      lireSac();
+      var F = FORMS_SAC[demandeSac], manque = F.champs.filter(function (c) { return c[0] !== 'g' && c[2] && !String(fSac[c[0]] !== undefined ? fSac[c[0]] : prerempli(c[0])).trim(); });
+      if (manque.length) { message('zsac', 'Merci de remplir : ' + manque.map(function (c) { return c[1]; }).join(', ') + '.'); return; }
+      if (demandeSac === 'bapteme' && !(fSac.pere_nom || fSac.mere_nom_jeune_fille)) { message('zsac', 'Indiquez au moins un des parents (nom du père ou nom de jeune fille de la mère).'); return; }
+      var champs = {}; F.champs.forEach(function (c) { if (c[0] !== 'g') champs[c[0]] = fSac[c[0]] !== undefined ? fSac[c[0]] : prerempli(c[0]); });
+      var typeSac = demandeSac, nomSac = F.titre;
+      b.disabled = true;
+      (typeSac === 'acte' ? appel('esp.acteApp', champs) : appel('esp.sacrement', { type: typeSac, champs: champs })).then(function () {
+        demandeSac = ''; fSac = {}; sacEnvoye = typeSac === 'acte' ? 'Votre demande d\'acte de baptême est envoyée : vous le recevrez par mail.' : 'Votre demande (' + nomSac + ') est envoyée. La paroisse va vous recontacter.';
+        chargerSacrements(true); rendre(); window.scrollTo(0, 0);
+      }).catch(function (er) { b.disabled = false; message('zsac', er.message); });
+      return;
+    }
     if (a === 'mail-changer') { etapeMail = 'saisie'; rendre(); return; }
     if (a === 'mail-annuler') { etapeMail = ''; rendre(); return; }
     if (a === 'messe-envoyer') {
@@ -1039,9 +1130,11 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     c = ''; d = null; vue = 'accueil';
     visiteur();
   }
+  function lireSac() { Array.prototype.forEach.call(document.querySelectorAll('[data-sac]'), function (x) { fSac[x.dataset.sac] = x.value; }); }
   document.addEventListener('input', function (ev) { if (ev.target.id === 'sigtexte') sigTexte = ev.target.value; var k = ev.target.dataset && ev.target.dataset.k; if (k && brouillon) brouillon[k] = ev.target.value; });
   document.addEventListener('change', function (ev) {
     if (ev.target.id === 'd-mineur') { lireDemande(); rendre(); return; }
+    if (ev.target.dataset && ev.target.dataset.sac === 'pour') { lireSac(); if (fSac.pour === 'enfant') { fSac.prenoms = ''; } else { delete fSac.prenoms; } rendre(); return; }
     var nk = ev.target.dataset && ev.target.dataset.notif;
     if (nk) {
       var o = {}; o[nk] = ev.target.checked;

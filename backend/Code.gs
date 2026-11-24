@@ -72,6 +72,7 @@ function doPost(e) {
     if (action === 'public.demande') return json_({ ok: true, data: recevoirDemandePublique_(p) });
     if (action === 'public.infos') return json_({ ok: true, data: infosPubliques_(p) });
     if (action === 'public.notif') return json_({ ok: true, data: derniereNotifPublique_() });
+    if (action === 'public.dons') return json_({ ok: true, data: causesPubliques_() });
     if (/^par\./.test(action)) return json_({ ok: true, data: actionParrain_(action, p) });
     if (/^rej\./.test(action)) return json_({ ok: true, data: actionRejoindre_(action, p) });
     if (/^chef\./.test(action)) return json_({ ok: true, data: actionChef_(action, p) });
@@ -197,6 +198,8 @@ var ROUTES = {
   'paroissiens.modifier':  { fn: function (p, s) { return modifierCompteRoute_(p, s); } },
   'paroissiens.inviter':   { fn: function (p, s) { return inviterComptesRoute_(p, s); } },
   'paroissiens.migrer':    { fn: function (p, s) { return migrerEspacesRoute_(p, s); } },
+  'paroissiens.dons':      { fn: function (p, s) { return causesDons_(); } },
+  'paroissiens.donsEcrire': { fn: function (p, s) { return ecrireCausesDons_(p, s); } },
   'charte.etat':           { fn: function (p, s) { return etatCharte_(s.uid); } },
   'charte.accepter':       { fn: function (p, s) { return accepterCharte_(p, s); } },
   'textes.liste':          { fn: function (p, s) { return listerTextes_(p, s); }, droit: 'dossiers' },

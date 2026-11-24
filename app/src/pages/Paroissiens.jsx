@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Check, X, HelpCircle, Mail, PauseCircle, PlayCircle, Trash2, Send, Users, ShieldCheck, Crown, Loader2, Search, FolderHeart, UserCheck, UserX } from 'lucide-react'
+import { Plus, HeartHandshake, Check, X, HelpCircle, Mail, PauseCircle, PlayCircle, Trash2, Send, Users, ShieldCheck, Crown, Loader2, Search, FolderHeart, UserCheck, UserX } from 'lucide-react'
 import { api } from '../api.js'
 import { useApp } from '../App.jsx'
 import { Chargement, Erreur, EnTete, Modale, Vide, dateCourte, dateHeure, useCharger, useConfirmer, useNotif } from '../ui.jsx'
@@ -9,7 +9,7 @@ const COULEUR = {
   attente: 'bg-or-100 text-or-600', precisions: 'bg-or-50 text-or-600', invite: 'bg-nuit-50 text-nuit', actif: 'bg-green-50 text-green-800',
   refuse: 'bg-red-50 text-red-700', suspendu: 'bg-red-50 text-red-700', desactive: 'bg-nuit-50 text-nuit-600'
 }
-const VUES = [['demandes', 'Demandes'], ['comptes', 'Comptes'], ['inviter', 'Inviter']]
+const VUES = [['demandes', 'Demandes'], ['comptes', 'Comptes'], ['inviter', 'Inviter'], ['dons', 'Dons']]
 
 /** Rappel RGPD affiché sur la page (données personnelles des paroissiens). */
 function RappelRgpd() {
@@ -90,7 +90,7 @@ export default function Paroissiens() {
             </div>
           )}
         </>
-      ) : <Inviter onFait={recharger} />}
+      ) : vue === 'dons' ? <Dons modifiable={utilisateur.role === 'admin' || utilisateur.role === 'cure'} /> : <Inviter onFait={recharger} />}
       {ouvert?.mode === 'fiche' && <Fiche c={ouvert.c} statuts={data.statuts} occupe={occupe} operer={operer} onFermer={() => setOuvert(null)} />}
       {(ouvert?.mode === 'refuser' || ouvert?.mode === 'precisions') && <Reponse c={ouvert.c} mode={ouvert.mode} occupe={occupe} operer={operer} onFermer={() => setOuvert(null)} />}
     </>
@@ -234,6 +234,48 @@ function Inviter({ onFait }) {
           {rapport.deja.length > 0 && <div>Déjà un compte : {rapport.deja.join(', ')}</div>}
           {rapport.sans_adresse.length > 0 && <div className="text-or-600">Sans adresse (à compléter dans Cor Unum) : {rapport.sans_adresse.join(', ')}</div>}
           {rapport.refuses.length > 0 && <div className="text-red-700">Non invités (compte refusé ou suspendu) : {rapport.refuses.join(', ')}</div>}
+        </div>
+      )}
+    </>
+  )
+}
+
+/** Causes de dons : formulaires de don HelloAsso proposés dans l'app (accueil et partie publique). */
+function Dons({ modifiable }) {
+  const notifier = useNotif()
+  const { data, chargement, erreur, setData } = useCharger(() => api('paroissiens.dons'), [])
+  const [l, setL] = useState(null)
+  const [envoi, setEnvoi] = useState(false)
+  const liste = l ?? data ?? []
+  const maj = (i, k, v) => setL(liste.map((c, j) => (j === i ? { ...c, [k]: v } : c)))
+  async function enregistrer() {
+    setEnvoi(true)
+    try { const r = await api('paroissiens.donsEcrire', { causes: liste }); setData(r); setL(null); notifier('Causes enregistrées') }
+    catch (e) { notifier(e.message, 'erreur') } finally { setEnvoi(false) }
+  }
+  return (
+    <>
+      <p className="mb-3 text-sm text-nuit-600">Les causes actives apparaissent dans l'app, sur l'accueil et dans la partie publique, avec un bouton vers votre formulaire de don HelloAsso (qui fait le reçu fiscal). Une annonce peut aussi porter un bouton « Faire un don » (tuile Annonces → modifier l'annonce).</p>
+      <Erreur erreur={erreur} />
+      {chargement && !data ? <Chargement /> : (
+        <div className="space-y-3">
+          {!liste.length && <Vide icone={HeartHandshake} texte="Aucune cause de don pour le moment." />}
+          {liste.map((c, i) => (
+            <div key={c.id || i} className="carte space-y-2 p-4">
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div><label className="etiquette">Nom de la cause</label><input className="champ" disabled={!modifiable} value={c.titre} maxLength={80} onChange={(e) => maj(i, 'titre', e.target.value)} placeholder="Soutenir la paroisse" /></div>
+                <div><label className="etiquette">Lien du formulaire de don HelloAsso</label><input className="champ" disabled={!modifiable} value={c.url} onChange={(e) => maj(i, 'url', e.target.value)} placeholder="https://www.helloasso.com/associations/…/formulaires/…" /></div>
+              </div>
+              <div><label className="etiquette">Texte court (facultatif)</label><input className="champ" disabled={!modifiable} value={c.texte} maxLength={300} onChange={(e) => maj(i, 'texte', e.target.value)} placeholder="Chauffage de l'église, travaux…" /></div>
+              {modifiable && <div className="flex items-center gap-3 text-sm"><label className="flex items-center gap-2"><input type="checkbox" checked={c.actif !== false} onChange={(e) => maj(i, 'actif', e.target.checked)} />Proposée dans l'app</label>
+                <button className="btn ml-auto text-xs text-red-700 hover:bg-red-50" onClick={() => setL(liste.filter((_, j) => j !== i))}><Trash2 className="h-3.5 w-3.5" />Retirer</button></div>}
+            </div>
+          ))}
+          {modifiable && <div className="flex gap-2">
+            <button className="btn-clair" onClick={() => setL([...liste, { titre: '', texte: '', url: '', actif: true }])}><Plus className="h-4 w-4" />Ajouter une cause</button>
+            <button className="btn-principal" disabled={envoi || l === null} onClick={enregistrer}>{envoi && <Loader2 className="h-4 w-4 animate-spin" />}Enregistrer</button>
+          </div>}
+          {!modifiable && <p className="text-xs text-nuit-600/70">Seuls le curé et les administrateurs modifient les causes.</p>}
         </div>
       )}
     </>

@@ -585,7 +585,8 @@ export async function demoApi(action, p) {
         { id: 'dp1', prenom: 'Jeanne', nom: 'Exemple', mail: 'jeanne@exemple.fr', telephone: '06 00 00 00 10', statut: 'attente', cree_le: new Date().toISOString(), demande: { messe: 'Dimanche 10 h 30', liens: ['Messe le dimanche'], connait: 'Famille Exemple', mot: '' }, rapprochement: [{ source: 'Cor Unum', id: 'x', nom: 'Jeanne Exemple', detail: 'pas encore dans une fraternité', raisons: ['même adresse'] }] },
         { id: 'dp2', prenom: 'Louis', nom: 'Modèle', mail: 'louis@exemple.fr', telephone: '06 00 00 00 11', statut: 'actif', cree_le: '2026-10-01T10:00:00Z', derniere_visite: new Date().toISOString(), cor: true, chef: 'Saint-Joseph', rapprochement: [] }
       ] }
-    case 'annonces.notifier':
+    case 'paroissiens.dons': return [{ id: 'd1', titre: 'Soutenir la paroisse', texte: 'Démo', url: 'https://www.helloasso.com/', actif: true }]
+    case 'annonces.notifier': case 'paroissiens.donsEcrire':
     case 'paroissiens.modifier': case 'paroissiens.inviter': case 'paroissiens.migrer': throw new Error('Démo : rien n\'est enregistré ni envoyé.')
     case 'charte.etat': case 'charte.accepter': return { acceptee_le: new Date().toISOString(), a_accepter: false, texte: [], responsable: '', contact: '' }
     default: throw new Error('Démo : action non simulée ' + action)
