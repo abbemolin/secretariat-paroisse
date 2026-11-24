@@ -324,6 +324,7 @@ function actionEspace_(action, p) {
   }
   if (action === 'esp.lettres') return { lettres: lettresApp_(), lettre_mail: abonnementNewsletter_(mailDossier_(d)) };
   if (action === 'esp.lettre') return lettreApp_(p.id);
+  if (action === 'esp.inscriptions') return mesInscriptions_(mailDossier_(d));
   if (action === 'esp.messes') return { messes: messesProposees_(), mes_intentions: mesIntentions_(mailDossier_(d)), offrande: offrandeTexte_(), max: INT_APP_MAX };
   if (action === 'esp.demanderMesse') {
     var rm = demanderMessesApp_({ mail: mailDossier_(d), nom: ((i0.prenoms || '') + ' ' + (i0.nom || '')).trim() || d.nom }, p);

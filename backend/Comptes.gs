@@ -15,7 +15,7 @@
 
 var COLONNES_COMPTES = ['id', 'mail', 'prenom', 'nom', 'telephone', 'statut', 'dossier_id', 'cor_ids', 'hash', 'sel', 'mdp_maj', 'session_v',
   'jeton', 'jeton_exp', 'demande', 'rapprochement', 'cree_le', 'valide_par', 'valide_le', 'motif', 'derniere_visite', 'prefs', 'favoris',
-  'confidentialite_le', 'statut_le', 'maj_le'];
+  'confidentialite_le', 'statut_le', 'maj_le', 'adresse'];
 // attente : demande à examiner · precisions : précisions demandées · invite : accès accordé, mot de passe à choisir
 // actif · refuse · suspendu · desactive (18 mois sans connexion)
 var STATUTS_COMPTE = { attente: 'Demande à examiner', precisions: 'Précisions demandées', invite: 'Invité (mot de passe à choisir)', actif: 'Actif',
@@ -241,7 +241,7 @@ function noterVisiteCompte_(x) {
 /** « Mes données » : tout ce que la paroisse garde sur la personne dans l'app (sans le mot de passe). */
 function mesDonnees_(x) {
   var r = { compte: {}, dossier: null, cor_unum: [] };
-  ['mail', 'prenom', 'nom', 'telephone', 'statut', 'cree_le', 'valide_le', 'derniere_visite', 'confidentialite_le'].forEach(function (k) { r.compte[k] = x[k] || ''; });
+  ['mail', 'prenom', 'nom', 'telephone', 'adresse', 'statut', 'cree_le', 'valide_le', 'derniere_visite', 'confidentialite_le'].forEach(function (k) { r.compte[k] = x[k] || ''; });
   r.compte.demande = json2_(x.demande, null);
   r.compte.preferences = prefsCompte_(x);
   r.compte.versets_gardes = (json2_(x.favoris, {}).liste || []).length;
@@ -397,6 +397,11 @@ function actionCompte_(action, p) {
   if (action === 'cpt.mesDonnees') return mesDonnees_(x);
   if (action === 'cpt.lettres') return { lettres: lettresApp_(), lettre_mail: abonnementNewsletter_(x.mail) };
   if (action === 'cpt.lettre') return lettreApp_(p.id);
+  if (action === 'cpt.profil') return profilCompte_(x);
+  if (action === 'cpt.profilModifier') return modifierProfil_(x, p);
+  if (action === 'cpt.mailCode') return codeNouveauMail_(x, p.nouveau);
+  if (action === 'cpt.mailChanger') return changerMail_(x, p.code);
+  if (action === 'cpt.inscriptions') return mesInscriptions_(x.mail);
   if (action === 'cpt.messes') return { messes: messesProposees_(), mes_intentions: mesIntentions_(x.mail), offrande: offrandeTexte_(), max: INT_APP_MAX };
   if (action === 'cpt.demanderMesse') {
     var rm = demanderMessesApp_({ mail: x.mail, nom: (x.prenom + ' ' + x.nom).trim() }, p);
@@ -458,7 +463,7 @@ function supprimerCompte_(x, par) {
 
 function comptePublic_(x) {
   return {
-    id: x.id, mail: x.mail, prenom: x.prenom, nom: x.nom, telephone: x.telephone, statut: x.statut, statut_le: x.statut_le || '', a_mot_de_passe: !!x.hash,
+    id: x.id, mail: x.mail, prenom: x.prenom, nom: x.nom, telephone: x.telephone, adresse: x.adresse || '', statut: x.statut, statut_le: x.statut_le || '', a_mot_de_passe: !!x.hash,
     dossier_id: x.dossier_id || '', demande: json2_(x.demande, null), rapprochement: json2_(x.rapprochement, []), cree_le: x.cree_le, valide_par: x.valide_par || '',
     valide_le: x.valide_le || '', motif: x.motif || '', derniere_visite: x.derniere_visite || '', confidentialite_le: x.confidentialite_le || '',
     invitation_exp: x.statut === 'invite' ? x.jeton_exp || '' : ''

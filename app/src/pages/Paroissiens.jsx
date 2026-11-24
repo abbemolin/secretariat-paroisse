@@ -167,6 +167,7 @@ function Fiche({ c, statuts, occupe, operer, onFermer }) {
       <div className="mt-3 divide-y divide-nuit-50">
         {ligne('Adresse', c.mail || 'aucune (une adresse par adulte)')}
         {ligne('Téléphone', c.telephone)}
+        {ligne('Adresse postale', c.adresse)}
         {ligne('Chef de fraternité', c.chef)}
         {ligne('Compte créé', dateHeure(c.cree_le))}
         {ligne('Accepté par', c.valide_par ? `${c.valide_par}, ${dateCourte(c.valide_le)}` : '')}
