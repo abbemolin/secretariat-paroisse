@@ -71,6 +71,7 @@ function doPost(e) {
     if (action === 'auth.login') return json_({ ok: true, data: login_(p) });
     if (action === 'public.demande') return json_({ ok: true, data: recevoirDemandePublique_(p) });
     if (action === 'public.infos') return json_({ ok: true, data: infosPubliques_(p) });
+    if (action === 'public.notif') return json_({ ok: true, data: derniereNotifPublique_() });
     if (/^par\./.test(action)) return json_({ ok: true, data: actionParrain_(action, p) });
     if (/^rej\./.test(action)) return json_({ ok: true, data: actionRejoindre_(action, p) });
     if (/^chef\./.test(action)) return json_({ ok: true, data: actionChef_(action, p) });
@@ -208,6 +209,7 @@ var ROUTES = {
   'annonces.liste':        { fn: function (p, s) { return listerAnnonces_(p, s); }, droit: 'annonces' },
   'annonces.ecrire':       { fn: function (p, s) { return ecrireAnnonce_(p, s); }, droit: 'annonces' },
   'annonces.supprimer':    { fn: function (p, s) { return supprimerAnnonce_(p, s); }, droit: 'annonces' },
+  'annonces.notifier':     { fn: function (p, s) { return notifierAnnonce_(p, s); }, droit: 'annonces' },
   'annonces.ordre':        { fn: function (p, s) { return ordonnerAnnonces_(p, s); }, droit: 'annonces' },
   'annonces.image':        { fn: function (p, s) { return imageAnnonce_(p, s); }, droit: 'annonces' },
   'newsletter.semaine':    { fn: function (p, s) { return semaineNewsletter_(p, s); }, droit: 'annonces' },

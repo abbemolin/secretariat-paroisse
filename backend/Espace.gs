@@ -299,9 +299,10 @@ function actionEspace_(action, p) {
     verrou_(function () {
       var x = lignes_('Espaces').filter(function (y) { return y.dossier_id === esp.dossier_id; })[0];
       var pr = json2_(x.prefs, {});
-      ['textes', 'reponses', 'anniversaire'].forEach(function (k) { if (p.notifs && typeof p.notifs[k] === 'boolean') pr[k] = p.notifs[k]; });
+      ['textes', 'reponses', 'anniversaire', 'annonces'].forEach(function (k) { if (p.notifs && typeof p.notifs[k] === 'boolean') pr[k] = p.notifs[k]; });
       x.prefs = JSON.stringify(pr); ecrireLigne_('Espaces', x);
     });
+    if (p.notifs && typeof p.notifs.lettre_mail === 'boolean') { var i1 = json2_(d.donnees, {}).infos || {}; changerAbonnementNewsletter_(mailDossier_(d), i1.prenoms, i1.nom, p.notifs.lettre_mail); }
     return vueEspace_(d);
   }
   if (action === 'esp.lu') {
@@ -321,6 +322,8 @@ function actionEspace_(action, p) {
     var b = DriveApp.getFileById(fi.id).getBlob();
     return { nom: fi.nom, type: b.getContentType(), base64: Utilities.base64Encode(b.getBytes()) };
   }
+  if (action === 'esp.lettres') return { lettres: lettresApp_(), lettre_mail: abonnementNewsletter_(mailDossier_(d)) };
+  if (action === 'esp.lettre') return lettreApp_(p.id);
   if (action === 'esp.push') {
     if (p.desabonner) return desabonnerPush_({ endpoint: p.endpoint });
     return abonnerPush_({ endpoint: p.endpoint, appareil: p.appareil }, { uid: 'esp:' + d.id });
@@ -873,7 +876,7 @@ function prefsNotifsEspace_(id) {
   var x = null;
   try { x = lignes_('Espaces').filter(function (y) { return y.dossier_id === id; })[0]; } catch (e) {}
   var pr = json2_(x && x.prefs, {});
-  return { textes: pr.textes !== false, reponses: pr.reponses !== false, anniversaire: pr.anniversaire !== false };
+  return { textes: pr.textes !== false, reponses: pr.reponses !== false, anniversaire: pr.anniversaire !== false, annonces: pr.annonces !== false };
 }
 function pushEspace_(id, sorte) {
   try { if (prefsNotifsEspace_(id)[sorte] === false) return; envoyerPush_('esp:' + id); } catch (e) {}

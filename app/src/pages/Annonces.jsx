@@ -1,7 +1,7 @@
 // Annonces : reprise de annonces.html (AppMesse) dans l'interface du secrétariat.
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Megaphone, Plus, Pencil, Trash2, Flag, Check, Circle, GripVertical, CalendarDays, Link2, Image as ImageIcon, Mail, Printer, Loader2, Upload, Copy, CopyPlus, MessageCircle } from 'lucide-react'
+import { Megaphone, Plus, Pencil, Trash2, Flag, Check, Circle, GripVertical, CalendarDays, Link2, Image as ImageIcon, Mail, Printer, Loader2, Upload, Copy, CopyPlus, MessageCircle, BellRing } from 'lucide-react'
 import { api, fichierEnBase64 } from '../api.js'
 import { Chargement, EnTete, Erreur, Interrupteur, Modale, Vide, useCharger, useConfirmer, useNotif } from '../ui.jsx'
 import { isoLocal } from '../annonces/semaine.js'
@@ -76,6 +76,18 @@ export default function Annonces() {
       recharger()
     } catch (e) { setData((l) => (l || []).map((x) => (x.id === a.id ? { ...x, [champ]: a[champ] } : x))); notifier(e.message, 'erreur') }
   }
+  /** Notification sur les téléphones des paroissiens (app « La Croix glorieuse »). */
+  async function notifierA(a, encore = false) {
+    if (!encore && !(await confirmer({ titre: 'Notifier les paroissiens', texte: `« ${a.titre} » : une notification part sur les téléphones des paroissiens qui ont installé l'app (sauf ceux qui ont coupé les annonces).`, bouton: 'Notifier' }))) return
+    try {
+      const r = await api('annonces.notifier', { id: a.id, encore })
+      notifier(r.appareils ? `Notification envoyée (${r.appareils} appareil${r.appareils > 1 ? 's' : ''})` : 'Aucun téléphone abonné pour le moment')
+      setData((d) => (d || []).map((x) => (x.id === a.id ? { ...x, notifie_le: r.le } : x)))
+    } catch (e) {
+      if (e.code === 'DEJA' && await confirmer({ titre: 'Déjà notifiée', texte: e.message + '\n\nNotifier encore une fois ?', bouton: 'Notifier encore' })) return notifierA(a, true)
+      if (e.code !== 'DEJA') notifier(e.message, 'erreur')
+    }
+  }
   async function supprimer(a) {
     if (!(await confirmer({ titre: 'Supprimer l\'annonce', texte: `Supprimer « ${a.titre} » ? Cette action est irréversible.`, bouton: 'Supprimer', danger: true }))) return
     try { await api('annonces.supprimer', { id: a.id }); notifier('Annonce supprimée'); recharger() } catch (e) { notifier(e.message, 'erreur') }
@@ -113,7 +125,7 @@ export default function Annonces() {
   }
 
   const carte = (a) => (
-    <Carte key={a.id} a={a} glisse={glisse} onModifier={() => setFiche(a)} onSupprimer={() => supprimer(a)}
+    <Carte key={a.id} a={a} glisse={glisse} onModifier={() => setFiche(a)} onSupprimer={() => supprimer(a)} onNotifier={() => notifierA(a)}
       onDupliquer={() => setFiche({ ...a, id: undefined, event_date: '', event_heure: '', date_debut: '', date_fin: '', _copie: true })}
       onPrio={() => basculer(a, 'prioritaire', ['Priorité retirée', 'Annonce prioritaire'])}
       onActif={() => basculer(a, 'actif', ['Annonce désactivée', 'Annonce activée'])}
@@ -151,7 +163,7 @@ export default function Annonces() {
   )
 }
 
-function Carte({ a, glisse, poignee, onModifier, onDupliquer, onSupprimer, onPrio, onActif }) {
+function Carte({ a, glisse, poignee, onModifier, onDupliquer, onSupprimer, onPrio, onActif, onNotifier }) {
   const expiree = a.date_fin && a.date_fin < aujourdhui()
   const chips = []
   if (a.event_date) chips.push([CalendarDays, fmtDate(a.event_date) + (a.event_heure ? ' à ' + a.event_heure.slice(0, 5) : ''), 'bg-or-50 text-or-600'])
@@ -159,6 +171,7 @@ function Carte({ a, glisse, poignee, onModifier, onDupliquer, onSupprimer, onPri
   if (a.image_url) chips.push([ImageIcon, 'Image', 'bg-nuit-50 text-nuit-600'])
   if (a.dans_newsletter) chips.push([Mail, 'Newsletter', 'bg-sky-50 text-sky-800'])
   if (a.dans_feuille) chips.push([Printer, 'Feuille', 'bg-emerald-50 text-emerald-800'])
+  if (a.notifie_le) chips.push([BellRing, 'Notifiée le ' + new Date(a.notifie_le).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }), 'bg-or-50 text-or-600'])
   if (!a.actif) chips.push([null, 'Inactive', 'bg-gray-100 text-gray-600'])
   if (expiree) chips.push([null, 'Expirée', 'bg-gray-100 text-gray-600'])
   const source = glisse?.src === a.id, cible = glisse?.over === a.id && !source
@@ -178,6 +191,7 @@ function Carte({ a, glisse, poignee, onModifier, onDupliquer, onSupprimer, onPri
         <button className={`btn text-xs ${a.actif ? 'bg-emerald-50 text-emerald-800' : 'text-nuit-600 hover:bg-nuit-50'}`} onClick={onActif}>{a.actif ? <Check className="h-3.5 w-3.5" /> : <Circle className="h-3.5 w-3.5" />}{a.actif ? 'Active' : 'Inactive'}</button>
         <button className="btn text-xs text-nuit-600 hover:bg-nuit-50" onClick={onModifier}><Pencil className="h-3.5 w-3.5" />Modifier</button>
         <button className="btn text-xs text-nuit-600 hover:bg-nuit-50" onClick={onDupliquer}><CopyPlus className="h-3.5 w-3.5" />Dupliquer</button>
+        {a.actif && !a._enAttente && <button className="btn text-xs text-nuit-600 hover:bg-nuit-50" onClick={onNotifier} title="Notification sur les téléphones des paroissiens"><BellRing className="h-3.5 w-3.5" />Notifier</button>}
         <button className="btn ml-auto text-xs text-red-700 hover:bg-red-50" onClick={onSupprimer}><Trash2 className="h-3.5 w-3.5" />Supprimer</button>
       </div>
     </div>

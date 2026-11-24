@@ -375,6 +375,7 @@ function actionCompte_(action, p) {
       ['textes', 'reponses', 'annonces'].forEach(function (k) { if (p.notifs && typeof p.notifs[k] === 'boolean') pr[k] = p.notifs[k]; });
       y.prefs = JSON.stringify(pr); ecrireLigne_('Comptes', y);
     });
+    if (p.notifs && typeof p.notifs.lettre_mail === 'boolean') changerAbonnementNewsletter_(x.mail, x.prenom, x.nom, p.notifs.lettre_mail);
     return vueCompte_(compteParId_(x.id));
   }
   if (action === 'cpt.favoris') {
@@ -394,6 +395,8 @@ function actionCompte_(action, p) {
     return abonnerPush_({ endpoint: p.endpoint, appareil: p.appareil }, { uid: 'cpt:' + x.id });
   }
   if (action === 'cpt.mesDonnees') return mesDonnees_(x);
+  if (action === 'cpt.lettres') return { lettres: lettresApp_(), lettre_mail: abonnementNewsletter_(x.mail) };
+  if (action === 'cpt.lettre') return lettreApp_(p.id);
   if (action === 'cpt.partout') {
     verrou_(function () { var y = compteParId_(x.id); y.session_v = Number(y.session_v || 0) + 1; ecrireLigne_('Comptes', y); });
     return true;
