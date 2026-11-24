@@ -8,6 +8,7 @@ export default function Breviaire() {
   const ref = useRef(null)
   const [params] = useSearchParams()
   const date = params.get('date') || ''
-  useEffect(() => monterBreviaire(ref.current, { date }), [date])
+  const heure = params.get('heure') || ''
+  useEffect(() => monterBreviaire(ref.current, { date, heure }), [date, heure])
   return <div ref={ref} />
 }

@@ -1,9 +1,48 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Loader2, FolderHeart, HeartHandshake, GraduationCap, ScrollText, Mountain, CornerDownLeft } from 'lucide-react'
+import { Search, Loader2, FolderHeart, HeartHandshake, GraduationCap, ScrollText, Mountain, CornerDownLeft, Church, Megaphone, BookOpenText, Sun } from 'lucide-react'
 import { api } from '../api.js'
+import { useApp } from '../App.jsx'
+import { chargerCalendrier, jourLiturgique } from '../liturgie/calendrier.js'
 
-const ICONES = { dossiers: FolderHeart, cor: HeartHandshake, cate: GraduationCap, extraits: ScrollText, retraites: Mountain }
+const ICONES = { dossiers: FolderHeart, cor: HeartHandshake, cate: GraduationCap, extraits: ScrollText, retraites: Mountain, intentions: Church, annonces: Megaphone, bible: BookOpenText, fetes: Sun }
+const sa = (x) => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+const deux = (n) => String(n).padStart(2, '0')
+
+/** Fêtes du calendrier (« Odile », « Assomption ») : les prochaines dates sur deux ans. */
+async function chercherFetes(q) {
+  await chargerCalendrier()
+  const mots = sa(q).split(/\s+/).filter(Boolean), vus = new Set(), items = []
+  const d = new Date(); d.setHours(12, 0, 0, 0)
+  for (let i = 0; i < 731 && items.length < 8; i++, d.setDate(d.getDate() + 1)) {
+    const j = jourLiturgique(d.getFullYear(), d.getMonth() + 1, d.getDate())
+    const texte = [j?.fete, j?.commemoration, j?.romain].filter(Boolean).join(' ')
+    if (!j || !mots.every((m) => sa(texte).includes(m))) continue
+    const iso = `${d.getFullYear()}-${deux(d.getMonth() + 1)}-${deux(d.getDate())}`
+    if (vus.has(j.fete)) continue
+    vus.add(j.fete)
+    items.push({ titre: j.fete, sous: d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + (j.classe ? ' · ' + j.classe : ''), lien: `/ordo?jour=${iso}` })
+  }
+  return items.length ? [{ cle: 'fetes', titre: 'Fêtes du calendrier', total: items.length, items }] : []
+}
+
+/** Bible : une référence (« Mt 5, 3 », « 1 Co 13 ») ou des mots (4 lettres au moins). */
+async function chercherBible(q) {
+  const { lireReference, rechercher, versetsDe } = await import('../liturgie/bible.js')
+  const r = lireReference(q)
+  if (r) {
+    let texte = ''
+    try { const v = await versetsDe(r.livre, r.chapitre); texte = (r.verset ? v.find((x) => x.n === r.verset) : v[0])?.texte || '' } catch { /* hors ligne */ }
+    const ref = `${r.livre} ${r.chapitre}${r.verset ? ', ' + r.verset + (r.fin && r.fin !== r.verset ? '-' + r.fin : '') : ''}`
+    return [{ cle: 'bible', titre: 'Bible', total: 1, items: [{ titre: ref, sous: texte, lien: `/bible?livre=${encodeURIComponent(r.livre)}&chapitre=${r.chapitre}${r.verset ? '&verset=' + r.verset : ''}${r.fin ? '&fin=' + r.fin : ''}` }] }]
+  }
+  if (q.trim().length < 4) return []
+  // Mot entier au début (« odile » ne ramène pas « crocodile »)
+  const debutMot = new RegExp('(^|[^a-z0-9])' + sa(q.trim()).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  const l = (await rechercher(q.trim()).catch(() => []) || []).filter((v) => debutMot.test(sa(v.texte)))
+  if (!l.length) return []
+  return [{ cle: 'bible', titre: 'Passages de la Bible', total: l.length, items: l.slice(0, 8).map((v) => ({ titre: `${v.livre} ${v.chapitre}, ${v.verset_num}`, sous: v.texte, lien: `/bible?livre=${encodeURIComponent(v.livre)}&chapitre=${v.chapitre}&verset=${v.verset_num}` })) }]
+}
 
 /** Champ « Rechercher… » du menu ; ouvre la recherche globale (aussi avec Ctrl+K / ⌘K). */
 export function BoutonRecherche({ mobile }) {
@@ -24,6 +63,8 @@ export function BoutonRecherche({ mobile }) {
 
 function Recherche({ onFermer }) {
   const nav = useNavigate()
+  const { peut } = useApp()
+  const liturgie = peut('liturgie')
   const [q, setQ] = useState('')
   const [res, setRes] = useState(null)
   const [charge, setCharge] = useState(false)
@@ -34,7 +75,13 @@ function Recherche({ onFermer }) {
     if (q.trim().length < 2) { setRes(null); return }
     const t = setTimeout(async () => {
       dernier.current = q; setCharge(true)
-      try { const r = await api('recherche', { q }); if (dernier.current === q) { setRes(r.groupes); setSel(0) } } catch { if (dernier.current === q) setRes([]) } finally { if (dernier.current === q) setCharge(false) }
+      // Le serveur (dossiers, intentions, annonces…) et, sur l'appareil, la Bible et le calendrier liturgique
+      const [serveur, bible, fetes] = await Promise.all([
+        api('recherche', { q }).then((r) => r.groupes).catch(() => []),
+        liturgie ? chercherBible(q).catch(() => []) : [],
+        liturgie ? chercherFetes(q).catch(() => []) : []
+      ])
+      if (dernier.current === q) { setRes([...serveur, ...fetes, ...bible]); setSel(0); setCharge(false) }
     }, 280)
     return () => clearTimeout(t)
   }, [q])
@@ -53,11 +100,11 @@ function Recherche({ onFermer }) {
       <div className="w-full max-w-xl overflow-hidden rounded-2xl bg-white text-nuit shadow-2xl animate-entree">
         <div className="flex items-center gap-3 border-b border-nuit-100 px-4">
           {charge ? <Loader2 className="h-5 w-5 animate-spin text-or" /> : <Search className="h-5 w-5 text-nuit-600/50" />}
-          <input ref={champ} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={clavier} placeholder="Nom, prénom, e-mail, téléphone…" className="flex-1 border-0 bg-transparent py-4 text-base outline-none" />
+          <input ref={champ} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={clavier} placeholder={liturgie ? 'Nom, intention, fête, passage (Mt 5, 3)…' : 'Nom, prénom, e-mail, téléphone…'} className="flex-1 border-0 bg-transparent py-4 text-base outline-none" />
           <button onClick={onFermer} className="rounded border border-nuit-100 px-1.5 text-[11px] text-nuit-600/60">Échap</button>
         </div>
         <div className="max-h-[60vh] overflow-y-auto p-2">
-          {res === null ? <p className="px-3 py-6 text-center text-sm text-nuit-600/60">Dossiers, fiches Cor Unum, catéchisme, extraits de baptême, retraites.</p>
+          {res === null ? <p className="px-3 py-6 text-center text-sm text-nuit-600/60">{[peut('dossiers') && 'Dossiers, Cor Unum, catéchisme, extraits, retraites', peut('intentions') && 'intentions de messe', peut('annonces') && 'annonces', liturgie && 'fêtes du calendrier, passages de la Bible'].filter(Boolean).join(' · ')}.</p>
             : !res.length ? <p className="px-3 py-6 text-center text-sm text-nuit-600/60">{charge ? 'Recherche…' : 'Aucun résultat.'}</p>
             : res.map((g) => {
               const I = ICONES[g.cle] || Search

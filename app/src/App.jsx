@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { BoutonRecherche } from './pages/RechercheGlobale.jsx'
+import MaJournee, { voitMaJournee } from './pages/MaJournee.jsx'
 import { Home, Mail, CalendarDays, FolderHeart, FolderOpen, Users, Settings, UserCircle, LogOut, Bell, ScrollText, GraduationCap, HeartHandshake, Mountain, Flame, BookOpen, BookMarked, BarChart3, LifeBuoy, MoreHorizontal, X, Megaphone, CalendarRange, Newspaper, LayoutGrid, Church, BookOpenText, Sun, Cross, BookHeart } from 'lucide-react'
 import { api, ecrireToken, enCache, lireToken, quandSessionExpire, estDemo, suivreFile, viderFile } from './api.js'
 import { Chargement, FournisseurNotif, ROLES, dateRelative, useNotif } from './ui.jsx'
@@ -101,7 +102,7 @@ const tuileDuChemin = (chemin) => {
 const NOM_TUILE = { annonces: 'Annonces et newsletter', liturgie: 'Liturgie', intentions: 'Intentions de messe' }
 
 function EcranTuiles({ tuiles }) {
-  const { utilisateur, deconnecter } = useApp()
+  const { utilisateur, deconnecter, peut } = useApp()
   const nav = useNavigate()
   const prenom = String(utilisateur.nom || '').replace(/^(abbé|père)\s+/i, '')
   return (
@@ -109,12 +110,14 @@ function EcranTuiles({ tuiles }) {
       <header className="flex items-center gap-3 bg-nuit px-4 py-3 text-white sm:px-8" style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}>
         <img src="./logo-128.png" alt="" className="h-9 w-9 rounded-full" />
         <span className="flex-1 font-titre text-xl font-semibold">La Croix glorieuse</span>
+        <BoutonRecherche mobile />
         <Cloche />
         <button onClick={deconnecter} className="rounded-lg p-2 text-white/80 hover:bg-white/10 hover:text-white" aria-label="Se déconnecter" title="Se déconnecter"><LogOut className="h-5 w-5" /></button>
       </header>
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-8 sm:py-14">
         <h1 className="text-4xl font-semibold text-nuit">Bonjour{prenom ? ', ' + (utilisateur.nom.match(/^abbé/i) ? 'abbé ' + prenom.split(' ').slice(-1)[0] : prenom.split(' ')[0]) : ''}</h1>
         <p className="mt-1 text-sm capitalize text-nuit-600">{new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+        {voitMaJournee(peut) && <MaJournee />}
         <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
           {tuiles.map((t) => {
             const I = t.icone
@@ -225,6 +228,11 @@ function Cloche() {
   const [ouvert, setOuvert] = useState(false)
   const [liste, setListe] = useState(null)
   const nav = useNavigate()
+  // « Ma journée » : ouvrir la cloche depuis « À traiter »
+  useEffect(() => {
+    const f = async () => { setOuvert(true); setListe(await api('notifications.liste', { limite: 20 }).catch(() => [])) }
+    window.addEventListener('ouvrir-cloche', f); return () => window.removeEventListener('ouvrir-cloche', f)
+  }, [])
   useEffect(() => {
     const t = setInterval(() => api('notifications.liste', { nonLues: true, limite: 50 }).then((l) => majDonnees({ nonLues: l.length })).catch(() => {}), 120000)
     return () => clearInterval(t)

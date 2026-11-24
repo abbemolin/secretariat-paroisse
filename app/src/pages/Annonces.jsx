@@ -1,5 +1,6 @@
 // Annonces : reprise de annonces.html (AppMesse) dans l'interface du secrétariat.
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Megaphone, Plus, Pencil, Trash2, Flag, Check, Circle, GripVertical, CalendarDays, Link2, Image as ImageIcon, Mail, Printer, Loader2, Upload, Copy, CopyPlus, MessageCircle } from 'lucide-react'
 import { api, fichierEnBase64 } from '../api.js'
 import { Chargement, EnTete, Erreur, Interrupteur, Modale, Vide, useCharger, useConfirmer, useNotif } from '../ui.jsx'
@@ -54,6 +55,12 @@ export default function Annonces() {
   const [whatsapp, setWhatsapp] = useState(false)
   const [glisse, setGlisse] = useState(null)      // { src, over }
   const annonces = data || []
+  // Ouverte depuis la recherche : ?id=…
+  const [params, setParams] = useSearchParams()
+  useEffect(() => {
+    const id = params.get('id'), a = id && data?.find((x) => String(x.id) === id)
+    if (a) { setFiche(a); setParams({}, { replace: true }) }
+  }, [data, params])   // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtrees = annonces.filter((a) => (filtre === 'actives' ? a.actif : filtre === 'inactives' ? !a.actif : filtre === 'prioritaires' ? a.prioritaire : true))
   const prioritaires = filtrees.filter((a) => a.prioritaire)

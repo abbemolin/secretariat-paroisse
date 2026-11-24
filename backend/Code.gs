@@ -96,6 +96,7 @@ var ROUTES = {
   'auth.motdepasse':       { fn: function (p, s) { return changerMotDePasse_(p, s); } },
   'app.init':              { fn: function (p, s) { return initApp_(p, s); } },
   'accueil.resume':        { fn: function (p, s) { return resumeAccueil_(p, s); } },
+  'journee.resume':        { fn: function (p, s) { return resumeJournee_(p, s); } },
   'accueil.blocs':         { fn: function (p, s) { return ecrirePrefsAccueil_(p, s); } },
   'registres':             { fn: function (p, s) { return registresRoute_(p, s); }, droit: 'dossiers' },
   'statistiques':          { fn: function (p, s) { return statistiquesRoute_(p, s); }, droit: 'utilisateurs' },
@@ -611,6 +612,26 @@ function resumeAccueil_(p, s) {
   res.notifications = listerNotifications_({ limite: 8 }, s);
   res.afaire = aFaire_(s);
   return res;
+}
+
+/** « Ma journée » (écran des tuiles, pour les prêtres) : mails qui me sont attribués, extraits à signer, mes dossiers, notifications.
+ *  Les messes et intentions sont lues à part (intentions.liste, intentions.agenda), comme dans la tuile Intentions. */
+function resumeJournee_(p, s) {
+  var d = s.droits, r = { mesMails: 0, aSigner: 0, mesDossiers: 0, nonLues: 0 };
+  var essai = function (fn) { try { fn(); } catch (e) { console.error('journee', e); } };
+  if (d.indexOf('mail') > -1) essai(function () {
+    r.mesMails = lignes_('SuiviMails').filter(function (x) { return x.attribue_a === s.uid && x.statut !== 'Traité'; }).length;
+  });
+  essai(function () {
+    if (!peutSigner_(s) || !peutLire_(s, 'extraits') || !db_().getSheetByName('Extraits')) return;
+    r.aSigner = lignes_('Extraits').filter(function (x) { return x.statut !== 'signe' && x.nom && x.nom !== '(sans nom)'; }).length;
+  });
+  if (d.indexOf('dossiers') > -1) essai(function () {
+    var sortesOk = sortesLisibles_(s);
+    r.mesDossiers = lignes_('Dossiers').filter(function (x) { return x.etat === 'ouvert' && x.responsable === s.uid && sortesOk.indexOf(x.type) > -1; }).length;
+  });
+  essai(function () { r.nonLues = compterNotificationsNonLues_(s.uid); });
+  return r;
 }
 
 /** Liste « À faire » de l'accueil : tout ce qui attend une action, avec le lien pour y aller. */

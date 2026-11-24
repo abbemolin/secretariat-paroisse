@@ -33,11 +33,12 @@ export default function Ordo() {
   const nav = useNavigate()
   const [params, setParams] = useSearchParams()
   const auj = new Date()
-  const [annee, mois] = /^\d{4}-\d{2}$/.test(params.get('mois') || '') ? params.get('mois').split('-').map(Number) : [auj.getFullYear(), auj.getMonth() + 1]
+  const jourCible = /^\d{4}-\d{2}-\d{2}$/.test(params.get('jour') || '') ? params.get('jour') : null   // ouvert depuis la recherche
+  const [annee, mois] = jourCible ? jourCible.slice(0, 7).split('-').map(Number) : /^\d{4}-\d{2}$/.test(params.get('mois') || '') ? params.get('mois').split('-').map(Number) : [auj.getFullYear(), auj.getMonth() + 1]
   const [cal, setCal] = useState(0)
   const [det, setDet] = useState({})
   const [messes, setMesses] = useState(null)
-  const [choix, setChoix] = useState(null)
+  const [choix, setChoix] = useState(jourCible)
   const [pdf, setPdf] = useState(false)
   const isoAuj = `${auj.getFullYear()}-${deux(auj.getMonth() + 1)}-${deux(auj.getDate())}`
   const zone = useRef(null)
@@ -72,12 +73,12 @@ export default function Ordo() {
     return () => { annule = true }
   }, [annee, mois])
 
-  // Mois en cours : amené sur aujourd'hui
+  // Mois en cours : amené sur aujourd'hui (ou sur le jour cherché)
   useEffect(() => {
-    const el = zone.current?.querySelector(`[data-jour="${isoAuj}"]`)
+    const el = zone.current?.querySelector(`[data-jour="${jourCible || isoAuj}"]`)
     const main = zone.current?.closest('main')
     if (el && main) setTimeout(() => main.scrollTo({ top: main.scrollTop + el.getBoundingClientRect().top - main.getBoundingClientRect().top - 90 }), 50)
-  }, [annee, mois, isoAuj])
+  }, [annee, mois, isoAuj, jourCible])
 
   const changerMois = (n) => { const d = new Date(annee, mois - 1 + n, 1); setParams({ mois: `${d.getFullYear()}-${deux(d.getMonth() + 1)}` }, { replace: true }); setChoix(null) }
 

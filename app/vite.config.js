@@ -27,6 +27,12 @@ export default defineConfig({
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
           { src: 'icon-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
+        ],
+        // Raccourcis (appui long sur l'icône, Android)
+        shortcuts: [
+          { name: 'Bréviaire', short_name: 'Bréviaire', url: './#/breviaire', icons: [{ src: 'icon-192.png', sizes: '192x192', type: 'image/png' }] },
+          { name: 'Intentions de messe — Aujourd\'hui', short_name: 'Intentions', url: './#/intentions', icons: [{ src: 'icon-192.png', sizes: '192x192', type: 'image/png' }] },
+          { name: 'Bible', short_name: 'Bible', url: './#/bible', icons: [{ src: 'icon-192.png', sizes: '192x192', type: 'image/png' }] }
         ]
       }
     })

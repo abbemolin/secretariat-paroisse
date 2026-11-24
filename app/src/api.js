@@ -24,7 +24,7 @@ let surSessionExpiree = () => {}
 export function quandSessionExpire(fn) { surSessionExpiree = fn }
 
 // ─── Affichage instantané : dernière réponse connue des lectures, gardée sur l'appareil ───
-const LECTURES = ['intentions.liste', 'intentions.agenda', 'app.init', 'accueil.resume', 'dossiers.liste', 'dossiers.lire', 'cate.liste', 'cate.lire', 'cor.liste', 'extraits.liste', 'mail.liste', 'promotions.liste', 'agenda.evenements', 'documents.liste']
+const LECTURES = ['journee.resume', 'intentions.liste', 'intentions.agenda', 'app.init', 'accueil.resume', 'dossiers.liste', 'dossiers.lire', 'cate.liste', 'cate.lire', 'cor.liste', 'extraits.liste', 'mail.liste', 'promotions.liste', 'agenda.evenements', 'documents.liste']
 const CACHE = new Map()
 const cleCache = (action, payload) => 'cache:' + action + ':' + JSON.stringify(payload || {})
 /** Dernière réponse connue (ou undefined). */

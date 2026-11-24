@@ -211,8 +211,11 @@ export async function demoApi(action, p) {
       const g = []
       const ds = etat.dossiers.filter((d) => ok(`${nomDe(d)} ${d.email} ${d.telephone}`)); if (ds.length) g.push({ cle: 'dossiers', titre: 'Dossiers', total: ds.length, items: ds.slice(0, 8).map((d) => ({ titre: nomDe(d), sous: d.type, lien: '/dossiers/' + d.id })) })
       const cs = etat.cor.membres.filter((m) => ok(`${m.prenoms} ${m.nom} ${m.email}`)); if (cs.length) g.push({ cle: 'cor', titre: 'Cor Unum', total: cs.length, items: cs.slice(0, 8).map((m) => ({ titre: `${m.prenoms} ${m.nom.toUpperCase()}`, sous: m.annee, lien: `/cor-unum?annee=${m.annee}&vue=tous&fiche=${m.id}` })) })
+      const is = demoInt.filter((i) => i.statut !== 'annule' && ok(`${i.nom_intention} ${i.nom_donateur} ${i.email_donateur}`)); if (is.length) g.push({ cle: 'intentions', titre: 'Intentions de messe', total: is.length, items: is.slice(0, 8).map((i) => ({ titre: i.nom_intention, sous: `${i.date_messe.split('-').reverse().join('/')} ${(i.heure_messe || '').replace(':', 'h')} · ${i.nom_donateur || ''}`, lien: '/intentions/gerer?id=' + i.id })) })
+      const as = etat.annoncesNl.filter((a) => ok(`${a.titre} ${a.description}`)); if (as.length) g.push({ cle: 'annonces', titre: 'Annonces', total: as.length, items: as.slice(0, 8).map((a) => ({ titre: a.titre, sous: a.actif ? 'Active' : 'Inactive', lien: '/annonces?id=' + a.id })) })
       return { groupes: g }
     }
+    case 'journee.resume': return { mesMails: etat.fils.filter((f) => f.suivi?.attribue_a === moi.id && f.suivi.statut !== 'Traité').length || 2, aSigner: 1, mesDossiers: etat.dossiers.filter((d) => d.etat === 'ouvert' && d.responsable === moi.id).length, nonLues: etat.notifications.filter((n) => !n.lu).length }
     case 'accueil.resume': {
       const ouverts = etat.dossiers.filter((d) => d.etat === 'ouvert')
       return { blocs: etat.blocs || { ordre: ['chiffres', 'afaire', 'fete', 'demandes', 'notifications', 'agenda'], masques: [] }, mailsNonLus: etat.fils.filter((f) => f.nonLu).length, mesMails: etat.fils.filter((f) => f.suivi?.attribue_a === moi.id && f.suivi.statut !== 'Traité').length,

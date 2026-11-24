@@ -10,8 +10,8 @@ function rechercheGlobale_(p, s) {
   var ok = function (t) { var x = sansAccents_(t); return mots.every(function (m) { return x.indexOf(m) > -1; }); };
   var max = 8, groupes = [];
   var essai = function (fn) { try { fn(); } catch (e) { console.error('recherche', e); } };
-  if (s.droits.indexOf('dossiers') === -1) return { groupes: [] };
   essai(function () {
+    if (s.droits.indexOf('dossiers') === -1) return;
     var sortesOk = sortesLisibles_(s);
     var r = lignes_('Dossiers').filter(function (d) {
       if (sortesOk.indexOf(d.type) === -1) return false;
@@ -23,6 +23,7 @@ function rechercheGlobale_(p, s) {
     }) });
   });
   essai(function () {
+    if (s.droits.indexOf('dossiers') === -1) return;
     if (!peutLire_(s, 'cor_unum') || !db_().getSheetByName('CorUnum')) return;
     var r = corReglages_(), eq = {};
     Object.keys(r.equipes).forEach(function (a) { r.equipes[a].forEach(function (e) { eq[e.id] = e.nom; }); });
@@ -57,6 +58,32 @@ function rechercheGlobale_(p, s) {
     if (l.length) groupes.push({ cle: 'retraites', titre: 'Retraites', total: l.length, items: l.slice(0, max).map(function (x) {
       var r = ret[x.retraite_id] || {}, parts = json2_(x.participants, []).map(function (y) { return (y.prenoms || y.prenom || '') + ' ' + (y.nom || ''); }).join(', ');
       return { titre: parts || x.contact_nom, sous: (r.id ? titreRetraite_(r) : 'Retraite') + (x.contact_nom ? ' · ' + x.contact_nom : ''), lien: '/retraites/' + x.retraite_id };
+    }) });
+  });
+  // Intentions de messe (tuile Intentions) : intention, donateur, adresse
+  essai(function () {
+    if (!peutLire_(s, 'intentions')) return;
+    var cache = CacheService.getScriptCache(), c = cache.get('recherche_intentions'), l;
+    if (c) l = JSON.parse(c);
+    else {
+      l = sb_('get', '/rest/v1/intentions?select=id,nom_intention,nom_donateur,email_donateur,date_messe,heure_messe,statut&statut=neq.annule&order=date_messe.desc') || [];
+      try { cache.put('recherche_intentions', JSON.stringify(l), 120); } catch (e) { /* trop gros pour le cache */ }
+    }
+    var auj = aujourdhui_();
+    l = l.filter(function (x) { return ok([x.nom_intention, x.nom_donateur, x.email_donateur].join(' ')); })
+      .sort(function (a, b) { var fa = a.date_messe >= auj, fb = b.date_messe >= auj; return fa !== fb ? (fa ? -1 : 1) : fa ? String(a.date_messe).localeCompare(String(b.date_messe)) : String(b.date_messe).localeCompare(String(a.date_messe)); });
+    if (l.length) groupes.push({ cle: 'intentions', titre: 'Intentions de messe', total: l.length, items: l.slice(0, max).map(function (x) {
+      var dt = String(x.date_messe || '').split('-').reverse().join('/');
+      return { titre: x.nom_intention || '(sans intention)', sous: dt + (x.heure_messe ? ' ' + String(x.heure_messe).slice(0, 5).replace(':', 'h') : '') + (x.nom_donateur ? ' · ' + x.nom_donateur : '') + (x.statut === 'en_attente' ? ' · en attente' : x.statut === 'refuse' ? ' · refusée' : ''), lien: '/intentions/gerer?id=' + x.id };
+    }) });
+  });
+  // Annonces (tuile Annonces et newsletter)
+  essai(function () {
+    if (!peutLire_(s, 'annonces')) return;
+    var l = (listerAnnonces_() || []).filter(function (x) { return ok([x.titre, x.description].join(' ')); })
+      .sort(function (a, b) { return (b.actif ? 1 : 0) - (a.actif ? 1 : 0); });
+    if (l.length) groupes.push({ cle: 'annonces', titre: 'Annonces', total: l.length, items: l.slice(0, max).map(function (x) {
+      return { titre: x.titre || '(sans titre)', sous: (x.actif ? 'Active' : 'Inactive') + (x.event_date ? ' · ' + String(x.event_date).split('-').reverse().join('/') : ''), lien: '/annonces?id=' + x.id };
     }) });
   });
   return { groupes: groupes };

@@ -5,11 +5,12 @@ import { lireFichier, prechargerLiturgie, suivrePrechargement, deux } from './so
 import { chargerCalendrier, jourLiturgique, titreFrancais } from './calendrier.js'
 import { chargerExsurge } from './exsurge.js'
 import { basculerSombreLiturgie, estSombre } from '../affichage.js'
+import { NOMS_HEURES, heureDuMoment } from './heures.js'
 
 const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
 const JOURS = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi']
 const LANGUES = ['Latin', 'Francais']
-const HEURES = [['Matutinum', 'Matines'], ['Laudes', 'Laudes'], ['Prima', 'Prime'], ['Tertia', 'Tierce'], ['Sexta', 'Sexte'], ['Nona', 'None'], ['Vespera', 'Vêpres'], ['Completorium', 'Complies']]
+const HEURES = NOMS_HEURES
 const TAILLES = [0.88, 1, 1.12, 1.25, 1.4]
 
 const GABARIT = `
@@ -762,18 +763,7 @@ export function monterBreviaire(racine, options = {}) {
   ecouter(document, 'fullscreenchange', () => { if (!document.fullscreenElement && racine.classList.contains('plein')) basculerPlein(false) })
 
   // ── À l'ouverture : l'heure correspondant au moment de la journée ──
-  function heureDuMoment(d = new Date()) {
-    const h = d.getHours() + d.getMinutes() / 60
-    if (h < 6) return 'Matutinum'
-    if (h < 8) return 'Laudes'
-    if (h < 9) return 'Prima'
-    if (h < 11) return 'Tertia'
-    if (h < 14) return 'Sexta'
-    if (h < 16.5) return 'Nona'
-    if (h < 20) return 'Vespera'
-    return 'Completorium'
-  }
-  _heure = heureDuMoment()
+  _heure = HEURES.some(([h]) => h === options.heure) ? options.heure : heureDuMoment()   // ?heure=… (depuis « Ma journée »)
   racine.querySelectorAll('.heure-tab').forEach((b) => {
     const actif = b.dataset.heure === _heure
     b.classList.toggle('active', actif)
