@@ -179,17 +179,28 @@ function imageAnnonce_(p) {
 
 // ─── Feuille de semaine ───
 
-/** Événements de l'agenda public (API Google Agenda : mêmes identifiants que ceux gardés dans les intentions). */
+/**
+ * Événements de l'agenda public, au format de l'API Google Agenda (celui que lisait l'AppMesse).
+ * Lus avec CalendarApp (aucun service à activer) ; les identifiants sont reconstruits comme ceux de l'API,
+ * pour retrouver les intentions rattachées à un événement (google_event_id) :
+ *   événement simple → « abc123 » ; occurrence d'une série → « abc123_20261124T173000Z » (journée : « abc123_20261124 »).
+ */
 function evenementsAgendaApi_(debut, fin) {
-  var id = calendrier_().getId();
-  var url = 'https://www.googleapis.com/calendar/v3/calendars/' + encodeURIComponent(id) + '/events'
-    + '?timeMin=' + encodeURIComponent(new Date(debut).toISOString()) + '&timeMax=' + encodeURIComponent(new Date(fin).toISOString())
-    + '&singleEvents=true&orderBy=startTime&maxResults=250';
-  var rep = UrlFetchApp.fetch(url, { muteHttpExceptions: true, headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() } });
-  if (rep.getResponseCode() >= 300) throw erreur_('AGENDA', 'Agenda inaccessible (' + rep.getResponseCode() + ').');
-  return (JSON.parse(rep.getContentText()).items || []).filter(function (e) { return e.status !== 'cancelled'; }).map(function (e) {
-    return { id: e.id, summary: e.summary || '', start: e.start || {}, end: e.end || {} };
-  });
+  var fmt = function (d) { return Utilities.formatDate(d, 'Europe/Paris', "yyyy-MM-dd'T'HH:mm:ssXXX"); };
+  var jour = function (d) { return Utilities.formatDate(d, 'Europe/Paris', 'yyyy-MM-dd'); };
+  return calendrier_().getEvents(new Date(debut), new Date(fin)).map(function (ev) {
+    var base = String(ev.getId()).replace(/@google\.com$/, '');
+    var journee = ev.isAllDayEvent();
+    var d = journee ? ev.getAllDayStartDate() : ev.getStartTime();
+    var f = journee ? ev.getAllDayEndDate() : ev.getEndTime();
+    var id = base;
+    if (ev.isRecurringEvent()) id += '_' + (journee ? Utilities.formatDate(d, 'Europe/Paris', 'yyyyMMdd') : Utilities.formatDate(d, 'UTC', "yyyyMMdd'T'HHmmss'Z'"));
+    return {
+      id: id, summary: ev.getTitle() || '',
+      start: journee ? { date: jour(d) } : { dateTime: fmt(d) },
+      end: journee ? { date: jour(f) } : { dateTime: fmt(f) }
+    };
+  }).sort(function (a, b) { return (a.start.dateTime || a.start.date).localeCompare(b.start.dateTime || b.start.date); });
 }
 function lundiValide_(l) {
   l = String(l || '');
