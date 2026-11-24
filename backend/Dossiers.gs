@@ -77,7 +77,8 @@ function dossierResume_(d) {
     autre_confession: (don.infos || {}).autre_confession || '',
     alertes: alertesDossier_(d.type, don.infos || {}),
     photo: (don.photo || {}).mini || '',
-    liste: d.type === 'catechumene' ? { prenom_bapteme: (don.infos || {}).prenom_bapteme || '', parrain: (don.infos || {}).parrain_marraine || '', accompagnateur: (don.infos || {}).accompagnateurs || '' } : undefined,
+    liste: d.type === 'catechumene' ? { prenom_bapteme: (don.infos || {}).prenom_bapteme || '', parrain: (don.infos || {}).parrain_marraine || '', accompagnateur: (don.infos || {}).accompagnateurs || '',
+      lieu: [(don.infos || {}).lieu_celebration, (don.infos || {}).commune_celebration].filter(String).join(', ') } : undefined,
     preparation: (don.infos || {}).preparation === 'Autre école' ? ((don.infos || {}).ecole_autre || 'Autre école') : ((don.infos || {}).preparation || '')
   };
 }

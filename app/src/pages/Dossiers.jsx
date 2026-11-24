@@ -18,7 +18,7 @@ export default function Dossiers() {
   const annee = params.get('annee') || ''
   const parAnnee = PAR_ANNEE.includes(type)
   const [texte, setTexte] = useState('')
-  const [nouveau, setNouveau] = useState(false)
+  const [nouveau, setNouveau] = useState(() => params.get('nouveau') === '1')   // ?nouveau=1 : depuis Catéchuménat
   const [envoiForm, setEnvoiForm] = useState(false)
   const [sel, setSel] = useState(null)          // sélection pour placer dans une fraternité (null = pas en mode sélection)
   const [choixFrat, setChoixFrat] = useState(false)

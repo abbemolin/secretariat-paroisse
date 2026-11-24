@@ -109,3 +109,22 @@ function importerCatechumenes_(p, s) {
   journaliser_(s, 'Import des catéchumènes', res.nouveaux + ' créés, ' + res.completes + ' complétés');
   return res;
 }
+
+
+// ─── Catéchuménat › Catéchumènes : mail à tous et export tableur ───
+/** Mail personnel ({prenom}) à chacun des catéchumènes choisis ; noté dans l'historique de chaque dossier. */
+function mailCatechumenes_(p, s) {
+  if (!peutModifier_(s, 'dossiers', 'catechumene')) throw interdit_('Vous ne pouvez pas écrire aux catéchumènes.');
+  var ids = (p.ids || []).filter(function (id) { var d = lignes_('Dossiers').filter(function (x) { return x.id === id; })[0]; return d && d.type === 'catechumene'; });
+  return relancerConf_({ ids: ids, sujet: p.sujet, corps: p.corps, signature: p.signature }, s);
+}
+/** Toutes les informations des dossiers de catéchumènes demandés (pour le tableur). */
+function exportCatechumenes_(p, s) {
+  if (!peutLire_(s, 'dossiers', 'catechumene')) throw interdit_('Vous n\'avez pas accès aux dossiers des catéchumènes.');
+  var ids = p.ids || [];
+  return lignes_('Dossiers').filter(function (d) { return d.type === 'catechumene' && ids.indexOf(d.id) > -1; }).map(function (d) {
+    var don = json2_(d.donnees, {}), et = don.etapes || {};
+    return { id: d.id, nom: d.nom, etat: d.etat, email: d.email, telephone: d.telephone, date_celebration: d.date_celebration,
+      etapes: Object.keys(et).filter(function (k) { return et[k] && et[k].fait; }), infos: don.infos || {} };
+  });
+}

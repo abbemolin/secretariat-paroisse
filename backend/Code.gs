@@ -187,6 +187,8 @@ var ROUTES = {
   'parrain.ecrire':        { fn: function (p, s) { return parrainEcrireRoute_(p, s); }, droit: 'dossiers' },
   'parrain.envoyer':       { fn: function (p, s) { return parrainEnvoyerRoute_(p, s); }, droit: 'dossiers' },
   'catechumenat.reglages': { fn: function (p, s) { return reglagesCatechumenatRoute_(p, s); }, droit: 'dossiers' },
+  'catechumenat.mail':     { fn: function (p, s) { return mailCatechumenes_(p, s); }, droit: 'dossiers' },
+  'catechumenat.export':   { fn: function (p, s) { return exportCatechumenes_(p, s); }, droit: 'dossiers' },
   'espace.signalement':    { fn: function (p, s) { return signalementEspace_(p, s); }, droit: 'dossiers' },
   'textes.liste':          { fn: function (p, s) { return listerTextes_(p, s); }, droit: 'dossiers' },
   'textes.ecrire':         { fn: function (p, s) { return ecrireTexte_(p, s); }, droit: 'dossiers' },

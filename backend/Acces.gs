@@ -143,6 +143,7 @@ function verifierAcces_(action, p, s, route) {
   if (action === 'tri.tester') ecrit = false;
   if (/^liturgie\./.test(action) || action === 'propre.lire') ecrit = false;
   if (/^intentions\.(liste|agenda|apercu)$/.test(action)) ecrit = false;   // lecture, et ses propres marque-pages : l'accès en lecture suffit
+  if (action === 'catechumenat.export') ecrit = false;
   if (action === 'catechumenat.reglages' && (p.ecrire || p.consigne_lettre !== undefined)) ecrit = true;
   if (zone === 'dossiers') return verifierDossier_(action, p, s, ecrit);
   if (!(ecrit ? peutModifier_ : peutLire_)(s, zone)) {

@@ -1,17 +1,18 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Cake, Mailbox, BookOpen, CalendarDays, Check, Eye, Link2, Loader2, Paperclip, Pencil, Plus, Send, Trash2, X } from 'lucide-react'
+import { Cake, Mailbox, Users, BookOpen, CalendarDays, Check, Eye, Link2, Loader2, Paperclip, Pencil, Plus, Send, Trash2, X } from 'lucide-react'
 import { api, fichierEnBase64 } from '../api.js'
 import { Chargement, Erreur, Modale, Vide, useCharger, useNotif, useConfirmer, Aide, dateCourte } from '../ui.jsx'
 
 /** Textes publiés dans l'app « La Croix glorieuse » et calendrier des catéchumènes / néophytes. */
 import VoirComme from './VoirComme.jsx'
+import ListeCatechumenes from '../catechumenat/ListeCatechumenes.jsx'
 import { useApp } from '../App.jsx'
 
 export default function Catechumenat() {
   const { peut } = useApp()
   const [params] = useSearchParams()
-  const [vue, setVue] = useState(params.get('vue') || 'textes')
+  const [vue, setVue] = useState(params.get('vue') || 'personnes')
   const { data, erreur, setData } = useCharger(() => api('textes.liste'), [], ['textes.liste', {}])
   const [texte, setTexte] = useState(null)
   const [evt, setEvt] = useState(null)
@@ -19,18 +20,18 @@ export default function Catechumenat() {
   return (
     <>
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-        <div><h1 className="text-3xl font-semibold">Catéchuménat</h1><p className="text-sm text-nuit-600/80">Textes et calendrier de l'app « La Croix glorieuse » (app.croix-glorieuse.org)</p></div>
+        <div><h1 className="text-3xl font-semibold">Catéchuménat</h1><p className="text-sm text-nuit-600/80">{vue === 'personnes' ? 'Catéchumènes adultes en chemin et néophytes de l\'année' : 'Textes et calendrier de l\'app « La Croix glorieuse » (app.croix-glorieuse.org)'}</p></div>
         <div className="flex gap-2">
           {peut('utilisateurs') && <VoirComme seulement={['catechumene', 'neophyte', 'parrain']} libelle="Aperçu" />}
-          {vue === 'anniversaires' || vue === 'lettres' ? null : vue === 'textes' ? <button className="btn-principal" disabled={!data} onClick={() => setTexte({ titre: '', corps: '', cible: data.promotions[1]?.cle || 'tous', liens: [], fichiers: [] })}><Plus className="h-4 w-4" />Nouveau texte</button>
+          {vue === 'personnes' ? <Link className="btn-principal" to="/dossiers?type=catechumene&nouveau=1"><Plus className="h-4 w-4" />Nouveau catéchumène</Link> : vue === 'anniversaires' || vue === 'lettres' ? null : vue === 'textes' ? <button className="btn-principal" disabled={!data} onClick={() => setTexte({ titre: '', corps: '', cible: data.promotions[1]?.cle || 'tous', liens: [], fichiers: [] })}><Plus className="h-4 w-4" />Nouveau texte</button>
             : <button className="btn-principal" disabled={!data} onClick={() => setEvt({ date: '', heure_debut: '', heure_fin: '', titre: '', lieu: '', cible: data.promotions[1]?.cle || 'tous', note: '' })}><Plus className="h-4 w-4" />Nouvelle date</button>}
           <Aide>Les catéchumènes et néophytes voient ces textes et ces dates dans leur espace personnel (lien envoyé depuis leur dossier). Un nouveau texte déclenche une notification sur leur téléphone.</Aide>
         </div>
       </div>
-      <div className="-mx-1 mb-4 flex gap-1.5 overflow-x-auto px-1">{[['textes', 'Textes', BookOpen], ['calendrier', 'Calendrier', CalendarDays], ['lettres', 'Lettres à l\'évêque', Mailbox], ['anniversaires', 'Anniversaires de baptême', Cake]].map(([k, l, I]) => (
+      <div className="-mx-1 mb-4 flex gap-1.5 overflow-x-auto px-1">{[['personnes', 'Catéchumènes', Users], ['textes', 'Textes', BookOpen], ['calendrier', 'Calendrier', CalendarDays], ['lettres', 'Lettres à l\'évêque', Mailbox], ['anniversaires', 'Anniversaires de baptême', Cake]].map(([k, l, I]) => (
         <button key={k} className={`pastille shrink-0 gap-1 border px-3 py-1.5 text-sm ${vue === k ? 'border-nuit bg-nuit text-white' : 'border-nuit-100 bg-white text-nuit-600'}`} onClick={() => setVue(k)}><I className="h-4 w-4" />{l}</button>))}</div>
       <Erreur erreur={erreur} />
-      {vue === 'anniversaires' ? <Anniversaires /> : vue === 'lettres' ? <Lettres /> : !data ? <Chargement /> : vue === 'textes' ? (
+      {vue === 'personnes' ? <ListeCatechumenes /> : vue === 'anniversaires' ? <Anniversaires /> : vue === 'lettres' ? <Lettres /> : !data ? <Chargement /> : vue === 'textes' ? (
         !data.textes.length ? <Vide icone={BookOpen} texte="Aucun texte publié. « Nouveau texte » pour écrire un enseignement, une prière, une consigne…" /> : (
           <div className="carte divide-y divide-nuit-100">
             {data.textes.map((t) => (
