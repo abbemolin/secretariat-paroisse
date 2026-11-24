@@ -580,6 +580,13 @@ export async function demoApi(action, p) {
     case 'newsletter.test': return { adresses: ['cure@croix-glorieuse.org'] }
     case 'newsletter.reglages': case 'newsletter.reglagesEcrire': return { liste: 3, jour: 0, heure: '12:00', expediteur_nom: 'Paroisse La Croix Glorieuse', expediteur_email: 'secretariat@croix-glorieuse.org', supabase_url: 'https://pmeaimfcwtykhqtueomd.supabase.co', adresses_test: 'cure@croix-glorieuse.org', supabase_secret_ok: false, brevo_ok: true, prochain_envoi: new Date(Date.now() + 3 * 86400000).toISOString() }
     case 'newsletter.tester': return { supabase: '✓ Base des annonces : 3 annonce(s) lue(s) avec la clé publique.', brevo: '✓ Brevo : compte secretariat@croix-glorieuse.org — liste « Newsletter » (412 abonnés).' }
+    case 'paroissiens.liste': return { migration: 'fait', statuts: { attente: 'Demande à examiner', precisions: 'Précisions demandées', invite: 'Invité (mot de passe à choisir)', actif: 'Actif', refuse: 'Refusé', suspendu: 'Suspendu', desactive: 'Désactivé (inactif)' },
+      comptes: [
+        { id: 'dp1', prenom: 'Jeanne', nom: 'Exemple', mail: 'jeanne@exemple.fr', telephone: '06 00 00 00 10', statut: 'attente', cree_le: new Date().toISOString(), demande: { messe: 'Dimanche 10 h 30', liens: ['Messe le dimanche'], connait: 'Famille Exemple', mot: '' }, rapprochement: [{ source: 'Cor Unum', id: 'x', nom: 'Jeanne Exemple', detail: 'pas encore dans une fraternité', raisons: ['même adresse'] }] },
+        { id: 'dp2', prenom: 'Louis', nom: 'Modèle', mail: 'louis@exemple.fr', telephone: '06 00 00 00 11', statut: 'actif', cree_le: '2026-10-01T10:00:00Z', derniere_visite: new Date().toISOString(), cor: true, chef: 'Saint-Joseph', rapprochement: [] }
+      ] }
+    case 'paroissiens.modifier': case 'paroissiens.inviter': case 'paroissiens.migrer': throw new Error('Démo : rien n\'est enregistré ni envoyé.')
+    case 'charte.etat': case 'charte.accepter': return { acceptee_le: new Date().toISOString(), a_accepter: false, texte: [], responsable: '', contact: '' }
     default: throw new Error('Démo : action non simulée ' + action)
   }
 }

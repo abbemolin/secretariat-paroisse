@@ -76,12 +76,14 @@ function doPost(e) {
     if (/^chef\./.test(action)) return json_({ ok: true, data: actionChef_(action, p) });
     if (/^ret\./.test(action)) return json_({ ok: true, data: actionRetraitePublique_(action, p) });
     if (/^esp\./.test(action)) return json_({ ok: true, data: actionEspace_(action, p) });
+    if (/^cpt\./.test(action)) return json_({ ok: true, data: actionCompte_(action, p) });
     if (/^pay\./.test(action)) return json_({ ok: true, data: actionPaiementPublique_(action, p) });
     if (/^boutique\./.test(action)) return json_({ ok: true, data: actionBoutique_(action, p) });
 
     var session = verifierSession_(req.token);
     var route = ROUTES[action];
     if (!route) throw erreur_('ACTION_INCONNUE', 'Action inconnue : ' + action);
+    verifierCharte_(action, session);   // pages avec données personnelles : charte de confidentialité de l'année
     verifierAcces_(action, p, session, route);
     return json_({ ok: true, data: route.fn(p, session) });
   } catch (err) {
@@ -190,6 +192,12 @@ var ROUTES = {
   'catechumenat.mail':     { fn: function (p, s) { return mailCatechumenes_(p, s); }, droit: 'dossiers' },
   'catechumenat.export':   { fn: function (p, s) { return exportCatechumenes_(p, s); }, droit: 'dossiers' },
   'espace.signalement':    { fn: function (p, s) { return signalementEspace_(p, s); }, droit: 'dossiers' },
+  'paroissiens.liste':     { fn: function (p, s) { return listerComptesRoute_(p, s); } },
+  'paroissiens.modifier':  { fn: function (p, s) { return modifierCompteRoute_(p, s); } },
+  'paroissiens.inviter':   { fn: function (p, s) { return inviterComptesRoute_(p, s); } },
+  'paroissiens.migrer':    { fn: function (p, s) { return migrerEspacesRoute_(p, s); } },
+  'charte.etat':           { fn: function (p, s) { return etatCharte_(s.uid); } },
+  'charte.accepter':       { fn: function (p, s) { return accepterCharte_(p, s); } },
   'textes.liste':          { fn: function (p, s) { return listerTextes_(p, s); }, droit: 'dossiers' },
   'textes.ecrire':         { fn: function (p, s) { return ecrireTexte_(p, s); }, droit: 'dossiers' },
   'textes.supprimer':      { fn: function (p, s) { return supprimerTexte_(p, s); }, droit: 'dossiers' },
@@ -589,7 +597,8 @@ function initApp_(p, s) {
     reglages: reglages_(),
     signatures: listerSignatures_(),
     reponses: listerReponses_(),
-    nonLues: compterNotificationsNonLues_(s.uid)
+    nonLues: compterNotificationsNonLues_(s.uid),
+    charte: etatCharte_(s.uid)
   };
 }
 

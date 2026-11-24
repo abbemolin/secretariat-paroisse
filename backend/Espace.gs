@@ -130,7 +130,7 @@ function actionEspace_(action, p) {
     var mail = mailDossier_(d);
     if (!mail) throw erreur_('MAIL', 'Aucune adresse e-mail n\'est connue dans votre dossier. Contactez la paroisse.');
     compteurChef_('espenvoi_' + esp.dossier_id, 5, 3600, 'Trop de codes envoyés. Réessayez dans une heure.');
-    var code = String(Math.floor(100000 + Math.random() * 900000));
+    var code = codeSur_();
     CacheService.getScriptCache().put('espcode_' + esp.dossier_id, JSON.stringify({ code: code, essais: 0 }), 900);
     var t = 'Bonjour ' + (i0.prenoms || '') + ',\n\nVoici votre code pour choisir le mot de passe de votre espace personnel « La Croix glorieuse » :\n\n' + code +
       '\n\nIl est valable 15 minutes. Si vous n\'avez rien demandé, ignorez ce message.\n\nAvec l\'assurance de nos prières à toutes vos intentions,';
@@ -146,11 +146,15 @@ function actionEspace_(action, p) {
       if (c.essais >= 5) cache.remove('espcode_' + esp.dossier_id); else cache.put('espcode_' + esp.dossier_id, JSON.stringify(c), 900);
       throw erreur_('CODE', c.essais >= 5 ? 'Trop d\'essais. Demandez un nouveau code.' : 'Code incorrect.');
     }
-    if (String(p.mdp || '').length < 8) throw erreur_('MDP', 'Le mot de passe doit contenir au moins 8 caractères.');
+    verifierMdpCompte_(p.mdp);
     var nv = verrou_(function () {
       var x = lignes_('Espaces').filter(function (y) { return y.dossier_id === esp.dossier_id; })[0];
       x.sel = jeton_().slice(0, 16); x.hash = hacher_(String(p.mdp), x.sel); x.mdp_maj = maintenant_();
       ecrireLigne_('Espaces', x);
+      try {   // même mot de passe pour le compte de l'app (connexion par adresse mail)
+        var cp = compteParDossier_(x.dossier_id);
+        if (cp && cp.statut !== 'suspendu') { cp.hash = x.hash; cp.sel = x.sel; cp.mdp_maj = x.mdp_maj; if (cp.statut === 'invite' && normMail_(cp.mail)) { cp.statut = 'actif'; cp.statut_le = maintenant_(); } ecrireLigne_('Comptes', cp); }
+      } catch (e) { console.error('synchro compte', e); }
       return x;
     });
     cache.remove('espcode_' + esp.dossier_id);
@@ -159,7 +163,9 @@ function actionEspace_(action, p) {
   if (!sessionEspValide_(esp, p.session)) throw erreur_('SESSION', 'Connectez-vous avec votre mot de passe.');
 
   if (action === 'esp.lire') {
-    verrou_(function () { var x = lignes_('Espaces').filter(function (y) { return y.dossier_id === esp.dossier_id; })[0]; x.derniere_visite = maintenant_(); ecrireLigne_('Espaces', x); });
+    // dernière visite écrite une fois par jour au plus (pas de verrou général à chaque ouverture)
+    if (String(esp.derniere_visite || '').slice(0, 10) !== aujourdhui_()) verrou_(function () { var x = lignes_('Espaces').filter(function (y) { return y.dossier_id === esp.dossier_id; })[0]; x.derniere_visite = maintenant_(); ecrireLigne_('Espaces', x); });
+    try { var cpv = compteParDossier_(esp.dossier_id); if (cpv) noterVisiteCompte_(cpv); } catch (e) {}
     return vueEspace_(d);
   }
   if (action === 'esp.modifier') {
@@ -693,7 +699,7 @@ function ecrireTexte_(p, s) {
   });
   if (nouveau) {
     journaliser_(s, 'Texte publié', t.titre + ' → ' + libelleCible_(t.cible));
-    destinatairesCible_(t.cible).forEach(function (d) { pushEspace_(d.id, 'textes'); });
+    envoyerPushMasse_(destinatairesCible_(t.cible).filter(function (d) { return prefsNotifsEspace_(d.id).textes !== false; }).map(function (d) { return 'esp:' + d.id; }));
   }
   return listerTextes_();
 }

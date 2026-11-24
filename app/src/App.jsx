@@ -2,7 +2,7 @@ import { Suspense, createContext, lazy, useCallback, useContext, useEffect, useS
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { BoutonRecherche } from './pages/RechercheGlobale.jsx'
 import MaJournee, { voitMaJournee } from './pages/MaJournee.jsx'
-import { Home, Mail, CalendarDays, FolderHeart, FolderOpen, Users, Settings, UserCircle, LogOut, Bell, CloudOff, RefreshCw, ScrollText, GraduationCap, HeartHandshake, Mountain, Flame, BookOpen, BookMarked, BarChart3, LifeBuoy, MoreHorizontal, X, Megaphone, CalendarRange, Newspaper, LayoutGrid, Church, BookOpenText, Sun, Cross, BookHeart } from 'lucide-react'
+import { Home, Mail, CalendarDays, FolderHeart, FolderOpen, Users, Settings, UserCircle, LogOut, Bell, CloudOff, RefreshCw, ScrollText, GraduationCap, HeartHandshake, Mountain, Flame, BookOpen, BookMarked, BarChart3, LifeBuoy, MoreHorizontal, X, Megaphone, CalendarRange, Newspaper, LayoutGrid, Church, BookOpenText, Sun, Cross, BookHeart, Smartphone } from 'lucide-react'
 import { api, ecrireToken, enCache, fournir, lireToken, quandSessionExpire, estDemo, suivreFile, suivreReseau, viderFile } from './api.js'
 import { derniereMiseAJour, preparerHorsLigne } from './horsligne.js'
 import { Chargement, FournisseurNotif, ROLES, dateRelative, useNotif } from './ui.jsx'
@@ -10,6 +10,7 @@ import Connexion from './pages/Connexion.jsx'
 import { peutVoir, peutModifier } from './acces.js'
 import { definirTuileLiturgie } from './affichage.js'
 import Accueil from './pages/Accueil.jsx'
+import CharteConfidentialite from './CharteConfidentialite.jsx'
 
 // Pages chargées à la demande (ouverture plus légère), puis toutes préchargées en arrière-plan une fois l'appli affichée
 const PRECHARGES = []
@@ -49,6 +50,7 @@ const CalendrierPropre = page(() => import('./pages/CalendrierPropre.jsx'), '/ca
 const Ordo = page(() => import('./pages/Ordo.jsx'), '/ordo')
 const IntentionsCalendrier = page(() => import('./pages/IntentionsCalendrier.jsx'), '/intentions/calendrier')
 const IntentionsGerer = page(() => import('./pages/IntentionsGerer.jsx'), '/intentions/gerer')
+const Paroissiens = page(() => import('./pages/Paroissiens.jsx'), '/paroissiens')
 let prechargees = false
 function prechargerPages() {
   if (prechargees) return
@@ -82,6 +84,7 @@ const MENU = [
     { to: '/cor-unum', label: 'Cor Unum', icone: HeartHandshake, droit: 'cor_unum' },
     { to: '/retraites', label: 'Retraites', icone: Mountain, droit: 'retraites' }
   ] },
+  { to: '/paroissiens', label: 'App des paroissiens', icone: Smartphone, droit: 'paroissiens' },
   { to: '/documents', label: 'Documents', icone: FolderOpen, droit: 'documents' },
   { to: '/statistiques', label: 'Statistiques', icone: BarChart3, droit: 'statistiques' },
   { groupe: '', secondaire: true, items: [
@@ -277,7 +280,7 @@ export default function App() {
   return (
     <FournisseurNotif>
       {!donnees ? <Connexion onConnexion={async ({ token }) => { ecrireToken(token); await charger() }} /> : (
-        <CtxApp.Provider value={valeur}><Cadre /></CtxApp.Provider>
+        <CtxApp.Provider value={valeur}><Cadre />{donnees.charte?.a_accepter && !estDemo() && <CharteConfidentialite charte={donnees.charte} onAcceptee={(charte) => setDonnees((d) => ({ ...d, charte }))} onDeconnecter={valeur.deconnecter} />}</CtxApp.Provider>
       )}
     </FournisseurNotif>
   )
@@ -369,7 +372,7 @@ function Cadre() {
   const [plus, setPlus] = useState(false)
   const notifier = useNotif()
   const nav = useNavigate()
-  const zonePage = { courrier: 'courrier', agenda: 'agenda', extraits: 'extraits', registres: 'registres', catechisme: 'catechisme', catechumenat: 'catechumenat', 'cor-unum': 'cor_unum', retraites: 'retraites', documents: 'documents', annonces: 'annonces', semaine: 'annonces', newsletter: 'annonces', breviaire: 'liturgie', messe: 'liturgie', bible: 'liturgie', ordo: 'liturgie', 'calendrier-propre': 'liturgie', intentions: 'intentions' }[loc.pathname.split('/')[1]]
+  const zonePage = { courrier: 'courrier', agenda: 'agenda', extraits: 'extraits', registres: 'registres', catechisme: 'catechisme', catechumenat: 'catechumenat', 'cor-unum': 'cor_unum', retraites: 'retraites', documents: 'documents', annonces: 'annonces', semaine: 'annonces', newsletter: 'annonces', breviaire: 'liturgie', messe: 'liturgie', bible: 'liturgie', ordo: 'liturgie', 'calendrier-propre': 'liturgie', intentions: 'intentions', paroissiens: 'paroissiens' }[loc.pathname.split('/')[1]]
   const tuilesActives = TUILES.filter((t) => !t.bientot && peut(t.droit))
   const avecTuiles = tuilesActives.length > 1
   const tuile = tuileDuChemin(loc.pathname)
@@ -465,6 +468,7 @@ function Cadre() {
               {peut('intentions') && <Route path="/intentions" element={<IntentionsAujourdhui />} />}
               {peut('intentions') && <Route path="/intentions/calendrier" element={<IntentionsCalendrier />} />}
               {peut('intentions') && <Route path="/intentions/gerer" element={<IntentionsGerer />} />}
+              {peut('paroissiens') && <Route path="/paroissiens" element={<Paroissiens />} />}
               <Route path="/aide" element={<Aide />} />
               <Route path="/compte" element={<Compte />} />
               <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,6 +1,7 @@
 /**
  * Entretien automatique (chaque nuit, ~3 h) et sauvegardes.
- * - Notifications de plus de 6 mois supprimées ; journal de plus de 2 ans archivé dans le Drive (fichier CSV) puis retiré.
+ * - Notifications de plus de 6 mois supprimées ; journal de plus d'un an retiré (RGPD).
+ * - App des paroissiens : comptes inactifs prévenus (17 mois), désactivés (18 mois) puis effacés ; demandes refusées effacées après 3 mois.
  * - Sauvegarde : chaque dimanche, copie complète de la base dans Drive « Sauvegardes » ; les 8 dernières sont gardées.
  * - Restaurer (administrateur) : une copie de la sauvegarde devient la base ; l'ancienne base est gardée et renommée.
  */
@@ -26,7 +27,8 @@ function garderEveille() {
 }
 function entretienNocturne() {
   try { purgerFeuille_('Notifications', 'date', 183, false); } catch (e) { console.error('purge notifications', e); }
-  try { purgerFeuille_('Journal', 'date', 730, true); } catch (e) { console.error('purge journal', e); }
+  try { purgerFeuille_('Journal', 'date', 365, false); } catch (e) { console.error('purge journal', e); }   // RGPD : journal gardé 1 an
+  try { entretienComptes_(); } catch (e) { console.error('entretien comptes', e); }
   try { desactiverAnnoncesExpirees_(); } catch (e) { console.error('annonces expirées', e); }
   var jour = Utilities.formatDate(new Date(), 'Europe/Paris', 'u');   // 7 = dimanche
   if (jour === '7') try { sauvegarder_('automatique'); } catch (e) { console.error('sauvegarde', e); }
