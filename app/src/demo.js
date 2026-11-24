@@ -492,6 +492,19 @@ export async function demoApi(action, p) {
     case 'sceau.ecrire': etat.sceau = 'data:' + p.type + ';base64,' + p.base64; return etat.sceau
     case 'documents.chercher': return Object.values(dossiersDrive).flatMap((d) => d.fichiers).filter((f) => f.nom.toLowerCase().includes(String(p.texte).toLowerCase()))
     case 'documents.envoyer': case 'documents.dossier': case 'documents.renommer': case 'documents.deplacer': return true
+    case 'propre.lire': return demoPropre()
+    case 'propre.ecrire': {
+      const c = demoPropreCal
+      if (p.fete) { const f = { ...p.fete, id: p.fete.idAvant || p.fete.id || 'f' + Date.now() }; delete f.idAvant; const i = c.fetes.findIndex((x) => x.id === f.id); if (i > -1) c.fetes[i] = f; else c.fetes.push(f); c.fetes.sort((x, y) => x.date.localeCompare(y.date)); demoPropreHisto.unshift({ date: new Date().toISOString(), par: 'Aperçu', sorte: 'fete', action: i > -1 ? 'modifiée' : 'ajoutée', id: f.id, nom: f.nom_fr || f.nom_la, avant: null }) }
+      if (p.supprimer) c.fetes = c.fetes.filter((x) => x.id !== p.supprimer)
+      if (p.mention) { c.mentions = c.mentions.filter((x) => x.date !== p.mention.date && x.date !== p.mention.avant); c.mentions.push({ date: p.mention.date, nom: p.mention.nom, groupe: p.mention.groupe }) }
+      if (p.supprimerMention) c.mentions = c.mentions.filter((x) => x.date !== p.supprimerMention)
+      demoPropreCalcul = { statut: 'in_progress', debut: new Date().toISOString() }
+      return demoPropre()
+    }
+    case 'propre.annuler': return demoPropre()
+    case 'liturgie.reglages': case 'liturgie.reglagesEcrire': return { github_ok: true, depot: 'abbemolin/appMesse' }
+    case 'liturgie.tester': return { github: '✓ Dépôt abbemolin/appMesse : 15 fêtes lues.' }
     case 'annonces.liste': return etat.annoncesNl.slice().sort((a, b) => (b.prioritaire ? 1 : 0) - (a.prioritaire ? 1 : 0) || (a.ordre ?? 1e9) - (b.ordre ?? 1e9))
     case 'annonces.ecrire': { if (p.id) { const a = etat.annoncesNl.find((x) => x.id === p.id); Object.assign(a, p); return a } const a = { id: Date.now(), created_at: new Date().toISOString(), ordre: null, ...p }; etat.annoncesNl.push(a); return a }
     case 'annonces.supprimer': etat.annoncesNl = etat.annoncesNl.filter((x) => x.id !== p.id); return true
@@ -519,3 +532,17 @@ export async function demoApi(action, p) {
     default: throw new Error('Démo : action non simulée ' + action)
   }
 }
+
+// ─── Calendrier propre (aperçu) ───
+const demoPropreCal = {
+  version: 1,
+  fetes: [
+    { id: 'foucauld', groupe: 'communaute', date: '12-01', nom_la: 'S. Caroli de Foucauld Presbyteri', nom_fr: 'Saint Charles de Foucauld, prêtre', rang: 3, commun: 'C5', base: null, romain: 'commemorer', nom_oraison: { la: 'Cároli', fr: 'Charles' }, office: { Oratio: { la: 'Dómine, sancte Pater, qui ad imitatiónem Fílii tui…', fr: 'Seigneur, Père très saint, vous qui avez appelé saint Charles…' } }, messe: { Introitus: { la: '!Ps 95, 3\nAnnuntiate inter gentes gloriam ejus…', fr: 'Proclamez aux nations le salut de Dieu…' } }, note: '' },
+    { id: 'odile', groupe: 'strasbourg', date: '12-13', nom_la: 'S. Odiliæ Abbatissæ Virginis', nom_fr: 'Sainte Odile, abbesse, patronne de l’Alsace', rang: 2, commun: 'C6a', base: null, romain: 'omettre', nom_oraison: { la: 'Odíliæ Vírginis tuæ', fr: 'Odile, votre vierge' }, office: {}, messe: {}, note: '' },
+    { id: 'lucie', groupe: 'strasbourg', date: '12-15', nom_la: 'S. Luciæ Virginis et Martyris', nom_fr: 'Sainte Lucie, vierge et martyre', rang: 3, commun: '', base: '12-13', romain: 'commemorer', nom_oraison: {}, office: {}, messe: {}, note: '' }
+  ],
+  mentions: [{ date: '12-16', nom: 'Ste Adélaïde, impératrice', groupe: 'strasbourg' }]
+}
+const demoPropreHisto = [{ date: '2026-11-24T15:20:00Z', par: 'abbé Florent Molin', sorte: 'fete', action: 'modifiée', id: 'odile', nom: 'Sainte Odile, abbesse, patronne de l’Alsace', avant: {} }]
+let demoPropreCalcul = { statut: 'completed', resultat: 'success', debut: '2026-11-24T15:20:00Z', fin: '2026-11-24T15:26:00Z' }
+const demoPropre = () => ({ calendrier: JSON.parse(JSON.stringify(demoPropreCal)), sha: 'demo', calcul: demoPropreCalcul, historique: demoPropreHisto })

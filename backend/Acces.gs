@@ -13,7 +13,7 @@
  */
 var PAGES_ACCES = ['courrier', 'agenda', 'extraits', 'registres', 'catechisme', 'catechumenat', 'cor_unum', 'retraites', 'documents', 'statistiques', 'annonces', 'liturgie'];
 var SORTES_ACCES = ['bapteme', 'premiere_communion', 'profession_foi', 'confirmation_jeune', 'mariage', 'obseques', 'catechumene', 'confirmand'];
-var ONGLETS_REGLAGES = ['Paroisse', 'Signatures', 'Réponses types', 'Modèles', 'Tri automatique', 'Catéchisme', 'Confirmands', 'Cor Unum', 'Paiements en ligne', 'Newsletter', 'Journal', 'Sauvegardes'];
+var ONGLETS_REGLAGES = ['Paroisse', 'Signatures', 'Réponses types', 'Modèles', 'Tri automatique', 'Catéchisme', 'Confirmands', 'Cor Unum', 'Paiements en ligne', 'Newsletter', 'Liturgie', 'Journal', 'Sauvegardes'];
 
 function accesComplet_(niveau, onglets, signer) {
   var a = { dossiers: {}, courrier_tout: true, reglages: onglets || [], signer: !!signer };
@@ -29,7 +29,7 @@ function accesDuRole_(role) {
   x.statistiques = '';
   x.annonces = role === 'cure' ? 'm' : '';   // tuile « Annonces et newsletter » : curé (et administrateurs)
   x.liturgie = role === 'secretaire' ? '' : 'm';   // tuile « Bible et bréviaire » : prêtres et diacres
-  if (role === 'secretaire') { x.reglages = tous.filter(function (o) { return o !== 'Sauvegardes' && o !== 'Newsletter'; }); x.signer = true; }
+  if (role === 'secretaire') { x.reglages = tous.filter(function (o) { return o !== 'Sauvegardes' && o !== 'Newsletter' && o !== 'Liturgie'; }); x.signer = true; }
   return x;
 }
 var NIVEAUX_ = { '': 0, l: 1, m: 2 };
@@ -94,7 +94,8 @@ var ONGLET_ROUTE_ = {
   'reglages.ecrire': 'Paroisse', 'sceau.ecrire': 'Paroisse', 'signatures.ecrire': 'Signatures', 'reponses.ecrire': 'Réponses types', 'tri.ecrire': 'Tri automatique',
   'cate.reglagesEcrire': 'Catéchisme', 'conf.reglagesEcrire': 'Confirmands', 'cor.reglagesEcrire': 'Cor Unum', 'journal.liste': 'Journal',
   'paiements.reglages': 'Paiements en ligne', 'paiements.reglagesEcrire': 'Paiements en ligne', 'paiements.tester': 'Paiements en ligne', 'sauvegardes': 'Sauvegardes',
-  'newsletter.reglages': 'Newsletter', 'newsletter.reglagesEcrire': 'Newsletter', 'newsletter.tester': 'Newsletter'
+  'newsletter.reglages': 'Newsletter', 'newsletter.reglagesEcrire': 'Newsletter', 'newsletter.tester': 'Newsletter',
+  'liturgie.reglages': 'Liturgie', 'liturgie.reglagesEcrire': 'Liturgie', 'liturgie.tester': 'Liturgie'
 };
 /** Zone d'une action (null = pas de contrôle particulier). */
 function zoneAction_(action) {
@@ -111,7 +112,7 @@ function zoneAction_(action) {
   if (action === 'registres') return 'registres';
   if (action === 'statistiques') return 'statistiques';
   if (/^(annonces|newsletter)\./.test(action)) return 'annonces';
-  if (/^liturgie\./.test(action)) return 'liturgie';
+  if (/^(liturgie|propre)\./.test(action)) return 'liturgie';
   return null;
 }
 function interdit_(texte) { return erreur_('INTERDIT', texte || 'Vous n\'avez pas accès à cette fonction.'); }
@@ -136,7 +137,7 @@ function verifierAcces_(action, p, s, route) {
   if (action === 'registres') ecrit = !!(p.inscrire || p.depart);
   if (action === 'statistiques') ecrit = false;
   if (action === 'tri.tester') ecrit = false;
-  if (/^liturgie\./.test(action)) ecrit = false;   // lecture, et ses propres marque-pages : l'accès en lecture suffit
+  if (/^liturgie\./.test(action) || action === 'propre.lire') ecrit = false;   // lecture, et ses propres marque-pages : l'accès en lecture suffit
   if (action === 'catechumenat.reglages' && (p.ecrire || p.consigne_lettre !== undefined)) ecrit = true;
   if (zone === 'dossiers') return verifierDossier_(action, p, s, ecrit);
   if (!(ecrit ? peutModifier_ : peutLire_)(s, zone)) {

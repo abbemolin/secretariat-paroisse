@@ -1,7 +1,7 @@
 // Messe du jour : copie fidèle de messe.js de l'AppMesse (propre de la Messe, Divinum Officium, rubriques 1960,
 // plus le propre de la communauté SMMD). Amélioration : les références des lectures ouvrent la Bible.
 import { lireFichier, deux } from './source.js'
-import { feteSmmd, jourCalendrier, smmdRemplace, titreFrancais } from './calendrier.js'
+import { calendrierPropre, chargerCalendrier, feteSmmd, jourCalendrier, smmdRemplace, titreFrancais } from './calendrier.js'
 import { lireReference } from './bible.js'
 
 export const LIBELLES = { Introitus: 'Introït', Oratio: 'Collecte', Lectio: 'Épître', Graduale: 'Graduel', Alleluia: 'Alléluia', Tractus: 'Trait',
@@ -131,7 +131,8 @@ export async function chargerMesse(date) {
       if (/chrism/i.test(messe.messes[0].titre)) messe.messes = messe.messes.slice(0, 2)
     }
   } catch (e) { console.error(e); hs = true }
-  const f = feteSmmd(m, d)
+  await chargerCalendrier()
+  const f = calendrierPropre() ? null : feteSmmd(m, d)   // calendrier propre : la messe de la communauté est déjà dans le fichier du jour
   if (f) {
     try {
       const toutes = await lireFichier('data/messe/smmd.json', { garder: true })

@@ -8,7 +8,7 @@ export const SORTES_ACCES = [
   ['bapteme', 'Baptêmes'], ['premiere_communion', 'Premières communions'], ['profession_foi', 'Professions de foi'], ['confirmation_jeune', 'Confirmations (jeunes)'],
   ['mariage', 'Mariages'], ['obseques', 'Obsèques'], ['catechumene', 'Catéchumènes'], ['confirmand', 'Confirmands adultes']
 ]
-export const ONGLETS_REGLAGES = ['Paroisse', 'Signatures', 'Réponses types', 'Modèles', 'Tri automatique', 'Catéchisme', 'Confirmands', 'Cor Unum', 'Paiements en ligne', 'Newsletter', 'Journal', 'Sauvegardes']
+export const ONGLETS_REGLAGES = ['Paroisse', 'Signatures', 'Réponses types', 'Modèles', 'Tri automatique', 'Catéchisme', 'Confirmands', 'Cor Unum', 'Paiements en ligne', 'Newsletter', 'Liturgie', 'Journal', 'Sauvegardes']
 const ANCIENS = ['mail', 'agenda', 'documents', 'utilisateurs', 'reglages']
 const N = { '': 0, l: 1, m: 2 }
 
@@ -25,7 +25,7 @@ export function accesDuRole(role) {
   a.statistiques = ''
   a.annonces = role === 'cure' ? 'm' : ''   // tuile « Annonces et newsletter » : curé (et administrateurs)
   a.liturgie = role === 'secretaire' ? '' : 'm'   // tuile « Bible et bréviaire » : prêtres et diacres
-  if (role === 'secretaire') { a.reglages = ONGLETS_REGLAGES.filter((o) => o !== 'Sauvegardes' && o !== 'Newsletter'); a.signer = true }
+  if (role === 'secretaire') { a.reglages = ONGLETS_REGLAGES.filter((o) => o !== 'Sauvegardes' && o !== 'Newsletter' && o !== 'Liturgie'); a.signer = true }
   return a
 }
 export function niveau(u, zone, sorte) {

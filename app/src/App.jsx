@@ -30,6 +30,7 @@ import Newsletter from './pages/Newsletter.jsx'
 import Breviaire from './pages/Breviaire.jsx'
 import MesseDuJour from './pages/MesseDuJour.jsx'
 import Bible from './pages/Bible.jsx'
+import CalendrierPropre from './pages/CalendrierPropre.jsx'
 
 const CtxApp = createContext(null)
 export const useApp = () => useContext(CtxApp)
@@ -77,12 +78,13 @@ const MENU_ANNONCES = [
 const MENU_LITURGIE = [
   { to: '/breviaire', label: 'Bréviaire', icone: Sun, bas: true },
   { to: '/messe', label: 'Messe du jour', icone: Cross, bas: true },
-  { to: '/bible', label: 'Bible', icone: BookHeart, bas: true }
+  { to: '/bible', label: 'Bible', icone: BookHeart, bas: true },
+  { to: '/calendrier-propre', label: 'Calendrier propre', court: 'Calendrier', icone: CalendarRange, bas: true }
 ]
 const tuileDuChemin = (chemin) => {
   const p = chemin.split('/')[1]
   if (['annonces', 'semaine', 'newsletter'].includes(p)) return 'annonces'
-  if (['breviaire', 'messe', 'bible'].includes(p)) return 'liturgie'
+  if (['breviaire', 'messe', 'bible', 'calendrier-propre'].includes(p)) return 'liturgie'
   return 'secretariat'
 }
 const NOM_TUILE = { annonces: 'Annonces et newsletter', liturgie: 'Bible et bréviaire' }
@@ -122,13 +124,13 @@ function EcranTuiles({ tuiles }) {
 }
 
 /** Lien de menu : tient compte de « ?type=… » (Confirmands est une vue de Dossiers). */
-function LienMenu({ to, label, icone: I, mobile, onClick }) {
+function LienMenu({ to, label, court, icone: I, mobile, onClick }) {
   const loc = useLocation()
   const [chemin, requete] = to.split('?')
   const typeLien = new URLSearchParams(requete || '').get('type')
   const typeActuel = new URLSearchParams(loc.search).get('type')
   const actif = chemin === '/' ? loc.pathname === '/' : (loc.pathname === chemin || loc.pathname.startsWith(chemin + '/')) && (typeLien ? typeActuel === typeLien : !(chemin === '/dossiers' && typeActuel === 'confirmand'))
-  if (mobile) return <NavLink to={to} onClick={onClick} className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] ${actif ? 'text-or-600' : 'text-nuit-600/70'}`}><I className="h-5 w-5" />{label}</NavLink>
+  if (mobile) return <NavLink to={to} onClick={onClick} className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] ${actif ? 'text-or-600' : 'text-nuit-600/70'}`}><I className="h-5 w-5" />{court || label}</NavLink>
   return (
     <NavLink to={to} onClick={onClick} className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${actif ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white'}`}>
       <I className="h-4 w-4" />{label}
@@ -261,7 +263,7 @@ function Cadre() {
   const [plus, setPlus] = useState(false)
   const notifier = useNotif()
   const nav = useNavigate()
-  const zonePage = { courrier: 'courrier', agenda: 'agenda', extraits: 'extraits', registres: 'registres', catechisme: 'catechisme', catechumenat: 'catechumenat', 'cor-unum': 'cor_unum', retraites: 'retraites', documents: 'documents', annonces: 'annonces', semaine: 'annonces', newsletter: 'annonces', breviaire: 'liturgie', messe: 'liturgie', bible: 'liturgie' }[loc.pathname.split('/')[1]]
+  const zonePage = { courrier: 'courrier', agenda: 'agenda', extraits: 'extraits', registres: 'registres', catechisme: 'catechisme', catechumenat: 'catechumenat', 'cor-unum': 'cor_unum', retraites: 'retraites', documents: 'documents', annonces: 'annonces', semaine: 'annonces', newsletter: 'annonces', breviaire: 'liturgie', messe: 'liturgie', bible: 'liturgie', 'calendrier-propre': 'liturgie' }[loc.pathname.split('/')[1]]
   const tuilesActives = TUILES.filter((t) => !t.bientot && peut(t.droit))
   const avecTuiles = tuilesActives.length > 1
   const tuile = tuileDuChemin(loc.pathname)
@@ -353,6 +355,7 @@ function Cadre() {
               {peut('liturgie') && <Route path="/breviaire" element={<Breviaire />} />}
               {peut('liturgie') && <Route path="/messe" element={<MesseDuJour />} />}
               {peut('liturgie') && <Route path="/bible" element={<Bible />} />}
+              {peut('liturgie') && <Route path="/calendrier-propre" element={<CalendrierPropre />} />}
               <Route path="/aide" element={<Aide />} />
               <Route path="/compte" element={<Compte />} />
               <Route path="*" element={<Navigate to="/" replace />} />

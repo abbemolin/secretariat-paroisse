@@ -8,6 +8,7 @@ import { ApercuSignature } from './Courrier.jsx'
 import { VARIABLES_COURRIER } from './Courriers.jsx'
 import { ONGLETS_REGLAGES, ongletPermis } from '../acces.js'
 import NewsletterReglages from './NewsletterReglages.jsx'
+import LiturgieReglages from './LiturgieReglages.jsx'
 
 
 export default function Reglages() {
@@ -30,6 +31,7 @@ export default function Reglages() {
       {onglet === 'Cor Unum' && <CorUnumReglages />}
       {onglet === 'Paiements en ligne' && <PaiementsReglages />}
       {onglet === 'Newsletter' && <NewsletterReglages />}
+      {onglet === 'Liturgie' && <LiturgieReglages />}
       {onglet === 'Journal' && <Journal />}
       {onglet === 'Sauvegardes' && <Sauvegardes />}
     </>

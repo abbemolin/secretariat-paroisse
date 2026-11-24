@@ -134,9 +134,23 @@ export function chargerCalendrier() {
 export const jourCalendrier = (date) => (CALENDRIER || {})[date] || null
 
 /** Même résultat que Ordo1962.getDay de l'AppMesse (avec messe.js). */
+export const calendrierPropre = () => (CALENDRIER || {})._propre || null
+
 export function jourLiturgique(y, m, d) {
   const base = Ordo1962.getDay(y, m, d)
   const c = (CALENDRIER || {})[iso(y, m, d)]
+  // Calendrier propre (calculé par le moteur) : fêtes de la communauté et de Strasbourg déjà dedans ; ici, les mentions facultatives
+  const p = calendrierPropre()
+  if (p && c) {
+    const r = Object.assign({}, base, {
+      date: iso(y, m, d), fete: titreFrancais(c.titre_fr || c.titre), classe: c.classe, rang: c.rang,
+      couleur: c.couleur, commemoration: c.comm || null, autres: [], source: 'divinum'
+    })
+    const f = p.fetes?.[`${pad(m)}-${pad(d)}`]
+    if (f && titreFrancais(c.titre_fr || '') === f.nom) r.source = f.groupe === 'communaute' ? 'smmd' : 'diocese'
+    const nom = p.mentions?.[`${pad(m)}-${pad(d)}`]
+    return nom && c.rang >= 3 ? Object.assign(r, { fete: `${r.fete} · ${nom} (facultatif)`, mention: nom }) : r
+  }
   const f = feteSmmd(m, d)
   const r = c ? Object.assign({}, base, {
     date: iso(y, m, d), fete: titreFrancais(c.titre_fr || c.titre), classe: c.classe, rang: c.rang,
