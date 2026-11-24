@@ -16,8 +16,30 @@ export function appliquerAffichage(a = lireAffichage()) {
   h.classList.remove('texte-grand', 'texte-tresgrand')
   if (a.taille === 'grand') h.classList.add('texte-grand')
   if (a.taille === 'tresgrand') h.classList.add('texte-tresgrand')
-  const sombre = a.theme === 'sombre' || (a.theme === 'auto' && media?.matches)
+  let sombre = a.theme === 'sombre' || (a.theme === 'auto' && media?.matches)
+  // Tuile « Bible et bréviaire » : son propre choix (bouton ☾), sur cet appareil, l'emporte tant qu'on y est
+  const lit = liturgieActive && themeLiturgie()
+  if (lit) sombre = lit === 'sombre'
   h.classList.toggle('sombre', !!sombre)
   document.querySelector('meta[name=theme-color]')?.setAttribute('content', sombre ? '#1f1517' : '#521a22')
+  window.dispatchEvent(new Event('theme-liturgie'))
 }
 media?.addEventListener?.('change', () => appliquerAffichage())
+
+// ─── Thème de la tuile « Bible et bréviaire » : par défaut celui du compte ; le bouton ☾ le change pour la tuile seule ───
+const CLE_LIT = 'liturgie.theme'
+let liturgieActive = false
+export function themeLiturgie() { try { const t = localStorage.getItem(CLE_LIT); return t === 'sombre' || t === 'clair' ? t : null } catch { return null } }
+export const estSombre = () => document.documentElement.classList.contains('sombre')
+export function definirTuileLiturgie(actif) {
+  if (liturgieActive === actif) return
+  liturgieActive = actif
+  appliquerAffichage()
+}
+/** Bouton ☾ : bascule clair / sombre pour la tuile ; revenir au choix du compte efface le réglage propre. */
+export function basculerSombreLiturgie() {
+  const voulu = estSombre() ? 'clair' : 'sombre'
+  liturgieActive = false; appliquerAffichage(); const compte = estSombre() ? 'sombre' : 'clair'; liturgieActive = true
+  try { if (voulu === compte) localStorage.removeItem(CLE_LIT); else localStorage.setItem(CLE_LIT, voulu) } catch { /* ignore */ }
+  appliquerAffichage()
+}

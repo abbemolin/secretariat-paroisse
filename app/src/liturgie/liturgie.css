@@ -7,9 +7,9 @@
   --brev-encre: var(--ink);
 }
 html.sombre .liturgie {
-  --ink: #eee2df; --ink-soft: #d9c4c1; --ink-muted: #9b8a87;
+  --ink: #eee2df; --ink-soft: #d9c4c1; --ink-muted: #a8938f;
   --rubric: #e8796f; --gold: #e6a86c; --gold-pale: #3a2a1b;
-  --vellum: #171012; --vellum-light: #231a1c; --border-soft: #3a2b2e;
+  --vellum: #171012; --vellum-light: #1f1618; --border-soft: #3a2b2e;
 }
 
 /* ── Bréviaire ── */
@@ -117,3 +117,19 @@ html.sombre .liturgie {
 .bible-texte .verset.eclaire { background: var(--gold-pale); }
 .bible-texte .verset.marque { background: linear-gradient(transparent 62%, rgba(208,140,76,.28) 62%); }
 .bible-texte .btn-comm { font-size: .7em; vertical-align: super; margin-left: 2px; color: var(--gold); background: none; border: 0; cursor: pointer; }
+
+/* ── Mode sombre : réglages fins ── */
+html.sombre .brev-hero { background: linear-gradient(#2e1218, #241014); border-bottom: 1px solid #4a1d25; }
+html.sombre .brev-hero-fete { color: #f4e9e6; }
+html.sombre .brev-hero-date { color: rgba(244,233,230,.55); }
+html.sombre .brev-nav-arrow { color: var(--gold); }
+html.sombre .lang-btn.active { background: #5b1f28; color: #fff; }
+html.sombre .heure-tab.active, html.sombre .partie-tab.active { color: var(--gold); border-bottom-color: var(--gold); opacity: 1; }
+html.sombre .taille-btn { color: var(--ink-soft); }
+html.sombre .brev-loading::before { color: var(--gold); }
+html.sombre .liturgie [class*="border-or-100"] { border-color: #5a3f26; }
+html.sombre .liturgie .verset.marque { background: linear-gradient(transparent 62%, rgba(230,168,108,.22) 62%); }
+html.sombre .liturgie .greg-trad { border-left-color: #4a373b; }
+html.sombre .liturgie a.ref-bible { color: var(--gold); }
+html.sombre .liturgie .bg-or-50 { background-color: #2a1f17; }
+html.sombre .liturgie [class*="border-or-100"] { border-color: #4a3626; }

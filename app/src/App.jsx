@@ -6,6 +6,7 @@ import { api, ecrireToken, enCache, lireToken, quandSessionExpire, estDemo, suiv
 import { Chargement, FournisseurNotif, ROLES, dateRelative, useNotif } from './ui.jsx'
 import Connexion from './pages/Connexion.jsx'
 import { peutVoir, peutModifier } from './acces.js'
+import { definirTuileLiturgie } from './affichage.js'
 import Accueil from './pages/Accueil.jsx'
 import Courrier from './pages/Courrier.jsx'
 import Agenda from './pages/Agenda.jsx'
@@ -264,6 +265,9 @@ function Cadre() {
   const tuilesActives = TUILES.filter((t) => !t.bientot && peut(t.droit))
   const avecTuiles = tuilesActives.length > 1
   const tuile = tuileDuChemin(loc.pathname)
+  // Mode sombre propre à la tuile « Bible et bréviaire »
+  useEffect(() => { definirTuileLiturgie(tuile === 'liturgie') }, [tuile])
+  useEffect(() => () => definirTuileLiturgie(false), [])
   // Écran des tuiles à l'ouverture de l'appli (une fois par session)
   useEffect(() => {
     if (!avecTuiles) return

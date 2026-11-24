@@ -4,6 +4,7 @@
 import { lireFichier, prechargerLiturgie, suivrePrechargement, deux } from './source.js'
 import { chargerCalendrier, jourLiturgique, titreFrancais } from './calendrier.js'
 import { chargerExsurge } from './exsurge.js'
+import { basculerSombreLiturgie, estSombre } from '../affichage.js'
 
 const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
 const JOURS = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi']
@@ -30,6 +31,7 @@ const GABARIT = `
   <div class="brev-toolbar-filler"></div>
   <button type="button" class="taille-btn" data-taille="-1" aria-label="Réduire le texte">A−</button>
   <button type="button" class="taille-btn" data-taille="1" aria-label="Agrandir le texte">A+</button>
+  <button type="button" class="taille-btn" data-r="sombre" aria-label="Mode sombre" title="Mode sombre">☾</button>
   <button type="button" class="taille-btn" data-r="plein" aria-label="Plein écran" title="Plein écran">⤢</button>
 </div>
 <div class="greg-options" data-r="gregopt" hidden><button type="button" class="greg-btn" data-r="trad">Traduction française</button></div>
@@ -784,12 +786,23 @@ export function monterBreviaire(racine) {
     else if (b.dataset.r === 'greg') setGregorien()
     else if (b.dataset.r === 'trad') basculerTraduction()
     else if (b.dataset.r === 'plein') basculerPlein()
+    else if (b.dataset.r === 'sombre') basculerSombreLiturgie()
     else if (b.dataset.r === 'horsligne') prechargerLiturgie()
   })
 
   // Hors ligne : les 30 prochains jours
   const finSuivi = suivrePrechargement((t) => { const b = r('horsligne'); b.hidden = !t; b.textContent = t || '' })
   nettoyages.push(finSuivi)
+
+  // Bouton ☾ / ☀ (les partitions suivent la couleur du texte)
+  function majSombre() {
+    const sombre = estSombre(), b = r('sombre')
+    b.textContent = sombre ? '☀' : '☾'
+    b.title = sombre ? 'Mode clair' : 'Mode sombre'
+    b.setAttribute('aria-label', b.title)
+  }
+  ecouter(window, 'theme-liturgie', majSombre)
+  majSombre()
 
   majHautBarre()
   appliquerTaille()

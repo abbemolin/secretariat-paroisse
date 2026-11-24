@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Bookmark, BookmarkPlus, ChevronLeft, ChevronRight, Library, Search, Trash2, X } from 'lucide-react'
-import { CANON, LIVRES, chapitresDe, chargerMarques, commentairesDe, enregistrerMarques, estAT, lireReference, rechercher, reference, suivreBible, telechargerBible, versetsDe } from '../liturgie/bible.js'
+import { Bookmark, BookmarkPlus, ChevronDown, ChevronLeft, ChevronRight, Library, Search, Trash2, X } from 'lucide-react'
+import { CANON, INFOS_LIVRES, LIVRES, chargerMarques, commentairesDe, enregistrerMarques, estAT, lireReference, rechercher, reference, suivreBible, telechargerBible, versetsDe } from '../liturgie/bible.js'
 import { Modale, useNotif } from '../ui.jsx'
 import '../liturgie/liturgie.css'
+import BoutonSombre from '../liturgie/BoutonSombre.jsx'
 
-const CLE_POSITION = 'bible-position'
 const sansAccent = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 const echapper = (s) => String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
@@ -13,15 +13,14 @@ const echapper = (s) => String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 export default function Bible() {
   const [params, setParams] = useSearchParams()
   const notifier = useNotif()
-  const dernier = (() => { try { return JSON.parse(localStorage.getItem(CLE_POSITION) || 'null') } catch { return null } })()
-  const livre = LIVRES.includes(params.get('livre')) ? params.get('livre') : dernier?.livre || null
-  const chapitre = +params.get('chapitre') || (livre === dernier?.livre ? dernier?.chapitre : 1) || 1
+  // On arrive toujours sur la grille des livres ; un lien (Messe du jour, recherche, marque-page) ouvre directement le passage
+  const livre = LIVRES.includes(params.get('livre')) ? params.get('livre') : null
+  const chapitre = +params.get('chapitre') || 1
   const versetCible = +params.get('verset') || null
   const versetFin = +params.get('fin') || versetCible
 
-  const [onglet, setOnglet] = useState(livre && !estAT(livre) ? 'NT' : 'AT')
-  const [livres, setLivres] = useState(!livre)
-  const [chapitres, setChapitres] = useState([])
+  const [grille, setGrille] = useState(null)   // null = texte ; 'livres' ; un livre = ses chapitres
+  const vue = !livre ? (grille && grille !== 'livres' ? grille : 'livres') : grille
   const [versets, setVersets] = useState(null)
   const [comms, setComms] = useState({})
   const [comm, setComm] = useState(null)
@@ -39,15 +38,13 @@ export default function Bible() {
     if (v) p.verset = v
     if (f && f !== v) p.fin = f
     setParams(p)
-    setLivres(false); setChoix(null)
+    setGrille(null); setChoix(null)
   }
 
   useEffect(() => {
     if (!livre) return
     let annule = false
     setVersets(null); setComms({})
-    try { localStorage.setItem(CLE_POSITION, JSON.stringify({ livre, chapitre })) } catch { /* ignore */ }
-    chapitresDe(livre).then((l) => !annule && setChapitres(l)).catch(() => {})
     versetsDe(livre, chapitre).then((l) => !annule && setVersets(l)).catch(() => !annule && setVersets([]))
     commentairesDe(livre, chapitre).then((c) => !annule && setComms(c)).catch(() => {})
     return () => { annule = true }
@@ -64,7 +61,7 @@ export default function Bible() {
     }, 80)
   }, [versets, versetCible])
 
-  const max = chapitres.length ? Math.max(...chapitres) : chapitre
+  const max = INFOS_LIVRES[livre]?.[1] || chapitre
   const changerChapitre = (n) => { const c = chapitre + n; if (c >= 1 && c <= max) aller(livre, c) }
 
   // Glisser le doigt : chapitre suivant ou précédent
@@ -89,41 +86,64 @@ export default function Bible() {
 
   return (
     <div className="liturgie">
-      <div className="flex flex-wrap items-center gap-2">
-        <button className="btn btn-clair" onClick={() => setLivres(!livres)}><Library className="h-4 w-4" />Livres</button>
-        {livre && (
+      <div className="flex items-center gap-1 sm:gap-2">
+        <button className={`btn ${vue === 'livres' ? 'btn-principal' : 'btn-clair'}`} onClick={() => setGrille(vue === 'livres' && livre ? null : 'livres')}><Library className="h-4 w-4" /><span className={livre && !vue ? 'hidden sm:inline' : ''}>Livres</span></button>
+        {livre && !vue && (
           <div className="flex items-center gap-1">
             <button className="btn-icone" disabled={chapitre <= 1} onClick={() => changerChapitre(-1)} aria-label="Chapitre précédent"><ChevronLeft className="h-5 w-5" /></button>
-            <select className="champ w-auto py-1.5" value={chapitre} onChange={(e) => aller(livre, +e.target.value)} aria-label="Chapitre">
-              {(chapitres.length ? chapitres : [chapitre]).map((c) => <option key={c} value={c}>Chapitre {c}</option>)}
-            </select>
+            <button className="btn btn-clair" onClick={() => setGrille(livre)} aria-label="Choisir le chapitre">{INFOS_LIVRES[livre]?.[0]} {chapitre}<ChevronDown className="h-4 w-4" /></button>
             <button className="btn-icone" disabled={chapitre >= max} onClick={() => changerChapitre(1)} aria-label="Chapitre suivant"><ChevronRight className="h-5 w-5" /></button>
           </div>
         )}
         <div className="flex-1" />
+        <BoutonSombre />
         <button className="btn-icone" onClick={() => setRecherche(true)} aria-label="Rechercher" title="Rechercher"><Search className="h-5 w-5" /></button>
         <button className="btn-icone relative" onClick={() => setPanneauMarques(true)} aria-label="Marque-pages" title="Marque-pages">
           <Bookmark className="h-5 w-5" />{marques.length > 0 && <span className="absolute -right-0.5 -top-0.5 rounded-full bg-or px-1 text-[10px] font-bold text-white">{marques.length}</span>}
         </button>
       </div>
 
-      {livres && (
-        <div className="carte mt-3 p-4">
-          <div className="mb-3 flex gap-1">
-            {['AT', 'NT'].map((o) => <button key={o} onClick={() => setOnglet(o)} className={`rounded-lg px-3 py-1.5 text-sm font-medium ${onglet === o ? 'bg-nuit text-white' : 'text-nuit-600 hover:bg-nuit-50'}`}>{o === 'AT' ? 'Ancien Testament' : 'Nouveau Testament'}</button>)}
-          </div>
-          {Object.entries(CANON[onglet]).map(([groupe, l]) => (
-            <div key={groupe} className="mb-3">
-              <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-or-600">{groupe}</div>
-              <div className="flex flex-wrap gap-1.5">
-                {l.map((x) => <button key={x} onClick={() => aller(x, 1)} className={`rounded-lg border px-2.5 py-1 text-sm ${x === livre ? 'border-nuit bg-nuit text-white' : 'border-nuit-100 text-nuit-700 hover:bg-nuit-50'}`}>{x}</button>)}
-              </div>
-            </div>
+      {vue === 'livres' && (
+        <div className="mt-3 space-y-5">
+          {['AT', 'NT'].map((t) => (
+            <section key={t}>
+              <h2 className={`mb-2 text-2xl font-semibold ${t === 'AT' ? 'text-or-600' : 'text-nuit'}`}>{t === 'AT' ? 'Ancien Testament' : 'Nouveau Testament'}</h2>
+              {Object.entries(CANON[t]).map(([groupe, l]) => (
+                <div key={groupe} className="mb-3">
+                  <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-nuit-600/70">{groupe}</div>
+                  <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6 lg:grid-cols-8">
+                    {l.map((x) => (
+                      <button key={x} onClick={() => (INFOS_LIVRES[x]?.[1] === 1 ? aller(x, 1) : setGrille(x))} title={x}
+                        className={`flex min-h-[64px] flex-col items-center justify-center rounded-xl border px-1 py-2 text-center transition hover:-translate-y-px hover:shadow-sm ${x === livre ? 'ring-2 ring-or' : ''} ${t === 'AT' ? 'border-or-100 bg-or-50' : 'border-nuit-100 bg-nuit-50'}`}>
+                        <span className={`font-titre text-xl font-semibold leading-none ${t === 'AT' ? 'text-or-600' : 'text-nuit'}`}>{INFOS_LIVRES[x]?.[0]}</span>
+                        <span className="mt-1 line-clamp-2 text-[11px] leading-tight text-nuit-600">{x}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </section>
           ))}
         </div>
       )}
 
-      {livre && (
+      {vue && vue !== 'livres' && (
+        <div className="carte mt-3 p-4 sm:p-6">
+          <div className="mb-3 flex items-center gap-2">
+            <button className="btn-icone" onClick={() => setGrille('livres')} aria-label="Retour aux livres"><ChevronLeft className="h-5 w-5" /></button>
+            <h2 className={`flex-1 text-2xl font-semibold ${estAT(vue) ? 'text-or-600' : 'text-nuit'}`}>{vue}</h2>
+            <span className="text-sm text-nuit-600/70">{INFOS_LIVRES[vue]?.[1]} chapitre{INFOS_LIVRES[vue]?.[1] > 1 ? 's' : ''}</span>
+          </div>
+          <div className="grid grid-cols-6 gap-1.5 sm:grid-cols-10 lg:grid-cols-12">
+            {Array.from({ length: INFOS_LIVRES[vue]?.[1] || 1 }, (_, k) => k + 1).map((c) => (
+              <button key={c} onClick={() => aller(vue, c)}
+                className={`h-12 rounded-lg border text-base font-medium tabular-nums transition hover:shadow-sm ${vue === livre && c === chapitre ? 'border-nuit bg-nuit text-white' : estAT(vue) ? 'border-or-100 bg-or-50 text-or-600' : 'border-nuit-100 bg-nuit-50 text-nuit'}`}>{c}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {livre && !vue && (
         <article ref={zone} className="carte mt-3 px-5 py-6 sm:px-10" onTouchStart={debut} onTouchEnd={fin}>
           <h1 className="text-center text-3xl font-semibold text-nuit">{livre} {chapitre}</h1>
           <div className="mb-5 mt-1 text-center text-sm tracking-[.5em] text-or">✦✦✦</div>
@@ -159,14 +179,14 @@ export default function Bible() {
       {etatHL && <p className="mt-3 text-center text-xs text-nuit-600/70">{etatHL}</p>}
 
       {comm && <Modale titre={`${livre} ${chapitre}, ${comm}`} onFermer={() => setComm(null)}><div className="whitespace-pre-line font-titre text-lg leading-relaxed">{comms[comm]}</div></Modale>}
-      {recherche && <Recherche onFermer={() => setRecherche(false)} onOuvrir={(r) => { setRecherche(false); setOnglet(estAT(r.livre) ? 'AT' : 'NT'); aller(r.livre, r.chapitre, r.verset_num) }} />}
+      {recherche && <Recherche onFermer={() => setRecherche(false)} onOuvrir={(r) => { setRecherche(false); aller(r.livre, r.chapitre, r.verset_num) }} />}
       {panneauMarques && (
         <Modale titre="Marque-pages" onFermer={() => setPanneauMarques(false)}>
           {!marques.length ? <p className="text-sm text-nuit-600">Aucun marque-page. Touchez un verset, puis « Marque-page ».</p> : (
             <ul className="divide-y divide-nuit-50">
               {marques.map((m) => (
                 <li key={m.id} className="flex items-center gap-2 py-2">
-                  <button className="min-w-0 flex-1 text-left" onClick={() => { setPanneauMarques(false); setOnglet(estAT(m.livre) ? 'AT' : 'NT'); aller(m.livre, m.chapitre, m.verset) }}>
+                  <button className="min-w-0 flex-1 text-left" onClick={() => { setPanneauMarques(false); aller(m.livre, m.chapitre, m.verset) }}>
                     <div className="font-medium text-nuit">{m.livre} {m.chapitre}{m.verset ? ', ' + m.verset : ''}</div>
                     <input className="champ mt-1 py-1 text-xs" placeholder="Note (facultatif)" defaultValue={m.note} onClick={(e) => e.stopPropagation()}
                       onBlur={(e) => { if (e.target.value !== m.note) sauverMarques(marques.map((x) => (x.id === m.id ? { ...x, note: e.target.value } : x))) }} />

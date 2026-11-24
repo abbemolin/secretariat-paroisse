@@ -31,7 +31,7 @@ html.texte-tresgrand { font-size: 19.5px; }
 html.sombre { color-scheme: dark; }
 html.sombre body { background: #171012; color: #eee2df; }
 html.sombre .bg-parchemin, html.sombre main { background-color: #171012; }
-html.sombre .carte, html.sombre .bg-white, html.sombre [class*="bg-white/"] { background-color: #231a1c; }
+html.sombre .carte, html.sombre .bg-white, html.sombre [class^="bg-white/"], html.sombre [class*=" bg-white/"] { background-color: #231a1c; }
 html.sombre .carte, html.sombre [class*="border-nuit-100"], html.sombre [class*="border-nuit-50"], html.sombre [class*="divide-nuit-50"] > *, html.sombre [class*="divide-nuit-100"] > * { border-color: #3a2b2e; }
 html.sombre .champ { background-color: #1c1416; border-color: #4a373b; color: #eee2df; }
 html.sombre .champ::placeholder { color: #9b8a87; }

@@ -23,6 +23,20 @@ export const CANON = {
   }
 }
 export const LIVRES = [...Object.values(CANON.AT), ...Object.values(CANON.NT)].flat()
+// Abréviation affichée dans la grille et nombre de chapitres (Bible Crampon)
+export const INFOS_LIVRES = {
+  Genèse: ['Gn', 50], Exode: ['Ex', 40], Lévitique: ['Lv', 27], Nombres: ['Nb', 36], Deutéronome: ['Dt', 34],
+  Josué: ['Jos', 24], Juges: ['Jg', 21], Ruth: ['Rt', 4], '1 Samuel': ['1 S', 31], '2 Samuel': ['2 S', 24], '1 Rois': ['1 R', 22], '2 Rois': ['2 R', 25],
+  '1 Chroniques': ['1 Ch', 29], '2 Chroniques': ['2 Ch', 36], Esdras: ['Esd', 10], Néhémie: ['Ne', 13], Tobie: ['Tb', 14], Judith: ['Jdt', 16], Esther: ['Est', 10],
+  '1 Macchabées': ['1 M', 16], '2 Macchabées': ['2 M', 15], Job: ['Jb', 42], Psaumes: ['Ps', 150], Proverbes: ['Pr', 31], Ecclésiaste: ['Qo', 12],
+  'Cantique des Cantiques': ['Ct', 8], Sagesse: ['Sg', 19], Ecclésiastique: ['Si', 51], Isaïe: ['Is', 66], Jérémie: ['Jr', 52], Lamentations: ['Lm', 5],
+  Baruch: ['Ba', 6], Ézéchiel: ['Ez', 48], Daniel: ['Dn', 14], Osée: ['Os', 14], Joël: ['Jl', 3], Amos: ['Am', 9], Abdias: ['Ab', 1], Jonas: ['Jon', 4],
+  Michée: ['Mi', 7], Nahum: ['Na', 3], Habacuc: ['Ha', 3], Sophonie: ['So', 3], Aggée: ['Ag', 2], Zacharie: ['Za', 14], Malachie: ['Ml', 3],
+  Matthieu: ['Mt', 28], Marc: ['Mc', 16], Luc: ['Lc', 24], Jean: ['Jn', 21], Actes: ['Ac', 28], Romains: ['Rm', 16], '1 Corinthiens': ['1 Co', 16],
+  '2 Corinthiens': ['2 Co', 13], Galates: ['Ga', 6], Éphésiens: ['Ep', 6], Philippiens: ['Ph', 4], Colossiens: ['Col', 4], '1 Thessaloniciens': ['1 Th', 5],
+  '2 Thessaloniciens': ['2 Th', 3], '1 Timothée': ['1 Tm', 6], '2 Timothée': ['2 Tm', 4], Tite: ['Tt', 3], Philémon: ['Phm', 1], Hébreux: ['He', 13],
+  Jacques: ['Jc', 5], '1 Pierre': ['1 P', 5], '2 Pierre': ['2 P', 3], '1 Jean': ['1 Jn', 5], '2 Jean': ['2 Jn', 1], '3 Jean': ['3 Jn', 1], Jude: ['Jude', 1], Apocalypse: ['Ap', 22]
+}
 export const estAT = (livre) => Object.values(CANON.AT).flat().includes(livre)
 export const ABREGE_COMMENTAIRE = { Matthieu: 'Mt', Marc: 'Mc', Luc: 'Lc', Jean: 'Jn' }
 

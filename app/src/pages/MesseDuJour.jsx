@@ -4,6 +4,7 @@ import { chargerCalendrier, jourLiturgique, titreFrancais } from '../liturgie/ca
 import { chargerMesse, nomMesse, piecesMesse } from '../liturgie/messe.js'
 import { isoJour, prechargerLiturgie } from '../liturgie/source.js'
 import '../liturgie/liturgie.css'
+import BoutonSombre from '../liturgie/BoutonSombre.jsx'
 
 const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
 const JOURS = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi']
@@ -66,6 +67,7 @@ export default function MesseDuJour() {
         )}
         <div className="brev-toolbar-filler" />
         {date !== isoJour(new Date()) && <button type="button" className="taille-btn" onClick={() => setParams({}, { replace: true })}>Aujourd’hui</button>}
+        <BoutonSombre className="taille-btn" />
       </div>
       <div className="brev-content">
         {etat.charge ? <div className="brev-loading">Chargement…</div>
