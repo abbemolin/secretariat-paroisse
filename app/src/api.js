@@ -23,62 +23,138 @@ export class ErreurApi extends Error { constructor(code, message) { super(messag
 let surSessionExpiree = () => {}
 export function quandSessionExpire(fn) { surSessionExpiree = fn }
 
-// ─── Affichage instantané : dernière réponse connue des lectures, gardée sur l'appareil ───
-const LECTURES = ['journee.resume', 'intentions.liste', 'intentions.agenda', 'app.init', 'accueil.resume', 'dossiers.liste', 'dossiers.lire', 'cate.liste', 'cate.lire', 'cor.liste', 'extraits.liste', 'mail.liste', 'promotions.liste', 'agenda.evenements', 'documents.liste']
+// ─── Affichage instantané et hors connexion : dernière réponse connue des lectures, gardée sur l'appareil ───
+// (IndexedDB « secretariat-cache », chargée en mémoire au démarrage : les pages la lisent sans attendre)
+const LECTURES = ['journee.resume', 'intentions.liste', 'intentions.agenda', 'app.init', 'accueil.resume', 'dossiers.liste', 'dossiers.lire', 'cate.liste', 'cate.lire',
+  'cate.reglages', 'cor.liste', 'cor.reglages', 'extraits.liste', 'extraits.lire', 'retraites.liste', 'retraites.lire', 'mail.liste', 'promotions.liste', 'agenda.evenements',
+  'documents.liste', 'annonces.liste', 'newsletter.semaine', 'newsletter.lire', 'textes.liste', 'livres.liste', 'catechumenat.reglages', 'notifications.liste']
 const CACHE = new Map()
 const cleCache = (action, payload) => 'cache:' + action + ':' + JSON.stringify(payload || {})
+function baseCache() {
+  if (!baseCache.p) baseCache.p = new Promise((ok, ko) => {
+    const r = indexedDB.open('secretariat-cache', 1)
+    r.onupgradeneeded = () => r.result.createObjectStore('cache')
+    r.onsuccess = () => ok(r.result)
+    r.onerror = () => ko(r.error)
+  })
+  return baseCache.p
+}
+/** Au démarrage (avant le premier affichage) : tout le cache en mémoire ; reprend l'ancien cache du navigateur. */
+export async function chargerCacheLocal() {
+  if (estDemo()) return
+  try {
+    const db = await baseCache()
+    await new Promise((ok) => {
+      const s = db.transaction('cache').objectStore('cache'), r = s.openCursor()
+      r.onsuccess = () => { const c = r.result; if (c) { CACHE.set(c.key, c.value); c.continue() } else ok() }
+      r.onerror = () => ok()
+    })
+    const anciens = JSON.parse(localStorage.getItem('cache:index') || '[]')
+    if (anciens.length) {
+      const ecr = db.transaction('cache', 'readwrite').objectStore('cache')
+      anciens.forEach((k) => { try { const v = JSON.parse(localStorage.getItem(k)); if (v != null && !CACHE.has(k)) { CACHE.set(k, v); ecr.put(v, k) } } catch { /* ignore */ } localStorage.removeItem(k) })
+      localStorage.removeItem('cache:index')
+    }
+  } catch { /* navigation privée : cache en mémoire seulement */ }
+}
 /** Dernière réponse connue (ou undefined). */
 export function enCache(action, payload) {
   if (estDemo()) return undefined   // l'aperçu ne lit ni n'écrit le cache de la vraie session
-  const k = cleCache(action, payload)
-  if (CACHE.has(k)) return CACHE.get(k)
-  try { const v = sessionStorage.getItem(k) ?? localStorage.getItem(k); if (v) { const x = JSON.parse(v); CACHE.set(k, x); return x } } catch { /* ignore */ }
-  return undefined
+  return CACHE.get(cleCache(action, payload))
 }
-function memoriser(action, payload, data) {
+/** Garde une ou plusieurs réponses : memoriser(action, payload, data) ou memoriser([[action, payload, data], …]). */
+export function memoriser(action, payload, data) {
   if (estDemo()) return
-  const k = cleCache(action, payload)
-  CACHE.set(k, data)
-  try {
-    localStorage.setItem(k, JSON.stringify(data))
-    const index = JSON.parse(localStorage.getItem('cache:index') || '[]').filter((x) => x !== k).concat([k])
-    while (index.length > 60) localStorage.removeItem(index.shift())
-    localStorage.setItem('cache:index', JSON.stringify(index))
-  } catch { /* stockage plein : tant pis */ }
+  const l = Array.isArray(action) ? action : [[action, payload, data]]
+  l.forEach(([a, p, d]) => CACHE.set(cleCache(a, p), d))
+  baseCache().then((db) => { const s = db.transaction('cache', 'readwrite').objectStore('cache'); l.forEach(([a, p, d]) => s.put(d, cleCache(a, p))) }).catch(() => {})
 }
 export function viderCache() {
   CACHE.clear()
-  try { JSON.parse(localStorage.getItem('cache:index') || '[]').forEach((k) => localStorage.removeItem(k)); localStorage.removeItem('cache:index') } catch { /* ignore */ }
+  baseCache().then((db) => db.transaction('cache', 'readwrite').objectStore('cache').clear()).catch(() => {})
+  try { localStorage.removeItem('horsligne.le') } catch { /* ignore */ }
+}
+
+// ─── État du réseau (pastille « hors connexion ») ───
+let horsConnexion = typeof navigator !== 'undefined' && navigator.onLine === false
+const ecouteursReseau = new Set()
+function etatReseau(hors) { if (hors !== horsConnexion) { horsConnexion = hors; ecouteursReseau.forEach((f) => f(hors)) } }
+/** fn(horsConnexion) à chaque changement ; renvoie la fonction pour se désabonner. */
+export function suivreReseau(fn) { ecouteursReseau.add(fn); fn(horsConnexion); return () => ecouteursReseau.delete(fn) }
+if (typeof window !== 'undefined') window.addEventListener('offline', () => etatReseau(true))
+
+/** Sans connexion, une lecture sans copie exacte peut se déduire d'une copie plus large (agenda des mois préparés). */
+function repli(action, payload) {
+  if (action === 'agenda.evenements') {
+    const tout = enCache('agenda.horsligne', {})
+    if (!tout || !(tout.debut <= payload.debut && tout.fin >= payload.fin)) return undefined
+    return tout.evenements.filter((e) => e.debut < payload.fin && e.fin > payload.debut)
+  }
+  return undefined
 }
 
 export async function api(action, payload = {}) {
   let data
-  try { data = await appel(action, payload) }
+  try { data = await appel(action, payload); etatReseau(false) }
   catch (e) {
-    if (e.code === 'RESEAU' && action in EN_FILE) return mettreEnFile(action, payload)
+    if (e.code === 'RESEAU') {
+      etatReseau(true)
+      if (action in EN_FILE) return mettreEnFile(action, payload)
+      if (LECTURES.includes(action)) { const c = enCache(action, payload) ?? repli(action, payload); if (c !== undefined) return c }
+    }
     throw e
   }
   if (LECTURES.includes(action)) memoriser(action, payload, data)
-  if (EN_FILE[action]) memoriser(EN_FILE[action], { id: payload.id }, data)
+  if (typeof EN_FILE[action] === 'string') memoriser(EN_FILE[action], { id: payload.id }, data)
   return data
 }
 
-// ─── Hors connexion : les enregistrements de fiches sont gardés sur l'appareil et renvoyés au retour du réseau ───
-// action → lecture correspondante (null : gardée sans mise à jour du cache ; la page met elle-même son affichage à jour)
-const EN_FILE = { 'dossiers.modifier': 'dossiers.lire', 'cate.modifier': 'cate.lire', 'intentions.celebrer': null, 'intentions.ecrire': null }
+// ─── Hors connexion : les enregistrements sont gardés sur l'appareil et renvoyés au retour du réseau ───
+// action → lecture correspondante (null : gardée sans mise à jour du cache ; fonction : met elle-même les copies à jour)
+const EN_FILE = {
+  'dossiers.modifier': 'dossiers.lire', 'cate.modifier': 'cate.lire', 'intentions.celebrer': null, 'intentions.ecrire': null,
+  'agenda.creer': majAgendaLocal, 'agenda.modifier': majAgendaLocal, 'annonces.ecrire': majAnnoncesLocal
+}
+/** Événement créé ou modifié hors connexion : visible tout de suite dans l'agenda gardé. */
+function majAgendaLocal(p) {
+  const e = { lieu: '', description: '', ...p, _enAttente: true }
+  const tout = enCache('agenda.horsligne', {})
+  if (tout) memoriser('agenda.horsligne', {}, { ...tout, evenements: [...tout.evenements.filter((x) => x.id !== e.id), e].sort((a, b) => a.debut.localeCompare(b.debut)) })
+  for (const [k, v] of CACHE) {
+    if (!k.startsWith('cache:agenda.evenements:') || !Array.isArray(v)) continue
+    const b = JSON.parse(k.slice('cache:agenda.evenements:'.length))
+    const l = v.filter((x) => x.id !== e.id)
+    if (e.debut < b.fin && e.fin > b.debut) l.push(e)
+    memoriser('agenda.evenements', b, l.sort((a, c) => a.debut.localeCompare(c.debut)))
+  }
+  return e
+}
+/** Annonce créée ou modifiée hors connexion : visible tout de suite dans la liste gardée. */
+function majAnnoncesLocal(p) {
+  const l = enCache('annonces.liste', {}) || []
+  const avant = l.find((x) => x.id === p.id)
+  const a = { ...(avant || { created_at: new Date().toISOString(), ordre: null }), ...p, _enAttente: true }
+  memoriser('annonces.liste', {}, avant ? l.map((x) => (x.id === a.id ? a : x)) : [a, ...l])
+  return a
+}
 const CLE_FILE = 'file-attente'
 const ecouteursFile = new Set()
 export const fileAttente = () => { try { return JSON.parse(localStorage.getItem(CLE_FILE) || '[]') } catch { return [] } }
 function ecrireFile(l) { try { localStorage.setItem(CLE_FILE, JSON.stringify(l)) } catch { /* plein */ } ecouteursFile.forEach((f) => f(l.length)) }
 /** fn(nombre) appelé à chaque changement de la file ; renvoie la fonction pour se désabonner. */
 export function suivreFile(fn) { ecouteursFile.add(fn); fn(fileAttente().length); return () => ecouteursFile.delete(fn) }
+const estLocal = (id) => /^local-/.test(String(id || ''))
 function mettreEnFile(action, payload) {
   const l = fileAttente()
+  // Création hors connexion : identifiant provisoire (une modification ultérieure s'ajoute à la création)
+  if ((action === 'agenda.creer' || action === 'annonces.ecrire') && payload.id === undefined) payload = { ...payload, id: 'local-' + Date.now() }
+  if (action === 'agenda.modifier' && estLocal(payload.id)) action = 'agenda.creer'
   const i = payload.id === undefined ? -1 : l.findIndex((x) => x.action === action && x.payload.id === payload.id)
   if (i > -1) l[i] = { action, payload: { ...l[i].payload, ...payload }, t: Date.now() }   // une seule entrée par fiche : la plus récente
   else l.push({ action, payload, t: Date.now() })
   ecrireFile(l)
   const lecture = EN_FILE[action]
+  if (typeof lecture === 'function') return lecture(payload)
   if (!lecture) return { ...payload, _enAttente: true }
   const res = { ...(enCache(lecture, { id: payload.id }) || {}), ...payload, _enAttente: true }
   memoriser(lecture, { id: payload.id }, res)
@@ -94,10 +170,12 @@ export async function viderFile() {
     while (l.length) {
       const x = l[0]
       try {
-        const data = await appel(x.action, x.payload)
-        if (EN_FILE[x.action]) memoriser(EN_FILE[x.action], { id: x.payload.id }, data)
+        const pl = estLocal(x.payload.id) ? (({ id, ...r }) => r)(x.payload) : x.payload   // création : sans l'identifiant provisoire
+        const data = await appel(x.action, pl)
+        etatReseau(false)
+        if (typeof EN_FILE[x.action] === 'string') memoriser(EN_FILE[x.action], { id: x.payload.id }, data)
       } catch (e) {
-        if (e.code === 'RESEAU') break                      // toujours hors connexion : on réessaiera
+        if (e.code === 'RESEAU') { etatReseau(true); break }   // toujours hors connexion : on réessaiera
         window.dispatchEvent(new CustomEvent('file-erreur', { detail: e.message }))   // refus du serveur : abandonné
       }
       l = fileAttente().filter((y) => y.t !== x.t)

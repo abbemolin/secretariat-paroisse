@@ -41,7 +41,7 @@ export default function Agenda() {
   const Evt = ({ e, compact }) => (
     <button onClick={() => setEdition(e)} className={`block w-full rounded-md border-l-4 px-2 text-left hover:brightness-95 ${compact ? 'py-0.5 text-[11px]' : 'py-1.5 text-xs'} ${e.dossier ? 'border-or bg-or-50' : 'border-nuit-600 bg-nuit-50'}`}>
       <span className="font-medium text-nuit-600">{e.journee ? '' : heure(e.debut) + ' '}</span>
-      <span className="font-medium text-nuit-800">{e.titre}</span>
+      <span className="font-medium text-nuit-800">{e.titre}</span>{e._enAttente && <span className="ml-1 text-[10px] italic text-nuit-600/70">(en attente d'envoi)</span>}
       {!compact && e.lieu && <div className="truncate text-nuit-600/70"><MapPin className="mr-0.5 inline h-3 w-3" />{e.lieu}</div>}
     </button>
   )
@@ -142,8 +142,8 @@ export function EditionEvenement({ evenement, onFermer, onFait }) {
   async function enregistrer() {
     setEnvoi(true); setErreur(null)
     try {
-      await api(nouveau ? 'agenda.creer' : 'agenda.modifier', { ...f, debut: new Date(f.journee ? f.debut + 'T00:00' : f.debut).toISOString(), fin: new Date(f.journee ? f.fin + 'T00:00' : f.fin).toISOString() })
-      onFait(nouveau ? 'Événement créé' : f.dossier ? 'Événement et dossier mis à jour' : 'Événement modifié')
+      const r = await api(nouveau ? 'agenda.creer' : 'agenda.modifier', { ...f, debut: new Date(f.journee ? f.debut + 'T00:00' : f.debut).toISOString(), fin: new Date(f.journee ? f.fin + 'T00:00' : f.fin).toISOString() })
+      onFait(r?._enAttente ? 'Hors connexion : gardé sur l\'appareil, envoyé au retour du réseau' : nouveau ? 'Événement créé' : f.dossier ? 'Événement et dossier mis à jour' : 'Événement modifié')
     } catch (e) { setErreur(e) } finally { setEnvoi(false) }
   }
   async function supprimer() {

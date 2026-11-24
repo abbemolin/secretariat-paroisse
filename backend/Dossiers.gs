@@ -117,7 +117,7 @@ function listerDossiers_(p, s) {
   });
 }
 
-function dossierComplet_(d) {
+function dossierComplet_(d, leger) {
   var res = dossierResume_(d);
   var don = json2_(d.donnees, {});
   res.evenement_id = d.evenement_id;
@@ -128,8 +128,10 @@ function dossierComplet_(d) {
   res.pieces = don.pieces || [];
   res.historique = (don.historique || []).slice().reverse();
   try { res.fraternite = fraterniteDuDossier_(d); } catch (e) { res.fraternite = null; }
-  res.photo = photoMini_(d);
+  // Version légère (préparation hors ligne) : sans Drive ni Gmail
+  res.photo = leger ? ((don.photo && don.photo.mini) || '') : photoMini_(d);
   res.photo_fichier = !!(don.photo && don.photo.fichier);
+  if (leger) { res.fils = null; return res; }
   res.fils = (don.fils || []).slice(-30).map(function (id) {
     try {
       var t = GmailApp.getThreadById(id);

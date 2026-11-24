@@ -164,7 +164,7 @@ function Carte({ a, glisse, poignee, onModifier, onDupliquer, onSupprimer, onPri
     <div data-annonce={a.id} className={`carte overflow-hidden transition ${a.prioritaire ? 'border-l-4 border-l-or' : ''} ${!a.actif ? 'opacity-60' : ''} ${source ? 'opacity-40' : ''} ${cible ? 'ring-2 ring-or' : ''}`}>
       <div className="flex gap-3 p-4">
         <div className="min-w-0 flex-1">
-          <div className="font-titre text-xl font-semibold leading-tight">{a.titre}</div>
+          <div className="font-titre text-xl font-semibold leading-tight">{a.titre}{a._enAttente && <span className="pastille ml-2 bg-nuit-50 align-middle font-sans text-[10px] font-normal text-nuit-600">en attente d'envoi</span>}</div>
           {a.description && <p className="mt-1 line-clamp-3 whitespace-pre-line text-sm text-nuit-600">{a.description}</p>}
           {chips.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{chips.map(([I, t, c], i) => <span key={i} className={`pastille gap-1 ${c}`}>{I && <I className="h-3 w-3" />}{t}</span>)}</div>}
         </div>
@@ -209,7 +209,7 @@ function Fiche({ annonce, onFermer, onEnregistre }) {
   async function enregistrer() {
     if (!f.titre.trim()) { notifier('Le titre est obligatoire', 'erreur'); return }
     setEnvoi(true)
-    try { await api('annonces.ecrire', { ...(a.id ? { id: a.id } : {}), ...f }); notifier(a.id ? 'Annonce modifiée' : 'Annonce créée'); onEnregistre() }
+    try { const r = await api('annonces.ecrire', { ...(a.id ? { id: a.id } : {}), ...f }); notifier(r?._enAttente ? 'Hors connexion : gardée sur l\'appareil, envoyée au retour du réseau' : a.id ? 'Annonce modifiée' : 'Annonce créée'); onEnregistre() }
     catch (e) { notifier(e.message, 'erreur') } finally { setEnvoi(false) }
   }
   const interrupteurs = [['prioritaire', 'Prioritaire', 'En tête de la liste et « À la une » dans la newsletter'], ['actif', 'Active', 'Visible sur le site et proposée ailleurs'],

@@ -2,8 +2,9 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { BoutonRecherche } from './pages/RechercheGlobale.jsx'
 import MaJournee, { voitMaJournee } from './pages/MaJournee.jsx'
-import { Home, Mail, CalendarDays, FolderHeart, FolderOpen, Users, Settings, UserCircle, LogOut, Bell, ScrollText, GraduationCap, HeartHandshake, Mountain, Flame, BookOpen, BookMarked, BarChart3, LifeBuoy, MoreHorizontal, X, Megaphone, CalendarRange, Newspaper, LayoutGrid, Church, BookOpenText, Sun, Cross, BookHeart } from 'lucide-react'
-import { api, ecrireToken, enCache, lireToken, quandSessionExpire, estDemo, suivreFile, viderFile } from './api.js'
+import { Home, Mail, CalendarDays, FolderHeart, FolderOpen, Users, Settings, UserCircle, LogOut, Bell, CloudOff, RefreshCw, ScrollText, GraduationCap, HeartHandshake, Mountain, Flame, BookOpen, BookMarked, BarChart3, LifeBuoy, MoreHorizontal, X, Megaphone, CalendarRange, Newspaper, LayoutGrid, Church, BookOpenText, Sun, Cross, BookHeart } from 'lucide-react'
+import { api, ecrireToken, enCache, lireToken, quandSessionExpire, estDemo, suivreFile, suivreReseau, viderFile } from './api.js'
+import { derniereMiseAJour, preparerHorsLigne } from './horsligne.js'
 import { Chargement, FournisseurNotif, ROLES, dateRelative, useNotif } from './ui.jsx'
 import Connexion from './pages/Connexion.jsx'
 import { peutVoir, peutModifier } from './acces.js'
@@ -110,6 +111,7 @@ function EcranTuiles({ tuiles }) {
       <header className="flex items-center gap-3 bg-nuit px-4 py-3 text-white sm:px-8" style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}>
         <img src="./logo-128.png" alt="" className="h-9 w-9 rounded-full" />
         <span className="flex-1 font-titre text-xl font-semibold">La Croix glorieuse</span>
+        <PastilleReseau />
         <BoutonRecherche mobile />
         <Cloche />
         <button onClick={deconnecter} className="rounded-lg p-2 text-white/80 hover:bg-white/10 hover:text-white" aria-label="Se déconnecter" title="Se déconnecter"><LogOut className="h-5 w-5" /></button>
@@ -193,14 +195,29 @@ export default function App() {
     if (!lireToken() && !estDemo()) { setPret(true); window.finDemarrage?.(); return }
     charger().finally(() => { setPret(true); window.finDemarrage?.() })
   }, [charger])
-  // Retour de la connexion après un démarrage hors ligne : session et données rafraîchies
+  // Retour de la connexion : session et données rafraîchies (le serveur est réessayé chaque minute tant qu'on est hors ligne)
   useEffect(() => {
-    if (!donnees?.horsLigne) return
-    const f = () => charger()
+    let avant = false, t = null
+    const fin = suivreReseau((hors) => {
+      if (avant && !hors) charger()
+      avant = hors
+      clearInterval(t)
+      if (hors) t = setInterval(() => api('app.init').then((d) => setDonnees((x) => ({ ...x, ...d }))).catch(() => {}), 60000)
+    })
+    window.addEventListener('online', charger)
+    return () => { fin(); clearInterval(t); window.removeEventListener('online', charger) }
+  }, [charger])
+  // Préparation hors connexion, en arrière-plan (au plus toutes les 30 minutes)
+  const uid = donnees?.utilisateur?.id
+  useEffect(() => {
+    if (!uid) return
+    const f = () => preparerHorsLigne((d) => peutVoir(donnees.utilisateur, d))
+    const t = setTimeout(f, 4000)   // après l'affichage de la première page
+    const i = setInterval(f, 5 * 60000)
     window.addEventListener('online', f)
-    const t = setInterval(f, 60000)
-    return () => { window.removeEventListener('online', f); clearInterval(t) }
-  }, [donnees?.horsLigne, charger])
+    return () => { clearTimeout(t); clearInterval(i); window.removeEventListener('online', f) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid])
 
   if (!pret) return <Chargement />
 
@@ -220,6 +237,33 @@ export default function App() {
         <CtxApp.Provider value={valeur}><Cadre /></CtxApp.Provider>
       )}
     </FournisseurNotif>
+  )
+}
+
+/** Hors connexion : petit nuage barré dans l'en-tête (avec le nombre de modifications en attente) ; un appui donne le détail. */
+function PastilleReseau({ haut }) {
+  const [hors, setHors] = useState(false)
+  const [attente, setAttente] = useState(0)
+  const [ouvert, setOuvert] = useState(false)
+  useEffect(() => { const a = suivreReseau(setHors), b = suivreFile(setAttente); return () => { a(); b() } }, [])
+  if (!hors && !attente) return null
+  const le = derniereMiseAJour()
+  return (
+    <div className="relative">
+      <button onClick={() => setOuvert(!ouvert)} className="relative rounded-lg p-2 text-current opacity-80 hover:bg-white/10" aria-label="Hors connexion" title={hors ? 'Hors connexion' : 'Modifications en attente d\'envoi'}>
+        {hors ? <CloudOff className="h-5 w-5" /> : <RefreshCw className="h-5 w-5" />}
+        {attente > 0 && <span className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-white px-1 text-[10px] font-bold text-nuit">{attente}</span>}
+      </button>
+      {ouvert && <>
+        <div className="fixed inset-0 z-40" onClick={() => setOuvert(false)} />
+        <div className={`carte absolute z-50 w-72 p-3 text-left text-sm text-nuit-700 shadow-lg ${haut ? 'bottom-11 left-0' : 'right-0 top-11'}`}>
+          <div className="font-semibold text-nuit">{hors ? 'Hors connexion' : 'Connexion retrouvée'}</div>
+          {hors && <p className="mt-1 text-xs leading-relaxed">L'appli fonctionne avec ce qui est gardé sur l'appareil{le ? ', à jour du ' + new Date(le).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''}.</p>}
+          {attente > 0 && <p className="mt-1 text-xs leading-relaxed">{attente > 1 ? `${attente} modifications gardées` : '1 modification gardée'} sur l'appareil : {attente > 1 ? 'elles partiront' : 'elle partira'} toute seule au retour du réseau.</p>}
+          {attente > 0 && <button className="btn-clair mt-2 w-full py-1.5 text-xs" onClick={() => viderFile()}><RefreshCw className="h-3.5 w-3.5" />Envoyer maintenant</button>}
+        </div>
+      </>}
+    </div>
   )
 }
 
@@ -277,7 +321,7 @@ function Cloche() {
 }
 
 function Cadre() {
-  const { utilisateur, peut, ecrit, deconnecter, horsLigne } = useApp()
+  const { utilisateur, peut, ecrit, deconnecter } = useApp()
   const loc = useLocation()
   const [plus, setPlus] = useState(false)
   const notifier = useNotif()
@@ -297,9 +341,8 @@ function Cadre() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [avecTuiles])
   const lectureSeule = (zonePage && !ecrit(zonePage)) || (loc.pathname === '/dossiers' && !ecrit('dossiers'))
-  const [attente, setAttente] = useState(0)
   useEffect(() => {
-    const fin = suivreFile(setAttente)
+    const fin = suivreFile(() => {})
     const refus = (e) => notifier('Une modification gardée hors connexion a été refusée par le serveur : ' + e.detail, 'erreur')
     window.addEventListener('file-erreur', refus)
     viderFile()
@@ -331,6 +374,7 @@ function Cadre() {
               <UserCircle className="h-5 w-5 shrink-0 text-or" />
               <div className="min-w-0 leading-tight"><div className="truncate">{utilisateur.nom}</div><div className="text-xs text-white/50">{ROLES[utilisateur.role]}</div></div>
             </NavLink>
+            <PastilleReseau haut />
             <Cloche />
           </div>
           <button onClick={deconnecter} className="mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-white/60 hover:bg-white/5 hover:text-white"><LogOut className="h-4 w-4" />Se déconnecter</button>
@@ -340,11 +384,9 @@ function Cadre() {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center justify-between bg-nuit px-4 py-2.5 text-white lg:hidden" style={{ paddingTop: 'max(0.6rem, env(safe-area-inset-top))' }}>
           <div className="flex min-w-0 items-center gap-2"><img src="./logo-128.png" alt="" className="h-8 w-8 rounded-full" /><span className="truncate font-titre text-lg font-semibold">{NOM_TUILE[tuile] || 'La Croix glorieuse'}</span></div>
-          <div className="flex items-center">{avecTuiles && <NavLink to="/tuiles" className="rounded-lg p-2 hover:bg-white/10" aria-label="Tuiles" title="Tuiles"><LayoutGrid className="h-5 w-5" /></NavLink>}<BoutonRecherche mobile /><Cloche /><NavLink to="/compte" className="rounded-lg p-2 hover:bg-white/10"><UserCircle className="h-6 w-6" /></NavLink></div>
+          <div className="flex items-center">{avecTuiles && <NavLink to="/tuiles" className="rounded-lg p-2 hover:bg-white/10" aria-label="Tuiles" title="Tuiles"><LayoutGrid className="h-5 w-5" /></NavLink>}<PastilleReseau /><BoutonRecherche mobile /><Cloche /><NavLink to="/compte" className="rounded-lg p-2 hover:bg-white/10"><UserCircle className="h-6 w-6" /></NavLink></div>
         </header>
-        {horsLigne && <div className="bg-nuit-50 px-4 py-1.5 text-center text-xs text-nuit-600">Hors connexion : l'appli fonctionne avec ce qui est gardé sur l'appareil.</div>}
         {lectureSeule && <div className="bg-nuit-50 px-4 py-1.5 text-center text-xs text-nuit-600">Lecture seule : vous pouvez consulter cette page, mais pas la modifier.</div>}
-        {attente > 0 && <div className="bg-nuit-50 px-4 py-1.5 text-center text-xs text-nuit-600">{attente > 1 ? `${attente} modifications gardées` : '1 modification gardée'} sur l'appareil — {attente > 1 ? 'elles seront envoyées' : 'elle sera envoyée'} dès le retour de la connexion. <button className="underline" onClick={() => viderFile()}>Réessayer</button></div>}
         {estDemo() && <div className="bg-or-100 px-4 py-1.5 text-center text-xs text-or-600">{({ secretaire: 'Aperçu : vous voyez l\'appli comme une secrétaire. ', cure: 'Aperçu : vous voyez l\'appli comme un prêtre. ', diacre: 'Aperçu : vous voyez l\'appli comme un diacre aux accès ajustés. ' })[new URLSearchParams(location.search).get('role')] || 'Mode démonstration — '}Données fictives, rien n'est enregistré ni envoyé.</div>}
 
         <main className="flex-1 overflow-y-auto px-4 pb-24 pt-5 sm:px-6 lg:px-10 lg:pb-10 lg:pt-8">

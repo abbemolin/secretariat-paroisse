@@ -96,6 +96,7 @@ var ROUTES = {
   'auth.motdepasse':       { fn: function (p, s) { return changerMotDePasse_(p, s); } },
   'app.init':              { fn: function (p, s) { return initApp_(p, s); } },
   'accueil.resume':        { fn: function (p, s) { return resumeAccueil_(p, s); } },
+  'horsligne.fiches':      { fn: function (p, s) { return horsLigneFiches_(p, s); } },
   'journee.resume':        { fn: function (p, s) { return resumeJournee_(p, s); } },
   'accueil.blocs':         { fn: function (p, s) { return ecrirePrefsAccueil_(p, s); } },
   'registres':             { fn: function (p, s) { return registresRoute_(p, s); }, droit: 'dossiers' },
