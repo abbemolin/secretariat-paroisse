@@ -156,7 +156,9 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
         { id: 't1', date: joursPlus(-2) + 'T09:00:00Z', titre: 'Le Notre Père', corps: 'Pour notre prochaine rencontre, relisez Mt 6, 9-13 et méditez chaque demande du Notre Père.\n\nBonne préparation !', auteur: 'abbé Florent Molin', liens: [], fichiers: [], lu: false },
         { id: 't2', date: joursPlus(-15) + 'T09:00:00Z', titre: 'Bienvenue dans le catéchuménat', corps: 'Quelques mots d\'accueil (texte d\'exemple). Lisez Jean 3, 16.', auteur: 'abbé Florent Molin', liens: [], fichiers: [], lu: true }
       ],
-      paroisse: 'Paroisse personnelle La Croix glorieuse'
+      paroisse: 'Paroisse personnelle La Croix glorieuse',
+      annonces: [{ id: 1, titre: 'Retraite de l\'Avent (exemple)', description: 'Une journée pour préparer Noël.', event_date: joursPlus(11), event_heure: '09:00:00', prioritaire: true, lien: '', image_url: '' },
+        { id: 2, titre: 'Confessions avant Noël (exemple)', description: 'Horaires élargis.', prioritaire: false, lien: '', image_url: '' }]
     };
   }
   var APERCU_VUE = null;
@@ -371,6 +373,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
       (d.accompagnateur ? '<p class="petit">Accompagnement : ' + e(d.accompagnateur) + '</p>' : '') + '</div>';
     if (nouveaux.length) h += '<div class="carte"><h2>Nouveau' + (nouveaux.length > 1 ? 'x textes' : ' texte') + '</h2>' + nouveaux.slice(0, 3).map(ligneTexte).join('') + '</div>';
     if (d.calendrier.length) h += '<div class="carte"><h2>Prochainement</h2>' + d.calendrier.slice(0, 2).map(carteEvenement).join('') + '</div>';
+    if ((d.annonces || []).length) h += '<div class="carte"><h2>Annonces de la paroisse</h2>' + d.annonces.map(carteAnnonce).join('') + '</div>';
     h += blocFraternite();
     var aFaire = [];
     if (d.pieces.some(function (p) { return !p.recu; })) aFaire.push('Déposer vos pièces (' + d.pieces.filter(function (p) { return !p.recu; }).map(function (p) { return p.nom.toLowerCase(); }).join(', ') + ')');
@@ -383,6 +386,15 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     }).join('') + blocSignaler('Mon parcours') + '</div>';
     h += blocInstallerCourt();
     return h;
+  }
+  function carteAnnonce(a) {
+    var quand = a.event_date ? jour(a.event_date + 'T12:00:00', { weekday: 'long', day: 'numeric', month: 'long' }) + (a.event_heure ? ' à ' + Number(a.event_heure.slice(0, 2)) + ' h' + (a.event_heure.slice(3, 5) === '00' ? '' : ' ' + a.event_heure.slice(3, 5)) : '') : '';
+    return '<div class="annonce" style="display:flex;gap:12px;padding:10px 0;border-top:1px solid rgba(82,26,34,.1)"><div style="flex:1;min-width:0">' +
+      (a.prioritaire ? '<div class="petit" style="text-transform:uppercase;letter-spacing:.08em;font-weight:600">À la une</div>' : '') +
+      '<b>' + e(a.titre) + '</b>' + (quand ? '<div class="petit">' + e(quand) + '</div>' : '') +
+      (a.description ? '<div class="corps" style="white-space:pre-line;margin-top:4px">' + e(a.description) + '</div>' : '') +
+      (a.lien ? '<a class="bouton" style="margin-top:8px" href="' + e(a.lien) + '" target="_blank" rel="noopener">↗ ' + e(a.lien_label || 'En savoir plus') + '</a>' : '') + '</div>' +
+      (a.image_url ? '<img src="' + e(a.image_url) + '" alt="" loading="lazy" style="width:76px;height:76px;object-fit:cover;border-radius:10px;flex-shrink:0">' : '') + '</div>';
   }
   function ligneTexte(t) {
     return '<div class="texte" data-texte="' + t.id + '"><b>' + e(t.titre) + '</b>' + (t.lu ? '' : '<span class="nouveau">nouveau</span>') +

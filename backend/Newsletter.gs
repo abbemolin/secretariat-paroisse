@@ -124,21 +124,44 @@ function champsAnnonce_(p) {
   });
   return x;
 }
+/** Annonces publiques (actives, dans leur période d'affichage) : pour l'app des paroissiens. Gardées 10 minutes. */
+function annoncesPubliques_() {
+  var cache = CacheService.getScriptCache(), c = cache.get('annonces_publiques');
+  if (c) return JSON.parse(c);
+  var auj = aujourdhui_(), l = [];
+  try {
+    l = sb_('get', '/rest/v1/annonces?select=id,titre,description,event_date,event_heure,image_url,lien,lien_label,prioritaire'
+      + '&actif=eq.true&or=(date_debut.is.null,date_debut.lte.' + auj + ')&or=(date_fin.is.null,date_fin.gte.' + auj + ')'
+      + '&order=prioritaire.desc,ordre.asc.nullslast,created_at.desc') || [];
+  } catch (e) { console.error('annoncesPubliques_', e); return []; }
+  try { cache.put('annonces_publiques', JSON.stringify(l), 600); } catch (e) { /* trop gros pour le cache */ }
+  return l;
+}
+/** Chaque nuit (entretien) : les annonces dont la date de fin est passée deviennent inactives. */
+function desactiverAnnoncesExpirees_() {
+  var r = sb_('patch', '/rest/v1/annonces?actif=eq.true&date_fin=lt.' + aujourdhui_(), { actif: false }, { Prefer: 'return=representation' }) || [];
+  if (r.length) journaliser_({ nom: 'Entretien' }, 'Annonces expirées désactivées', r.map(function (a) { return a.titre; }).join(', '));
+  CacheService.getScriptCache().remove('annonces_publiques');
+  return r.length;
+}
 function ecrireAnnonce_(p, s) {
   var x = champsAnnonce_(p);
   if (!p.id) {
     if (!x.titre) throw erreur_('INVALIDE', 'Le titre est obligatoire.');
     var cree = sbEcrire_('post', '/rest/v1/annonces', x)[0];
+    CacheService.getScriptCache().remove('annonces_publiques');
     journaliser_(s, 'Annonce créée', x.titre);
     return cree;
   }
   if (x.titre === null) throw erreur_('INVALIDE', 'Le titre est obligatoire.');
   var r = sbEcrire_('patch', '/rest/v1/annonces?id=eq.' + encodeURIComponent(p.id), x)[0];
+  CacheService.getScriptCache().remove('annonces_publiques');
   journaliser_(s, 'Annonce modifiée', r.titre || '');
   return r;
 }
 function supprimerAnnonce_(p, s) {
   var r = sbEcrire_('delete', '/rest/v1/annonces?id=eq.' + encodeURIComponent(p.id));
+  CacheService.getScriptCache().remove('annonces_publiques');
   journaliser_(s, 'Annonce supprimée', (r[0] || {}).titre || '');
   return true;
 }
@@ -155,6 +178,7 @@ function ordonnerAnnonces_(p, s) {
     if (rep.getResponseCode() >= 300) throw erreur_('SUPABASE', sbMessage_(rep.getResponseCode(), rep.getContentText()));
     if (!(json2_(rep.getContentText(), []) || []).length) throw erreur_('SUPABASE', 'Ordre non enregistré : la base a refusé l\'écriture.');
   });
+  CacheService.getScriptCache().remove('annonces_publiques');
   journaliser_(s, 'Annonces réordonnées', '');
   return true;
 }
@@ -349,6 +373,12 @@ function programmerNewsletter_(p, s) {
   var dejaLa = etatCampagne_();
   if (dejaLa && dejaLa.statut === 'queued') throw erreur_('DEJA', 'Une newsletter est déjà programmée (envoi le ' + Utilities.formatDate(new Date(dejaLa.envoi_le), 'Europe/Paris', 'dd/MM à HH:mm') + '). Annulez-la d\'abord.');
   var r = nlReglages_(), envoi = prochainEnvoi_();
+  if (p.envoi_le) {   // date et heure choisies pour cet envoi
+    envoi = new Date(p.envoi_le);
+    if (isNaN(envoi)) throw erreur_('INVALIDE', 'Date d\'envoi invalide.');
+    if (envoi.getTime() < Date.now() + 5 * 60000) throw erreur_('INVALIDE', 'L\'envoi doit être programmé au moins 5 minutes à l\'avance.');
+    if (envoi.getTime() > Date.now() + 90 * 86400000) throw erreur_('INVALIDE', 'Date d\'envoi trop lointaine.');
+  }
   var sujet = String(p.sujet || '').trim() || 'Annonces paroissiales';
   var cree = brevo_('post', '/emailCampaigns', {
     name: 'Newsletter ' + Utilities.formatDate(new Date(), 'Europe/Paris', 'dd/MM/yyyy'),

@@ -19,6 +19,7 @@ function assurerEntretien_() {
 function entretienNocturne() {
   try { purgerFeuille_('Notifications', 'date', 183, false); } catch (e) { console.error('purge notifications', e); }
   try { purgerFeuille_('Journal', 'date', 730, true); } catch (e) { console.error('purge journal', e); }
+  try { desactiverAnnoncesExpirees_(); } catch (e) { console.error('annonces expirées', e); }
   var jour = Utilities.formatDate(new Date(), 'Europe/Paris', 'u');   // 7 = dimanche
   if (jour === '7') try { sauvegarder_('automatique'); } catch (e) { console.error('sauvegarde', e); }
   props_().setProperty('ENTRETIEN_DERNIER', maintenant_());

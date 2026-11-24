@@ -363,7 +363,8 @@ function vueEspace_(d) {
     bapteme: pr.neo ? { date: dateBapteme_(d), lieu: [i.lieu_celebration, i.commune_celebration].filter(Boolean).join(', '), prenom_bapteme: i.prenom_bapteme || '', actes: actesEspace_(d), motifs: MOTIFS_ACTE, mail: mailDossier_(d) ? masquerMail_(mailDossier_(d)) : '' } : null,
     anniversaire: (function () { var n = pr.neo ? anniversaireDuJour_(d) : 0; return n ? { annees: n, texte: texteAnniversaire_(d, n) } : null; })(),
     parrains: (don.parrains || []).map(function (z) { return parrainVue_(z, true); }), fraternite: frat,
-    calendrier: cal, textes: textes, paroisse: reglages_().paroisse
+    calendrier: cal, textes: textes, paroisse: reglages_().paroisse,
+    annonces: annoncesPubliques_()
   };
 }
 

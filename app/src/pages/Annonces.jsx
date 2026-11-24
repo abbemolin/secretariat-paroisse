@@ -1,6 +1,6 @@
 // Annonces : reprise de annonces.html (AppMesse) dans l'interface du secrétariat.
 import { useRef, useState } from 'react'
-import { Megaphone, Plus, Pencil, Trash2, Flag, Check, Circle, GripVertical, CalendarDays, Link2, Image as ImageIcon, Mail, Printer, Loader2, Upload, Copy } from 'lucide-react'
+import { Megaphone, Plus, Pencil, Trash2, Flag, Check, Circle, GripVertical, CalendarDays, Link2, Image as ImageIcon, Mail, Printer, Loader2, Upload, Copy, CopyPlus, MessageCircle } from 'lucide-react'
 import { api, fichierEnBase64 } from '../api.js'
 import { Chargement, EnTete, Erreur, Interrupteur, Modale, Vide, useCharger, useConfirmer, useNotif } from '../ui.jsx'
 import { isoLocal } from '../annonces/semaine.js'
@@ -21,6 +21,27 @@ function annoncePourDimanche(a, dateISO) {
   if (a.date_fin && dateISO > a.date_fin) return false
   return true
 }
+const PHOTO_MAX = 1200   // côté le plus long, en pixels
+
+/** Photo allégée avant l'envoi : réduite à 1200 px et recompressée en JPEG (sauf GIF, SVG, ou image déjà petite). */
+async function reduireImage(fichier) {
+  const brut = async () => ({ nom: fichier.name, type: fichier.type, base64: await fichierEnBase64(fichier) })
+  if (!/^image\/(jpeg|png|webp|heic|heif)$/i.test(fichier.type)) return brut()
+  try {
+    const bmp = await createImageBitmap(fichier)
+    const k = Math.min(1, PHOTO_MAX / Math.max(bmp.width, bmp.height))
+    if (k === 1 && fichier.size < 600 * 1024) return brut()
+    const c = document.createElement('canvas')
+    c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k)
+    const g = c.getContext('2d')
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, c.width, c.height)   // fond blanc pour les PNG transparents
+    g.drawImage(bmp, 0, 0, c.width, c.height)
+    const blob = await new Promise((ok) => c.toBlob(ok, 'image/jpeg', 0.82))
+    if (!blob || blob.size >= fichier.size) return brut()
+    return { nom: fichier.name.replace(/\.[^.]+$/, '') + '.jpg', type: 'image/jpeg', base64: await fichierEnBase64(blob) }
+  } catch { return brut() }
+}
+
 const triFeuille = (a, b) => (b.prioritaire ? 1 : 0) - (a.prioritaire ? 1 : 0) || (a.ordre || 0) - (b.ordre || 0)
 
 export default function Annonces() {
@@ -30,6 +51,7 @@ export default function Annonces() {
   const [filtre, setFiltre] = useState('toutes')
   const [fiche, setFiche] = useState(null)        // annonce en cours de modification ({} = nouvelle)
   const [feuille, setFeuille] = useState(false)
+  const [whatsapp, setWhatsapp] = useState(false)
   const [glisse, setGlisse] = useState(null)      // { src, over }
   const annonces = data || []
 
@@ -83,6 +105,7 @@ export default function Annonces() {
 
   const carte = (a) => (
     <Carte key={a.id} a={a} glisse={glisse} onModifier={() => setFiche(a)} onSupprimer={() => supprimer(a)}
+      onDupliquer={() => setFiche({ ...a, id: undefined, event_date: '', event_heure: '', date_debut: '', date_fin: '', _copie: true })}
       onPrio={() => basculer(a, 'prioritaire', ['Priorité retirée', 'Annonce prioritaire'])}
       onActif={() => basculer(a, 'actif', ['Annonce désactivée', 'Annonce activée'])}
       poignee={{ onPointerDown: (e) => debutGlisse(e, a), onPointerMove: mouvementGlisse, onPointerUp: finGlisse, onPointerCancel: () => setGlisse(null) }} />
@@ -92,6 +115,7 @@ export default function Annonces() {
     <div>
       <EnTete titre="Annonces" sousTitre={data ? `${nbActives} annonce${nbActives > 1 ? 's' : ''} active${nbActives > 1 ? 's' : ''}` : ''}
         actions={<>
+          <button className="btn-clair" onClick={() => setWhatsapp(true)}><MessageCircle className="h-4 w-4" />Texte WhatsApp</button>
           <button className="btn-clair" onClick={() => setFeuille(true)}><Printer className="h-4 w-4" />Feuille du dimanche</button>
           <button className="btn-principal" onClick={() => setFiche({})}><Plus className="h-4 w-4" />Nouvelle annonce</button>
         </>} />
@@ -113,11 +137,12 @@ export default function Annonces() {
       )}
       {fiche && <Fiche annonce={fiche} onFermer={() => setFiche(null)} onEnregistre={() => { setFiche(null); recharger() }} />}
       {feuille && <Feuille annonces={annonces} onFermer={() => setFeuille(false)} />}
+      {whatsapp && <WhatsApp annonces={annonces} onFermer={() => setWhatsapp(false)} />}
     </div>
   )
 }
 
-function Carte({ a, glisse, poignee, onModifier, onSupprimer, onPrio, onActif }) {
+function Carte({ a, glisse, poignee, onModifier, onDupliquer, onSupprimer, onPrio, onActif }) {
   const expiree = a.date_fin && a.date_fin < aujourdhui()
   const chips = []
   if (a.event_date) chips.push([CalendarDays, fmtDate(a.event_date) + (a.event_heure ? ' à ' + a.event_heure.slice(0, 5) : ''), 'bg-or-50 text-or-600'])
@@ -143,6 +168,7 @@ function Carte({ a, glisse, poignee, onModifier, onSupprimer, onPrio, onActif })
         <button className={`btn text-xs ${a.prioritaire ? 'bg-or-100 text-or-600' : 'text-nuit-600 hover:bg-nuit-50'}`} onClick={onPrio}><Flag className="h-3.5 w-3.5" />{a.prioritaire ? 'Prioritaire' : 'Priorité'}</button>
         <button className={`btn text-xs ${a.actif ? 'bg-emerald-50 text-emerald-800' : 'text-nuit-600 hover:bg-nuit-50'}`} onClick={onActif}>{a.actif ? <Check className="h-3.5 w-3.5" /> : <Circle className="h-3.5 w-3.5" />}{a.actif ? 'Active' : 'Inactive'}</button>
         <button className="btn text-xs text-nuit-600 hover:bg-nuit-50" onClick={onModifier}><Pencil className="h-3.5 w-3.5" />Modifier</button>
+        <button className="btn text-xs text-nuit-600 hover:bg-nuit-50" onClick={onDupliquer}><CopyPlus className="h-3.5 w-3.5" />Dupliquer</button>
         <button className="btn ml-auto text-xs text-red-700 hover:bg-red-50" onClick={onSupprimer}><Trash2 className="h-3.5 w-3.5" />Supprimer</button>
       </div>
     </div>
@@ -155,7 +181,7 @@ function Fiche({ annonce, onFermer, onEnregistre }) {
   const [f, setF] = useState({
     titre: a.titre || '', description: a.description || '', event_date: a.event_date || '', event_heure: a.event_heure ? a.event_heure.slice(0, 5) : '',
     date_debut: a.date_debut || '', date_fin: a.date_fin || '', image_url: a.image_url || '', lien: a.lien || '', lien_label: a.lien_label || '',
-    prioritaire: !!a.prioritaire, actif: a.id ? !!a.actif : true, dans_newsletter: !!a.dans_newsletter, dans_feuille: !!a.dans_feuille
+    prioritaire: !!a.prioritaire, actif: a.id || a._copie ? !!a.actif : true, dans_newsletter: !!a.dans_newsletter, dans_feuille: !!a.dans_feuille
   })
   const [envoi, setEnvoi] = useState(false)
   const [image, setImage] = useState(false)
@@ -169,7 +195,7 @@ function Fiche({ annonce, onFermer, onEnregistre }) {
     if (!x) return
     setImage(true)
     try {
-      const r = await api('annonces.image', { nom: x.name, type: x.type, base64: await fichierEnBase64(x) })
+      const r = await api('annonces.image', await reduireImage(x))
       setF((g) => ({ ...g, image_url: r.url })); setImageOk(true); notifier('Image chargée')
     } catch (er) { notifier('Image non envoyée : ' + er.message, 'erreur') } finally { setImage(false) }
   }
@@ -182,7 +208,7 @@ function Fiche({ annonce, onFermer, onEnregistre }) {
   const interrupteurs = [['prioritaire', 'Prioritaire', 'En tête de la liste et « À la une » dans la newsletter'], ['actif', 'Active', 'Visible sur le site et proposée ailleurs'],
     ['dans_newsletter', 'Dans la newsletter', 'Proposée dans la newsletter'], ['dans_feuille', 'Dans la feuille', 'Proposée pour la feuille du dimanche']]
   return (
-    <Modale titre={a.id ? 'Modifier l\'annonce' : 'Nouvelle annonce'} onFermer={onFermer} large
+    <Modale titre={a.id ? 'Modifier l\'annonce' : a._copie ? 'Nouvelle annonce (copie)' : 'Nouvelle annonce'} onFermer={onFermer} large
       pied={<><button className="btn-clair" onClick={onFermer}>Annuler</button><button className="btn-principal" disabled={envoi} onClick={enregistrer}>{envoi && <Loader2 className="h-4 w-4 animate-spin" />}Enregistrer</button></>}>
       <div className="space-y-4">
         <div><label className="etiquette" htmlFor="an-titre">Titre</label><input id="an-titre" className="champ" maxLength={120} placeholder="Titre de l'annonce" value={f.titre} onChange={ch('titre')} autoFocus /></div>
@@ -251,6 +277,50 @@ function Feuille({ annonces, onFermer }) {
           ))}</ul>
         )}
         <p className="text-xs text-nuit-600/70">Le texte copié a la forme « ❖ TITRE » puis la description, comme dans l'AppMesse.</p>
+      </div>
+    </Modale>
+  )
+}
+
+/** Texte pour WhatsApp : annonces cochées, *titre* en gras, date de l'événement, texte et lien. */
+function WhatsApp({ annonces, onFermer }) {
+  const notifier = useNotif()
+  const auj = aujourdhui()
+  const actives = annonces.filter((a) => a.actif)
+  const [coches, setCoches] = useState(() => new Set(actives.filter((a) => annoncePourDimanche(a, auj)).map((a) => a.id)))
+  const quand = (a) => {
+    if (!a.event_date) return ''
+    const d = new Date(a.event_date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
+    return '_' + d.charAt(0).toUpperCase() + d.slice(1) + (a.event_heure ? ' à ' + Number(a.event_heure.slice(0, 2)) + ' h' + (a.event_heure.slice(3, 5) === '00' ? '' : ' ' + a.event_heure.slice(3, 5)) : '') + '_'
+  }
+  const texte = actives.filter((a) => coches.has(a.id)).map((a) => [
+    '*' + a.titre.trim() + '*', quand(a), (a.description || '').trim(), a.lien ? (a.lien_label ? a.lien_label.trim() + ' : ' : '') + a.lien : ''
+  ].filter(Boolean).join('\n')).join('\n\n')
+  async function copier() {
+    if (!texte) { notifier('Aucune annonce cochée', 'erreur'); return }
+    try { await navigator.clipboard.writeText(texte); notifier('Texte copié : collez-le dans WhatsApp') } catch { notifier('Copie impossible sur cet appareil', 'erreur') }
+  }
+  const basculer = (id) => setCoches((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
+  return (
+    <Modale titre="Texte pour WhatsApp" onFermer={onFermer} large
+      pied={<><button className="btn-clair" onClick={onFermer}>Fermer</button><button className="btn-principal" disabled={!texte} onClick={copier}><Copy className="h-4 w-4" />Copier</button></>}>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <div className="etiquette">Annonces actives</div>
+          {!actives.length ? <p className="text-sm text-nuit-600/70">Aucune annonce active.</p> : (
+            <ul className="space-y-1.5">{actives.map((a) => (
+              <li key={a.id}><label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-nuit-100 p-2.5 text-sm hover:bg-nuit-50/50">
+                <input type="checkbox" className="mt-1 accent-[#521a22]" checked={coches.has(a.id)} onChange={() => basculer(a.id)} />
+                <span className="min-w-0 font-medium">{a.titre}</span>
+              </label></li>
+            ))}</ul>
+          )}
+        </div>
+        <div>
+          <div className="etiquette">Aperçu</div>
+          <pre className="max-h-[50vh] overflow-y-auto whitespace-pre-wrap rounded-lg bg-[#e7f6e7] p-3 font-sans text-sm text-nuit-800">{texte || '—'}</pre>
+          <p className="mt-1 text-xs text-nuit-600/70">*Texte* s'affiche en gras et _texte_ en italique dans WhatsApp.</p>
+        </div>
       </div>
     </Modale>
   )

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { Link, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, RefreshCw, Smartphone, Monitor, Link2, Plus, RotateCcw, CalendarClock, Send, Trash2, Loader2, CheckCircle2, AlertTriangle, CalendarDays, MailCheck } from 'lucide-react'
 import { api } from '../api.js'
-import { Chargement, EnTete, Erreur, Modale, dateHeure, useConfirmer, useNotif } from '../ui.jsx'
+import { Chargement, EnTete, Erreur, Modale, dateHeure, useConfirmer, useNotif, versLocal } from '../ui.jsx'
 import { bornesSemaine, calendrierHtml, construireSemaine, decalerSemaine, isoLocal, JOURS_FR, lundiDe, MOIS_FR } from '../annonces/semaine.js'
 import { genEmailHTML, sujetNewsletter } from '../annonces/gabarit.js'
 import { creerEditeur, migrerBrouillon } from '../annonces/editeur.js'
@@ -28,7 +28,7 @@ export default function Newsletter() {
   const [vue, setVue] = useState(600)
   const [format, setFormat] = useState({})
   const [panneau, setPanneau] = useState(null)   // { titre, url, peutRetirer }
-  const [confirmation, setConfirmation] = useState(false)
+  const [confirmation, setConfirmation] = useState(null)   // { quand, sujet } pour cet envoi
   const [envoi, setEnvoi] = useState('')
   const [recharge, setRecharge] = useState(0)
   const frame = useRef(null)
@@ -139,8 +139,10 @@ export default function Newsletter() {
   async function programmer() {
     setEnvoi('programmer')
     try {
-      const c = await api('newsletter.programmer', { lundi, sujet: sujetNewsletter(lundi), html: ed().htmlFinal(true, genererMail(data, calHtml, coches)) })
-      setConfirmation(false)
+      const quand = new Date(confirmation.quand)
+      if (isNaN(quand)) { notifier('Date d\'envoi invalide', 'erreur'); return }
+      const c = await api('newsletter.programmer', { lundi, sujet: confirmation.sujet.trim() || sujetNewsletter(lundi), envoi_le: quand.toISOString(), html: ed().htmlFinal(true, genererMail(data, calHtml, coches)) })
+      setConfirmation(null)
       setData({ ...data, campagne: c, autres_programmees: [...(data.autres_programmees || []), { id: c.id, sujet: c.sujet, envoi_le: c.envoi_le }] })
       notifier('Envoi programmé pour le ' + quandParis(c.envoi_le), 'ok', { duree: 6000 })
     } catch (e) { notifier(e.message, 'erreur', { duree: 7000 }) } finally { setEnvoi('') }
@@ -202,7 +204,7 @@ export default function Newsletter() {
               {!data.brevo_ok ? (
                 <p className="rounded-lg bg-or-50 p-3 text-sm text-or-600">La clé Brevo n'est pas encore enregistrée : Réglages → Newsletter.</p>
               ) : !programmee && (
-                <button className="btn-principal w-full" disabled={!!envoi} onClick={() => setConfirmation(true)}><Send className="h-4 w-4" />Programmer l'envoi…</button>
+                <button className="btn-principal w-full" disabled={!!envoi} onClick={() => setConfirmation({ quand: versLocal(data.prochain_envoi), sujet: sujetNewsletter(lundi) })}><Send className="h-4 w-4" />Programmer l'envoi…</button>
               )}
               <button className="btn-clair w-full" disabled={!!envoi || !(data.adresses_test || []).length} onClick={envoyerTest}
                 title={(data.adresses_test || []).length ? 'À ' + data.adresses_test.join(', ') : 'Adresses de test : Réglages → Newsletter'}>
@@ -270,12 +272,15 @@ export default function Newsletter() {
       )}
 
       {confirmation && data && (
-        <Modale titre="Programmer l'envoi" onFermer={() => setConfirmation(false)}
-          pied={<><button className="btn-clair" onClick={() => setConfirmation(false)}>Annuler</button>
+        <Modale titre="Programmer l'envoi" onFermer={() => setConfirmation(null)}
+          pied={<><button className="btn-clair" onClick={() => setConfirmation(null)}>Annuler</button>
             <button className="btn-principal" disabled={!!envoi} onClick={programmer}>{envoi === 'programmer' ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarDays className="h-4 w-4" />}Programmer l'envoi</button></>}>
           <div className="space-y-3 text-sm">
-            <p><span className="text-nuit-600/70">Objet :</span> {sujetNewsletter(lundi)}</p>
-            <p><span className="text-nuit-600/70">Envoi prévu :</span> <strong>{quandParis(data.prochain_envoi)}</strong></p>
+            <div><label className="etiquette" htmlFor="nl-sujet">Objet</label>
+              <input id="nl-sujet" className="champ" value={confirmation.sujet} onChange={(e) => setConfirmation({ ...confirmation, sujet: e.target.value })} /></div>
+            <div><label className="etiquette" htmlFor="nl-quand">Date et heure d'envoi</label>
+              <input id="nl-quand" type="datetime-local" className="champ" value={confirmation.quand} onChange={(e) => setConfirmation({ ...confirmation, quand: e.target.value })} />
+              <p className="mt-1 text-xs text-nuit-600/70">Proposé : {quandParis(data.prochain_envoi)}. Modifiable pour cet envoi seulement.</p></div>
             <p className="text-nuit-600">C'est la version affichée dans l'aperçu, avec vos modifications, qui sera envoyée à la liste Brevo. Vous pourrez annuler l'envoi tant qu'il n'est pas parti.</p>
             {autres.length > 0 && <p className="rounded-lg bg-or-50 p-2.5 text-or-600"><AlertTriangle className="mr-1 inline h-4 w-4" />Une autre campagne est déjà programmée dans Brevo : les abonnés recevraient deux newsletters.</p>}
           </div>
