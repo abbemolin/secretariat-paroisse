@@ -16,7 +16,7 @@
  */
 
 var NL_DEFAUT = {
-  liste: 3, jour: 0, heure: '12:00',
+  liste: 3, jour: 0, heure: '12:00', adresses_test: 'cure@croix-glorieuse.org',
   expediteur_nom: 'Paroisse La Croix Glorieuse', expediteur_email: 'secretariat@croix-glorieuse.org',
   supabase_url: 'https://pmeaimfcwtykhqtueomd.supabase.co'
 };
@@ -47,7 +47,7 @@ function lireNlReglages_() {
 }
 function ecrireNlReglages_(p, s) {
   var r = json2_(props_().getProperty('NEWSLETTER'), {});
-  ['expediteur_nom', 'expediteur_email', 'supabase_url', 'heure'].forEach(function (k) { if (p[k] !== undefined) r[k] = String(p[k] || '').trim(); });
+  ['expediteur_nom', 'expediteur_email', 'supabase_url', 'heure', 'adresses_test'].forEach(function (k) { if (p[k] !== undefined) r[k] = String(p[k] || '').trim(); });
   if (p.liste !== undefined) r.liste = Number(p.liste) || NL_DEFAUT.liste;
   if (p.jour !== undefined) r.jour = Number(p.jour);
   if (r.supabase_url) r.supabase_url = r.supabase_url.replace(/\/+$/, '');
@@ -262,6 +262,7 @@ function lireNewsletter_(p) {
     campagne: etatCampagne_(),
     autres_programmees: campagnesProgrammees_(),
     brevo_ok: !!props_().getProperty('BREVO_CLE'),
+    adresses_test: adressesTest_(),
     prochain_envoi: prochainEnvoi_().toISOString()
   };
 }
@@ -274,6 +275,23 @@ function ecrireBrouillonNewsletter_(p, s) {
     props_().setProperty('NL_BROUILLONS', JSON.stringify(garderRecentes_(m)));
     return m[lundi] || null;
   });
+}
+
+/** Mail de test : la newsletter telle qu'elle partira, envoyée par Gmail (alias secretariat@) aux adresses de test. */
+function adressesTest_() {
+  return String(nlReglages_().adresses_test || '').split(/[\s,;]+/).map(function (x) { return x.trim(); })
+    .filter(function (x) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x); });
+}
+function testerEnvoiNewsletter_(p, s) {
+  var html = String(p.html || '');
+  if (!/<html/i.test(html)) throw erreur_('INVALIDE', 'Newsletter vide.');
+  var a = adressesTest_();
+  if (!a.length) throw erreur_('INVALIDE', 'Aucune adresse de test (Réglages → Newsletter).');
+  html = html.replace(/\{\{\s*mirror\s*\}\}/g, '#').replace(/\{\{\s*unsubscribe\s*\}\}/g, '#');
+  GmailApp.sendEmail(a.join(','), '[TEST] ' + (String(p.sujet || '').trim() || 'Annonces paroissiales'),
+    'Ouvrez ce message dans une messagerie qui affiche le HTML.', { htmlBody: html, from: CONFIG.ALIAS, name: nlReglages_().expediteur_nom });
+  journaliser_(s, 'Newsletter : test envoyé', a.join(', '));
+  return { adresses: a };
 }
 
 // ─── Brevo ───

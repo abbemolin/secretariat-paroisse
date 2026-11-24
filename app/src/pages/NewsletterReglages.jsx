@@ -20,7 +20,7 @@ export default function NewsletterReglages() {
     setEnvoi(true)
     try {
       const r = await api('newsletter.reglagesEcrire', {
-        liste: f.liste, jour: f.jour, heure: f.heure, expediteur_nom: f.expediteur_nom, expediteur_email: f.expediteur_email, supabase_url: f.supabase_url,
+        liste: f.liste, jour: f.jour, heure: f.heure, adresses_test: f.adresses_test, expediteur_nom: f.expediteur_nom, expediteur_email: f.expediteur_email, supabase_url: f.supabase_url,
         brevo_cle: cles.brevo || undefined, supabase_cle: cles.supabase || undefined
       })
       setF(r); setCles({ brevo: '', supabase: '' }); notifier('Réglages enregistrés')
@@ -48,6 +48,8 @@ export default function NewsletterReglages() {
           <div><label className="etiquette" htmlFor="rn-nom">Nom de l'expéditeur</label><input id="rn-nom" className="champ" value={f.expediteur_nom} onChange={(e) => setF({ ...f, expediteur_nom: e.target.value })} /></div>
           <div><label className="etiquette" htmlFor="rn-mail">Adresse de l'expéditeur</label><input id="rn-mail" className="champ" type="email" value={f.expediteur_email} onChange={(e) => setF({ ...f, expediteur_email: e.target.value })} /></div>
         </div>
+        <div><label className="etiquette" htmlFor="rn-test">Adresses pour « Envoyer un test » (séparées par des virgules)</label><input id="rn-test" className="champ" value={f.adresses_test || ''} onChange={(e) => setF({ ...f, adresses_test: e.target.value })} />
+          <p className="mt-1 text-xs text-nuit-600/70">Le test part du Gmail de la paroisse (secretariat@), avec « [TEST] » devant l'objet ; il ne passe pas par Brevo.</p></div>
         <p className="text-sm text-nuit-600">Prochain envoi possible : <strong>{new Date(f.prochain_envoi).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}</strong></p>
       </div>
 

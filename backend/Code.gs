@@ -202,6 +202,7 @@ var ROUTES = {
   'newsletter.brouillon':  { fn: function (p, s) { return ecrireBrouillonNewsletter_(p, s); }, droit: 'annonces' },
   'newsletter.programmer': { fn: function (p, s) { return programmerNewsletter_(p, s); }, droit: 'annonces' },
   'newsletter.annuler':    { fn: function (p, s) { return annulerNewsletter_(p, s); }, droit: 'annonces' },
+  'newsletter.test':       { fn: function (p, s) { return testerEnvoiNewsletter_(p, s); }, droit: 'annonces' },
   'newsletter.reglages':   { fn: function (p, s) { return lireNlReglages_(p, s); }, droit: 'reglages' },
   'newsletter.reglagesEcrire': { fn: function (p, s) { return ecrireNlReglages_(p, s); }, droit: 'reglages' },
   'newsletter.tester':     { fn: function (p, s) { return testerNewsletter_(p, s); }, droit: 'reglages' },

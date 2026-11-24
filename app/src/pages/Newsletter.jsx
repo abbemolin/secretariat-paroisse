@@ -1,7 +1,7 @@
 // Newsletter : reprise de newsletter.html (AppMesse) dans l'interface du secrétariat.
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, RefreshCw, Smartphone, Monitor, Link2, Plus, RotateCcw, CalendarClock, Send, Trash2, Loader2, CheckCircle2, AlertTriangle, CalendarDays } from 'lucide-react'
+import { ChevronLeft, ChevronRight, RefreshCw, Smartphone, Monitor, Link2, Plus, RotateCcw, CalendarClock, Send, Trash2, Loader2, CheckCircle2, AlertTriangle, CalendarDays, MailCheck } from 'lucide-react'
 import { api } from '../api.js'
 import { Chargement, EnTete, Erreur, Modale, dateHeure, useConfirmer, useNotif } from '../ui.jsx'
 import { bornesSemaine, calendrierHtml, construireSemaine, decalerSemaine, isoLocal, JOURS_FR, lundiDe, MOIS_FR } from '../annonces/semaine.js'
@@ -145,6 +145,13 @@ export default function Newsletter() {
       notifier('Envoi programmé pour le ' + quandParis(c.envoi_le), 'ok', { duree: 6000 })
     } catch (e) { notifier(e.message, 'erreur', { duree: 7000 }) } finally { setEnvoi('') }
   }
+  async function envoyerTest() {
+    setEnvoi('test')
+    try {
+      const r = await api('newsletter.test', { sujet: sujetNewsletter(lundi), html: ed().htmlFinal(true, genererMail(data, calHtml, coches)) })
+      notifier('Test envoyé à ' + r.adresses.join(', '), 'ok', { duree: 6000 })
+    } catch (e) { notifier(e.message, 'erreur', { duree: 7000 }) } finally { setEnvoi('') }
+  }
   async function annulerEnvoi(id) {
     if (!(await confirmer({ titre: 'Annuler l\'envoi', texte: 'Annuler l\'envoi programmé de cette newsletter ? Elle ne partira pas.', bouton: 'Oui, annuler', danger: true }))) return
     setEnvoi('annuler' + id)
@@ -197,6 +204,10 @@ export default function Newsletter() {
               ) : !programmee && (
                 <button className="btn-principal w-full" disabled={!!envoi} onClick={() => setConfirmation(true)}><Send className="h-4 w-4" />Programmer l'envoi…</button>
               )}
+              <button className="btn-clair w-full" disabled={!!envoi || !(data.adresses_test || []).length} onClick={envoyerTest}
+                title={(data.adresses_test || []).length ? 'À ' + data.adresses_test.join(', ') : 'Adresses de test : Réglages → Newsletter'}>
+                {envoi === 'test' ? <Loader2 className="h-4 w-4 animate-spin" /> : <MailCheck className="h-4 w-4" />}Envoyer un test</button>
+              {(data.adresses_test || []).length > 0 && <p className="-mt-1 text-center text-xs text-nuit-600/70">à {data.adresses_test.join(', ')}</p>}
               {autres.length > 0 && (
                 <div className="space-y-2 rounded-lg border border-or/40 bg-or-50 p-3 text-xs text-nuit-700">
                   <div className="flex items-center gap-1.5 font-semibold text-or-600"><AlertTriangle className="h-4 w-4" />Autre campagne programmée dans Brevo</div>
