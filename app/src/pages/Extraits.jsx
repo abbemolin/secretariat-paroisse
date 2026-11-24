@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Plus, Search, ScrollText, PenLine, Printer, Download, Send, Loader2, Save, Eraser, CheckCircle2, FolderHeart, AlertCircle, Trash2 } from 'lucide-react'
-import { api } from '../api.js'
+import { api, enCache } from '../api.js'
 import { useApp } from '../App.jsx'
 import { B14 } from '../imprimables.js'
 import { htmlVersPdf, telechargerBlob } from '../pdf.js'
@@ -85,8 +85,8 @@ function Extrait({ id }) {
   const differer = useDifferer()
   const notifier = useNotif()
   const { utilisateur } = useApp()
-  const [x, setX] = useState(null)
-  const [v, setV] = useState(null)
+  const [x, setX] = useState(() => enCache('extraits.lire', { id }) || null)   // affichage instantané (dernière copie)
+  const [v, setV] = useState(() => enCache('extraits.lire', { id })?.valeurs || null)
   const [erreur, setErreur] = useState(null)
   const [sceau, setSceau] = useState('')
   const [signatureImg, setSignatureImg] = useState('')

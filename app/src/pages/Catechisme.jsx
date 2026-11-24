@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, BookOpen, Check, Download, FolderHeart, FolderPlus, GraduationCap, Loader2, Mail, Plus, Printer, Search, Trash2, Wallet, BellRing, ExternalLink } from 'lucide-react'
-import { api } from '../api.js'
+import { api, enCache } from '../api.js'
 import { TYPES } from '../types.js'
 import { Chargement, Erreur, Modale, Vide, useCharger, useNotif, useDifferer, enSuppression, Aide, imprimerHtml, dateCourte, Interrupteur } from '../ui.jsx'
 import { Redaction } from './Courrier.jsx'
@@ -186,8 +186,8 @@ function Fiche({ id }) {
   const nav = useNavigate()
   const notifier = useNotif()
   const differer = useDifferer()
-  const [x, setX] = useState(null)
-  const [v, setV] = useState(null)
+  const [x, setX] = useState(() => enCache('cate.lire', { id }) || null)   // affichage instantané (dernière copie)
+  const [v, setV] = useState(() => enCache('cate.lire', { id }) || null)
   const [erreur, setErreur] = useState(null)
   const [occupe, setOccupe] = useState('')
   const listes = useCharger(() => api('cate.reglages'), [])

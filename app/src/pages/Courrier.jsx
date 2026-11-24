@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Inbox, Star, AlertTriangle, CheckCircle2, ScrollText, ExternalLink, Wand2, Send, MailOpen, Search, ArrowLeft, Reply, ReplyAll, Archive, Trash2, Paperclip, PenSquare, Download, Loader2, X, FolderOpen, Mail, UserCheck, ListTodo, Users, MessageSquare, FolderPlus, CalendarPlus, FolderHeart, CheckSquare, Square, Mail as MailFerme, Maximize2, Sparkles, Eye } from 'lucide-react'
-import { api, fichierEnBase64, telechargerBase64 } from '../api.js'
+import { api, enCache, fichierEnBase64, precharger, telechargerBase64 } from '../api.js'
 import { useApp } from '../App.jsx'
 import { TYPES, ORDRE_TYPES, remplirModele } from '../types.js'
 import { Chargement, Erreur, Vide, Modale, useNotif, useDifferer, Aide, dateRelative, dateHeure, nomExpediteur, taille, COULEURS_STATUT, initiales } from '../ui.jsx'
@@ -38,6 +38,10 @@ export function reponseSuggeree(fil, reponses) {
   return null
 }
 const STATUTS = ['À traiter', 'En cours', 'Traité']
+// Mails déjà lus pendant la session : réaffichés aussitôt (mémoire seulement, rien n'est gardé sur l'appareil)
+const FILS_VUS = new Map()
+/** Lecture anticipée d'un mail (survol, mails suivants) : il reste non lu. */
+const anticiper = (id) => { if (id && !FILS_VUS.has(id)) precharger('mail.fil', { id }, { appel: { action: 'mail.fil', payload: { id, sansLu: true } }, garder: false }) }
 
 const FILTRES = [
   { cle: 'boite', nom: 'Boîte de réception', icone: Inbox },
@@ -57,7 +61,7 @@ export default function Courrier() {
   const ouvert = params.get('fil')
   const [recherche, setRecherche] = useState('')
   const differer = useDifferer()
-  const [fils, setFils] = useState([])
+  const [fils, setFils] = useState(() => enCache('mail.liste', { filtre, libelle, recherche: '', debut: 0 })?.fils || [])
   const [suivant, setSuivant] = useState(null)
   const [chargement, setChargement] = useState(true)
   const [erreur, setErreur] = useState(null)
@@ -73,6 +77,7 @@ export default function Courrier() {
 
   async function charger(debut = 0) {
     setChargement(true); setErreur(null)
+    if (!debut && !recherche) { const c = enCache('mail.liste', { filtre, libelle, recherche: '', debut: 0 }); if (c) { setFils(c.fils); setSuivant(c.suivant) } }
     try {
       const r = await api('mail.liste', { filtre, libelle, recherche, debut })
       setFils((f) => (debut ? [...f, ...r.fils] : r.fils)); setSuivant(r.suivant)
@@ -89,6 +94,7 @@ export default function Courrier() {
       differer(message, () => api('mail.modifier', { id: fil.id, ...modif }), { onAnnule: () => { setFils(avant); changer({ fil: fil.id }) }, onErreur: () => setFils(avant) })
       return
     }
+    if (modif.important !== undefined) setFils((l) => l.map((x) => (x.id === fil.id ? { ...x, important: modif.important } : x)))   // aussitôt
     try {
       await api('mail.modifier', { id: fil.id, ...modif })
       if (modif.archiver || modif.corbeille) { setFils((l) => l.filter((x) => x.id !== fil.id)); changer({ fil: '' }) }
@@ -187,7 +193,7 @@ export default function Courrier() {
           )}
           <div className="carte divide-y divide-nuit-50 overflow-hidden">
             {chargement && !fils.length ? <Chargement /> : !fils.length ? <Vide icone={Mail} texte="Aucun message." /> : fils.map((f) => (
-              <button key={f.id} onClick={() => (choix ? basculer(f.id) : changer({ fil: f.id }))} className={`block w-full px-4 py-3 text-left transition hover:bg-nuit-50/60 ${choix?.has(f.id) ? 'bg-or-50' : ouvert === f.id && !choix ? 'bg-or-50' : ''}`}>
+              <button key={f.id} onPointerEnter={() => !choix && anticiper(f.id)} onTouchStart={() => !choix && anticiper(f.id)} onClick={() => (choix ? basculer(f.id) : changer({ fil: f.id }))} className={`block w-full px-4 py-3 text-left transition hover:bg-nuit-50/60 ${choix?.has(f.id) ? 'bg-or-50' : ouvert === f.id && !choix ? 'bg-or-50' : ''}`}>
                 <div className="flex items-center gap-2">
                   {choix && (choix.has(f.id) ? <CheckSquare className="h-4 w-4 shrink-0 text-or-600" /> : <Square className="h-4 w-4 shrink-0 text-nuit-600/40" />)}
                   {f.nonLu && <span className="h-2 w-2 shrink-0 rounded-full bg-or" />}
@@ -209,7 +215,7 @@ export default function Courrier() {
           </div>
         </div>
         {ouvert ? (
-          <Fil key={ouvert + ':' + version} id={ouvert} onRetour={() => changer({ fil: '' })} onAgir={agir} onSuivi={majSuivi} onLu={(id) => setFils((l) => l.map((x) => (x.id === id ? { ...x, nonLu: false } : x)))}
+          <Fil key={ouvert + ':' + version} id={ouvert} suivants={fils.slice(fils.findIndex((x) => x.id === ouvert) + 1).slice(0, 2).map((x) => x.id)} onRetour={() => changer({ fil: '' })} onAgir={agir} onSuivi={majSuivi} onLu={(id) => setFils((l) => l.map((x) => (x.id === id ? { ...x, nonLu: false } : x)))}
             onRepondre={(fil, tous, reponse, corps) => setRedaction({ mode: tous ? 'tous' : 'repondre', fil, reponse, corps })} />
         ) : <div className="carte hidden flex-1 lg:block"><Vide icone={MailOpen} texte="Sélectionnez un message." /></div>}
       </div>
@@ -223,11 +229,11 @@ export default function Courrier() {
   )
 }
 
-function Fil({ id, onRetour, onAgir, onRepondre, onSuivi, onLu }) {
+function Fil({ id, onRetour, onAgir, onRepondre, onSuivi, onLu, suivants = [] }) {
   const notifier = useNotif()
   const nav = useNavigate()
   const { utilisateurs, utilisateur, nomUtilisateur } = useApp()
-  const [fil, setFil] = useState(null)
+  const [fil, setFil] = useState(() => FILS_VUS.get(id) || null)
   const [erreur, setErreur] = useState(null)
   const [pj, setPj] = useState(null)
   const [apercu, setApercu] = useState(null)   // pièce jointe ouverte dans l'appli
@@ -235,8 +241,16 @@ function Fil({ id, onRetour, onAgir, onRepondre, onSuivi, onLu }) {
   const [creation, setCreation] = useState(false)
   const [rdv, setRdv] = useState(null)
   const zoneReponse = useRef(null)
-  const lire = () => api('mail.fil', { id }).then((f) => { setFil(f); onLu?.(id) })
-  useEffect(() => { setFil(null); setCreation(false); setErreur(null); lire().catch(setErreur) }, [id])   // eslint-disable-line react-hooks/exhaustive-deps
+  const lire = () => api('mail.fil', { id }).then((f) => {
+    if (f.nonLu) { api('mail.modifier', { id, lu: true }).catch(() => {}); f = { ...f, nonLu: false } }   // lu en avance : marqué lu maintenant
+    FILS_VUS.set(id, f); setFil(f); onLu?.(id)
+  })
+  useEffect(() => {
+    setFil(FILS_VUS.get(id) || null); setCreation(false); setErreur(null)
+    lire().catch((e) => { if (!FILS_VUS.has(id)) setErreur(e) })
+    const t = setTimeout(() => suivants.forEach(anticiper), 1200)   // les mails suivants, en avance
+    return () => clearTimeout(t)
+  }, [id])   // eslint-disable-line react-hooks/exhaustive-deps
 
   /** PDF et images : aperçu dans l'appli ; autres fichiers : téléchargés. */
   async function ouvrirPj(m, p) {
@@ -250,6 +264,10 @@ function Fil({ id, onRetour, onAgir, onRepondre, onSuivi, onLu }) {
   /** Statut, attribution… (annulable). */
   async function suivi(modif, msg) {
     const avant = fil?.suivi
+    // Affiché aussitôt ; remis comme avant si le serveur refuse
+    const prevu = { statut: '', attribue_a: '', dossier_id: '', ...avant, ...modif }
+    if (modif.attribue_a && !prevu.statut) prevu.statut = 'À traiter'
+    setFil((f) => ({ ...f, suivi: prevu })); onSuivi(id, prevu)
     try {
       const s = await api('mail.suivi', { filId: id, ...modif }); setFil((f) => ({ ...f, suivi: s })); onSuivi(id, s)
       if (msg) notifier(msg, 'ok', avant !== undefined && (modif.statut !== undefined || modif.attribue_a !== undefined) ? { action: { label: 'Annuler', fn: async () => {
@@ -257,13 +275,16 @@ function Fil({ id, onRetour, onAgir, onRepondre, onSuivi, onLu }) {
         if (r) { setFil((f) => ({ ...f, suivi: r })); onSuivi(id, r) }
       } } } : {})
     }
-    catch (e) { notifier(e.message, 'erreur') }
+    catch (e) { setFil((f) => ({ ...f, suivi: avant })); onSuivi(id, avant); notifier(e.message, 'erreur') }
   }
   async function commenter(e) {
     e.preventDefault()
     if (!commentaire.trim()) return
-    try { const c = await api('mail.commenter', { filId: id, texte: commentaire }); setFil((f) => ({ ...f, commentaires: [...f.commentaires, c] })); setCommentaire('') }
-    catch (err) { notifier(err.message, 'erreur') }
+    // Affiché aussitôt, confirmé par le serveur
+    const texte = commentaire, tmp = { id: 'tmp' + Date.now(), auteur: utilisateur.nom, date: new Date().toISOString(), texte }
+    setFil((f) => ({ ...f, commentaires: [...f.commentaires, tmp] })); setCommentaire('')
+    try { const c = await api('mail.commenter', { filId: id, texte }); setFil((f) => ({ ...f, commentaires: f.commentaires.map((x) => (x.id === tmp.id ? c : x)) })) }
+    catch (err) { setFil((f) => ({ ...f, commentaires: f.commentaires.filter((x) => x.id !== tmp.id) })); setCommentaire(texte); notifier(err.message, 'erreur') }
   }
   const premier = fil?.messages?.[0]
 
@@ -274,7 +295,7 @@ function Fil({ id, onRetour, onAgir, onRepondre, onSuivi, onLu }) {
         {fil && <>
           <button className="btn-clair" onClick={() => zoneReponse.current?.ouvrir()}><Reply className="h-4 w-4" />Répondre</button>
           <button className="btn-icone" title="Répondre à tous" onClick={() => onRepondre(fil, true)}><ReplyAll className="h-4 w-4" /></button>
-          <button className="btn-icone" title="Suivre (étoile)" onClick={() => onAgir(fil, { important: !fil.important }, fil.important ? 'Étoile retirée' : 'Étoile ajoutée')}><Star className={`h-4 w-4 ${fil.important ? 'fill-or text-or' : ''}`} /></button>
+          <button className="btn-icone" title="Suivre (étoile)" onClick={() => { setFil((f) => ({ ...f, important: !f.important })); onAgir(fil, { important: !fil.important }, fil.important ? 'Étoile retirée' : 'Étoile ajoutée') }}><Star className={`h-4 w-4 ${fil.important ? 'fill-or text-or' : ''}`} /></button>
           <button className="btn-icone" title="Marquer non lu" onClick={() => { onAgir(fil, { nonLu: true }); onRetour() }}><MailFerme className="h-4 w-4" /></button>
           <button className="btn-icone" title="Archiver" onClick={() => onAgir(fil, { archiver: true }, 'Archivé')}><Archive className="h-4 w-4" /></button>
           <button className="btn-icone text-red-700" title="Corbeille" onClick={() => onAgir(fil, { corbeille: true }, 'Mis à la corbeille')}><Trash2 className="h-4 w-4" /></button>

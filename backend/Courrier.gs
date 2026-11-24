@@ -88,7 +88,7 @@ function lireFil_(p) {
     };
   });
   res.commentaires = commentairesDe_('mail:' + t.getId());
-  if (t.isUnread()) t.markRead();
+  if (t.isUnread() && !p.sansLu) t.markRead();   // sansLu : lecture anticipée (survol), le mail reste non lu
   return res;
 }
 

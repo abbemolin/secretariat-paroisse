@@ -95,6 +95,7 @@ var ROUTES = {
   'auth.logout':           { fn: function (p, s) { return logout_(p, s); } },
   'auth.motdepasse':       { fn: function (p, s) { return changerMotDePasse_(p, s); } },
   'app.init':              { fn: function (p, s) { return initApp_(p, s); } },
+  'app.demarrage':         { fn: function (p, s) { return demarrageApp_(p, s); } },
   'accueil.resume':        { fn: function (p, s) { return resumeAccueil_(p, s); } },
   'horsligne.fiches':      { fn: function (p, s) { return horsLigneFiches_(p, s); } },
   'journee.resume':        { fn: function (p, s) { return resumeJournee_(p, s); } },
@@ -588,6 +589,15 @@ function initApp_(p, s) {
     reponses: listerReponses_(),
     nonLues: compterNotificationsNonLues_(s.uid)
   };
+}
+
+/** Ouverture de l'appli en un seul aller-retour : session et, au choix, l'accueil ou « Ma journée ». */
+function demarrageApp_(p, s) {
+  try { assurerEntretien_(); } catch (e) {}
+  var r = { init: initApp_(p, s) };
+  if (p.accueil) try { r.accueil = resumeAccueil_({}, s); } catch (e) { console.error('demarrage accueil', e); }
+  if (p.journee && (s.droits.indexOf('liturgie') > -1 || s.droits.indexOf('intentions') > -1)) try { r.journee = resumeJournee_({}, s); } catch (e) { console.error('demarrage journee', e); }
+  return r;
 }
 
 function resumeAccueil_(p, s) {

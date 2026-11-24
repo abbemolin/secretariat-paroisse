@@ -1,5 +1,4 @@
 // Appels au backend Apps Script.
-import { demoApi } from './demo.js'
 
 const CLE_URL = 'secretariat.apiUrl'
 const CLE_TOKEN = 'secretariat.token'
@@ -93,7 +92,26 @@ function repli(action, payload) {
   return undefined
 }
 
+// ─── Réponses toutes fraîches (ouverture en un seul appel, préchargement) : servies sans redemander au serveur ───
+const FRAIS = new Map()   // clé → { t, data }
+const EN_VOL = new Map()  // clé → promesse en cours
+/** Fournit d'avance la réponse d'une lecture (valable 20 s, une seule fois). */
+export function fournir(action, payload, data, { garder = true } = {}) { if (garder) memoriser(action, payload, data); FRAIS.set(cleCache(action, payload), { t: Date.now(), data }) }
+/** Lance une lecture en avance (survol, mail suivant…) ; sans effet si elle est déjà en cours ou toute fraîche. */
+export function precharger(action, payload = {}, { appel: autre, garder = LECTURES.includes(action) } = {}) {
+  if (estDemo() || navigator.onLine === false) return
+  const k = cleCache(action, payload), f = FRAIS.get(k)
+  if (EN_VOL.has(k) || (f && Date.now() - f.t < 20000)) return
+  const pr = appel(autre?.action || action, autre?.payload || payload).then((d) => { fournir(action, payload, d, { garder }); return d }).finally(() => EN_VOL.delete(k))
+  EN_VOL.set(k, pr); pr.catch(() => {})
+}
+
 export async function api(action, payload = {}) {
+  if (!estDemo()) {
+    const k = cleCache(action, payload), f = FRAIS.get(k)
+    if (f) { FRAIS.delete(k); if (Date.now() - f.t < 20000) return f.data }
+    if (EN_VOL.has(k)) { try { const d = await EN_VOL.get(k); FRAIS.delete(k); return d } catch { /* on redemande */ } }
+  }
   let data
   try { data = await appel(action, payload); etatReseau(false) }
   catch (e) {
@@ -189,7 +207,7 @@ if (typeof window !== 'undefined') {
 }
 
 async function appel(action, payload) {
-  if (estDemo()) return demoApi(action, payload)
+  if (estDemo()) return (await import('./demo.js')).demoApi(action, payload)   // l'aperçu n'alourdit pas l'appli réelle
   const url = urlApi()
   if (!url) throw new ErreurApi('CONFIG', "L'adresse du serveur n'est pas configurée.")
   let rep

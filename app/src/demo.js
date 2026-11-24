@@ -215,6 +215,7 @@ export async function demoApi(action, p) {
       const as = etat.annoncesNl.filter((a) => ok(`${a.titre} ${a.description}`)); if (as.length) g.push({ cle: 'annonces', titre: 'Annonces', total: as.length, items: as.slice(0, 8).map((a) => ({ titre: a.titre, sous: a.actif ? 'Active' : 'Inactive', lien: '/annonces?id=' + a.id })) })
       return { groupes: g }
     }
+    case 'app.demarrage': return { init: await demoApi('app.init', {}), accueil: p.accueil ? await demoApi('accueil.resume', {}) : undefined, journee: p.journee ? await demoApi('journee.resume', {}) : undefined }
     case 'journee.resume': return { mesMails: etat.fils.filter((f) => f.suivi?.attribue_a === moi.id && f.suivi.statut !== 'Traité').length || 2, aSigner: 1, mesDossiers: etat.dossiers.filter((d) => d.etat === 'ouvert' && d.responsable === moi.id).length, nonLues: etat.notifications.filter((n) => !n.lu).length }
     case 'accueil.resume': {
       const ouverts = etat.dossiers.filter((d) => d.etat === 'ouvert')

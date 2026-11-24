@@ -13,8 +13,16 @@ function assurerEntretien_() {
   try {
     var existe = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'entretienNocturne'; });
     if (!existe) ScriptApp.newTrigger('entretienNocturne').timeBased().everyDays(1).atHour(3).inTimezone('Europe/Paris').create();
+    // Serveur gardé éveillé en journée (évite le « démarrage à froid » de Google)
+    if (!ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'garderEveille'; })) ScriptApp.newTrigger('garderEveille').timeBased().everyMinutes(5).create();
     c.put('entretien_ok', '1', 21600);
   } catch (e) { console.error('assurerEntretien_', e); }
+}
+/** Toutes les 5 minutes, de 6 h à 23 h : un appel très court qui garde le script prêt à répondre vite. */
+function garderEveille() {
+  var h = Number(Utilities.formatDate(new Date(), 'Europe/Paris', 'H'));
+  if (h < 6 || h >= 23) return;
+  try { props_().getProperty('ACCUEIL_PREFS'); CacheService.getScriptCache().get('entretien_ok'); } catch (e) {}
 }
 function entretienNocturne() {
   try { purgerFeuille_('Notifications', 'date', 183, false); } catch (e) { console.error('purge notifications', e); }

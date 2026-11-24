@@ -68,11 +68,13 @@ export default function Annonces() {
   const nbActives = annonces.filter((a) => a.actif).length
 
   async function basculer(a, champ, messages) {
+    // Affiché aussitôt ; remis comme avant si le serveur refuse
+    setData((l) => (l || []).map((x) => (x.id === a.id ? { ...x, [champ]: !a[champ] } : x)))
     try {
       await api('annonces.ecrire', { id: a.id, [champ]: !a[champ] })
       notifier(a[champ] ? messages[0] : messages[1])
       recharger()
-    } catch (e) { notifier(e.message, 'erreur') }
+    } catch (e) { setData((l) => (l || []).map((x) => (x.id === a.id ? { ...x, [champ]: a[champ] } : x))); notifier(e.message, 'erreur') }
   }
   async function supprimer(a) {
     if (!(await confirmer({ titre: 'Supprimer l\'annonce', texte: `Supprimer « ${a.titre} » ? Cette action est irréversible.`, bouton: 'Supprimer', danger: true }))) return

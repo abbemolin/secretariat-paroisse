@@ -1,42 +1,65 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { Suspense, createContext, lazy, useCallback, useContext, useEffect, useState } from 'react'
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { BoutonRecherche } from './pages/RechercheGlobale.jsx'
 import MaJournee, { voitMaJournee } from './pages/MaJournee.jsx'
 import { Home, Mail, CalendarDays, FolderHeart, FolderOpen, Users, Settings, UserCircle, LogOut, Bell, CloudOff, RefreshCw, ScrollText, GraduationCap, HeartHandshake, Mountain, Flame, BookOpen, BookMarked, BarChart3, LifeBuoy, MoreHorizontal, X, Megaphone, CalendarRange, Newspaper, LayoutGrid, Church, BookOpenText, Sun, Cross, BookHeart } from 'lucide-react'
-import { api, ecrireToken, enCache, lireToken, quandSessionExpire, estDemo, suivreFile, suivreReseau, viderFile } from './api.js'
+import { api, ecrireToken, enCache, fournir, lireToken, quandSessionExpire, estDemo, suivreFile, suivreReseau, viderFile } from './api.js'
 import { derniereMiseAJour, preparerHorsLigne } from './horsligne.js'
 import { Chargement, FournisseurNotif, ROLES, dateRelative, useNotif } from './ui.jsx'
 import Connexion from './pages/Connexion.jsx'
 import { peutVoir, peutModifier } from './acces.js'
 import { definirTuileLiturgie } from './affichage.js'
 import Accueil from './pages/Accueil.jsx'
-import Courrier from './pages/Courrier.jsx'
-import Agenda from './pages/Agenda.jsx'
-import Dossiers from './pages/Dossiers.jsx'
-import Dossier from './pages/Dossier.jsx'
-import Documents from './pages/Documents.jsx'
-import Utilisateurs from './pages/Utilisateurs.jsx'
-import Reglages from './pages/Reglages.jsx'
-import Compte from './pages/Compte.jsx'
-import Extraits from './pages/Extraits.jsx'
-import Catechisme from './pages/Catechisme.jsx'
-import CorUnum from './pages/CorUnum.jsx'
-import Retraites from './pages/Retraites.jsx'
-import Catechumenat from './pages/Catechumenat.jsx'
-import Aide from './pages/Aide.jsx'
-import Registres from './pages/Registres.jsx'
-import Statistiques from './pages/Statistiques.jsx'
-import Annonces from './pages/Annonces.jsx'
-import Semaine from './pages/Semaine.jsx'
-import Newsletter from './pages/Newsletter.jsx'
-import Breviaire from './pages/Breviaire.jsx'
-import MesseDuJour from './pages/MesseDuJour.jsx'
-import Bible from './pages/Bible.jsx'
-import CalendrierPropre from './pages/CalendrierPropre.jsx'
-import Ordo from './pages/Ordo.jsx'
-import IntentionsAujourdhui from './pages/IntentionsAujourdhui.jsx'
-import IntentionsCalendrier from './pages/IntentionsCalendrier.jsx'
-import IntentionsGerer from './pages/IntentionsGerer.jsx'
+
+// Pages chargées à la demande (ouverture plus légère), puis toutes préchargées en arrière-plan une fois l'appli affichée
+const PRECHARGES = []
+const CHEMINS = {}   // début de chemin → chargement de la page (préchargée au survol des liens du menu)
+const page = (f, ...chemins) => {
+  // Une page déjà chargée s'affiche directement (sans passer par l'attente de Suspense)
+  let Charge = null
+  const charger = () => f().then((m) => { Charge = m.default; return m })
+  PRECHARGES.push(charger); chemins.forEach((c) => { CHEMINS[c] = charger })
+  const Paresseuse = lazy(charger)
+  return function Page(props) { return Charge ? <Charge {...props} /> : <Paresseuse {...props} /> }
+}
+const Courrier = page(() => import('./pages/Courrier.jsx'), '/courrier')
+const Dossiers = page(() => import('./pages/Dossiers.jsx'), '/dossiers')
+const Dossier = page(() => import('./pages/Dossier.jsx'))
+const Agenda = page(() => import('./pages/Agenda.jsx'), '/agenda')
+const Extraits = page(() => import('./pages/Extraits.jsx'), '/extraits')
+const Catechisme = page(() => import('./pages/Catechisme.jsx'), '/catechisme')
+const IntentionsAujourdhui = page(() => import('./pages/IntentionsAujourdhui.jsx'), '/intentions')
+const Breviaire = page(() => import('./pages/Breviaire.jsx'), '/breviaire')
+const Annonces = page(() => import('./pages/Annonces.jsx'), '/annonces')
+const Compte = page(() => import('./pages/Compte.jsx'), '/compte')
+const Documents = page(() => import('./pages/Documents.jsx'), '/documents')
+const Utilisateurs = page(() => import('./pages/Utilisateurs.jsx'), '/utilisateurs')
+const Reglages = page(() => import('./pages/Reglages.jsx'), '/reglages')
+const CorUnum = page(() => import('./pages/CorUnum.jsx'), '/cor-unum')
+const Retraites = page(() => import('./pages/Retraites.jsx'), '/retraites')
+const Catechumenat = page(() => import('./pages/Catechumenat.jsx'), '/catechumenat')
+const Aide = page(() => import('./pages/Aide.jsx'), '/aide')
+const Registres = page(() => import('./pages/Registres.jsx'), '/registres')
+const Statistiques = page(() => import('./pages/Statistiques.jsx'), '/statistiques')
+const Semaine = page(() => import('./pages/Semaine.jsx'), '/semaine')
+const Newsletter = page(() => import('./pages/Newsletter.jsx'), '/newsletter')
+const MesseDuJour = page(() => import('./pages/MesseDuJour.jsx'), '/messe')
+const Bible = page(() => import('./pages/Bible.jsx'), '/bible')
+const CalendrierPropre = page(() => import('./pages/CalendrierPropre.jsx'), '/calendrier-propre')
+const Ordo = page(() => import('./pages/Ordo.jsx'), '/ordo')
+const IntentionsCalendrier = page(() => import('./pages/IntentionsCalendrier.jsx'), '/intentions/calendrier')
+const IntentionsGerer = page(() => import('./pages/IntentionsGerer.jsx'), '/intentions/gerer')
+let prechargees = false
+function prechargerPages() {
+  if (prechargees) return
+  prechargees = true
+  // une page à la fois, quand le téléphone n'a rien d'autre à faire
+  const libre = window.requestIdleCallback || ((f) => setTimeout(f, 200))
+  const suite = () => { const f = PRECHARGES.shift(); if (f) f().catch(() => {}).finally(() => libre(suite, { timeout: 4000 })) }
+  setTimeout(() => libre(suite, { timeout: 4000 }), 1500)
+}
+/** Survol d'un lien : la page est chargée tout de suite (si elle ne l'est pas déjà). */
+export function prechargerChemin(to) { const f = CHEMINS[String(to).split('?')[0]]; if (f) f().catch(() => {}) }
 
 const CtxApp = createContext(null)
 export const useApp = () => useContext(CtxApp)
@@ -146,9 +169,9 @@ function LienMenu({ to, label, court, icone: I, mobile, onClick, exact }) {
   const typeLien = new URLSearchParams(requete || '').get('type')
   const typeActuel = new URLSearchParams(loc.search).get('type')
   const actif = chemin === '/' || exact ? loc.pathname === chemin : (loc.pathname === chemin || loc.pathname.startsWith(chemin + '/')) && (typeLien ? typeActuel === typeLien : !(chemin === '/dossiers' && typeActuel === 'confirmand'))
-  if (mobile) return <NavLink to={to} onClick={onClick} className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] ${actif ? 'text-or-600' : 'text-nuit-600/70'}`}><I className="h-5 w-5" />{court || label}</NavLink>
+  if (mobile) return <NavLink to={to} onClick={onClick} onTouchStart={() => prechargerChemin(to)} className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] ${actif ? 'text-or-600' : 'text-nuit-600/70'}`}><I className="h-5 w-5" />{court || label}</NavLink>
   return (
-    <NavLink to={to} onClick={onClick} className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${actif ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white'}`}>
+    <NavLink to={to} onClick={onClick} onPointerEnter={() => prechargerChemin(to)} className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${actif ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white'}`}>
       <I className="h-4 w-4" />{label}
     </NavLink>
   )
@@ -176,12 +199,29 @@ function TuileMenu({ to, label, icone: I, onClick }) {
   return <NavLink to={to} onClick={onClick} className="flex flex-col items-center gap-1 rounded-xl border border-nuit-100 p-3 text-center text-xs text-nuit-700 hover:bg-nuit-50"><I className="h-5 w-5 text-or" />{label}</NavLink>
 }
 
+/** Ouverture en un seul aller-retour : session, et ce que la première page affichera (accueil ou « Ma journée »). */
+async function demarrer() {
+  const h = location.hash.replace(/^#/, '').split('?')[0] || '/'
+  let tuiles = false
+  try { tuiles = h === '/' && !sessionStorage.getItem('tuiles-vues') } catch { /* ignore */ }
+  try {
+    const r = await api('app.demarrage', { accueil: h === '/' && !tuiles, journee: tuiles || h === '/tuiles' })
+    fournir('app.init', {}, r.init)
+    if (r.accueil) fournir('accueil.resume', {}, r.accueil)
+    if (r.journee) fournir('journee.resume', {}, r.journee)
+    return r.init
+  } catch (e) {
+    if (e.code === 'ACTION_INCONNUE') return api('app.init')   // serveur pas encore mis à jour
+    throw e
+  }
+}
+
 export default function App() {
   const [donnees, setDonnees] = useState(null)
   const [pret, setPret] = useState(false)
 
   const charger = useCallback(async () => {
-    try { setDonnees({ ...(await api('app.init')), horsLigne: false }) } catch (e) {
+    try { setDonnees({ ...(await demarrer()), horsLigne: false }) } catch (e) {
       // Sans connexion : on démarre avec la dernière session connue (bréviaire, Bible… restent utilisables)
       const copie = e.code === 'RESEAU' && enCache('app.init')
       if (copie) { setDonnees({ ...copie, horsLigne: true }); return }
@@ -218,6 +258,9 @@ export default function App() {
     return () => { clearTimeout(t); clearInterval(i); window.removeEventListener('online', f) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uid])
+
+  // Une fois l'appli affichée : toutes les pages préchargées en arrière-plan
+  useEffect(() => { if (pret && donnees) prechargerPages() }, [pret, donnees])
 
   if (!pret) return <Chargement />
 
@@ -391,6 +434,7 @@ function Cadre() {
 
         <main className="flex-1 overflow-y-auto px-4 pb-24 pt-5 sm:px-6 lg:px-10 lg:pb-10 lg:pt-8">
           <div className="mx-auto max-w-6xl animate-entree" key={loc.pathname}>
+            <Suspense fallback={<Chargement />}>
             <Routes>
               <Route path="/" element={<Accueil />} />
               {peut('mail') && <Route path="/courrier" element={<Courrier />} />}
@@ -425,6 +469,7 @@ function Cadre() {
               <Route path="/compte" element={<Compte />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
+            </Suspense>
           </div>
         </main>
 
