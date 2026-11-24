@@ -674,6 +674,7 @@ function nouvelleSessionChef_(fil, m) {
   return exp + '.' + signatureChef_(fil, exp, m.hash);
 }
 function sessionChefValide_(fil, session) {
+  if (/\.k[a-z0-9]+\./.test(String(session || ''))) { try { return sessionChefCompteValide_(fil, session); } catch (e) { return false; } }   // chef connecté avec son compte (app)
   var m = mdpChefs_()[fil];
   var x = String(session || '').split('.');
   if (!m || x.length !== 2 || Number(x[0]) < Date.now()) return false;
@@ -713,7 +714,7 @@ function accesChef_(action, p, ctx) {
     var mails = mailsChefs_(ctx);
     if (!mails.length) throw erreur_('MAIL', 'Aucune adresse e-mail n\'est connue pour le chef de cette fraternité. Contactez le secrétariat.');
     compteurChef_('chefenvoi_' + fil, 5, 3600, 'Trop de codes envoyés. Réessayez dans une heure.');
-    var code = String(Math.floor(100000 + Math.random() * 900000));
+    var code = codeSur_();
     CacheService.getScriptCache().put('chefcode_' + fil, JSON.stringify({ code: code, essais: 0 }), 900);
     var texte = 'Bonjour,\n\nVoici le code pour choisir le mot de passe de la page de votre fraternité Cor Unum (' + e.nom + ') :\n\n' + code +
       '\n\nIl est valable 15 minutes. Si vous n\'avez rien demandé, ignorez ce message.\n\nAvec l\'assurance de nos prières à toutes vos intentions,';

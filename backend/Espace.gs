@@ -130,7 +130,7 @@ function actionEspace_(action, p) {
     var mail = mailDossier_(d);
     if (!mail) throw erreur_('MAIL', 'Aucune adresse e-mail n\'est connue dans votre dossier. Contactez la paroisse.');
     compteurChef_('espenvoi_' + esp.dossier_id, 5, 3600, 'Trop de codes envoyés. Réessayez dans une heure.');
-    var code = String(Math.floor(100000 + Math.random() * 900000));
+    var code = codeSur_();
     CacheService.getScriptCache().put('espcode_' + esp.dossier_id, JSON.stringify({ code: code, essais: 0 }), 900);
     var t = 'Bonjour ' + (i0.prenoms || '') + ',\n\nVoici votre code pour choisir le mot de passe de votre espace personnel « La Croix glorieuse » :\n\n' + code +
       '\n\nIl est valable 15 minutes. Si vous n\'avez rien demandé, ignorez ce message.\n\nAvec l\'assurance de nos prières à toutes vos intentions,';
@@ -146,11 +146,15 @@ function actionEspace_(action, p) {
       if (c.essais >= 5) cache.remove('espcode_' + esp.dossier_id); else cache.put('espcode_' + esp.dossier_id, JSON.stringify(c), 900);
       throw erreur_('CODE', c.essais >= 5 ? 'Trop d\'essais. Demandez un nouveau code.' : 'Code incorrect.');
     }
-    if (String(p.mdp || '').length < 8) throw erreur_('MDP', 'Le mot de passe doit contenir au moins 8 caractères.');
+    verifierMdpCompte_(p.mdp);
     var nv = verrou_(function () {
       var x = lignes_('Espaces').filter(function (y) { return y.dossier_id === esp.dossier_id; })[0];
       x.sel = jeton_().slice(0, 16); x.hash = hacher_(String(p.mdp), x.sel); x.mdp_maj = maintenant_();
       ecrireLigne_('Espaces', x);
+      try {   // même mot de passe pour le compte de l'app (connexion par adresse mail)
+        var cp = compteParDossier_(x.dossier_id);
+        if (cp && cp.statut !== 'suspendu') { cp.hash = x.hash; cp.sel = x.sel; cp.mdp_maj = x.mdp_maj; if (cp.statut === 'invite' && normMail_(cp.mail)) { cp.statut = 'actif'; cp.statut_le = maintenant_(); } ecrireLigne_('Comptes', cp); }
+      } catch (e) { console.error('synchro compte', e); }
       return x;
     });
     cache.remove('espcode_' + esp.dossier_id);
@@ -159,7 +163,9 @@ function actionEspace_(action, p) {
   if (!sessionEspValide_(esp, p.session)) throw erreur_('SESSION', 'Connectez-vous avec votre mot de passe.');
 
   if (action === 'esp.lire') {
-    verrou_(function () { var x = lignes_('Espaces').filter(function (y) { return y.dossier_id === esp.dossier_id; })[0]; x.derniere_visite = maintenant_(); ecrireLigne_('Espaces', x); });
+    // dernière visite écrite une fois par jour au plus (pas de verrou général à chaque ouverture)
+    if (String(esp.derniere_visite || '').slice(0, 10) !== aujourdhui_()) verrou_(function () { var x = lignes_('Espaces').filter(function (y) { return y.dossier_id === esp.dossier_id; })[0]; x.derniere_visite = maintenant_(); ecrireLigne_('Espaces', x); });
+    try { var cpv = compteParDossier_(esp.dossier_id); if (cpv) noterVisiteCompte_(cpv); } catch (e) {}
     return vueEspace_(d);
   }
   if (action === 'esp.modifier') {
@@ -293,9 +299,11 @@ function actionEspace_(action, p) {
     verrou_(function () {
       var x = lignes_('Espaces').filter(function (y) { return y.dossier_id === esp.dossier_id; })[0];
       var pr = json2_(x.prefs, {});
-      ['textes', 'reponses', 'anniversaire'].forEach(function (k) { if (p.notifs && typeof p.notifs[k] === 'boolean') pr[k] = p.notifs[k]; });
+      ['textes', 'reponses', 'anniversaire', 'annonces'].forEach(function (k) { if (p.notifs && typeof p.notifs[k] === 'boolean') pr[k] = p.notifs[k]; });
+      if (p.notifs && p.notifs.prop_heure !== undefined) { var hh = Number(p.notifs.prop_heure); if (hh >= 5 && hh <= 22) pr.prop_heure = hh; }
       x.prefs = JSON.stringify(pr); ecrireLigne_('Espaces', x);
     });
+    if (p.notifs && typeof p.notifs.lettre_mail === 'boolean') { var i1 = json2_(d.donnees, {}).infos || {}; changerAbonnementNewsletter_(mailDossier_(d), i1.prenoms, i1.nom, p.notifs.lettre_mail); }
     return vueEspace_(d);
   }
   if (action === 'esp.lu') {
@@ -314,6 +322,20 @@ function actionEspace_(action, p) {
     if (!fi) throw erreur_('INTROUVABLE', 'Document introuvable.');
     var b = DriveApp.getFileById(fi.id).getBlob();
     return { nom: fi.nom, type: b.getContentType(), base64: Utilities.base64Encode(b.getBytes()) };
+  }
+  if (action === 'esp.lettres') return { lettres: lettresApp_(), lettre_mail: abonnementNewsletter_(mailDossier_(d)) };
+  if (action === 'esp.lettre') return lettreApp_(p.id);
+  if (action === 'esp.sacrement') return demanderSacrementApp_({ mail: mailDossier_(d), prenom: i0.prenoms, nom: i0.nom, telephone: i0.telephone, adresse: i0.adresse }, p);
+  if (action === 'esp.dossiers') return { dossiers: mesDossiers_(mailDossier_(d)).filter(function (z) { return z.id !== d.id; }), actes: mesActes_(mailDossier_(d)), motifs: MOTIFS_ACTE };
+  if (action === 'esp.acteApp') { demanderActeApp_({ mail: mailDossier_(d), prenom: i0.prenoms, nom: i0.nom }, p); return { actes: mesActes_(mailDossier_(d)) }; }
+  if (/^esp\.prop\./.test(action)) return actionPropApp_({ uid: 'esp:' + d.id, heure: heureProps_(esp.prefs) }, action.slice(9), p);
+  if (/^esp\.priere\./.test(action)) return actionPriere_(quiEspace_(d), action.slice(11), p);
+  if (action === 'esp.inscriptions') return mesInscriptions_(mailDossier_(d));
+  if (action === 'esp.afaire') return { afaire: aFaireEspace_(d) };
+  if (action === 'esp.messes') return { messes: messesProposees_(), mes_intentions: mesIntentions_(mailDossier_(d)), offrande: offrandeTexte_(), max: INT_APP_MAX };
+  if (action === 'esp.demanderMesse') {
+    var rm = demanderMessesApp_({ mail: mailDossier_(d), nom: ((i0.prenoms || '') + ' ' + (i0.nom || '')).trim() || d.nom }, p);
+    return { nombre: rm.nombre, mes_intentions: mesIntentions_(mailDossier_(d)), messes: messesProposees_() };
   }
   if (action === 'esp.push') {
     if (p.desabonner) return desabonnerPush_({ endpoint: p.endpoint });
@@ -364,7 +386,8 @@ function vueEspace_(d) {
     anniversaire: (function () { var n = pr.neo ? anniversaireDuJour_(d) : 0; return n ? { annees: n, texte: texteAnniversaire_(d, n) } : null; })(),
     parrains: (don.parrains || []).map(function (z) { return parrainVue_(z, true); }), fraternite: frat,
     calendrier: cal, textes: textes, paroisse: reglages_().paroisse,
-    annonces: annoncesPubliques_()
+    annonces: annoncesPubliques_(),
+    dons: causesPubliques_()
   };
 }
 
@@ -552,7 +575,13 @@ function lienEspace_(p, s) {
   if (d.type !== 'catechumene') throw erreur_('INVALIDE', 'Réservé aux catéchumènes et néophytes.');
   verrou_(function () {
     var x = espaceDuDossier_(d.id);
-    if (!x) { ecrireLigne_('Espaces', { dossier_id: d.id, jeton: jeton_(), hash: '', sel: '', mdp_maj: '', cree_le: maintenant_(), derniere_visite: '' }); return; }
+    if (!x) {
+      // la personne a déjà un compte dans l'app (même adresse) : son espace s'y rattache, avec son mot de passe
+      var cp = null; try { var m0 = normMail_(mailDossier_(d)); cp = m0 ? compteParMail_(m0) : null; } catch (e) {}
+      if (cp && !cp.dossier_id) { cp.dossier_id = d.id; ecrireLigne_('Comptes', cp); }
+      ecrireLigne_('Espaces', { dossier_id: d.id, jeton: jeton_(), hash: cp && cp.statut === 'actif' ? cp.hash : '', sel: cp && cp.statut === 'actif' ? cp.sel : '', mdp_maj: '', cree_le: maintenant_(), derniere_visite: '' });
+      return;
+    }
     if (p.nouveau) { x.jeton = jeton_(); ecrireLigne_('Espaces', x); }
   });
   if (p.nouveau) journaliser_(s, 'Espace personnel : nouveau lien', d.nom);
@@ -693,7 +722,7 @@ function ecrireTexte_(p, s) {
   });
   if (nouveau) {
     journaliser_(s, 'Texte publié', t.titre + ' → ' + libelleCible_(t.cible));
-    destinatairesCible_(t.cible).forEach(function (d) { pushEspace_(d.id, 'textes'); });
+    envoyerPushMasse_(destinatairesCible_(t.cible).filter(function (d) { return prefsNotifsEspace_(d.id).textes !== false; }).map(function (d) { return 'esp:' + d.id; }));
   }
   return listerTextes_();
 }
@@ -867,7 +896,7 @@ function prefsNotifsEspace_(id) {
   var x = null;
   try { x = lignes_('Espaces').filter(function (y) { return y.dossier_id === id; })[0]; } catch (e) {}
   var pr = json2_(x && x.prefs, {});
-  return { textes: pr.textes !== false, reponses: pr.reponses !== false, anniversaire: pr.anniversaire !== false };
+  return { textes: pr.textes !== false, reponses: pr.reponses !== false, anniversaire: pr.anniversaire !== false, annonces: pr.annonces !== false };
 }
 function pushEspace_(id, sorte) {
   try { if (prefsNotifsEspace_(id)[sorte] === false) return; envoyerPush_('esp:' + id); } catch (e) {}

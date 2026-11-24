@@ -108,7 +108,10 @@ function sbEcrire_(methode, chemin, corps) {
 // ─── Annonces ───
 
 function listerAnnonces_() {
-  return sb_('get', '/rest/v1/annonces?select=*&order=prioritaire.desc,ordre.asc.nullslast,created_at.desc');
+  var l = sb_('get', '/rest/v1/annonces?select=*&order=prioritaire.desc,ordre.asc.nullslast,created_at.desc') || [];
+  var n = {}; try { n = notifsAnnonces_(); } catch (e) {}
+  l.forEach(function (a) { if (n[a.id]) { a.notifie_le = n[a.id].le; a.notifie_par = n[a.id].par; } });
+  return l;
 }
 function champsAnnonce_(p) {
   var x = {};

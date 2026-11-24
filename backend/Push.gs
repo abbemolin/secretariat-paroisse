@@ -147,21 +147,31 @@ function desabonnerPush_(p) {
 }
 
 /** Réveille tous les appareils d'un utilisateur. */
-function envoyerPush_(uid) {
-  var abonnements = lignes_('Push').filter(function (x) { return x.uid === uid; });
+function envoyerPush_(uid) { envoyerPushMasse_([uid]); }
+/**
+ * Réveille les appareils de plusieurs personnes : envois groupés (par paquets de 50, en parallèle),
+ * pour qu'une annonce à des centaines de téléphones ne fasse pas attendre celui qui publie.
+ */
+function envoyerPushMasse_(uids) {
+  var voulu = {}; (uids || []).forEach(function (u) { if (u) voulu[u] = 1; });
+  var abonnements = lignes_('Push').filter(function (x) { return voulu[x.uid]; });
   var aSupprimer = [];
-  abonnements.forEach(function (a) {
-    try {
-      var audience = a.endpoint.match(/^https:\/\/[^/]+/)[0];
-      var rep = UrlFetchApp.fetch(a.endpoint, {
-        method: 'post', muteHttpExceptions: true, payload: '',
-        headers: { TTL: '86400', Urgency: 'high',
-                   Authorization: 'vapid t=' + jetonVapid_(audience) + ', k=' + clePubliquePush_() }
-      });
+  for (var k = 0; k < abonnements.length; k += 50) {
+    var paquet = abonnements.slice(k, k + 50), requetes = [];
+    paquet.forEach(function (a) {
+      try {
+        var audience = a.endpoint.match(/^https:\/\/[^/]+/)[0];
+        requetes.push({ url: a.endpoint, method: 'post', muteHttpExceptions: true, payload: '',
+          headers: { TTL: '86400', Urgency: 'high', Authorization: 'vapid t=' + jetonVapid_(audience) + ', k=' + clePubliquePush_() } });
+      } catch (e) { requetes.push(null); console.warn('Push : ' + e); }
+    });
+    var envois = requetes.filter(Boolean), reps = [];
+    try { reps = envois.length ? UrlFetchApp.fetchAll(envois) : []; } catch (e) { console.warn('Push (paquet) : ' + e); continue; }
+    reps.forEach(function (rep, j) {
       var code = rep.getResponseCode();
-      if (code === 404 || code === 410) aSupprimer.push(a.endpoint);
+      if (code === 404 || code === 410) aSupprimer.push(envois[j].url);
       else if (code >= 400) console.warn('Push ' + code + ' : ' + rep.getContentText().slice(0, 200));
-    } catch (e) { console.warn('Push : ' + e); }
-  });
+    });
+  }
   aSupprimer.forEach(function (ep) { desabonnerPush_({ endpoint: ep }); });
 }
