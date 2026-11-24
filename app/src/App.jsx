@@ -32,6 +32,9 @@ import MesseDuJour from './pages/MesseDuJour.jsx'
 import Bible from './pages/Bible.jsx'
 import CalendrierPropre from './pages/CalendrierPropre.jsx'
 import Ordo from './pages/Ordo.jsx'
+import IntentionsAujourdhui from './pages/IntentionsAujourdhui.jsx'
+import IntentionsCalendrier from './pages/IntentionsCalendrier.jsx'
+import IntentionsGerer from './pages/IntentionsGerer.jsx'
 
 const CtxApp = createContext(null)
 export const useApp = () => useContext(CtxApp)
@@ -67,7 +70,7 @@ const aplatir = (m) => m.flatMap((x) => (x.items ? x.items : [x]))
 // ─── Tuiles : après la connexion, choix de l'espace (une seule tuile active → entrée directe) ───
 const TUILES = [
   { cle: 'secretariat', titre: 'Secrétariat', texte: 'Courrier, agenda, dossiers, catéchèse', icone: Mail, chemin: '/' },
-  { cle: 'intentions', titre: 'Intentions de messe', texte: 'Intentions, calendrier des messes', icone: Church, bientot: true },
+  { cle: 'intentions', titre: 'Intentions de messe', texte: 'Aujourd\'hui, calendrier, gestion des intentions', icone: Church, chemin: '/intentions', droit: 'intentions' },
   { cle: 'annonces', titre: 'Annonces et newsletter', texte: 'Annonces, feuille de semaine, newsletter', icone: Megaphone, chemin: '/annonces', droit: 'annonces' },
   { cle: 'liturgie', titre: 'Liturgie', texte: 'Bréviaire, messe du jour, ordo, Bible', icone: BookOpenText, chemin: '/breviaire', droit: 'liturgie' }
 ]
@@ -75,6 +78,11 @@ const MENU_ANNONCES = [
   { to: '/annonces', label: 'Annonces', icone: Megaphone, bas: true },
   { to: '/semaine', label: 'Feuille de semaine', icone: CalendarRange, bas: true },
   { to: '/newsletter', label: 'Newsletter', icone: Newspaper, bas: true }
+]
+const MENU_INTENTIONS = [
+  { to: '/intentions', label: 'Aujourd\'hui', icone: Home, bas: true, exact: true },
+  { to: '/intentions/calendrier', label: 'Calendrier', icone: CalendarDays, bas: true },
+  { to: '/intentions/gerer', label: 'Gérer', icone: Church, bas: true }
 ]
 const MENU_LITURGIE = [
   { to: '/breviaire', label: 'Bréviaire', icone: Sun, bas: true },
@@ -87,9 +95,10 @@ const tuileDuChemin = (chemin) => {
   const p = chemin.split('/')[1]
   if (['annonces', 'semaine', 'newsletter'].includes(p)) return 'annonces'
   if (['breviaire', 'messe', 'ordo', 'bible', 'calendrier-propre'].includes(p)) return 'liturgie'
+  if (p === 'intentions') return 'intentions'
   return 'secretariat'
 }
-const NOM_TUILE = { annonces: 'Annonces et newsletter', liturgie: 'Liturgie' }
+const NOM_TUILE = { annonces: 'Annonces et newsletter', liturgie: 'Liturgie', intentions: 'Intentions de messe' }
 
 function EcranTuiles({ tuiles }) {
   const { utilisateur, deconnecter } = useApp()
@@ -126,12 +135,12 @@ function EcranTuiles({ tuiles }) {
 }
 
 /** Lien de menu : tient compte de « ?type=… » (Confirmands est une vue de Dossiers). */
-function LienMenu({ to, label, court, icone: I, mobile, onClick }) {
+function LienMenu({ to, label, court, icone: I, mobile, onClick, exact }) {
   const loc = useLocation()
   const [chemin, requete] = to.split('?')
   const typeLien = new URLSearchParams(requete || '').get('type')
   const typeActuel = new URLSearchParams(loc.search).get('type')
-  const actif = chemin === '/' ? loc.pathname === '/' : (loc.pathname === chemin || loc.pathname.startsWith(chemin + '/')) && (typeLien ? typeActuel === typeLien : !(chemin === '/dossiers' && typeActuel === 'confirmand'))
+  const actif = chemin === '/' || exact ? loc.pathname === chemin : (loc.pathname === chemin || loc.pathname.startsWith(chemin + '/')) && (typeLien ? typeActuel === typeLien : !(chemin === '/dossiers' && typeActuel === 'confirmand'))
   if (mobile) return <NavLink to={to} onClick={onClick} className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] ${actif ? 'text-or-600' : 'text-nuit-600/70'}`}><I className="h-5 w-5" />{court || label}</NavLink>
   return (
     <NavLink to={to} onClick={onClick} className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${actif ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white'}`}>
@@ -265,7 +274,7 @@ function Cadre() {
   const [plus, setPlus] = useState(false)
   const notifier = useNotif()
   const nav = useNavigate()
-  const zonePage = { courrier: 'courrier', agenda: 'agenda', extraits: 'extraits', registres: 'registres', catechisme: 'catechisme', catechumenat: 'catechumenat', 'cor-unum': 'cor_unum', retraites: 'retraites', documents: 'documents', annonces: 'annonces', semaine: 'annonces', newsletter: 'annonces', breviaire: 'liturgie', messe: 'liturgie', bible: 'liturgie', ordo: 'liturgie', 'calendrier-propre': 'liturgie' }[loc.pathname.split('/')[1]]
+  const zonePage = { courrier: 'courrier', agenda: 'agenda', extraits: 'extraits', registres: 'registres', catechisme: 'catechisme', catechumenat: 'catechumenat', 'cor-unum': 'cor_unum', retraites: 'retraites', documents: 'documents', annonces: 'annonces', semaine: 'annonces', newsletter: 'annonces', breviaire: 'liturgie', messe: 'liturgie', bible: 'liturgie', ordo: 'liturgie', 'calendrier-propre': 'liturgie', intentions: 'intentions' }[loc.pathname.split('/')[1]]
   const tuilesActives = TUILES.filter((t) => !t.bientot && peut(t.droit))
   const avecTuiles = tuilesActives.length > 1
   const tuile = tuileDuChemin(loc.pathname)
@@ -288,7 +297,7 @@ function Cadre() {
     viderFile()
     return () => { fin(); window.removeEventListener('file-erreur', refus) }
   }, [notifier])
-  const menu = tuile === 'annonces' ? MENU_ANNONCES : tuile === 'liturgie' ? MENU_LITURGIE : MENU.map((m) => (m.items ? { ...m, items: m.items.filter((x) => peut(x.droit)) } : m)).filter((m) => (m.items ? m.items.length : peut(m.droit)))
+  const menu = tuile === 'annonces' ? MENU_ANNONCES : tuile === 'liturgie' ? MENU_LITURGIE : tuile === 'intentions' ? MENU_INTENTIONS : MENU.map((m) => (m.items ? { ...m, items: m.items.filter((x) => peut(x.droit)) } : m)).filter((m) => (m.items ? m.items.length : peut(m.droit)))
   const bas = aplatir(menu).filter((m) => m.bas)
   if (avecTuiles && loc.pathname === '/tuiles') return <EcranTuiles tuiles={TUILES.filter((t) => t.bientot || peut(t.droit))} />
   return (
@@ -359,6 +368,9 @@ function Cadre() {
               {peut('liturgie') && <Route path="/bible" element={<Bible />} />}
               {peut('liturgie') && <Route path="/calendrier-propre" element={<CalendrierPropre />} />}
               {peut('liturgie') && <Route path="/ordo" element={<Ordo />} />}
+              {peut('intentions') && <Route path="/intentions" element={<IntentionsAujourdhui />} />}
+              {peut('intentions') && <Route path="/intentions/calendrier" element={<IntentionsCalendrier />} />}
+              {peut('intentions') && <Route path="/intentions/gerer" element={<IntentionsGerer />} />}
               <Route path="/aide" element={<Aide />} />
               <Route path="/compte" element={<Compte />} />
               <Route path="*" element={<Navigate to="/" replace />} />

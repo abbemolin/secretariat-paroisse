@@ -24,7 +24,7 @@ let surSessionExpiree = () => {}
 export function quandSessionExpire(fn) { surSessionExpiree = fn }
 
 // ─── Affichage instantané : dernière réponse connue des lectures, gardée sur l'appareil ───
-const LECTURES = ['app.init', 'accueil.resume', 'dossiers.liste', 'dossiers.lire', 'cate.liste', 'cate.lire', 'cor.liste', 'extraits.liste', 'mail.liste', 'promotions.liste', 'agenda.evenements', 'documents.liste']
+const LECTURES = ['intentions.liste', 'intentions.agenda', 'app.init', 'accueil.resume', 'dossiers.liste', 'dossiers.lire', 'cate.liste', 'cate.lire', 'cor.liste', 'extraits.liste', 'mail.liste', 'promotions.liste', 'agenda.evenements', 'documents.liste']
 const CACHE = new Map()
 const cleCache = (action, payload) => 'cache:' + action + ':' + JSON.stringify(payload || {})
 /** Dernière réponse connue (ou undefined). */
@@ -55,7 +55,7 @@ export async function api(action, payload = {}) {
   let data
   try { data = await appel(action, payload) }
   catch (e) {
-    if (e.code === 'RESEAU' && EN_FILE[action]) return mettreEnFile(action, payload)
+    if (e.code === 'RESEAU' && action in EN_FILE) return mettreEnFile(action, payload)
     throw e
   }
   if (LECTURES.includes(action)) memoriser(action, payload, data)
@@ -64,7 +64,8 @@ export async function api(action, payload = {}) {
 }
 
 // ─── Hors connexion : les enregistrements de fiches sont gardés sur l'appareil et renvoyés au retour du réseau ───
-const EN_FILE = { 'dossiers.modifier': 'dossiers.lire', 'cate.modifier': 'cate.lire' }   // action → lecture correspondante
+// action → lecture correspondante (null : gardée sans mise à jour du cache ; la page met elle-même son affichage à jour)
+const EN_FILE = { 'dossiers.modifier': 'dossiers.lire', 'cate.modifier': 'cate.lire', 'intentions.celebrer': null, 'intentions.ecrire': null }
 const CLE_FILE = 'file-attente'
 const ecouteursFile = new Set()
 export const fileAttente = () => { try { return JSON.parse(localStorage.getItem(CLE_FILE) || '[]') } catch { return [] } }
@@ -73,11 +74,12 @@ function ecrireFile(l) { try { localStorage.setItem(CLE_FILE, JSON.stringify(l))
 export function suivreFile(fn) { ecouteursFile.add(fn); fn(fileAttente().length); return () => ecouteursFile.delete(fn) }
 function mettreEnFile(action, payload) {
   const l = fileAttente()
-  const i = l.findIndex((x) => x.action === action && x.payload.id === payload.id)
+  const i = payload.id === undefined ? -1 : l.findIndex((x) => x.action === action && x.payload.id === payload.id)
   if (i > -1) l[i] = { action, payload: { ...l[i].payload, ...payload }, t: Date.now() }   // une seule entrée par fiche : la plus récente
   else l.push({ action, payload, t: Date.now() })
   ecrireFile(l)
   const lecture = EN_FILE[action]
+  if (!lecture) return { ...payload, _enAttente: true }
   const res = { ...(enCache(lecture, { id: payload.id }) || {}), ...payload, _enAttente: true }
   memoriser(lecture, { id: payload.id }, res)
   return res
@@ -93,7 +95,7 @@ export async function viderFile() {
       const x = l[0]
       try {
         const data = await appel(x.action, x.payload)
-        memoriser(EN_FILE[x.action], { id: x.payload.id }, data)
+        if (EN_FILE[x.action]) memoriser(EN_FILE[x.action], { id: x.payload.id }, data)
       } catch (e) {
         if (e.code === 'RESEAU') break                      // toujours hors connexion : on réessaiera
         window.dispatchEvent(new CustomEvent('file-erreur', { detail: e.message }))   // refus du serveur : abandonné

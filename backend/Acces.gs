@@ -3,7 +3,7 @@
  * Le rôle pré-coche des accès ; l'administrateur les ajuste ensuite personne par personne.
  *
  * acces = {
- *   courrier, agenda, extraits, registres, catechisme, catechumenat, cor_unum, retraites, documents, statistiques, annonces, liturgie : '' | 'l' | 'm'
+ *   courrier, agenda, extraits, registres, catechisme, catechumenat, cor_unum, retraites, documents, statistiques, annonces, liturgie, intentions : '' | 'l' | 'm'
  *   dossiers : { bapteme, premiere_communion, … : '' | 'l' | 'm' }     (par sorte de dossier)
  *   courrier_tout : true (toute la boîte) | false (seulement les mails qui lui sont attribués)
  *   reglages : ['Paroisse', 'Signatures', …]                         (onglets permis)
@@ -11,7 +11,7 @@
  * }
  * Les administrateurs ont toujours tout (et seuls eux gèrent les utilisateurs).
  */
-var PAGES_ACCES = ['courrier', 'agenda', 'extraits', 'registres', 'catechisme', 'catechumenat', 'cor_unum', 'retraites', 'documents', 'statistiques', 'annonces', 'liturgie'];
+var PAGES_ACCES = ['courrier', 'agenda', 'extraits', 'registres', 'catechisme', 'catechumenat', 'cor_unum', 'retraites', 'documents', 'statistiques', 'annonces', 'liturgie', 'intentions'];
 var SORTES_ACCES = ['bapteme', 'premiere_communion', 'profession_foi', 'confirmation_jeune', 'mariage', 'obseques', 'catechumene', 'confirmand'];
 var ONGLETS_REGLAGES = ['Paroisse', 'Signatures', 'Réponses types', 'Modèles', 'Tri automatique', 'Catéchisme', 'Confirmands', 'Cor Unum', 'Paiements en ligne', 'Newsletter', 'Liturgie', 'Journal', 'Sauvegardes'];
 
@@ -28,7 +28,8 @@ function accesDuRole_(role) {
   var x = accesComplet_('m', [], role === 'cure' || role === 'vicaire');
   x.statistiques = '';
   x.annonces = role === 'cure' ? 'm' : '';   // tuile « Annonces et newsletter » : curé (et administrateurs)
-  x.liturgie = role === 'secretaire' ? '' : 'm';   // tuile « Liturgie » : prêtres et diacres
+  x.liturgie = role === 'secretaire' ? '' : 'm';
+  x.intentions = role === 'cure' || role === 'vicaire' ? 'm' : '';   // tuile « Intentions de messe » : prêtres (et administrateurs)   // tuile « Liturgie » : prêtres et diacres
   if (role === 'secretaire') { x.reglages = tous.filter(function (o) { return o !== 'Sauvegardes' && o !== 'Newsletter' && o !== 'Liturgie'; }); x.signer = true; }
   return x;
 }
@@ -49,6 +50,7 @@ function accesDe_(u) {
   SORTES_ACCES.forEach(function (k) { r.dossiers[k] = NIVEAUX_[(a.dossiers || {})[k]] !== undefined ? a.dossiers[k] : ''; });
   if (a.annonces === undefined) r.annonces = base.annonces;   // accès choisis avant l'arrivée de la tuile : ceux du rôle
   if (a.liturgie === undefined) r.liturgie = base.liturgie;
+  if (a.intentions === undefined) r.intentions = base.intentions;
   return r;
 }
 /** Nettoie les accès envoyés par l'administrateur. */
@@ -68,6 +70,7 @@ function droitsDe_(role, a) {
   if (a.documents) d.push('documents');
   if (a.annonces) d.push('annonces');
   if (a.liturgie) d.push('liturgie');
+  if (a.intentions) d.push('intentions');
   if (role === 'admin') d.push('utilisateurs');
   if (a.reglages.length) d.push('reglages');
   return d;
@@ -88,7 +91,7 @@ function ongletPermis_(s, onglet) { return s.role === 'admin' || (s.acces && s.a
 function sortesLisibles_(s) { return SORTES_ACCES.filter(function (k) { return peutLire_(s, 'dossiers', k); }); }
 
 var NOMS_ZONES_ = { courrier: 'Courrier', agenda: 'Agenda', dossiers: 'Dossiers', extraits: 'Extraits de baptême', registres: 'Registres',
-  catechisme: 'Catéchisme', catechumenat: 'Catéchuménat', cor_unum: 'Cor Unum', retraites: 'Retraites', documents: 'Documents', statistiques: 'Statistiques', annonces: 'Annonces et newsletter', liturgie: 'Liturgie' };
+  catechisme: 'Catéchisme', catechumenat: 'Catéchuménat', cor_unum: 'Cor Unum', retraites: 'Retraites', documents: 'Documents', statistiques: 'Statistiques', annonces: 'Annonces et newsletter', liturgie: 'Liturgie', intentions: 'Intentions de messe' };
 var LECTURE_ = /\.(liste|lire|semaine|fil|piecejointe|libelles|groupes|evenements|etat|reglages|catalogue|invites|equipesCourantes|telecharger|chercher|quota|equipe|onglets|lienChef|lienInscription|invites)$/;
 var ONGLET_ROUTE_ = {
   'reglages.ecrire': 'Paroisse', 'sceau.ecrire': 'Paroisse', 'signatures.ecrire': 'Signatures', 'reponses.ecrire': 'Réponses types', 'tri.ecrire': 'Tri automatique',
@@ -113,6 +116,7 @@ function zoneAction_(action) {
   if (action === 'statistiques') return 'statistiques';
   if (/^(annonces|newsletter)\./.test(action)) return 'annonces';
   if (/^(liturgie|propre)\./.test(action)) return 'liturgie';
+  if (/^intentions\./.test(action)) return 'intentions';
   return null;
 }
 function interdit_(texte) { return erreur_('INTERDIT', texte || 'Vous n\'avez pas accès à cette fonction.'); }
@@ -137,7 +141,8 @@ function verifierAcces_(action, p, s, route) {
   if (action === 'registres') ecrit = !!(p.inscrire || p.depart);
   if (action === 'statistiques') ecrit = false;
   if (action === 'tri.tester') ecrit = false;
-  if (/^liturgie\./.test(action) || action === 'propre.lire') ecrit = false;   // lecture, et ses propres marque-pages : l'accès en lecture suffit
+  if (/^liturgie\./.test(action) || action === 'propre.lire') ecrit = false;
+  if (/^intentions\.(liste|agenda|apercu)$/.test(action)) ecrit = false;   // lecture, et ses propres marque-pages : l'accès en lecture suffit
   if (action === 'catechumenat.reglages' && (p.ecrire || p.consigne_lettre !== undefined)) ecrit = true;
   if (zone === 'dossiers') return verifierDossier_(action, p, s, ecrit);
   if (!(ecrit ? peutModifier_ : peutLire_)(s, zone)) {

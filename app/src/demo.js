@@ -510,6 +510,37 @@ export async function demoApi(action, p) {
     case 'annonces.supprimer': etat.annoncesNl = etat.annoncesNl.filter((x) => x.id !== p.id); return true
     case 'annonces.ordre': p.ids.forEach((id, i) => { const a = etat.annoncesNl.find((x) => x.id === id); if (a) a.ordre = i }); return true
     case 'annonces.image': return { url: './logo.png' }
+    case 'intentions.liste': return demoInt.filter((i) => i.statut !== 'annule').map((i) => ({ ...i }))
+    case 'intentions.agenda': {
+      const ev = [], deb = new Date(p.debut), fin = new Date(p.fin)
+      for (let d = new Date(deb.getFullYear(), deb.getMonth(), deb.getDate()); d < fin; d.setDate(d.getDate() + 1)) {
+        const h = (hh, mm = 0) => { const x = new Date(d); x.setHours(hh, mm, 0, 0); return x.toISOString() }
+        const k = d.toISOString().slice(0, 10)
+        if (d.getDay() === 0) ev.push({ id: 'g' + k, summary: 'Grand\'messe', start: { dateTime: h(10, 30) }, end: { dateTime: h(12) } })
+        if (d.getDay() === 3 || d.getDay() === 5) ev.push({ id: 'l' + k, summary: 'Messe', start: { dateTime: h(12, 15) }, end: { dateTime: h(13) } })
+        ev.push({ id: 'm' + k, summary: 'Messe', start: { dateTime: h(18, 30) }, end: { dateTime: h(19, 15) } })
+        if (d.getDay() === 6) ev.push({ id: 'c' + k, summary: 'Confessions', start: { dateTime: h(10) }, end: { dateTime: h(12) } })
+      }
+      return ev.filter((e) => new Date(e.start.dateTime) >= deb && new Date(e.start.dateTime) < fin)
+    }
+    case 'intentions.ecrire': {
+      const champs = { date_messe: p.date_messe, heure_messe: p.heure_messe, nom_intention: p.nom_intention, type_intention: p.type_intention, nom_donateur: p.nom_donateur || 'Paroisse', commentaire: p.commentaire || '' }
+      if (demoInt.some((x) => x.statut === 'valide' && x.date_messe === p.date_messe && x.heure_messe === p.heure_messe && x.id !== p.id)) throw new Error('Ce créneau est déjà pris.')
+      if (p.id) { const i = demoInt.find((x) => x.id === p.id); Object.assign(i, champs); return { ...i } }
+      const gid = !p.google_event_id || p.google_event_id === 'libre' ? 'libre_' + Date.now() : p.google_event_id === 'prive' ? 'prive_' + p.date_messe + '_' + Date.now() : p.google_event_id
+      const n = { id: Date.now(), ...champs, google_event_id: gid, statut: 'valide', email_donateur: 'non@renseigne.fr', mail_envoye: true }
+      demoInt.push(n); return { ...n }
+    }
+    case 'intentions.valider': { const i = demoInt.find((x) => x.id === +p.id); Object.assign(i, { date_messe: p.date, heure_messe: p.heure, statut: 'valide', en_edition: false, mail_envoye: false }); return { ...i } }
+    case 'intentions.apercu': {
+      const i = demoInt.find((x) => x.id === +p.id)
+      return p.refus ? { sorte: 'refus', destinataire: i.email_donateur, objet: 'Concernant votre demande d\'intention de Messe', texte: `Bonjour ${i.nom_donateur},\n\nConcernant votre demande pour "${i.nom_intention}" :\n\n${p.date_alternative ? 'Nous ne pouvons pas honorer votre demande pour cette date. Nous vous proposons le ' + p.date_alternative + '.' : 'Nous sommes désolés de ne pouvoir honorer votre demande pour cette date.'}\n\nSecrétariat de la Paroisse personnelle La Croix glorieuse à Strasbourg` }
+        : { sorte: 'confirmation', destinataire: i.email_donateur, objet: 'Confirmation de votre intention de Messe', texte: `Bonjour ${i.nom_donateur},\n\nLa Messe pour "${i.nom_intention}" a bien été enregistrée.\n\nLa Messe sera célébrée le ${i.date_messe.split('-').reverse().join('/')} à ${i.heure_messe.replace(':', 'h')}.\n\nSecrétariat de la Paroisse personnelle La Croix glorieuse à Strasbourg` }
+    }
+    case 'intentions.mail': { const i = demoInt.find((x) => x.id === +p.id); Object.assign(i, { mail_envoye: true, mail_approuve: true }); return { ...i } }
+    case 'intentions.refuser': { const i = demoInt.find((x) => x.id === +p.id); Object.assign(i, { statut: 'refuse', date_alternative: p.date_alternative || null, heure_alternative: p.heure_alternative || null, mail_envoye: true }); return { ...i } }
+    case 'intentions.annuler': { const i = demoInt.find((x) => x.id === +p.id); i.statut = 'annule'; return { ...i } }
+    case 'intentions.celebrer': { const i = demoInt.find((x) => x.id === +p.id); i.celebrant = p.celebrant === undefined ? 'molin' : p.celebrant; i.celebre_le = i.celebrant ? new Date().toISOString() : null; return { ...i } }
     case 'liturgie.ordo': {
       const ev = [], deb = new Date(p.debut + 'T12:00:00'), fin = new Date(p.fin + 'T12:00:00')
       for (let d = new Date(deb); d <= fin; d.setDate(d.getDate() + 1)) {
@@ -556,3 +587,16 @@ const demoPropreCal = {
 const demoPropreHisto = [{ date: '2026-11-24T15:20:00Z', par: 'abbé Florent Molin', sorte: 'fete', action: 'modifiée', id: 'odile', nom: 'Sainte Odile, abbesse, patronne de l’Alsace', avant: {} }]
 let demoPropreCalcul = { statut: 'completed', resultat: 'success', debut: '2026-11-24T15:20:00Z', fin: '2026-11-24T15:26:00Z' }
 const demoPropre = () => ({ calendrier: JSON.parse(JSON.stringify(demoPropreCal)), sha: 'demo', calcul: demoPropreCalcul, historique: demoPropreHisto })
+
+// ─── Intentions de messe (aperçu) ───
+const jIso = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10) }
+const demoInt = [
+  { id: 1, date_messe: jIso(0), heure_messe: '18:30', nom_intention: 'Joseph Muller', type_intention: 'Défunt', nom_donateur: 'Mme Muller', email_donateur: 'muller@example.fr', statut: 'valide', mail_envoye: true, google_event_id: null },
+  { id: 2, date_messe: jIso(-2), heure_messe: '18:30', nom_intention: 'Famille Schmitt', type_intention: 'Action de grâce', nom_donateur: 'Paroisse', email_donateur: 'non@renseigne.fr', statut: 'valide', mail_envoye: true, google_event_id: null },
+  { id: 3, date_messe: jIso(-5), heure_messe: '18:30', nom_intention: 'Âmes du purgatoire', type_intention: 'Défunt', nom_donateur: 'Paroisse', email_donateur: 'non@renseigne.fr', statut: 'valide', mail_envoye: true, celebrant: 'legall', celebre_le: jIso(-5) + 'T19:00:00Z', google_event_id: null },
+  { id: 4, date_messe: jIso(3), heure_messe: '18:30', nom_intention: 'Marie Klein', type_intention: 'Défunt', nom_donateur: 'M. Klein', email_donateur: 'klein@example.fr', statut: 'en_attente', commentaire: 'Anniversaire de décès', date_originale_mail: '', google_event_id: null },
+  { id: 5, date_messe: jIso(6), heure_messe: '18:30', nom_intention: 'Pour une naissance', type_intention: 'Action de grâce', nom_donateur: 'Famille Weber', email_donateur: 'weber@example.fr', statut: 'valide', mail_envoye: false, google_event_id: null },
+  { id: 6, date_messe: jIso(12), heure_messe: '09:00', nom_intention: 'Intention particulière', type_intention: 'Vivant', nom_donateur: 'Sœur Anne', email_donateur: 'non@renseigne.fr', statut: 'valide', mail_envoye: true, google_event_id: 'prive_' + jIso(12) + '_1' },
+  { id: 7, date_messe: jIso(20), heure_messe: '18:30', nom_intention: 'Guérison de Paul', type_intention: 'Vivant', nom_donateur: 'Mme Roth', email_donateur: 'roth@example.fr', statut: 'refuse', date_alternative: jIso(21), google_event_id: null },
+  { id: 8, date_messe: jIso(-30), heure_messe: '18:30', nom_intention: 'Défunts de la famille Meyer', type_intention: 'Défunt', nom_donateur: 'M. Meyer', email_donateur: 'non@renseigne.fr', statut: 'valide', mail_envoye: true, celebrant: 'molin', celebre_le: jIso(-30) + 'T19:00:00Z', google_event_id: null }
+]
