@@ -12,6 +12,8 @@
  * Les administrateurs ont toujours tout (et seuls eux gèrent les utilisateurs).
  */
 var PAGES_ACCES = ['courrier', 'agenda', 'extraits', 'registres', 'catechisme', 'catechumenat', 'cor_unum', 'retraites', 'documents', 'statistiques', 'annonces', 'liturgie', 'intentions', 'paroissiens', 'propositions', 'contacts'];
+// Sortes rattachées aux droits des baptêmes (aussi déclarée dans Dossiers.gs : Acces.gs fonctionne même si l'un des deux n'est pas à jour)
+var SORTES_COMME_BAPTEME = ['bapteme_ailleurs', 'parrainage', 'recommandation'];
 var SORTES_ACCES = ['bapteme', 'premiere_communion', 'profession_foi', 'confirmation_jeune', 'mariage', 'obseques', 'catechumene', 'confirmand'];
 var ONGLETS_REGLAGES = ['Paroisse', 'Signatures', 'Réponses types', 'Modèles', 'Tri automatique', 'Catéchisme', 'Confirmands', 'Cor Unum', 'Paiements en ligne', 'Newsletter', 'Liturgie', 'Journal', 'Sauvegardes'];
 
