@@ -452,7 +452,7 @@ function actionCompte_(action, p) {
 
   // ─── Avec la session du compte ───
   var x = compteDeSession_(p.cs);
-  if (action === 'cpt.lire') { noterVisiteCompte_(x); return vueCompte_(x); }
+  if (action === 'cpt.lire') { noterVisiteCompte_(x); if (p.installee && x.dossier_id) noterVisiteEspace_(x.dossier_id, true, false); return vueCompte_(x); }
   if (action === 'cpt.prefs') {
     verrou_(function () {
       var y = compteParId_(x.id), pr = json2_(y.prefs, {});

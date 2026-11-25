@@ -196,6 +196,7 @@ var ROUTES = {
   'retraites.liste':       { fn: function (p, s) { return listerRetraites_(p, s); }, droit: 'dossiers' },
   'espace.etat':           { fn: function (p, s) { return etatEspace_(p, s); }, droit: 'dossiers' },
   'espace.lien':           { fn: function (p, s) { return lienEspace_(p, s); }, droit: 'dossiers' },
+  'espace.envoyerLiens':   { fn: function (p, s) { return envoyerLiensEspaceRoute_(p, s); }, droit: 'dossiers' },
   'espace.lettre':         { fn: function (p, s) { return lettreEspace_(p, s); }, droit: 'dossiers' },
   'cor.equipesCourantes':  { fn: function (p, s) { return equipesCorCourantes_(p, s); }, droit: 'dossiers' },
   'cor.menage':            { fn: function (p, s) { return menageCorRoute_(p, s); }, droit: 'dossiers' },

@@ -112,9 +112,12 @@ function listerDossiers_(p, s) {
   if (p.etat) ds = ds.filter(function (x) { return x.etat === p.etat; });
   var frat = {};
   if (ds.some(function (x) { return TYPES_LIES_COR.indexOf(x.type) > -1; })) { try { frat = fraternitesDesDossiers_(); } catch (e) { frat = {}; } }
+  var apps = null;
+  if (ds.some(function (x) { return x.type === 'catechumene'; })) { try { apps = etatsAppEspaces_(); } catch (e) { apps = null; } }
   return ds.sort(function (a, b) { return String(b.maj_le).localeCompare(String(a.maj_le)); }).map(function (d) {
     var r = dossierResume_(d);
     if (frat[d.id]) r.fraternite = frat[d.id];
+    if (apps && d.type === 'catechumene') r.app = apps[d.id] || { etat: 'aucun' };
     return r;
   });
 }
