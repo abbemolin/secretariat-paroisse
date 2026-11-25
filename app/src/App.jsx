@@ -2,7 +2,7 @@ import { Suspense, createContext, lazy, useCallback, useContext, useEffect, useS
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { BoutonRecherche } from './pages/RechercheGlobale.jsx'
 import MaJournee, { voitMaJournee } from './pages/MaJournee.jsx'
-import { Home, Mail, CalendarDays, FolderHeart, FolderOpen, Users, Settings, UserCircle, LogOut, Bell, CloudOff, RefreshCw, ScrollText, GraduationCap, HeartHandshake, Mountain, Flame, BookOpen, BookMarked, BarChart3, LifeBuoy, MoreHorizontal, X, Megaphone, CalendarRange, Newspaper, LayoutGrid, Church, BookOpenText, Sun, Cross, BookHeart, Smartphone, Sparkles, ClipboardList } from 'lucide-react'
+import { Home, Mail, CalendarDays, FolderHeart, FolderOpen, Users, Settings, UserCircle, LogOut, Bell, CloudOff, RefreshCw, ScrollText, GraduationCap, HeartHandshake, Mountain, Flame, BookOpen, BookMarked, BarChart3, LifeBuoy, MoreHorizontal, X, Megaphone, CalendarRange, Newspaper, LayoutGrid, Church, BookOpenText, Sun, Cross, BookHeart, Smartphone, Sparkles, ClipboardList, Contact } from 'lucide-react'
 import { api, ecrireToken, enCache, fournir, lireToken, quandSessionExpire, estDemo, suivreFile, suivreReseau, viderFile, fileAttente } from './api.js'
 import { demarrerActualisation } from './actualisation.js'
 import { derniereMiseAJour, preparerHorsLigne } from './horsligne.js'
@@ -25,6 +25,7 @@ const page = (f, ...chemins) => {
   return function Page(props) { return Charge ? <Charge {...props} /> : <Paresseuse {...props} /> }
 }
 const Courrier = page(() => import('./pages/Courrier.jsx'), '/courrier')
+const Contacts = page(() => import('./pages/Contacts.jsx'), '/contacts')
 const Dossiers = page(() => import('./pages/Dossiers.jsx'), '/dossiers')
 const Dossier = page(() => import('./pages/Dossier.jsx'))
 const Agenda = page(() => import('./pages/Agenda.jsx'), '/agenda')
@@ -74,6 +75,7 @@ export const useAuth = useApp
 const MENU = [
   { to: '/', label: 'Accueil', icone: Home, bas: true },
   { to: '/courrier', label: 'Courrier', icone: Mail, droit: 'mail', bas: true },
+  { to: '/contacts', label: 'Contacts', icone: Contact, droit: 'contacts' },
   { to: '/agenda', label: 'Agenda', icone: CalendarDays, droit: 'agenda', bas: true },
   { groupe: 'Sacrements', items: [
     { to: '/dossiers', label: 'Dossiers', icone: FolderHeart, droit: 'dossiers', bas: true },
@@ -379,7 +381,7 @@ function Cadre() {
   const [plus, setPlus] = useState(false)
   const notifier = useNotif()
   const nav = useNavigate()
-  const zonePage = { courrier: 'courrier', agenda: 'agenda', extraits: 'extraits', registres: 'registres', catechisme: 'catechisme', catechumenat: 'catechumenat', 'cor-unum': 'cor_unum', retraites: 'retraites', documents: 'documents', annonces: 'annonces', semaine: 'annonces', newsletter: 'annonces', breviaire: 'liturgie', messe: 'liturgie', bible: 'liturgie', ordo: 'liturgie', 'calendrier-propre': 'liturgie', intentions: 'intentions', paroissiens: 'paroissiens', propositions: 'propositions' }[loc.pathname.split('/')[1]]
+  const zonePage = { courrier: 'courrier', contacts: 'contacts', agenda: 'agenda', extraits: 'extraits', registres: 'registres', catechisme: 'catechisme', catechumenat: 'catechumenat', 'cor-unum': 'cor_unum', retraites: 'retraites', documents: 'documents', annonces: 'annonces', semaine: 'annonces', newsletter: 'annonces', breviaire: 'liturgie', messe: 'liturgie', bible: 'liturgie', ordo: 'liturgie', 'calendrier-propre': 'liturgie', intentions: 'intentions', paroissiens: 'paroissiens', propositions: 'propositions' }[loc.pathname.split('/')[1]]
   const tuilesActives = TUILES.filter((t) => !t.bientot && peut(t.droit))
   const avecTuiles = tuilesActives.length > 1
   const tuile = tuileDuChemin(loc.pathname)
@@ -448,6 +450,8 @@ function Cadre() {
             <Routes>
               <Route path="/" element={<Accueil />} />
               {peut('mail') && <Route path="/courrier" element={<Courrier />} />}
+              {peut('contacts') && <Route path="/contacts" element={<Contacts />} />}
+              {peut('contacts') && <Route path="/contacts/:id" element={<Contacts />} />}
               {peut('agenda') && <Route path="/agenda" element={<Agenda />} />}
               {peut('dossiers') && <Route path="/dossiers" element={<Dossiers />} />}
               {peut('dossiers') && <Route path="/formulaires" element={<Formulaires />} />}

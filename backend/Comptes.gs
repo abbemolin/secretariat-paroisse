@@ -728,6 +728,7 @@ var CHARTE_EQUIPE = [
   'J\'utilise les informations personnelles (dossiers, coordonnées, Cor Unum, catéchisme, intentions, santé…) uniquement pour la mission de la paroisse.',
   'Je ne transmets aucune de ces informations hors de la paroisse, ni à des personnes qui n\'ont pas à les connaître.',
   'Je ne copie pas de listes sur mon téléphone, mon ordinateur personnel ou une clé USB ; les documents imprimés sont rangés et détruits après usage.',
+  'Je n\'ajoute pas le compte Google de la paroisse sur mon téléphone ou mon ordinateur personnel (ses contacts s\'y copieraient) : je consulte les contacts dans l\'appli.',
   'Je verrouille mon téléphone et mon ordinateur, je ne partage pas mon mot de passe et je me déconnecte sur un appareil qui n\'est pas le mien.',
   'Je respecte le secret pastoral : ce qui concerne la vie spirituelle, les sacrements et la santé des personnes reste confidentiel.',
   'Si je perds un appareil ou si une information sort par erreur, je préviens le curé tout de suite.',
@@ -746,7 +747,7 @@ function accepterCharte_(p, s) {
   journaliser_(s, 'Charte de confidentialité acceptée', '');
   return etatCharte_(s.uid);
 }
-var ZONES_DONNEES_ = ['courrier', 'dossiers', 'catechisme', 'catechumenat', 'cor_unum', 'retraites', 'extraits', 'registres', 'documents', 'intentions', 'paroissiens'];
+var ZONES_DONNEES_ = ['courrier', 'contacts', 'dossiers', 'catechisme', 'catechumenat', 'cor_unum', 'retraites', 'extraits', 'registres', 'documents', 'intentions', 'paroissiens'];
 /** Pages avec données personnelles : fermées tant que la charte de l'année n'est pas acceptée. */
 function verifierCharte_(action, s) {
   var zone = zoneAction_(action);

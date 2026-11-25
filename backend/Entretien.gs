@@ -14,6 +14,7 @@ function assurerEntretien_() {
   if (c.get('entretien_ok')) return;
   try {
     var existe = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'entretienNocturne'; });
+    try { assurerContactsAuto_(); } catch (e) { console.error('déclencheur contacts', e); }
     if (!existe) ScriptApp.newTrigger('entretienNocturne').timeBased().everyDays(1).atHour(3).inTimezone('Europe/Paris').create();
     // Serveur gardé éveillé en journée (évite le « démarrage à froid » de Google)
     if (!ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'garderEveille'; })) ScriptApp.newTrigger('garderEveille').timeBased().everyMinutes(5).create();

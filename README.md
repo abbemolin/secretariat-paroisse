@@ -30,7 +30,10 @@ Les utilisateurs (curé, vicaire, secrétaire) ont leur **propre compte dans l'a
 - **Courrier** : boîte du Gmail paroisse, tout le monde voit tout. Envoi toujours depuis **secretariat@croix-glorieuse.org**.
   Signatures au modèle de la paroisse (une par personne + une « Paroisse »), réponses types, **attribution** d'un mail
   avec notification, liste « Mes mails », statuts (À traiter / En cours / Traité), **commentaires internes**,
-  transformer un mail en **dossier** ou en **rendez-vous**, **envois groupés** à un groupe Google Contacts (≤ 99 personnes).
+  transformer un mail en **dossier** ou en **rendez-vous**, **envois groupés** à un groupe de contacts (Gmail jusqu'à 100 personnes, Brevo au-delà).
+- **Contacts** : Google Contacts du compte paroisse, modifiés dans les deux sens (fiches, **foyers**, groupes), **import** du tableau
+  des contacts (sans Colmar, couples séparés), **doublons** à fusionner, contacts et **groupes automatiques** tenus à jour toutes les heures
+  d'après le catéchisme, Cor Unum, le catéchuménat et les dossiers (jamais les obsèques), fiche reliée à tout ce qui la concerne dans l'appli.
 - **Agenda** : l'agenda public (affiché sur le site), vues jour / semaine / mois. Fixer la date d'un dossier y crée
   l'événement **sans nom** (« Baptême », « Mariage », « Obsèques »…) ; déplacer l'événement met le dossier à jour, et inversement.
 - **Dossiers** : baptême, mariage, obsèques, catéchumène adulte, confirmand adulte — étapes à cocher, informations,
@@ -104,12 +107,13 @@ Protection : case de consentement RGPD, champ piège anti-robots, 20 demandes pa
 
 - **Serveur** : modifiez les fichiers dans l'éditeur Apps Script, puis **Déployer → Gérer les déploiements → ✏️ → Nouvelle version**.
   L'URL reste la même (ne faites pas « Nouveau déploiement »). Si `FEUILLES` a changé, relancez `installer()` (rien n'est effacé).
+- **Après l'arrivée de Contacts.gs** (droit d'écrire dans Google Contacts) : dans l'éditeur, sélectionnez la fonction `autoriserContacts`, ▶ Exécuter, acceptez le nouveau droit, puis nouvelle version du déploiement.
 - **Appli** : envoyez sur `main`, GitHub redéploie.
 - **Ajouter une étape, un champ ou un document à un type de dossier** : `app/src/types.js` (un seul endroit).
 
 ## Bon à savoir
 
-- **Quotas Gmail gratuits** : ~100 destinataires par jour pour les envois faits par script (d'où la limite de 99 pour les envois groupés).
+- **Quotas Gmail gratuits** : ~100 destinataires par jour pour les envois faits par script : au-delà de 100 destinataires, les envois groupés passent par Brevo (expéditeur secretariat@, lien de désinscription, sans pièce jointe).
 - **Événements récurrents** (messes) : visibles, mais modifiables seulement dans Google Agenda.
 - **Agenda public** : les célébrations des dossiers y apparaissent **sans nom** ; ne mettez rien de personnel dans le titre ou la description d'un événement.
 - **Notifications téléphone** : iPhone = iOS 16.4 minimum, appli ajoutée à l'écran d'accueil. Android et ordinateur : Chrome, Edge, Firefox.
