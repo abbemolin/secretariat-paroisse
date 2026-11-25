@@ -3,7 +3,8 @@ import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'reac
 import { BoutonRecherche } from './pages/RechercheGlobale.jsx'
 import MaJournee, { voitMaJournee } from './pages/MaJournee.jsx'
 import { Home, Mail, CalendarDays, FolderHeart, FolderOpen, Users, Settings, UserCircle, LogOut, Bell, CloudOff, RefreshCw, ScrollText, GraduationCap, HeartHandshake, Mountain, Flame, BookOpen, BookMarked, BarChart3, LifeBuoy, MoreHorizontal, X, Megaphone, CalendarRange, Newspaper, LayoutGrid, Church, BookOpenText, Sun, Cross, BookHeart, Smartphone, Sparkles, ClipboardList } from 'lucide-react'
-import { api, ecrireToken, enCache, fournir, lireToken, quandSessionExpire, estDemo, suivreFile, suivreReseau, viderFile } from './api.js'
+import { api, ecrireToken, enCache, fournir, lireToken, quandSessionExpire, estDemo, suivreFile, suivreReseau, viderFile, fileAttente } from './api.js'
+import { demarrerActualisation } from './actualisation.js'
 import { derniereMiseAJour, preparerHorsLigne } from './horsligne.js'
 import { Chargement, FournisseurNotif, ROLES, dateRelative, useNotif } from './ui.jsx'
 import Connexion from './pages/Connexion.jsx'
@@ -242,6 +243,8 @@ export default function App() {
     if (!lireToken() && !estDemo()) { setPret(true); window.finDemarrage?.(); return }
     charger().finally(() => { setPret(true); window.finDemarrage?.() })
   }, [charger])
+  // Actualisation automatique des pages (toutes les minutes, retour sur l'onglet) et mise à jour automatique de l'appli
+  useEffect(() => { if (donnees) demarrerActualisation({ attente: () => fileAttente().length, demo: estDemo() }) }, [donnees])
   // Retour de la connexion : session et données rafraîchies (le serveur est réessayé chaque minute tant qu'on est hors ligne)
   useEffect(() => {
     let avant = false, t = null

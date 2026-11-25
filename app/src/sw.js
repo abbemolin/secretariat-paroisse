@@ -6,7 +6,7 @@ self.skipWaiting()
 cleanupOutdatedCaches()
 precacheAndRoute(self.__WB_MANIFEST)
 // Les formulaires publics (formulaires/*.html) ne passent pas par l'appli
-registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html'), { denylist: [/\/(formulaires|premiere-communion|profession-de-foi|fraternite|rejoindre|retraite|paiement|livres)\//] }))
+registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html'), { denylist: [/\/(formulaires|premiere-communion|profession-de-foi|demande-bapteme|demande-mariage|bapteme-adulte|confirmation-adulte|accord-bapteme|fraternite|rejoindre|retraite|paiement|livres)\//] }))
 self.addEventListener('activate', () => self.clients.claim())
 
 // Polices (Google Fonts) gardées sur l'appareil : le bréviaire et la Bible gardent leur apparence hors ligne
