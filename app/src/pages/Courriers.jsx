@@ -5,12 +5,15 @@ import { useApp } from '../App.jsx'
 import { htmlVersPdf } from '../pdf.js'
 import { PadSignature, chargerSceau } from './Extraits.jsx'
 import { Chargement, Erreur, Modale, useNotif } from '../ui.jsx'
+import { TYPES } from '../types.js'
 
 /** Variables utilisables dans les modèles (Réglages → Modèles). */
 export const VARIABLES_COURRIER = [
   ['nom_complet', 'Prénoms et NOM'], ['prenoms', 'Prénoms'], ['nom', 'NOM'], ['ne_le', 'Date de naissance'], ['ne_a', '« , à » + lieu de naissance'],
   ['a_sacrement', '« au baptême », « à la confirmation »…'], ['du_sacrement', '« du baptême », « de la confirmation »…'],
   ['date_celebration', 'Date de la célébration'], ['lieu_celebration', 'Église de la célébration'], ['par_celebrant', '« , par » + célébrant'],
+  ['charge', '« parrain », « marraine » (certificat)'], ['en_vue', '« , en vue du baptême de … » (certificat)'],
+  ['recommande', 'Personne recommandée (lettre de recommandation)'], ['pour_motif', '« pour son inscription à … » (lettre de recommandation)'],
   ['paroisse', 'Paroisse'], ['diocese', 'Diocèse'], ['commune', 'Commune'], ['signataire', 'Nom du signataire'], ['fonction', 'Fonction du signataire'], ['date_du_jour', 'Date du jour']
 ]
 const SACREMENTS = {
@@ -33,7 +36,22 @@ function variables(d, r, sig) {
   if (d.type === 'obseques') { prenoms = i.defunt_prenoms; nom = i.defunt_nom; ne = i.defunt_naissance_date; lieu = '' }
   const complet = d.type === 'mariage' ? [np(i.fiancee_prenoms, i.fiancee_nom), np(i.fiance_prenoms, i.fiance_nom)].filter(Boolean).join(' et ') : np(prenoms, nom)
   const s = SACREMENTS[d.type] || ['', '']
+  // Certificat parrain/marraine
+  const filleul = np(i.filleul_prenoms, i.filleul_nom)
+  const enVue = d.type === 'parrainage' && filleul ? `, en vue ${i.charge_sacrement === 'Confirmation' ? 'de la confirmation' : 'du baptême'} de ${filleul}${i.date_prevue ? ', prévu' + (i.charge_sacrement === 'Confirmation' ? 'e' : '') + ' le ' + dateLongue(i.date_prevue) : ''}${i.paroisse_prevue ? ' (' + i.paroisse_prevue + ')' : ''}` : ''
+  const charge = d.type === 'parrainage' && i.charge ? i.charge.toLowerCase() + (i.charge_sacrement === 'Confirmation' ? ' de confirmation' : '') : 'parrain ou de marraine'
+  // Lettre de recommandation
+  const enfant = np(i.enfant_prenoms, i.enfant_nom)
+  const recommande = d.type === 'recommandation' && enfant ? `${enfant}, enfant de ${np(i.prenoms, i.nom)}` : np(i.prenoms, i.nom) || d.nom
+  const org = i.destinataire_organisme || '…'
+  const pourMotif = d.type !== 'recommandation' ? '' : ({
+    'École catholique': ` pour son inscription à ${org}${i.classe ? ' (' + i.classe + ')' : ''}`,
+    'Emploi ou bénévolat': ` pour sa candidature auprès de ${org}`,
+    'Vie religieuse, séminaire': ` dans sa démarche auprès de ${org}`,
+    'Foyer étudiant': ` pour son admission à ${org}`
+  })[i.motif] ?? (i.motif_autre ? ` (${i.motif_autre}, ${org})` : ` auprès de ${org}`)
   return {
+    charge, en_vue: enVue, recommande, pour_motif: pourMotif,
     nom_complet: complet || d.nom, prenoms: prenoms || '', nom: String(nom || '').toUpperCase(), ne_le: dateLongue(ne) || '…', ne_a: lieu ? ', à ' + lieu : '',
     a_sacrement: s[0], du_sacrement: s[1], date_celebration: dateLongue(d.date_celebration || i.date_souhaitee) || '…',
     lieu_celebration: i.lieu_celebration || r.eglise || '…', par_celebrant: i.celebrant ? ', par ' + i.celebrant : '',
@@ -71,6 +89,19 @@ function htmlLettre({ objet, corps, destinataire, signataire, fonction, fait }, 
 }
 
 /** Fenêtre « Courriers » d'un dossier : choix du modèle, texte pré-rempli modifiable, signature + sceau, rangement et envoi. */
+/** Destinataire pré-rempli sur la lettre (certificat : paroisse de la célébration ; recommandation : organisme). */
+function destinataireDe(d) {
+  const i = d.infos || {}
+  if (d.type === 'parrainage') return i.paroisse_prevue ? `Monsieur le Curé\n${i.paroisse_prevue}` : ''
+  if (d.type === 'recommandation') return [i.destinataire_personne, i.destinataire_organisme, /@/.test(i.destinataire_adresse || '') ? '' : i.destinataire_adresse].filter(Boolean).join('\n')
+  return ''
+}
+/** Adresse mail où envoyer le courrier signé (par défaut : celle du demandeur). */
+function mailDe(d) {
+  const i = d.infos || {}, m = (x) => (String(x || '').match(/[^\s<>,;]+@[^\s<>,;]+\.[^\s<>,;]+/) || [])[0]
+  return (d.type === 'parrainage' && m(i.envoyer_a)) || (d.type === 'recommandation' && m(i.destinataire_adresse)) || i.email || d.email || ''
+}
+
 export default function Courriers({ dossier, onFermer, onFait }) {
   const { reglages: r, utilisateur } = useApp()
   const notifier = useNotif()
@@ -81,18 +112,21 @@ export default function Courriers({ dossier, onFermer, onFait }) {
   const [sigCle, setSigCle] = useState('cure')
   const [pad, setPad] = useState(false)
   const [signe, setSigne] = useState(null)   // { pdf (base64), html }
-  const [a, setA] = useState(dossier.infos?.email || dossier.email || '')
+  const [a, setA] = useState(mailDe(dossier))
   const [occupe, setOccupe] = useState('')
   const cadre = useRef()
   const peutSigner = utilisateur.role === 'admin' || !!utilisateur.acces?.signer
   useEffect(() => { api('modeles').then(setData).catch(setErreur) }, [])
+  // Certificat parrain/marraine, lettre de recommandation : le bon modèle s'ouvre directement
+  const direct = TYPES[dossier.type]?.courrier
+  useEffect(() => { if (direct && data && !modele) { const m = data.modeles.find((x) => x.cle === direct); if (m) choisir(m) } }, [data])   // eslint-disable-line react-hooks/exhaustive-deps
   const signataires = useMemo(() => (data?.signatures || []).filter((x) => x.cle !== 'paroisse'), [data])
   const sig = signataires.find((x) => x.cle === sigCle) || signataires[0]
 
   function choisir(m) {
     const vars = variables(dossier, r, sig)
     setModele(m)
-    setV({ objet: remplir(m.objet, vars), corps: remplir(m.corps, vars), destinataire: '', fait: vars.date_du_jour })
+    setV({ objet: remplir(m.objet, vars), corps: remplir(m.corps, vars), destinataire: destinataireDe(dossier), fait: vars.date_du_jour })
     setSigne(null)
   }
   function changerSignataire(cle) {

@@ -85,7 +85,7 @@ function niveau_(s, zone, sorte) {
   var a = s.acces;
   if (!a) return 2;
   if (zone === 'dossiers') {
-    if (sorte === 'bapteme_ailleurs') sorte = 'bapteme';   // baptême dans une autre paroisse : mêmes droits que les baptêmes
+    if (SORTES_COMME_BAPTEME.indexOf(sorte) > -1) sorte = 'bapteme';   // baptême ailleurs, certificat parrain/marraine, lettre de recommandation : mêmes droits que les baptêmes
     if (sorte) return NIVEAUX_[a.dossiers[sorte] || ''] || 0;
     return Math.max.apply(null, SORTES_ACCES.map(function (k) { return NIVEAUX_[a.dossiers[k] || ''] || 0; }));
   }
@@ -95,7 +95,7 @@ function peutLire_(s, zone, sorte) { return niveau_(s, zone, sorte) >= 1; }
 function peutModifier_(s, zone, sorte) { return niveau_(s, zone, sorte) >= 2; }
 function ongletPermis_(s, onglet) { return s.role === 'admin' || (s.acces && s.acces.reglages.indexOf(onglet) > -1); }
 /** Sortes de dossiers visibles. */
-function sortesLisibles_(s) { var l = SORTES_ACCES.filter(function (k) { return peutLire_(s, 'dossiers', k); }); if (l.indexOf('bapteme') > -1) l.push('bapteme_ailleurs'); return l; }
+function sortesLisibles_(s) { var l = SORTES_ACCES.filter(function (k) { return peutLire_(s, 'dossiers', k); }); if (l.indexOf('bapteme') > -1) l = l.concat(SORTES_COMME_BAPTEME); return l; }
 
 var NOMS_ZONES_ = { courrier: 'Courrier', agenda: 'Agenda', dossiers: 'Dossiers', extraits: 'Extraits de baptême', registres: 'Registres',
   catechisme: 'Catéchisme', catechumenat: 'Catéchuménat', cor_unum: 'Cor Unum', retraites: 'Retraites', documents: 'Documents', statistiques: 'Statistiques', annonces: 'Annonces et newsletter', liturgie: 'Liturgie', intentions: 'Intentions de messe', paroissiens: 'App des paroissiens', propositions: 'Propositions spirituelles' };

@@ -34,7 +34,7 @@ export function accesDuRole(role) {
 export function niveau(u, zone, sorte) {
   if (!u || u.role === 'admin' || !u.acces) return 2
   const a = u.acces
-  if (sorte === 'bapteme_ailleurs') sorte = 'bapteme'   // mêmes droits que les baptêmes
+  if (['bapteme_ailleurs', 'parrainage', 'recommandation'].includes(sorte)) sorte = 'bapteme'   // mêmes droits que les baptêmes
   if (zone === 'dossiers') return sorte ? N[a.dossiers?.[sorte] || ''] : Math.max(...SORTES_ACCES.map(([k]) => N[a.dossiers?.[k] || '']))
   return N[a[zone] || ''] || 0
 }

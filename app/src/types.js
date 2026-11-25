@@ -69,6 +69,47 @@ export const TYPES = {
     documents: [],
     generer: ['B15'],
     accord: true,
+    reponses: [],
+    sansDate: true,   // pas de date de célébration ni d'agenda pour ce dossier
+  },
+
+  // Quelqu'un de la paroisse sera parrain ou marraine ailleurs : certificat d'aptitude (Courriers → modèle « aptitude »)
+  parrainage: {
+    nom: 'Certificat parrain / marraine', pluriel: 'Certificats parrain/marraine', couleur: '#5a8f7b',
+    etapes: [T('recue', 'Demande reçue'), T('verifiee', 'Vérifiée (baptême, confirmation, communion)'), T('certificat', 'Certificat signé'), T('envoye', 'Certificat envoyé')],
+    sections: [
+      { titre: 'Identité', champs: [T('prenoms', 'Prénoms'), T('nom', 'Nom'), T('naissance_date', 'Né(e) le', 'date'), T('naissance_lieu', 'À'),
+        T('adresse', 'Adresse'), T('telephone', 'Téléphone', 'tel'), T('email', 'E-mail', 'email')] },
+      { titre: 'Baptême', champs: [T('bapteme_paroisse', 'Paroisse du baptême'), T('bapteme_date', 'Date du baptême', 'date')] },
+      { titre: 'Confirmation et communion', champs: [T('confirmation', 'Confirmé(e)', 'choix', { choix: ['', 'Oui', 'Non', 'En préparation'] }), T('confirmation_paroisse', 'Paroisse de la confirmation'), T('confirmation_date', 'Date de la confirmation', 'date'),
+        T('premiere_communion', 'Première communion reçue', 'choix', { choix: ['', 'Oui', 'Non', 'En préparation'] })] },
+      { titre: 'Charge', champs: [T('charge', 'Parrain ou marraine', 'choix', { choix: ['', 'Parrain', 'Marraine'] }), T('charge_sacrement', 'Pour', 'choix', { choix: ['', 'Baptême', 'Confirmation'] }),
+        T('filleul_prenoms', 'Prénoms du filleul / de la filleule'), T('filleul_nom', 'Nom'), T('date_prevue', 'Date prévue', 'date'),
+        T('paroisse_prevue', 'Paroisse de la célébration (ville et paroisse)'), T('envoyer_a', 'Où envoyer le certificat (mail ou adresse de cette paroisse)')] },
+      MESSAGE
+    ],
+    documents: [T('extrait_bapteme', 'Extrait d\'acte de baptême')],
+    generer: [],
+    courrier: 'aptitude',
+    sansDate: true,   // pas de date de célébration ni d'agenda pour ce dossier   // « Courriers » ouvre directement le certificat d'aptitude
+    reponses: ['document_manquant']
+  },
+
+  // Lettre de recommandation (école catholique, emploi, vie religieuse, foyer étudiant…)
+  recommandation: {
+    nom: 'Lettre de recommandation', pluriel: 'Lettres de recommandation', couleur: '#8a6d3b',
+    etapes: [T('recue', 'Demande reçue'), T('rencontre', 'Rencontre', 'texte', { optionnel: () => true }), T('lettre', 'Lettre signée'), T('envoye', 'Lettre envoyée')],
+    sections: [
+      { titre: 'Demandeur', champs: [T('prenoms', 'Prénoms'), T('nom', 'Nom'), T('adresse', 'Adresse'), T('telephone', 'Téléphone', 'tel'), T('email', 'E-mail', 'email')] },
+      { titre: 'Objet', champs: [T('motif', 'Pour', 'choix', { choix: ['', 'École catholique', 'Emploi ou bénévolat', 'Vie religieuse, séminaire', 'Foyer étudiant', 'Autre'] }), T('motif_autre', 'Précision')] },
+      { titre: 'Enfant (inscription dans une école)', champs: [T('enfant_prenoms', 'Prénoms'), T('enfant_nom', 'Nom'), T('classe', 'Classe demandée')] },
+      { titre: 'Destinataire', champs: [T('destinataire_organisme', 'Établissement ou organisme'), T('destinataire_personne', 'À l\'attention de'), T('destinataire_adresse', 'Adresse ou mail où envoyer la lettre', 'paragraphe')] },
+      MESSAGE
+    ],
+    documents: [],
+    generer: [],
+    courrier: 'recommandation',
+    sansDate: true,   // pas de date de célébration ni d'agenda pour ce dossier
     reponses: []
   },
 
@@ -227,7 +268,7 @@ export const TYPES = {
   }
 }
 
-export const ORDRE_TYPES = ['bapteme', 'bapteme_ailleurs', 'premiere_communion', 'profession_foi', 'confirmation_jeune', 'mariage', 'obseques', 'catechumene', 'confirmand']
+export const ORDRE_TYPES = ['bapteme', 'bapteme_ailleurs', 'premiere_communion', 'profession_foi', 'confirmation_jeune', 'mariage', 'obseques', 'catechumene', 'confirmand', 'parrainage', 'recommandation']
 
 /** Types suivis par « promotion » (année de réception des sacrements). */
 export const PAR_ANNEE = ['catechumene', 'confirmand', 'premiere_communion', 'profession_foi', 'confirmation_jeune']

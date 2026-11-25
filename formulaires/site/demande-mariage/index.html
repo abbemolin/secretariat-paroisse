@@ -101,18 +101,25 @@ main .cg-form{font-family:Arial,Helvetica,sans-serif}</style></head>
     var maj = function(){ bloc.style.display = form.bapteme_ou.value === A_LA_PAROISSE ? 'none' : ''; };
     form.bapteme_ou.addEventListener('change', maj); maj();
   }
+  // Lettre de recommandation : « Si autre » et l'enfant seulement quand c'est utile
+  if (form.motif) {
+    var blocEnfant = racine.querySelector('fieldset[data-enfant]'), blocAutre = form.motif_autre.closest('div');
+    var majMotif = function(){ if (blocEnfant) blocEnfant.style.display = form.motif.value === 'École catholique' ? '' : 'none'; blocAutre.style.display = form.motif.value === 'Autre' ? '' : 'none'; };
+    form.motif.addEventListener('change', majMotif); majMotif();
+  }
   function afficher(texte, ok){ msg.textContent = texte; msg.className = 'cg-msg ' + (ok ? 'cg-ok' : 'cg-ko'); msg.style.display = 'block'; }
   form.addEventListener('submit', function(e){
     e.preventDefault();
     var manque = Array.prototype.filter.call(form.querySelectorAll('[required]'), function(x){ return x.type === 'checkbox' ? !x.checked : !x.value.trim(); });
-    var fichier = form.certificat && form.certificat.files && form.certificat.files[0];
+    var champF = form.certificat || form.piece, fichier = champF && champF.files && champF.files[0];
     var sansCopie = form.bapteme_ou && form.bapteme_ou.value === A_LA_PAROISSE;
     if (manque.length) { afficher('Merci de remplir les champs marqués d\'une étoile et d\'accepter l\'utilisation de vos données.', false); manque[0].focus(); return; }
     if (form.pere_nom && !form.pere_nom.value.trim() && !form.mere_nom_jeune_fille.value.trim()) { afficher('Merci d\'indiquer au moins un des parents.', false); form.pere_prenom.focus(); return; }
     if (form.preparation && form.preparation.value === 'Autre école' && !form.ecole_autre.value.trim()) { afficher('Merci de préciser le nom de l\'école.', false); form.ecole_autre.focus(); return; }
     if (form.certificat && !sansCopie && !fichier) { afficher('Merci de joindre une copie de l\'acte de baptême (sauf si l\'enfant a été baptisé à la paroisse La Croix glorieuse).', false); form.certificat.focus(); return; }
-    if (fichier && fichier.size > 10 * 1024 * 1024) { afficher('Le fichier est trop lourd (10 Mo maximum).', false); form.certificat.focus(); return; }
-    if (fichier && !/pdf|image|heic|heif/i.test((fichier.type || '') + fichier.name)) { afficher('Merci de joindre un PDF ou une photo.', false); form.certificat.focus(); return; }
+    if (fichier && fichier.size > 10 * 1024 * 1024) { afficher('Le fichier est trop lourd (10 Mo maximum).', false); champF.focus(); return; }
+    if (fichier && !/pdf|image|heic|heif/i.test((fichier.type || '') + fichier.name)) { afficher('Merci de joindre un PDF ou une photo.', false); champF.focus(); return; }
+    if (form.motif && form.motif.value === 'Autre' && !form.motif_autre.value.trim()) { afficher('Merci de préciser l\'objet de la lettre.', false); form.motif_autre.focus(); return; }
     var email = form.querySelector('[name=email]');
     if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.value.trim())) { afficher('Adresse e-mail invalide.', false); email.focus(); return; }
     var champs = {};

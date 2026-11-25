@@ -203,7 +203,7 @@ export default function Dossier() {
               })()}
               <Link to={`/dossiers?type=${d.type}&annee=${b.infos.annee_scolaire || ''}`} className="mt-2 inline-block text-xs text-or-600 hover:underline">Fixer la date et voir la liste de l'année →</Link>
             </section>
-          ) : (
+          ) : t.sansDate ? null : (
           <section className="carte p-4">
             <h2 className="mb-2 text-xl font-semibold">{d.type === 'catechumene' ? 'Année des sacrements' : d.type === 'confirmand' ? 'Date de confirmation' : 'Date de célébration'}</h2>
             {['catechumene', 'confirmand'].includes(d.type) && (
