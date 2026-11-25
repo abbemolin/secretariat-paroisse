@@ -75,6 +75,39 @@ FORMULAIRES = {
         groupes=[("Vos coordonnées", [c("prenoms", "Prénom", requis=True), c("nom", "Nom", requis=True),
                                        c("telephone", "Téléphone", "tel", True), c("email", "E-mail", "email", True),
                                        c("message", "Message (facultatif)", "textarea")])]),
+    "parrainage": dict(
+        titre="Certificat de parrain ou de marraine",
+        intro="Vous avez été choisi(e) comme parrain ou marraine et la paroisse de la célébration vous demande un certificat. Remplissez ce formulaire : nous vous enverrons le certificat signé.",
+        groupes=[
+            ("Vous", [c("prenoms", "Prénoms", requis=True), c("nom", "Nom", requis=True),
+                      c("naissance_date", "Date de naissance", "date", True), c("naissance_lieu", "Lieu de naissance"),
+                      c("adresse", "Adresse"), c("telephone", "Téléphone", "tel", True), c("email", "E-mail", "email", True)]),
+            ("Votre baptême", [c("bapteme_paroisse", "Paroisse du baptême (ville et paroisse)", requis=True), c("bapteme_date", "Date du baptême (si vous la connaissez)", "date"),
+                               c("piece", "Extrait de votre acte de baptême (PDF ou photo, facultatif)", "file",
+                                 aide="Si vous n'avez pas été baptisé(e) à la paroisse La Croix glorieuse, joindre un extrait récent accélère la délivrance du certificat.")]),
+            ("Confirmation et communion", [c("confirmation", "Avez-vous reçu la confirmation ?", "select", True, choix=["Oui", "Non", "En préparation"]),
+                                           c("confirmation_paroisse", "Paroisse de la confirmation"), c("confirmation_date", "Date de la confirmation", "date"),
+                                           c("premiere_communion", "Avez-vous fait votre première communion ?", "select", True, choix=["Oui", "Non", "En préparation"])]),
+            ("La célébration", [c("charge", "Vous serez", "select", True, choix=["Parrain", "Marraine"]),
+                                c("charge_sacrement", "Pour", "select", True, choix=["Baptême", "Confirmation"]),
+                                c("filleul_prenoms", "Prénom du filleul / de la filleule", requis=True), c("filleul_nom", "Son nom"),
+                                c("date_prevue", "Date prévue", "date"), c("paroisse_prevue", "Paroisse de la célébration (ville et paroisse)", requis=True),
+                                c("envoyer_a", "Où envoyer le certificat ? (mail de cette paroisse, sinon il vous sera envoyé)"),
+                                c("message", "Message (facultatif)", "textarea")]),
+        ]),
+    "recommandation": dict(
+        titre="Demande de lettre de recommandation",
+        intro="Vous souhaitez une lettre de recommandation de la paroisse ? Précisez à qui elle est destinée : nous reprendrons contact avec vous si besoin, puis nous vous l'enverrons signée.",
+        groupes=[
+            ("Vous", [c("prenoms", "Prénoms", requis=True), c("nom", "Nom", requis=True), c("adresse", "Adresse"),
+                      c("telephone", "Téléphone", "tel", True), c("email", "E-mail", "email", True)]),
+            ("La lettre", [c("motif", "Pour", "select", True, choix=["École catholique", "Emploi ou bénévolat", "Vie religieuse, séminaire", "Foyer étudiant", "Autre"]),
+                           c("motif_autre", "Si autre : précisez")]),
+            ("Pour un enfant (inscription dans une école)", [c("enfant_prenoms", "Prénoms de l'enfant"), c("enfant_nom", "Nom de l'enfant"), c("classe", "Classe demandée")]),
+            ("Destinataire", [c("destinataire_organisme", "Établissement ou organisme", requis=True), c("destinataire_personne", "À l'attention de (ex. Monsieur le Directeur)"),
+                              c("destinataire_adresse", "Adresse ou mail où envoyer la lettre (sinon elle vous sera envoyée)", "textarea"),
+                              c("message", "Message (facultatif)", "textarea")]),
+        ]),
 }
 
 MODELE = """<meta charset="utf-8">
@@ -166,18 +199,25 @@ MODELE = """<meta charset="utf-8">
     var maj = function(){{ bloc.style.display = form.bapteme_ou.value === A_LA_PAROISSE ? 'none' : ''; }};
     form.bapteme_ou.addEventListener('change', maj); maj();
   }}
+  // Lettre de recommandation : « Si autre » et l'enfant seulement quand c'est utile
+  if (form.motif) {{
+    var blocEnfant = racine.querySelector('fieldset[data-enfant]'), blocAutre = form.motif_autre.closest('div');
+    var majMotif = function(){{ if (blocEnfant) blocEnfant.style.display = form.motif.value === 'École catholique' ? '' : 'none'; blocAutre.style.display = form.motif.value === 'Autre' ? '' : 'none'; }};
+    form.motif.addEventListener('change', majMotif); majMotif();
+  }}
   function afficher(texte, ok){{ msg.textContent = texte; msg.className = 'cg-msg ' + (ok ? 'cg-ok' : 'cg-ko'); msg.style.display = 'block'; }}
   form.addEventListener('submit', function(e){{
     e.preventDefault();
     var manque = Array.prototype.filter.call(form.querySelectorAll('[required]'), function(x){{ return x.type === 'checkbox' ? !x.checked : !x.value.trim(); }});
-    var fichier = form.certificat && form.certificat.files && form.certificat.files[0];
+    var champF = form.certificat || form.piece, fichier = champF && champF.files && champF.files[0];
     var sansCopie = form.bapteme_ou && form.bapteme_ou.value === A_LA_PAROISSE;
     if (manque.length) {{ afficher('Merci de remplir les champs marqués d\\'une étoile et d\\'accepter l\\'utilisation de vos données.', false); manque[0].focus(); return; }}
     if (form.pere_nom && !form.pere_nom.value.trim() && !form.mere_nom_jeune_fille.value.trim()) {{ afficher('Merci d\\'indiquer au moins un des parents.', false); form.pere_prenom.focus(); return; }}
     if (form.preparation && form.preparation.value === 'Autre école' && !form.ecole_autre.value.trim()) {{ afficher('Merci de préciser le nom de l\\'école.', false); form.ecole_autre.focus(); return; }}
     if (form.certificat && !sansCopie && !fichier) {{ afficher('Merci de joindre une copie de l\\'acte de baptême (sauf si l\\'enfant a été baptisé à la paroisse La Croix glorieuse).', false); form.certificat.focus(); return; }}
-    if (fichier && fichier.size > 10 * 1024 * 1024) {{ afficher('Le fichier est trop lourd (10 Mo maximum).', false); form.certificat.focus(); return; }}
-    if (fichier && !/pdf|image|heic|heif/i.test((fichier.type || '') + fichier.name)) {{ afficher('Merci de joindre un PDF ou une photo.', false); form.certificat.focus(); return; }}
+    if (fichier && fichier.size > 10 * 1024 * 1024) {{ afficher('Le fichier est trop lourd (10 Mo maximum).', false); champF.focus(); return; }}
+    if (fichier && !/pdf|image|heic|heif/i.test((fichier.type || '') + fichier.name)) {{ afficher('Merci de joindre un PDF ou une photo.', false); champF.focus(); return; }}
+    if (form.motif && form.motif.value === 'Autre' && !form.motif_autre.value.trim()) {{ afficher('Merci de préciser l\\'objet de la lettre.', false); form.motif_autre.focus(); return; }}
     var email = form.querySelector('[name=email]');
     if (email && !/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(email.value.trim())) {{ afficher('Adresse e-mail invalide.', false); email.focus(); return; }}
     var champs = {{}};
@@ -242,7 +282,8 @@ def champ_html(ch):
 
 # Pages autonomes (liens envoyés par mail depuis l'onglet « Formulaires » du secrétariat)
 SLUGS = {"premiere_communion": "premiere-communion", "profession_foi": "profession-de-foi", "bapteme": "demande-bapteme",
-         "mariage": "demande-mariage", "catechumene": "bapteme-adulte", "confirmand": "confirmation-adulte"}
+         "mariage": "demande-mariage", "catechumene": "bapteme-adulte", "confirmand": "confirmation-adulte",
+         "parrainage": "certificat-parrain", "recommandation": "lettre-recommandation"}
 
 sortie = pathlib.Path(__file__).parent
 SITE = sortie / "site"
@@ -268,7 +309,7 @@ for nom in ('paiement', 'livres'):
 shutil.copy(sortie.parent / "app" / "public" / "logo-128.png", SITE / "logo-128.png")
 for type_, f in FORMULAIRES.items():
     groupes = "\n".join(
-        f'<fieldset><legend>{titre}</legend><div class="cg-grille">' + "".join(champ_html(ch) for ch in champs) + "</div></fieldset>"
+        f'<fieldset{' data-enfant' if titre.startswith('Pour un enfant') else ''}><legend>{titre}</legend><div class="cg-grille">' + "".join(champ_html(ch) for ch in champs) + "</div></fieldset>"
         for titre, champs in f["groupes"])
     html = MODELE.format(type=type_, titre=f["titre"], intro=f["intro"], groupes=groupes, url=json.dumps(URL), a_la_paroisse=json.dumps(A_LA_PAROISSE, ensure_ascii=False),
                         avec_infos='true' if type_ in ('premiere_communion', 'profession_foi') else 'false',
@@ -290,7 +331,7 @@ for type_, f in FORMULAIRES.items():
 
 # ─── Les pages publiques sont aussi servies par l'appli du secrétariat (secretariat.croix-glorieuse.org) ───
 APP_PUBLIC = sortie.parent / "app" / "public"
-for nom in ('premiere-communion', 'profession-de-foi', 'demande-bapteme', 'demande-mariage', 'bapteme-adulte', 'confirmation-adulte', 'fraternite', 'rejoindre', 'retraite', 'paiement', 'livres', 'accord-bapteme'):
+for nom in ('premiere-communion', 'profession-de-foi', 'demande-bapteme', 'demande-mariage', 'bapteme-adulte', 'confirmation-adulte', 'certificat-parrain', 'lettre-recommandation', 'fraternite', 'rejoindre', 'retraite', 'paiement', 'livres', 'accord-bapteme'):
     if (SITE / nom / 'index.html').exists():
         (APP_PUBLIC / nom).mkdir(exist_ok=True)
         shutil.copy(SITE / nom / 'index.html', APP_PUBLIC / nom / 'index.html')

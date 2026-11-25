@@ -15,7 +15,9 @@ var FORMULAIRES_ENVOI = {
   catechumene:        { nom: 'Baptême d\'un adulte', sorte: 'catechumene', slug: 'bapteme-adulte' },
   confirmand:         { nom: 'Confirmation d\'un adulte', sorte: 'confirmand', slug: 'confirmation-adulte' },
   accord_ailleurs:    { nom: 'Accord du curé – baptême dans une autre paroisse', sorte: 'bapteme', slug: 'accord-bapteme' },
-  accord_ici:         { nom: 'Accord du curé – famille d\'une autre paroisse', sorte: 'bapteme', slug: 'accord-bapteme' }
+  accord_ici:         { nom: 'Accord du curé – famille d\'une autre paroisse', sorte: 'bapteme', slug: 'accord-bapteme' },
+  parrainage:         { nom: 'Certificat de parrain / marraine', sorte: 'parrainage', slug: 'certificat-parrain' },
+  recommandation:     { nom: 'Lettre de recommandation', sorte: 'recommandation', slug: 'lettre-recommandation' }
 };
 var COLONNES_ENVOIS = ['id', 'jeton', 'formulaire', 'email', 'nom', 'ecole', 'lien', 'sujet', 'texte', 'boutons', 'envoye_le', 'envoye_par',
   'relance_le', 'relances', 'rempli_le', 'reponses', 'dossier_ids'];

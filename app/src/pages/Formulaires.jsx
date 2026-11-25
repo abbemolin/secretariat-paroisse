@@ -32,6 +32,8 @@ function texteParDefaut(cle, { paroisse, vers, promo, rdv }) {
     mariage: `Vous souhaitez vous marier à l'église. Merci de remplir ce formulaire en ligne : un prêtre vous recontactera pour la préparation.`,
     catechumene: `Vous souhaitez recevoir le baptême. Merci de remplir ce formulaire en ligne : un prêtre vous recontactera.`,
     confirmand: `Vous souhaitez recevoir la confirmation. Merci de remplir ce formulaire en ligne : nous vous recontacterons pour la préparation.`,
+    parrainage: `Vous avez été choisi(e) comme parrain ou marraine. Pour que nous puissions vous délivrer le certificat demandé par la paroisse de la célébration, merci de remplir ce formulaire en ligne (vous pouvez y joindre un extrait de votre acte de baptême). Nous vous enverrons ensuite le certificat signé.`,
+    recommandation: `Vous nous demandez une lettre de recommandation. Merci de remplir ce formulaire en ligne en précisant à qui elle est destinée : nous reprendrons contact avec vous si besoin, puis nous vous l'enverrons signée.`,
     accord_ailleurs: `Vous souhaitez faire baptiser votre enfant dans une autre paroisse. Pour que le curé de ${paroisse} puisse vous donner son accord (formulaire diocésain B 15), merci de compléter ce formulaire en ligne.`,
     accord_ici: `Vous souhaitez faire baptiser votre enfant à ${paroisse}. Comme vous habitez sur le territoire d'une autre paroisse, l'accord de votre curé est nécessaire (formulaire diocésain B 15). Merci de compléter ce formulaire en ligne : nous vous enverrons ensuite le document prérempli, à faire signer par votre curé.`
   }[cle] || 'Merci de remplir ce formulaire en ligne.'
