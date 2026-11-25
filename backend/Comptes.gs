@@ -284,7 +284,7 @@ function vueCompte_(x) {
     paroissien: true, id: x.id, prenom: x.prenom || '', nom: x.nom || '', mail: x.mail, telephone: x.telephone || '', adresse: x.adresse || '',
     confidentialite_le: x.confidentialite_le || '', notifs: prefsCompte_(x), favoris: json2_(x.favoris, { liste: [], maj: '' }),
     fraternite: frat, chefs: chefs, calendrier: cal, textes: [], annonces: annonces, espace: pontEspace_(x),
-    paroisse: reglages_().paroisse, cle_push: clePubliquePush_(), dons: causesPubliques_(), mineur: estMineur_(x), foyer: vueFoyer_(x)
+    paroisse: reglages_().paroisse, cle_push: clePubliquePush_(), dons: fonctionActive_('dons') ? causesPubliques_() : [], mineur: estMineur_(x), foyer: fonctionActive_('foyers') ? vueFoyer_(x) : null, fonctions: fonctionsApp_()
   };
 }
 function noterVisiteCompte_(x) {
@@ -316,6 +316,9 @@ function actionCompte_(action, p) {
   var nL = Number(cache.get(cleL) || 0);
   if (nL > 300) throw erreur_('LIMITE', 'Trop d\'actions en peu de temps. Réessayez dans une heure.');
   cache.put(cleL, String(nL + 1), 3600);
+  // Réglages → App des paroissiens : comptes fermés, ou fonction désactivée
+  if (!fonctionActive_('comptes')) throw erreur_('FERME', 'L\'application des paroissiens n\'est pas encore ouverte. Les catéchumènes et néophytes entrent par leur lien personnel.');
+  var foncA = fonctionDeAction_(action); if (foncA) exigerFonction_(foncA);
 
   if (action === 'cpt.demandeCode') {
     if (p.piege) return { mail: '' };   // robot : champ invisible rempli
@@ -457,7 +460,7 @@ function actionCompte_(action, p) {
       if (p.notifs && p.notifs.prop_heure !== undefined) { var hh = Number(p.notifs.prop_heure); if (hh >= 5 && hh <= 22) pr.prop_heure = hh; }
       y.prefs = JSON.stringify(pr); ecrireLigne_('Comptes', y);
     });
-    if (p.notifs && typeof p.notifs.lettre_mail === 'boolean') {
+    if (p.notifs && typeof p.notifs.lettre_mail === 'boolean' && fonctionActive_('annonces')) {
       changerAbonnementNewsletter_(x.mail, x.prenom, x.nom, p.notifs.lettre_mail);
       var cj = p.notifs.lettre_mail ? conjointDe_(x) : null;   // foyer : une seule lettre par mail
       if (cj) try { if (abonnementNewsletter_(cj.mail) === true) changerAbonnementNewsletter_(cj.mail, '', '', false); } catch (e) { console.error('foyer lettre', e); }
@@ -759,7 +762,7 @@ function verifierCharte_(action, s) {
 function entretienComptes_() {
   if (!db_().getSheetByName('Comptes')) return;
   var now = Date.now(), iso = function (j) { return new Date(now - j * 86400000).toISOString(); };
-  var prevenir = [], effaces = 0, desactives = 0;
+  var prevenir = [], effaces = 0, desactives = 0, comptesOuverts = fonctionActive_('comptes');
   verrou_(function () {
     lignes_('Comptes').slice().reverse().forEach(function (x) {
       var vu = x.derniere_visite || x.valide_le || x.cree_le || '';
@@ -768,6 +771,7 @@ function entretienComptes_() {
       // désactivé depuis 30 jours : effacé (les dossiers restent)
       if (x.statut === 'desactive' && (x.statut_le || '') < iso(30)) { feuille_('Comptes').deleteRow(x._ligne); effaces++; return; }
       if (x.statut !== 'actif' && x.statut !== 'invite') return;
+      if (!comptesOuverts) return;   // app fermée : ni mail de prévenance ni désactivation (les effacements RGPD continuent)
       var pr = json2_(x.prefs, {});
       if (vu < iso(548)) { x.statut = 'desactive'; x.statut_le = maintenant_(); x.session_v = Number(x.session_v || 0) + 1; ecrireLigne_('Comptes', x); desactives++; return; }
       if (vu < iso(518) && !pr.prevenu_inactif && normMail_(x.mail)) { pr.prevenu_inactif = maintenant_(); x.prefs = JSON.stringify(pr); ecrireLigne_('Comptes', x); prevenir.push(x); }

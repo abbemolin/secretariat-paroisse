@@ -72,7 +72,8 @@ function doPost(e) {
     if (action === 'public.demande') return json_({ ok: true, data: recevoirDemandePublique_(p) });
     if (action === 'public.infos') return json_({ ok: true, data: infosPubliques_(p) });
     if (action === 'public.notif') return json_({ ok: true, data: derniereNotifPublique_() });
-    if (action === 'public.dons') return json_({ ok: true, data: causesPubliques_() });
+    if (action === 'public.dons') return json_({ ok: true, data: fonctionActive_('dons') ? causesPubliques_() : [] });
+    if (action === 'public.fonctions') return json_({ ok: true, data: fonctionsApp_() });
     if (/^par\./.test(action)) return json_({ ok: true, data: actionParrain_(action, p) });
     if (/^rej\./.test(action)) return json_({ ok: true, data: actionRejoindre_(action, p) });
     if (/^chef\./.test(action)) return json_({ ok: true, data: actionChef_(action, p) });
@@ -207,6 +208,8 @@ var ROUTES = {
   'propositions.audio':    { fn: function (p, s) { return audioPropRoute_(p, s); } },
   'paroissiens.prieres':   { fn: function (p, s) { return prieresEquipe_(); } },
   'paroissiens.moderer':   { fn: function (p, s) { return modererPriere_(p, s); } },
+  'fonctions.lire':        { fn: function (p, s) { return lireFonctionsRoute_(p, s); } },
+  'fonctions.ecrire':      { fn: function (p, s) { return ecrireFonctionsRoute_(p, s); } },
   'paroissiens.rgpd':      { fn: function (p, s) { return rgpdRoute_(p, s); } },
   'paroissiens.donsEcrire': { fn: function (p, s) { return ecrireCausesDons_(p, s); } },
   'charte.etat':           { fn: function (p, s) { return etatCharte_(s.uid); } },
@@ -612,7 +615,8 @@ function initApp_(p, s) {
     signatures: listerSignatures_(),
     reponses: listerReponses_(),
     nonLues: compterNotificationsNonLues_(s.uid),
-    charte: etatCharte_(s.uid)
+    charte: etatCharte_(s.uid),
+    fonctions: fonctionsApp_()
   };
 }
 

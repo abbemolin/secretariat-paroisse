@@ -166,7 +166,7 @@ function assurerDeclencheurProps_() {
   } catch (e) { console.error('déclencheur propositions', e); }
 }
 function envoyerEtapesDuJour() {
-  if (!db_().getSheetByName('PropSuivis')) return;
+  if (!db_().getSheetByName('PropSuivis') || !fonctionActive_('propositions')) return;
   var auj = aujourdhui_(), h = Number(Utilities.formatDate(new Date(), 'Europe/Paris', 'H'));
   var publiees = {}; lignes_('Propositions').forEach(function (p) { if (p.statut === 'publiee' && p.type === 'parcours') publiees[p.id] = p; });
   var duJour = {}; lignes_('PropEtapes').forEach(function (e) { if (publiees[e.proposition_id] && e.jour === auj) duJour[e.proposition_id] = e; });

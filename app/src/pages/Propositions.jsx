@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Plus, Trash2, Copy, Loader2, Music, BookOpen, ArrowUp, ArrowDown, Sparkles, Eye, EyeOff } from 'lucide-react'
 import { api } from '../api.js'
+import FonctionFermee from '../FonctionFermee.jsx'
 import { Chargement, Erreur, EnTete, Modale, Vide, dateCourte, useCharger, useConfirmer, useNotif } from '../ui.jsx'
 
 /**
@@ -28,6 +29,7 @@ export default function Propositions() {
     <>
       <EnTete titre="Propositions" sousTitre="Parcours et textes pour l'app des paroissiens"
         actions={<button className="btn-principal" onClick={() => ouvrir(null)}><Plus className="h-4 w-4" />Nouvelle proposition</button>} />
+      <FonctionFermee cle="propositions" texte="Les propositions sont désactivées dans l'app : ni lecture ni notification." />
       <Erreur erreur={erreur} reessayer={recharger} />
       {chargement && !data ? <Chargement /> : !data?.length ? <Vide icone={Sparkles} texte="Aucune proposition pour le moment." /> : (
         <div className="carte divide-y divide-nuit-50">

@@ -19,7 +19,7 @@ Sheet.prototype.getRange = function (r, c, nr, nc) {
   };
 };
 const SS = { sheets: {}, getSheetByName(n) { return this.sheets[n] || null; }, insertSheet(n) { return (this.sheets[n] = new Sheet(n)); }, getSpreadsheetTimeZone() { return 'Europe/Paris'; } };
-const props = { DB_ID: 'db' };
+const props = { DB_ID: 'db', APP_FONCTIONS: JSON.stringify({ comptes: true, annonces: true, messe: true, inscriptions: true, sacrements: true, dons: true, priere: true, propositions: true, foyers: true, afaire: true, fraternite: true }) };   // tests : toutes les fonctions de l'app ouvertes
 const cache = {};
 global.mails = [];
 global.fetches = [];

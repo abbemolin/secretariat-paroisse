@@ -9,6 +9,7 @@ const ins = (id, prenoms, nom, classe, groupe, email, extra = {}) => ({ id, anne
 const cor = (id, prenoms, nom, equipe_id, extra = {}) => ({ id, annee: '2026-2027', prenoms, nom, email: cleDemo(nom) + '@example.fr', telephone: '06 11 22 33 ' + id.slice(1).padStart(2, '0'), adresse: 'Strasbourg', profils: ['Paroissien'], situation: 'Marié(e)', deja_participe: 'Oui', rester: 'Oui', chef_indique: '', chef_possible: false, souhait: '', groupe_service: 'Non', equipe_id, equipe_proposee: '', statut: 'actif', note: '', dossiers: [], ...extra })
 function cleDemo(t) { return String(t).toLowerCase().normalize('NFD').replace(/[^a-z]/g, '') }
 const etat = {
+  fonctions: { comptes: true, annonces: true, messe: true, inscriptions: true, sacrements: true, dons: true, priere: false, propositions: true, foyers: false, afaire: true, fraternite: true },
   annoncesNl: [
     { id: 1, titre: 'Retraite de l\'Avent', description: 'Samedi 5 décembre, de 9 h à 16 h, à la crypte. Inscription au secrétariat.', event_date: '2026-12-05', event_heure: '09:00:00', date_debut: null, date_fin: '2026-12-05', image_url: '', lien: 'https://www.croix-glorieuse.org', lien_label: 'S\'inscrire', prioritaire: true, actif: true, dans_newsletter: true, dans_feuille: true, ordre: 0, created_at: '2026-11-20T10:00:00Z' },
     { id: 2, titre: 'Confessions avant Noël', description: 'Horaires élargis à partir du 14 décembre.', event_date: null, event_heure: null, date_debut: null, date_fin: null, image_url: '', lien: '', lien_label: '', prioritaire: false, actif: true, dans_newsletter: true, dans_feuille: false, ordre: 1, created_at: '2026-11-18T10:00:00Z' },
@@ -204,7 +205,7 @@ export async function demoApi(action, p) {
   const moi = etat.utilisateurs.find((u) => u.role === role) || etat.utilisateurs[0]
   switch (action) {
     case 'auth.login': return { token: 'demo', utilisateur: pub(moi) }
-    case 'app.init': return { utilisateur: pub(moi), utilisateurs: etat.utilisateurs.map(pub), reglages: etat.reglages, signatures: etat.signatures, reponses: etat.reponses, nonLues: etat.notifications.filter((n) => !n.lu).length }
+    case 'app.init': return { utilisateur: pub(moi), utilisateurs: etat.utilisateurs.map(pub), reglages: etat.reglages, signatures: etat.signatures, reponses: etat.reponses, nonLues: etat.notifications.filter((n) => !n.lu).length, fonctions: etat.fonctions }
     case 'auth.logout': case 'auth.motdepasse': case 'push.abonner': case 'push.desabonner': case 'push.tester': return true
     case 'push.cle': return ''
     case 'accueil.blocs': return (etat.blocs = { ordre: p.ordre, masques: p.masques })
@@ -220,7 +221,7 @@ export async function demoApi(action, p) {
     case 'catechumenat.mail': return { nb: p.ids.length }
     case 'catechumenat.export': return etat.dossiers.filter((d) => d.type === 'catechumene' && p.ids.includes(d.id)).map((d) => ({ id: d.id, nom: nomDe(d), etat: d.etat, email: d.email, telephone: d.telephone, date_celebration: d.date_celebration, etapes: Object.keys(d.etapes || {}), infos: d.infos || {} }))
     case 'app.demarrage': return { init: await demoApi('app.init', {}), accueil: p.accueil ? await demoApi('accueil.resume', {}) : undefined, journee: p.journee ? await demoApi('journee.resume', {}) : undefined }
-    case 'journee.resume': return { mesMails: etat.fils.filter((f) => f.suivi?.attribue_a === moi.id && f.suivi.statut !== 'Traité').length || 2, aSigner: 1, mesDossiers: etat.dossiers.filter((d) => d.etat === 'ouvert' && d.responsable === moi.id).length, nonLues: etat.notifications.filter((n) => !n.lu).length }
+    case 'journee.resume': return { mesMails: etat.fils.filter((f) => f.suivi?.attribue_a === moi.id && f.suivi.statut !== 'Traité').length || 2, aSigner: 1, mesDossiers: etat.dossiers.filter((d) => d.etat === 'ouvert' && d.responsable === moi.id).length, nonLues: etat.notifications.filter((n) => !n.lu).length, fonctions: etat.fonctions }
     case 'accueil.resume': {
       const ouverts = etat.dossiers.filter((d) => d.etat === 'ouvert')
       return { blocs: etat.blocs || { ordre: ['chiffres', 'afaire', 'fete', 'demandes', 'notifications', 'agenda'], masques: [] }, mailsNonLus: etat.fils.filter((f) => f.nonLu).length, mesMails: etat.fils.filter((f) => f.suivi?.attribue_a === moi.id && f.suivi.statut !== 'Traité').length,
@@ -586,6 +587,8 @@ export async function demoApi(action, p) {
         { id: 'dp3', prenom: 'Léa', nom: 'Exemple', mail: 'lea@exemple.fr', telephone: '06 00 00 00 12', statut: 'attente', cree_le: new Date().toISOString(), demande: { mineur: true, parent_mail: 'parent@exemple.fr', liens: [], accord: { reponse: '', envoye_le: new Date().toISOString(), exp: new Date(Date.now() + 30 * 86400000).toISOString() } }, rapprochement: [] },
         { id: 'dp2', prenom: 'Louis', nom: 'Modèle', mail: 'louis@exemple.fr', telephone: '06 00 00 00 11', statut: 'actif', cree_le: '2026-10-01T10:00:00Z', derniere_visite: new Date().toISOString(), cor: true, chef: 'Saint-Joseph', foyer: 'Marie Modèle', rapprochement: [] }
       ] }
+    case 'fonctions.lire': return { modifiable: true, etat: etat.fonctions, fonctions: [['comptes', 'Comptes des paroissiens'], ['annonces', 'Notifications d\'annonces et lettre de la paroisse'], ['messe', 'Demander une messe'], ['inscriptions', 'Mes inscriptions'], ['sacrements', 'Sacrements'], ['dons', 'Dons (HelloAsso)'], ['priere', 'Mur de prière'], ['propositions', 'Propositions spirituelles'], ['foyers', 'Foyers'], ['afaire', '« À faire » sur l\'accueil'], ['fraternite', '« Je veux rejoindre une fraternité »']].map(([cle, nom]) => ({ cle, nom, aide: 'Démonstration.' })) }
+    case 'fonctions.ecrire': etat.fonctions = { ...etat.fonctions, ...p.etat }; return { modifiable: true, etat: etat.fonctions, fonctions: [['comptes', 'Comptes des paroissiens'], ['annonces', 'Notifications d\'annonces et lettre de la paroisse'], ['messe', 'Demander une messe'], ['inscriptions', 'Mes inscriptions'], ['sacrements', 'Sacrements'], ['dons', 'Dons (HelloAsso)'], ['priere', 'Mur de prière'], ['propositions', 'Propositions spirituelles'], ['foyers', 'Foyers'], ['afaire', '« À faire » sur l\'accueil'], ['fraternite', '« Je veux rejoindre une fraternité »']].map(([cle, nom]) => ({ cle, nom, aide: 'Démonstration.' })) }
     case 'paroissiens.rgpd': return { preparee_le: new Date().toISOString(), liste: { le: new Date().toISOString(), auto_le: new Date(Date.now() + 30 * 86400000).toISOString(), elements: [
       { cle: 'cor:x1', type: 'cor', nom: 'Marc Ancien', annees: ['2021-2022', '2022-2023'], ids: ['x1', 'x2'], derniere: '2023-08-31' },
       { cle: 'sante:r0', type: 'sante', nom: 'Retraite de première communion', date: '2026-10-12', nb: 14 }] } }

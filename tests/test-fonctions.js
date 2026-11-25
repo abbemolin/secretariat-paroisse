@@ -1,0 +1,40 @@
+// node tests/test-fonctions.js — interrupteurs des fonctions de l'app des paroissiens (services simulés)
+const { SS, props } = require('./mocks.js');
+const fs = require('fs'), vm = require('vm'), path = require('path');
+const dir = path.join(__dirname, '..', 'backend');
+vm.runInThisContext(fs.readdirSync(dir).filter(f => f.endsWith('.gs')).map(f => fs.readFileSync(path.join(dir, f), 'utf8')).join('\n') +
+  ';globalThis.__t={doPost,FEUILLES,hacher_,ecrireLigne_,actionCompte_,lignes_,nouvelleSessionCpt_,entretienComptes_};');
+const T = globalThis.__t;
+let ok = 0, ko = 0; const verif = (c, m) => { if (c) ok++; else { ko++; console.log('ÉCHEC :', m); } };
+const post = (action, payload, token) => JSON.parse(T.doPost({ postData: { contents: JSON.stringify({ action, payload, token }) } }).t);
+Object.keys(T.FEUILLES).forEach(n => SS.insertSheet(n).appendRow(T.FEUILLES[n]));
+[['cure', 'cure'], ['sec', 'secretaire']].forEach(([id, role]) => T.ecrireLigne_('Utilisateurs', { id, identifiant: id, nom: id, role, sel: 's', hash: T.hacher_('motdepasse', 's'), actif: 'true' }));
+props.CHARTES_EQUIPE = JSON.stringify({ cure: new Date().toISOString(), sec: new Date().toISOString() });
+delete props.APP_FONCTIONS;   // comme à la mise en service : rien n'a encore été réglé
+const tok = post('auth.login', { identifiant: 'cure', motdepasse: 'motdepasse' }).data.token;
+const tokS = post('auth.login', { identifiant: 'sec', motdepasse: 'motdepasse' }).data.token;
+let r = post('fonctions.lire', {}, tokS).data;
+verif(Object.values(r.etat).every(v => v === false) && r.fonctions.length === 11 && !r.modifiable, 'au départ : tout désactivé ; la secrétaire voit sans modifier');
+verif(post('fonctions.ecrire', { etat: { comptes: true } }, tokS).code === 'INTERDIT', 'secrétaire : pas de modification');
+verif(JSON.stringify(post('public.fonctions', {}).data).indexOf('true') === -1, 'public : tout fermé');
+props.DONS_CAUSES = JSON.stringify([{ id: 'c1', titre: 'Chauffage', url: 'https://www.helloasso.com/x', actif: true }]);
+verif(post('public.dons', {}).data.length === 0, 'dons fermés : rien dans la partie publique');
+vm.runInThisContext('feuilleComptes_()');
+T.ecrireLigne_('Comptes', { id: 'j1', mail: 'j@ex.fr', prenom: 'J', nom: 'X', statut: 'actif', sel: 's', hash: T.hacher_('motdepasse-j1', 's'), session_v: 0, derniere_visite: new Date(Date.now() - 530 * 86400000).toISOString() });
+verif(post('cpt.connexion', { mail: 'j@ex.fr', mdp: 'motdepasse-j1' }).code === 'FERME', 'comptes fermés : pas de connexion par mail');
+verif(post('cpt.demandeCode', { mail: 'n@ex.fr' }).code === 'FERME', 'comptes fermés : pas de demande d\'accès');
+global.mails.length = 0; T.entretienComptes_();
+verif(!global.mails.length && T.lignes_('Comptes')[0].statut === 'actif', 'comptes fermés : ni mail de prévenance ni désactivation');
+r = post('fonctions.ecrire', { etat: { comptes: true, dons: true } }, tok).data;
+verif(r.etat.comptes && r.etat.dons && !r.etat.priere, 'le curé ouvre les comptes et les dons');
+verif(T.lignes_('Journal').some(j => /fonctions/.test(j.action) && /Comptes des paroissiens activé/.test(j.details || j.detail || JSON.stringify(j))), 'noté au journal');
+const v = post('cpt.connexion', { mail: 'j@ex.fr', mdp: 'motdepasse-j1' }).data;
+verif(v && v.vue.fonctions.comptes && !v.vue.fonctions.priere && v.vue.dons.length === 1 && v.vue.foyer === null, 'connexion ; la vue dit ce qui est ouvert');
+verif(post('cpt.priere.mur', { cs: v.session }).code === 'FERME', 'mur de prière fermé');
+verif(post('cpt.prop.liste', { cs: v.session }).code === 'FERME' && post('cpt.foyer.inviter', { cs: v.session, mail: 'a@ex.fr' }).code === 'FERME', 'propositions et foyers fermés');
+verif(post('cpt.lire', { cs: v.session }).ok && post('cpt.profil', { cs: v.session }).ok, 'compte et profil : ouverts avec les comptes');
+verif(post('annonces.notifier', { id: 'x' }, tok).code === 'FERME', 'bouton « Notifier » refusé tant que les annonces sont fermées');
+const fa = (a) => vm.runInThisContext('fonctionDeAction_(' + JSON.stringify(a) + ')');
+verif(fa('esp.messes') === 'messe' && fa('esp.priere.mur') === 'priere' && fa('esp.lettre') === null && fa('cpt.lettre') === 'annonces' && fa('esp.corDemande') === null, 'espace des catéchumènes : mêmes interrupteurs ; lettre à l\'évêque et fraternité comme avant');
+console.log(ok + ' vérifications réussies, ' + ko + ' échec(s)');
+process.exit(ko ? 1 : 0);
