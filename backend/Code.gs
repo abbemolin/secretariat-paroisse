@@ -112,6 +112,7 @@ var ROUTES = {
   'modeles':               { fn: function (p, s) { return modelesRoute_(p, s); }, droit: 'dossiers' },
   'dossiers.courrier':     { fn: function (p, s) { return courrierRoute_(p, s); }, droit: 'dossiers' },
   'sauvegardes':           { fn: function (p, s) { return sauvegardesRoute_(p, s); }, droit: 'utilisateurs' },
+  'serveur.maj':           { fn: function (p, s) { return majServeurRoute_(p, s); }, droit: 'utilisateurs' },   // MiseAJour.gs
   'recherche':             { fn: function (p, s) { return rechercheGlobale_(p, s); } },
 
   'utilisateurs.liste':    { fn: function (p, s) { return listerUtilisateurs_(p, s); } },

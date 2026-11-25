@@ -7,7 +7,7 @@ fs.readdirSync(dir).filter((f) => f.endsWith('.gs') && f !== 'Verification.gs').
   const t = fs.readFileSync(path.join(dir, f), 'utf8'), fns = [...t.matchAll(/^function ([A-Za-z0-9_]+)\s*\(/gm)].map((m) => m[1]);
   const x = ctx.F[f];
   if (x && x[0] === fns[0] && x[1] === fns[fns.length - 1] && x[2] === t.split('\n').length - (t.endsWith('\n') ? 1 : 0)) ok++;
-  else { ko++; console.log('ÉCHEC : Verification.gs pas à jour pour', f); }
+  else { ko++; console.log('ÉCHEC : Verification.gs pas à jour pour', f, '— lancer : node outils/maj-verification.js'); }
 });
 console.log(`${ok} vérifications OK, ${ko} échec(s)`);
 process.exit(ko ? 1 : 0);
