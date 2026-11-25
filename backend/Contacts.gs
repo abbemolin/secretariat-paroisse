@@ -23,6 +23,36 @@ var GROUPES_SYSTEME_ = ['myContacts', 'starred', 'friends', 'family', 'coworkers
 var ENVOI_GMAIL_MAX = 100;
 var CONTACTS_ = null;   // miroir lu une fois par exécution
 
+// ─── Outils propres à ce fichier (copies : Contacts.gs ne dépend pas des autres modules pour comparer noms et coordonnées) ───
+function sansAccentsC_(t) { return String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+function chiffresC_(t) { return String(t || '').replace(/\D/g, '').replace(/^33/, '0').slice(-9); }
+function simpleC_(t) { return sansAccentsC_(t).replace(/[^a-z]/g, ''); }
+function normMailC_(m) { m = String(m || '').trim().toLowerCase(); return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(m) ? m : ''; }
+function cleNomC_(t) { return sansAccentsC_(t).replace(/[^a-z]/g, ''); }
+function motsNomC_(t) { return sansAccentsC_(t).replace(/[^a-z\s-]/g, ' ').split(/[\s-]+/).filter(function (m) { return m.length > 1 && ['et', 'de', 'du', 'la', 'le'].indexOf(m) === -1; }); }
+function levenshteinC_(a, b) {
+  if (a === b) return 0;
+  if (Math.abs(a.length - b.length) > 2) return 9;
+  var d = [], i, j;
+  for (i = 0; i <= a.length; i++) d[i] = [i];
+  for (j = 0; j <= b.length; j++) d[0][j] = j;
+  for (i = 1; i <= a.length; i++) for (j = 1; j <= b.length; j++)
+    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+function memeNomC_(a, b) { var x = cleNomC_(a), y = cleNomC_(b); return !!x && !!y && (x === y || (x.length > 4 && levenshteinC_(x, y) <= 1)); }
+function prenomCommunC_(a, b) {
+  var x = motsNomC_(a), y = motsNomC_(b);
+  return x.some(function (m) { return y.some(function (n) { return m === n || (m.length > 4 && levenshteinC_(m, n) <= 1); }); });
+}
+/** « Heller David » → { nom: 'Heller', prenom: 'David' } (le prénom est le dernier mot). */
+function separerNomPrenomC_(t) {
+  var mots = String(t || '').trim().split(/\s+/).filter(String);
+  if (mots.length < 2) return { nom: mots[0] || '', prenom: '' };
+  return { prenom: mots.pop(), nom: mots.join(' ') };
+}
+function existe_(nom) { try { return typeof globalThis[nom] === 'function'; } catch (e) { return false; } }
+
 // ─────────────────────────────── MIROIR ───────────────────────────────
 
 function feuilleContacts_() {
@@ -33,7 +63,7 @@ function feuilleContacts_() {
 function idContact_(rn) { return String(rn || '').replace(/^people\//, ''); }
 function rnContact_(id) { id = String(id || ''); return /^people\//.test(id) ? id : 'people/' + id; }
 function groupeUtilisateur_(rn) { var k = String(rn || '').replace(/^contactGroups\//, ''); return !!k && GROUPES_SYSTEME_.indexOf(k) === -1; }
-function telCle_(t) { var c = chiffres_(t); return c.length === 9 ? c : ''; }
+function telCle_(t) { var c = chiffresC_(t); return c.length === 9 ? c : ''; }
 
 /** Personne de l'API People → ligne de la feuille. */
 function ligneDepuisPersonne_(pe) {
@@ -70,7 +100,9 @@ function oublierContacts_() { CONTACTS_ = null; oublierLignes_('Contacts'); }
 /** Réécrit toute la feuille (≈ 1 000 lignes : une seule écriture). */
 function ecrireMiroir_(lignes) {
   var f = feuilleContacts_();
-  completerColonnes_(f, COLONNES_CONTACTS);
+  var ent0 = f.getRange(1, 1, 1, f.getLastColumn()).getValues()[0];
+  var manque = COLONNES_CONTACTS.filter(function (c) { return ent0.indexOf(c) === -1; });
+  if (manque.length) f.getRange(1, ent0.length + 1, 1, manque.length).setValues([manque]);
   var ent = f.getRange(1, 1, 1, f.getLastColumn()).getValues()[0];
   var n = f.getLastRow();
   if (n > 1) f.getRange(2, 1, n - 1, ent.length).clearContent();
@@ -81,7 +113,7 @@ function ecrireMiroir_(lignes) {
   }
   oublierContacts_();
 }
-function cleTri_(o) { return sansAccents_((o.nom || o.organisation || '') + ' ' + (o.prenom || '')); }
+function cleTri_(o) { return sansAccentsC_((o.nom || o.organisation || '') + ' ' + (o.prenom || '')); }
 
 /** Lignes brutes (format feuille) indexées par id. */
 function miroirBrut_() {
@@ -273,15 +305,15 @@ function lireContact_(p, s) {
 /** Tout ce qui, dans l'appli, se rapporte à ce contact (e-mail, téléphone, ou nom pour les personnes elles-mêmes). */
 function liensContact_(c, s) {
   var mails = {}, tels = {}, l = [];
-  c.emails.forEach(function (m) { var x = normMail_(m); if (x) mails[x] = 1; });
+  c.emails.forEach(function (m) { var x = normMailC_(m); if (x) mails[x] = 1; });
   c.tels.forEach(function (t) { var x = telCle_(t); if (x) tels[x] = 1; });
   var coord = function (mail, tel) {
     var ok = false;
-    String(mail || '').split(/[,;\s|]+/).forEach(function (m) { if (mails[normMail_(m)]) ok = true; });
+    String(mail || '').split(/[,;\s|]+/).forEach(function (m) { if (mails[normMailC_(m)]) ok = true; });
     String(tel || '').split(/[,;/|]+/).forEach(function (t) { if (tels[telCle_(t)]) ok = true; });
     return ok;
   };
-  var memePersonne = function (prenom, nom) { return !!c.nom && memeNom_(nom, c.nom) && prenomCommun_(prenom, c.prenom); };
+  var memePersonne = function (prenom, nom) { return !!c.nom && memeNomC_(nom, c.nom) && prenomCommunC_(prenom, c.prenom); };
   var essayer = function (f) { try { f(); } catch (e) { console.error('liens contact', e); } };
 
   if (s.droits.indexOf('dossiers') > -1) essayer(function () {
@@ -291,7 +323,7 @@ function liensContact_(c, s) {
       var i = json2_(d.donnees, {}).infos || {};
       var lui = (d.type === 'catechumene' || d.type === 'confirmand') && memePersonne(i.prenoms, i.nom);
       if (!lui && !coord(d.email, d.telephone)) return;
-      l.push({ sorte: 'Dossier', libelle: (TYPES_DOSSIER[d.type] || {}).nom + ' – ' + d.nom, detail: d.etat === 'ouvert' ? 'en cours' : 'clos', lien: '/dossiers/' + d.id, date: d.cree_le });
+      l.push({ sorte: 'Dossier', libelle: ((typeof TYPES_DOSSIER !== 'undefined' && TYPES_DOSSIER[d.type]) || {}).nom || d.type + ' – ' + d.nom, detail: d.etat === 'ouvert' ? 'en cours' : 'clos', lien: '/dossiers/' + d.id, date: d.cree_le });
     });
   });
   if (peutLire_(s, 'catechisme') && db_().getSheetByName('Catechisme')) essayer(function () {
@@ -300,7 +332,7 @@ function liensContact_(c, s) {
       l.push({ sorte: 'Catéchisme', libelle: (x.prenoms + ' ' + x.nom).trim() + (x.groupe ? ' (' + x.groupe + ')' : ''), detail: x.annee, lien: '/catechisme/' + x.id, date: x.cree_le });
     });
   });
-  if (peutLire_(s, 'cor_unum') && db_().getSheetByName('CorUnum')) essayer(function () {
+  if (peutLire_(s, 'cor_unum') && existe_('corReglages_') && db_().getSheetByName('CorUnum')) essayer(function () {
     var r = corReglages_();
     lignes_('CorUnum').forEach(function (x) {
       if (!coord(x.email, x.telephone) && !memePersonne(x.prenoms, x.nom)) return;
@@ -334,9 +366,9 @@ function liensContact_(c, s) {
 function contactsDesAdresses_(textes) {
   var vus = {}, r = [];
   var index = {};
-  contactsMiroir_().forEach(function (c) { c.emails.forEach(function (m) { var x = normMail_(m); if (x) index[x] = c; }); });
+  contactsMiroir_().forEach(function (c) { c.emails.forEach(function (m) { var x = normMailC_(m); if (x) index[x] = c; }); });
   (textes || []).join(',').replace(/[^\s<>,;"]+@[^\s<>,;"]+/g, function (m) {
-    var x = normMail_(m), c = index[x];
+    var x = normMailC_(m), c = index[x];
     if (c && !vus[c.id]) { vus[c.id] = 1; r.push({ email: x, id: c.id, nom: nomContact_(c) }); }
     return m;
   });
@@ -360,7 +392,7 @@ function typeTel_(t) { return /^(\+33\s?|0)[67]/.test(String(t).replace(/[\s.]/g
 function personneDepuisFiche_(f, ex) {
   ex = ex || {};
   var typeMail = {}, typeTel = {};
-  (ex.emailAddresses || []).forEach(function (e) { typeMail[normMail_(e.value)] = e.type; });
+  (ex.emailAddresses || []).forEach(function (e) { typeMail[normMailC_(e.value)] = e.type; });
   (ex.phoneNumbers || []).forEach(function (t) { typeTel[cleTelOuTexte_(t.value)] = t.type; });
   var ud = (ex.userDefined || []).filter(function (u) { return u.key !== 'Foyer' && u.key !== 'Origine'; });
   if (f.foyer) ud.push({ key: 'Foyer', value: String(f.foyer) });
@@ -371,7 +403,7 @@ function personneDepuisFiche_(f, ex) {
   return {
     resourceName: ex.resourceName, etag: ex.etag,
     names: (f.prenom || f.nom || f.civilite) ? [{ givenName: String(f.prenom || '').trim(), familyName: String(f.nom || '').trim(), honorificPrefix: String(f.civilite || '').trim() }] : [],
-    emailAddresses: nettoyerListe_(f.emails, normMail_).map(function (m) { return { value: m, type: typeMail[normMail_(m)] || 'home' }; }),
+    emailAddresses: nettoyerListe_(f.emails, normMail_).map(function (m) { return { value: m, type: typeMail[normMailC_(m)] || 'home' }; }),
     phoneNumbers: nettoyerListe_(f.tels, cleTelOuTexte_).map(function (t) { return { value: t, type: typeTel[cleTelOuTexte_(t)] || typeTel_(t) }; }),
     addresses: adresse,
     organizations: String(f.organisation || '').trim() ? [{ name: String(f.organisation).trim() }] : [],
@@ -385,7 +417,7 @@ function ficheDepuisPersonne_(pe) { return contactDepuisLigne_(ligneDepuisPerson
 function verifierFiche_(f) {
   if (!String(f.prenom || f.nom || f.organisation || '').trim()) throw erreur_('INVALIDE', 'Indiquez au moins un nom ou une organisation.');
   (Array.isArray(f.emails) ? f.emails : []).forEach(function (m) {
-    if (String(m || '').trim() && !normMail_(m)) throw erreur_('INVALIDE', 'Adresse e-mail invalide : ' + m);
+    if (String(m || '').trim() && !normMailC_(m)) throw erreur_('INVALIDE', 'Adresse e-mail invalide : ' + m);
   });
 }
 
@@ -497,21 +529,21 @@ function indexContacts_(liste) {
   return ix;
 }
 function indexer_(ix, c) {
-  (c.emails || []).forEach(function (m) { var k = normMail_(m); if (k && !ix.mail[k]) ix.mail[k] = c; });
+  (c.emails || []).forEach(function (m) { var k = normMailC_(m); if (k && !ix.mail[k]) ix.mail[k] = c; });
   (c.tels || []).forEach(function (t) { var k = telCle_(t); if (k && !ix.tel[k]) ix.tel[k] = c; });
 }
 function chercherIndex_(ix, emails, tels) {
   var r = null;
-  (emails || []).some(function (m) { r = ix.mail[normMail_(m)] || null; return !!r; });
+  (emails || []).some(function (m) { r = ix.mail[normMailC_(m)] || null; return !!r; });
   if (!r) (tels || []).some(function (t) { var k = telCle_(t); r = k ? ix.tel[k] || null : null; return !!r; });
   return r;
 }
 /** Ce qu'une fiche apporte de nouveau à un contact existant. */
 function apportsFiche_(c, f) {
   var mails = {}, tels = {}, a = { emails: [], tels: [] };
-  c.emails.forEach(function (m) { mails[normMail_(m)] = 1; });
+  c.emails.forEach(function (m) { mails[normMailC_(m)] = 1; });
   c.tels.forEach(function (t) { tels[cleTelOuTexte_(t)] = 1; });
-  (f.emails || []).forEach(function (m) { var k = normMail_(m); if (k && !mails[k]) { mails[k] = 1; a.emails.push(m); } });
+  (f.emails || []).forEach(function (m) { var k = normMailC_(m); if (k && !mails[k]) { mails[k] = 1; a.emails.push(m); } });
   (f.tels || []).forEach(function (t) { var k = cleTelOuTexte_(t); if (k && !tels[k]) { tels[k] = 1; a.tels.push(t); } });
   var fa = f.adresse || {};
   if (!c.adresse && (fa.rue || fa.ville)) a.adresse = fa;
@@ -593,7 +625,7 @@ function vus_() { return json2_(props_().getProperty('CONTACTS_VUS'), {}); }
 function memoriserVus_(fiches) {
   var v = vus_(), n = 0;
   (fiches || []).forEach(function (f) {
-    (f.emails || []).forEach(function (m) { var k = normMail_(m); if (k && !v[k]) { v[k] = 1; n++; } });
+    (f.emails || []).forEach(function (m) { var k = normMailC_(m); if (k && !v[k]) { v[k] = 1; n++; } });
     (f.tels || []).forEach(function (t) { var k = telCle_(t); if (k && !v[k]) { v[k] = 1; n++; } });
   });
   if (n) props_().setProperty('CONTACTS_VUS', JSON.stringify(v));
@@ -621,16 +653,16 @@ function doublonsContacts_(p, s) {
   };
   grouper(function (c) { return c.emails.map(normMail_); }, 'même e-mail');
   grouper(function (c) { return c.tels.map(telCle_); }, 'même téléphone');
-  grouper(function (c) { var a = cleNom_(c.prenom), b = cleNom_(c.nom); return a && b ? [[a, b].sort().join('|')] : []; }, 'même nom');   // nom et prénom inversés compris
+  grouper(function (c) { var a = cleNomC_(c.prenom), b = cleNomC_(c.nom); return a && b ? [[a, b].sort().join('|')] : []; }, 'même nom');   // nom et prénom inversés compris
   // noms proches (une lettre d'écart), même prénom
   var parPrenom = {};
-  cs.forEach(function (c) { var pr = cleNom_(c.prenom); if (pr && cleNom_(c.nom).length > 4) (parPrenom[pr] = parPrenom[pr] || []).push(c); });
+  cs.forEach(function (c) { var pr = cleNomC_(c.prenom); if (pr && cleNomC_(c.nom).length > 4) (parPrenom[pr] = parPrenom[pr] || []).push(c); });
   Object.keys(parPrenom).forEach(function (k) {
     var l = parPrenom[k];
     if (l.length > 80) return;
     for (var i = 0; i < l.length; i++) for (var j = i + 1; j < l.length; j++) {
-      var x = cleNom_(l[i].nom), y = cleNom_(l[j].nom);
-      if (x !== y && levenshtein_(x, y) <= 1) ajouter(l[i], l[j], 'nom proche');
+      var x = cleNomC_(l[i].nom), y = cleNomC_(l[j].nom);
+      if (x !== y && levenshteinC_(x, y) <= 1) ajouter(l[i], l[j], 'nom proche');
     }
   });
   var r = Object.keys(paires).map(function (k) { var x = paires[k]; return { a: resumeContact_(x.a), b: resumeContact_(x.b), raisons: x.raisons }; });
@@ -678,9 +710,9 @@ function fusionnerContacts_(p, s) {
 /** Le parent à qui appartient l'adresse (prénom dans l'adresse), sinon le premier nommé. */
 function parentDe_(email, parents) {
   parents = parents.filter(function (x) { return x && (x.prenom || x.nom); });
-  var local = simple_(String(email || '').split('@')[0]);
+  var local = simpleC_(String(email || '').split('@')[0]);
   var trouve = parents.filter(function (x) {
-    var pr = simple_(String(x.prenom || '').split(/[\s-]/)[0]);
+    var pr = simpleC_(String(x.prenom || '').split(/[\s-]/)[0]);
     return pr.length > 2 && local.indexOf(pr) > -1;
   })[0];
   return trouve || parents[0] || null;
@@ -691,7 +723,7 @@ function anneeDe_(d) { return String(d.date_celebration || d.cree_le || '').slic
 function personnesDesModules_() {
   var l = [];
   var ajouter = function (pers, email, tel, adresse, groupes, source) {
-    var emails = [normMail_(email)].filter(String), tels = String(tel || '').split(/[,;/|]+/).map(function (t) { return t.trim(); }).filter(telCle_);
+    var emails = [normMailC_(email)].filter(String), tels = String(tel || '').split(/[,;/|]+/).map(function (t) { return t.trim(); }).filter(telCle_);
     if (!emails.length && !tels.length) return;
     l.push({ prenom: (pers && pers.prenom) || '', nom: (pers && pers.nom) || '', emails: emails, tels: tels,
       adresse: adresse ? { rue: String(adresse).slice(0, 200), cp: '', ville: '', pays: '' } : null, groupes: groupes.filter(String), origine: 'Appli : ' + source });
@@ -718,12 +750,12 @@ function personnesDesModules_() {
   });
   // Catéchisme : un parent par inscription
   if (db_().getSheetByName('Catechisme')) lignes_('Catechisme').forEach(function (x) {
-    var pere = separerNomPrenom_(x.pere), mere = separerNomPrenom_(x.mere);
+    var pere = separerNomPrenomC_(x.pere), mere = separerNomPrenomC_(x.mere);
     ajouter(parentDe_(x.email, [mere, pere]) || { nom: x.nom }, x.email, x.telephone, x.adresse,
       x.groupe ? ['Catéchisme ' + x.annee + ' – ' + x.groupe] : [], 'catéchisme');
   });
   // Cor Unum : membres actuels par fraternité, et chefs
-  if (db_().getSheetByName('CorUnum')) {
+  if (existe_('corReglages_') && db_().getSheetByName('CorUnum')) {
     var r = corReglages_();
     lignes_('CorUnum').forEach(function (x) {
       var e = (r.equipes[x.annee] || []).filter(function (q) { return q.id === x.equipe_id; })[0];
@@ -883,7 +915,7 @@ function envoyerContacts_(p, s) {
     journaliser_(s, 'Envoi groupé', (p.sujet || '') + ' → ' + emails.length + ' destinataires (Gmail)');
     return { nb: emails.length, sans: a.sans, canal: 'gmail' };
   }
-  if (!proprietesReelles_().getProperty('BREVO_CLE')) throw erreur_('BREVO', 'Plus de ' + ENVOI_GMAIL_MAX + ' destinataires : l\'envoi passe par Brevo, mais la clé Brevo n\'est pas enregistrée (Réglages → Newsletter).');
+  if (!existe_('brevo_') || !proprietesReelles_().getProperty('BREVO_CLE')) throw erreur_('BREVO', 'Plus de ' + ENVOI_GMAIL_MAX + ' destinataires : l\'envoi passe par Brevo, mais la clé Brevo n\'est pas enregistrée (Réglages → Newsletter).');
   if (p.essai) return { nb: emails.length, sans: a.sans, canal: 'brevo' };
   var r = envoyerParBrevo_(emails, String(p.sujet || '').trim() || 'Paroisse La Croix glorieuse', corpsHtml_(p.corps, p.signature, p.boutons));
   journaliser_(s, 'Envoi groupé', (p.sujet || '') + ' → ' + emails.length + ' destinataires (Brevo, campagne ' + r.campagne + ')');
