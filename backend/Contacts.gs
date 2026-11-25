@@ -225,7 +225,7 @@ function groupeRoute_(p, s) {
       People.ContactGroups.update({ contactGroup: { name: nomOk(), etag: g.etag } }, p.id);
       journaliser_(s, 'Contacts : groupe renommé', p.nom);
     } else if (p.action === 'supprimer') {
-      People.ContactGroups.delete(p.id, { deleteContacts: false });
+      People.ContactGroups.remove(p.id, { deleteContacts: false });
       verrou_(function () {
         var m = miroirBrut_();
         Object.keys(m).forEach(function (id) { m[id].groupes = JSON.stringify(json2_(m[id].groupes, []).filter(function (x) { return x !== p.id; })); });
@@ -826,7 +826,7 @@ function contactsAutomatique_(s) {
     // groupes automatiques devenus vides : supprimés (les contacts restent)
     Object.keys(reg).forEach(function (nom) {
       if (membres[nom]) return;
-      try { People.ContactGroups.delete(reg[nom], { deleteContacts: false }); rapportGroupes.supprimes++; } catch (e) {}
+      try { People.ContactGroups.remove(reg[nom], { deleteContacts: false }); rapportGroupes.supprimes++; } catch (e) {}
       changements.push({ groupe: reg[nom], ajouter: [], retirer: Object.keys(actuels[reg[nom]] || {}) });
       delete reg[nom];
     });
@@ -924,8 +924,8 @@ function envoyerParBrevo_(emails, sujet, html) {
  * Google demande le nouveau droit « modifier vos contacts ». Ensuite : Déployer → Gérer les déploiements → nouvelle version.
  */
 function autoriserContacts() {
-  var g = People.ContactGroups.create({ contactGroup: { name: 'Test autorisation (à supprimer)' } });
-  People.ContactGroups.delete(g.resourceName, { deleteContacts: false });
+  // ancien groupe d'essai laissé par une première version de cette fonction
+  lireGroupesGoogle_().forEach(function (g) { if (g.nom === 'Test autorisation (à supprimer)') People.ContactGroups.remove(g.id, { deleteContacts: false }); });
   syncContacts_({ complet: true });
   assurerContactsAuto_();
   Logger.log('Google Contacts : écriture autorisée, ' + contactsMiroir_().length + ' contacts lus.');

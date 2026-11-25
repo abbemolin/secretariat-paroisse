@@ -47,7 +47,7 @@ global.People = {
     create(o) { const rn = 'contactGroups/g' + (++G.n); G.groupes[rn] = { rn, nom: o.contactGroup.name, membres: [], etag: 'x' }; return { resourceName: rn }; },
     get(rn) { return { resourceName: rn, etag: G.groupes[rn].etag, memberResourceNames: G.groupes[rn].membres }; },
     update(o, rn) { G.groupes[rn].nom = o.contactGroup.name; },
-    delete(rn) { delete G.groupes[rn]; Object.values(G.personnes).forEach((p) => { p.memberships = (p.memberships || []).filter((m) => m.contactGroupMembership.contactGroupResourceName !== rn); }); },
+    remove(rn) { delete G.groupes[rn]; Object.values(G.personnes).forEach((p) => { p.memberships = (p.memberships || []).filter((m) => m.contactGroupMembership.contactGroupResourceName !== rn); }); },
     Members: {
       modify(o, rn) {
         const g = G.groupes[rn];
