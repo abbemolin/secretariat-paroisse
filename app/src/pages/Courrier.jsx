@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Inbox, Star, AlertTriangle, CheckCircle2, ScrollText, ExternalLink, Wand2, Send, MailOpen, Search, ArrowLeft, Reply, ReplyAll, Archive, Trash2, Paperclip, PenSquare, Download, Loader2, X, FolderOpen, Mail, UserCheck, ListTodo, Users, MessageSquare, FolderPlus, CalendarPlus, FolderHeart, CheckSquare, Square, Mail as MailFerme, Maximize2, Sparkles, Eye } from 'lucide-react'
+import { Inbox, Star, AlertTriangle, CheckCircle2, ScrollText, ExternalLink, Wand2, Send, MailOpen, Search, ArrowLeft, Reply, ReplyAll, Archive, Trash2, Paperclip, PenSquare, Download, Loader2, X, FolderOpen, Mail, UserCheck, ListTodo, Users, MessageSquare, FolderPlus, CalendarPlus, FolderHeart, CheckSquare, Square, Mail as MailFerme, Maximize2, Sparkles, Eye, Contact } from 'lucide-react'
 import { api, enCache, fichierEnBase64, precharger, telechargerBase64 } from '../api.js'
 import { useApp } from '../App.jsx'
 import { TYPES, ORDRE_TYPES, remplirModele } from '../types.js'
@@ -11,6 +11,7 @@ import { EditionEvenement } from './Agenda.jsx'
 import { creerExtrait } from './Extraits.jsx'
 import { B14 } from '../imprimables.js'
 import { LIEN_APPMESSE } from '../appmesse.js'
+import { EnvoiContacts } from '../envoiContacts.jsx'
 
 /** Tri automatique : mêmes noms que les étiquettes Gmail « Tri/… » créées par le serveur (Tri.gs). */
 export const TRI = [
@@ -234,7 +235,7 @@ export default function Courrier() {
         if (r?.suivi && redaction.fil) majSuivi(redaction.fil.id, r.suivi)
         setVersion((v) => v + 1)
       }} />}
-      {groupe && <EnvoiGroupe onFermer={() => setGroupe(false)} />}
+      {groupe && <EnvoiContacts onFermer={() => setGroupe(false)} />}
     </>
   )
 }
@@ -337,6 +338,7 @@ function Fil({ id, onRetour, onAgir, onRepondre, onSuivi, onLu, suivants = [] })
 
           <div className="carte p-5">
             <h2 className="mb-3 text-2xl font-semibold leading-tight">{fil.sujet}</h2>
+            {fil.contacts?.length > 0 && <div className="-mt-1 mb-3 flex flex-wrap gap-1.5">{fil.contacts.map((c) => <Link key={c.id} to={`/contacts/${c.id}`} className="pastille gap-1 bg-or-50 text-or-600 hover:bg-or-100" title={c.email}><Contact className="h-3 w-3" />{c.nom}</Link>)}</div>}
             <div className="space-y-5">
               {fil.messages.map((m) => (
                 <article key={m.id} className="border-t border-nuit-50 pt-4 first:border-0 first:pt-0">
@@ -654,7 +656,8 @@ export function Redaction({ mode, fil, dossier, a: aInit = '', sujet: sujetInit 
             <p className="rounded-lg bg-or-50 px-3 py-2 text-sm text-or-600"><Users className="mr-1 inline h-4 w-4" />{destinataires}</p>
             <div><label className="etiquette">Objet</label><input className="champ" value={sujet} onChange={(e) => setSujet(e.target.value)} /></div>
           </> : mode === 'nouveau' ? <>
-            <div><label className="etiquette">À</label><input className="champ" value={a} onChange={(e) => setA(e.target.value)} placeholder="adresse@exemple.fr" /></div>
+            <div><label className="etiquette">À</label><input className="champ" value={a} onChange={(e) => setA(e.target.value)} placeholder="adresse@exemple.fr ou nom d'un contact" list="contacts-adresses" autoComplete="off" />
+              <AdressesContacts saisie={a} /></div>
             <div><label className="etiquette">Cc</label><input className="champ" value={cc} onChange={(e) => setCc(e.target.value)} /></div>
             <div><label className="etiquette">Objet</label><input className="champ" value={sujet} onChange={(e) => setSujet(e.target.value)} /></div>
           </> : <p className="text-sm text-nuit-600">À : <strong>{dernier ? nomExpediteur(dernier.de) : ''}</strong> — {fil.sujet}</p>}
@@ -689,42 +692,16 @@ export function Redaction({ mode, fil, dossier, a: aInit = '', sujet: sujetInit 
   )
 }
 
-function EnvoiGroupe({ onFermer }) {
-  const notifier = useNotif()
-  const { utilisateur, signatures } = useApp()
-  const [groupes, setGroupes] = useState(null)
-  const [erreur, setErreur] = useState(null)
-  const [f, setF] = useState({ groupe: '', sujet: '', corps: '', signature: utilisateur.signature || 'paroisse' })
-  const [verif, setVerif] = useState(null)
-  const [envoi, setEnvoi] = useState(false)
-  useEffect(() => { api('mail.groupes').then(setGroupes).catch(setErreur) }, [])
-  const maj = (k) => (e) => { setF({ ...f, [k]: e.target.value }); if (k === 'groupe') setVerif(null) }
-
-  async function verifier() {
-    setEnvoi(true); setErreur(null)
-    try { setVerif(await api('mail.envoiGroupe', { ...f, essai: true })) } catch (e) { setErreur(e) } finally { setEnvoi(false) }
-  }
-  async function envoyer() {
-    setEnvoi(true); setErreur(null)
-    try { const r = await api('mail.envoiGroupe', f); notifier(`Envoyé à ${r.nb} personnes`); onFermer() } catch (e) { setErreur(e); setEnvoi(false) }
-  }
+/** Destinataires proposés à partir des contacts (liste gardée sur l'appareil, chargée au besoin). */
+function AdressesContacts({ saisie }) {
+  const { peut } = useApp()
+  const [liste, setListe] = useState(() => enCache('contacts.liste', {})?.contacts || null)
+  useEffect(() => { if (!liste && peut('contacts')) api('contacts.liste').then((d) => setListe(d.contacts)).catch(() => {}) }, [liste, peut])
+  // plusieurs adresses séparées par des virgules : la proposition complète la dernière
+  const debut = String(saisie || '').includes(',') ? String(saisie).replace(/[^,]*$/, '').trim() + ' ' : ''
   return (
-    <Modale large titre="Envoi groupé" onFermer={onFermer}
-      pied={<><button className="btn-clair" onClick={onFermer}>Annuler</button>
-        {verif ? <button className="btn-or" onClick={envoyer} disabled={envoi}>{envoi && <Loader2 className="h-4 w-4 animate-spin" />}Envoyer à {verif.nb} personnes</button>
-          : <button className="btn-principal" onClick={verifier} disabled={envoi || !f.groupe || !f.sujet || !f.corps}>{envoi && <Loader2 className="h-4 w-4 animate-spin" />}Vérifier</button>}</>}>
-      <div className="space-y-3">
-        <p className="text-xs text-nuit-600/70">Les destinataires sont en copie cachée (ils ne voient pas les autres adresses). Groupes issus de Google Contacts, 99 personnes au plus.</p>
-        <div><label className="etiquette">Groupe de contacts</label>
-          {!groupes && !erreur ? <Chargement /> : <select className="champ" value={f.groupe} onChange={maj('groupe')}>
-            <option value="">Choisir…</option>{(groupes || []).map((g) => <option key={g.id} value={g.id}>{g.nom} ({g.nb})</option>)}
-          </select>}</div>
-        <div><label className="etiquette">Objet</label><input className="champ" value={f.sujet} onChange={maj('sujet')} /></div>
-        <textarea className="champ min-h-[200px]" value={f.corps} onChange={maj('corps')} placeholder="Message…" />
-        <div><label className="etiquette">Signature</label><select className="champ" value={f.signature} onChange={maj('signature')}>{signatures.map((s) => <option key={s.cle} value={s.cle}>{s.nom}</option>)}</select></div>
-        {verif && <p className="rounded-lg bg-or-50 p-3 text-sm text-or-600">{verif.nb} adresses trouvées · quota restant aujourd'hui : {verif.quota}.</p>}
-        <Erreur erreur={erreur} />
-      </div>
-    </Modale>
+    <datalist id="contacts-adresses">
+      {(liste || []).flatMap((c) => c.emails.map((m) => <option key={c.id + m} value={debut + m}>{[c.prenom, c.nom].filter(Boolean).join(' ') || c.organisation}</option>))}
+    </datalist>
   )
 }

@@ -2,7 +2,7 @@
 export const PAGES_ACCES = [
   ['courrier', 'Courrier'], ['agenda', 'Agenda'], ['extraits', 'Extraits de baptême'], ['registres', 'Registres'],
   ['catechisme', 'Catéchisme (et livres)'], ['catechumenat', 'Catéchuménat (textes, calendrier, espaces)'], ['cor_unum', 'Cor Unum'],
-  ['retraites', 'Retraites'], ['documents', 'Documents'], ['statistiques', 'Statistiques'], ['annonces', 'Annonces et newsletter'], ['liturgie', 'Liturgie'], ['intentions', 'Intentions de messe'], ['paroissiens', 'App des paroissiens (demandes d\'accès, comptes)'], ['propositions', 'Propositions spirituelles (parcours, textes)']
+  ['retraites', 'Retraites'], ['documents', 'Documents'], ['statistiques', 'Statistiques'], ['annonces', 'Annonces et newsletter'], ['liturgie', 'Liturgie'], ['intentions', 'Intentions de messe'], ['paroissiens', 'App des paroissiens (demandes d\'accès, comptes)'], ['propositions', 'Propositions spirituelles (parcours, textes)'], ['contacts', 'Contacts (Google Contacts de la paroisse)']
 ]
 export const SORTES_ACCES = [
   ['bapteme', 'Baptêmes'], ['premiere_communion', 'Premières communions'], ['profession_foi', 'Professions de foi'], ['confirmation_jeune', 'Confirmations (jeunes)'],
@@ -25,6 +25,7 @@ export function accesDuRole(role) {
   a.statistiques = ''
   a.annonces = role === 'cure' ? 'm' : ''   // tuile « Annonces et newsletter » : curé (et administrateurs)
   a.intentions = role === 'cure' || role === 'vicaire' ? 'm' : ''   // tuile « Intentions de messe »
+  a.contacts = 'm'   // contacts : toute l'équipe
   a.propositions = role === 'cure' || role === 'vicaire' ? 'm' : ''   // propositions spirituelles
   a.paroissiens = role === 'cure' || role === 'vicaire' || role === 'secretaire' ? 'm' : ''   // App des paroissiens
   a.liturgie = role === 'secretaire' ? '' : 'm'   // tuile « Liturgie » : prêtres et diacres

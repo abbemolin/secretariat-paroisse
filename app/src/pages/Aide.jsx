@@ -18,6 +18,14 @@ const GUIDES = [
     ['Tri automatique', 'Les nouveaux mails reçoivent une étiquette (Horaires, Baptême, Extrait…) et l\'appli propose l\'action qui va avec. Les demandes d\'horaires reçoivent la réponse type automatiquement, sauf mail sensible (décès, maladie…), signalé « Prioritaire ». Réglages → Tri automatique.'],
     ['Créer un dossier depuis un mail', 'Dans le mail : « Dossier » (ou le bouton proposé par le tri automatique). Le mail reste rattaché au dossier.']
   ]],
+  ['Contacts', [
+    ['Où sont les contacts ?', 'Dans Google Contacts du compte paroisse : une fiche modifiée dans l\'appli l\'est aussi dans Google, et inversement. N\'ajoutez pas le compte paroisse sur un téléphone personnel : consultez les contacts dans l\'appli (appel et SMS en un clic).'],
+    ['Importer le tableau des contacts', 'Contacts → « Importer » → choisir le fichier .xlsx. Les contacts de Colmar seuls sont retirés ; les couples deviennent deux fiches reliées par un foyer (cliquez sur un e-mail ou un téléphone pour le passer à l\'autre personne). « Comparer avec Google Contacts » montre ce qui sera créé ou complété, puis « Importer ». Relancer l\'import ne crée pas de doublon.'],
+    ['Groupes automatiques', 'Toutes les heures (ou bouton « Mettre à jour »), l\'appli crée les contacts des parents du catéchisme, des familles des dossiers, des catéchumènes, confirmands et membres Cor Unum, et tient à jour leurs groupes (ex. « Catéchisme 2026-2027 – CE1-CE2 »). Les obsèques ne créent pas de contact. Un contact supprimé à la main n\'est pas recréé.'],
+    ['Écrire à un groupe', 'Contacts → choisir le groupe → « Écrire au groupe » (ou Courrier → « Envoi groupé »). Jusqu\'à 100 personnes, le mail part de secretariat@ en copie cachée ; au-delà, il part par Brevo avec un lien de désinscription.'],
+    ['Fusionner des doublons', 'Contacts → « Doublons » : même e-mail, même téléphone ou même nom (même inversé). « Garder la 1re / 2e » réunit tout dans la fiche choisie et supprime l\'autre.'],
+    ['Relier un foyer', 'Fiche → Foyer → « Relier à une personne », ou sélectionnez plusieurs contacts dans la liste → « Relier en foyer ». L\'adresse peut être commune à tout le foyer.']
+  ]],
   ['Dossiers et sacrements', [
     ['Suivre un dossier', 'Cochez les étapes et les documents reçus ; déposez les pièces (photo, PDF). La date de célébration est publiée dans l\'agenda public, sans nom.'],
     ['Premières communions, professions de foi, confirmations de jeunes', 'Une seule célébration par année scolaire : Dossiers → choisir le type et l\'année → « Fixer la date ». La liste de la promotion s\'imprime au même endroit.'],

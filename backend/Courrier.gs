@@ -74,7 +74,7 @@ function commentairesDe_(cible) {
     .map(function (c) { return { id: c.id, auteur: c.auteur, date: c.date, texte: c.texte }; });
 }
 
-function lireFil_(p) {
+function lireFil_(p, s) {
   var t = GmailApp.getThreadById(p.id);
   if (!t) throw erreur_('INTROUVABLE', 'Message introuvable.');
   var res = resumeFil_(t, suivisParFil_());
@@ -88,6 +88,8 @@ function lireFil_(p) {
     };
   });
   res.commentaires = commentairesDe_('mail:' + t.getId());
+  // contacts connus parmi l'expéditeur et les destinataires (lien vers leur fiche)
+  if (!s || s.droits.indexOf('contacts') > -1) try { res.contacts = contactsDesAdresses_(res.messages.map(function (m) { return [m.de, m.a, m.cc].join(','); })); } catch (e) { res.contacts = []; }
   if (t.isUnread() && !p.sansLu) t.markRead();   // sansLu : lecture anticipée (survol), le mail reste non lu
   return res;
 }
@@ -248,41 +250,4 @@ function commenterMail_(p, s) {
   return { id: c.id, auteur: c.auteur, date: c.date, texte: c.texte };
 }
 
-// ─── Envois groupés (groupes Google Contacts, via le service avancé People) ───
-
-function listerGroupesContacts_() {
-  var r = People.ContactGroups.list({ pageSize: 200, groupFields: 'name,groupType,memberCount' });
-  return (r.contactGroups || []).filter(function (g) { return g.groupType === 'USER_CONTACT_GROUP'; })
-    .map(function (g) { return { id: g.resourceName, nom: g.name, nb: g.memberCount || 0 }; })
-    .sort(function (a, b) { return a.nom.localeCompare(b.nom); });
-}
-
-function emailsDuGroupe_(resourceName) {
-  var g = People.ContactGroups.get(resourceName, { maxMembers: 1000 });
-  var membres = g.memberResourceNames || [];
-  var emails = [];
-  for (var i = 0; i < membres.length; i += 200) {
-    var lot = People.People.getBatchGet({ resourceNames: membres.slice(i, i + 200), personFields: 'emailAddresses' });
-    (lot.responses || []).forEach(function (r) {
-      var e = r.person && r.person.emailAddresses && r.person.emailAddresses[0];
-      if (e && e.value && emails.indexOf(e.value) === -1) emails.push(e.value);
-    });
-  }
-  return emails;
-}
-
-function envoyerAuGroupe_(p, s) {
-  var emails = emailsDuGroupe_(p.groupe);
-  if (!emails.length) throw erreur_('INVALIDE', 'Ce groupe ne contient aucune adresse e-mail.');
-  if (emails.length > 99) throw erreur_('INVALIDE', 'Groupe trop grand (' + emails.length + ' adresses) : 99 maximum.');
-  var quota = MailApp.getRemainingDailyQuota();
-  if (emails.length + 1 > quota) throw erreur_('QUOTA', 'Quota Gmail insuffisant aujourd\'hui : ' + quota + ' destinataires restants.');
-  if (p.essai) return { nb: emails.length, quota: quota };
-  var opts = optionsEnvoi_();
-  opts.htmlBody = corpsHtml_(p.corps, p.signature);
-  opts.attachments = piecesPourEnvoi_(p);
-  opts.bcc = emails.join(',');
-  GmailApp.sendEmail(CONFIG.ALIAS, p.sujet || '', corpsTexte_(p.corps, p.signature), opts);
-  journaliser_(s, 'Envoi groupé', (p.sujet || '') + ' → ' + emails.length + ' destinataires');
-  return { nb: emails.length };
-}
+// ─── Envois groupés : voir Contacts.gs (envoyerContacts_ ; Gmail jusqu'à 100 destinataires, Brevo au-delà) ───
