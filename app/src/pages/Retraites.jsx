@@ -5,6 +5,8 @@ import { api } from '../api.js'
 import { TYPES } from '../types.js'
 import { Chargement, Erreur, Modale, Vide, useCharger, useNotif, useDifferer, enSuppression, Aide, Interrupteur, imprimerHtml, dateCourte } from '../ui.jsx'
 import { Redaction } from './Courrier.jsx'
+import { useSelection, BoutonSelection, BarreSelection, MenuAction, Case, useActionGroupee, texteRapport } from '../selection.jsx'
+import { BellRing } from 'lucide-react'
 
 export const TYPES_RETRAITE = {
   premiere_communion: { nom: 'Première communion', public: 'enfants', couleur: TYPES.premiere_communion.couleur, texte: 'de première communion' },
@@ -76,6 +78,9 @@ function Fiche({ id }) {
   const [invit, setInvit] = useState(false)
   const [ouverte, setOuverte] = useState(null)
   const [filtre, setFiltre] = useState('')
+  const s = useSelection()
+  const lancer = useActionGroupee()
+  const [relance, setRelance] = useState(null)
   if (erreur) return <Erreur erreur={erreur} />
   if (!r) return <Chargement />
   const t = TYPES_RETRAITE[r.type] || {}
@@ -129,18 +134,41 @@ function Fiche({ id }) {
           <button className="btn-clair py-1.5 text-sm" disabled={!actives.length} onClick={() => imprimer('participants')}><Printer className="h-4 w-4" />Participants</button>
           <button className="btn-clair py-1.5 text-sm" disabled={!actives.length} onClick={() => imprimer('sante')}><HeartPulse className="h-4 w-4" />Santé / urgence</button>
           {t.public === 'adultes' && <button className="btn-clair py-1.5 text-sm" disabled={!actives.some((x) => x.covoiturage)} onClick={() => imprimer('covoiturage')}><Car className="h-4 w-4" />Covoiturage</button>}
+          <BoutonSelection s={s} className="btn-clair py-1.5 text-sm" />
         </span>
       </div>
       <div className="carte divide-y divide-nuit-100">
         {!vues.length ? <div className="p-6"><Vide icone={Users} texte="Personne ici pour l'instant." /></div> : vues.map((x) => (
-          <button key={x.id} onClick={() => setOuverte(x)} className="grid w-full grid-cols-[1fr_auto] items-center gap-3 px-4 py-3 text-left text-sm hover:bg-nuit-50/50">
-            <span className="min-w-0"><span className="block font-medium">{x.participants.map((p) => `${p.prenoms} ${String(p.nom).toUpperCase()}`).join(', ')}</span>
+          <button key={x.id} onClick={() => (s.actif ? s.basculer(x.id) : setOuverte(x))} className={`${s.a(x.id) ? 'bg-or-50 ' : ''}grid w-full grid-cols-[1fr_auto] items-center gap-3 px-4 py-3 text-left text-sm hover:bg-nuit-50/50`}>
+            <span className="flex min-w-0 items-start gap-3"><Case s={s} id={x.id} nom={x.contact_nom} /><span className="min-w-0"><span className="block font-medium">{x.participants.map((p) => `${p.prenoms} ${String(p.nom).toUpperCase()}`).join(', ')}</span>
               <span className="block truncate text-xs text-nuit-600/70">{t.public === 'enfants' ? `Parent : ${x.contact_nom} · ` : ''}{x.contact_email} · inscrit le {dateCourte(x.cree_le)}{x.participants.some((p) => p.allergies) ? ' · ⚠ allergies / régime' : ''}{x.covoiturage === 'propose' ? ` · propose ${x.covoit_places} place(s)` : x.covoiturage === 'cherche' ? ' · cherche une place' : ''}</span>
-              {x.participants.some((p) => p.dossier_id) && <span className="mt-0.5 flex flex-wrap gap-1">{x.participants.filter((p) => p.dossier_id).map((p) => <span key={p.dossier_id} className="pastille bg-nuit-50 py-0 text-[10px] text-nuit-600">dossier de {p.prenoms}</span>)}</span>}</span>
+              {x.participants.some((p) => p.dossier_id) && <span className="mt-0.5 flex flex-wrap gap-1">{x.participants.filter((p) => p.dossier_id).map((p) => <span key={p.dossier_id} className="pastille bg-nuit-50 py-0 text-[10px] text-nuit-600">dossier de {p.prenoms}</span>)}</span>}</span></span>
             <span className="text-right">{x.statut === 'annule' ? <span className="pastille bg-nuit-100 text-nuit-600">Annulée</span> : x.montant.reste > 0 ? <><span className="block font-medium">{euros(x.montant.reste)}</span><span className="text-xs text-nuit-600/70">reste sur {euros(x.montant.du)}</span></> : x.montant.du > 0 ? <span className="pastille bg-emerald-100 text-emerald-900"><Check className="h-3 w-3" />Payé</span> : null}</span>
           </button>
         ))}
       </div>
+      <BarreSelection s={s} tous={vues.map((x) => x.id)} raccourcis={[['Reste à payer', actives.filter((x) => x.montant.reste > 0).map((x) => x.id)]]}>
+        {(() => {
+          const impayes = vues.filter((x) => s.a(x.id) && x.statut !== 'annule' && x.montant.reste > 0)
+          return <>
+            <MenuAction libelle={`Payé (${impayes.length})…`} disabled={!impayes.length} choix={[['Chèque', 'Par chèque'], ['Espèces', 'En espèces'], ['Virement', 'Par virement'], ['Sur place', 'Réglé sur place']]}
+              onChoix={(mode) => {
+                const ids = impayes.map((x) => x.id), avant = r
+                lancer({ titre: `Inscriptions soldées (${mode.toLowerCase()})`, texte: `Reste dû de chacun réglé ${mode === 'Sur place' ? 'sur place' : 'par ' + mode.toLowerCase()} : ${ids.length} inscription${ids.length > 1 ? 's' : ''}. Vous pourrez annuler pendant 10 secondes.`,
+                  appliquer: () => setData((d) => ({ ...d, inscriptions: d.inscriptions.map((x) => (ids.includes(x.id) ? { ...x, montant: { ...x.montant, paye: x.montant.du, reste: 0 } } : x)) })),
+                  annuler: () => setData(avant), executer: () => api('retraites.lot', { retraite_id: r.id, ids, op: 'solder', mode }),
+                  apres: (res) => { s.quitter(); if (res?.retraite) setData(res.retraite) } })
+              }} />
+            <button className="btn-clair py-1.5 text-xs" disabled={!impayes.length} onClick={() => setRelance(impayes)}><BellRing className="h-3.5 w-3.5" />Relancer ({impayes.length})</button>
+          </>
+        })()}
+      </BarreSelection>
+      {relance && <Redaction mode="nouveau" sujet={`${r.titre} – participation à régler`}
+        corps={"Bonjour,\n\nPour l'inscription de {participants} à la retraite « {retraite} », il reste {reste} à régler (sur {du}).\n\nVous pouvez payer en ligne :\n[Bouton : Payer en ligne]\n\nou par chèque ou en espèces auprès de la paroisse.\n\nAvec l'assurance de nos prières à toutes vos intentions,"}
+        boutons={[{ texte: 'Payer en ligne', url: 'https://secretariat.croix-glorieuse.org/paiement/' }]}
+        destinataires={`Un mail personnel pour chaque inscription (${relance.length}). {participants}, {reste}, {du} et {retraite} sont remplis pour chacune. Exemple – ${relance[0].participants.map((p) => p.prenoms).join(' et ')} : reste ${euros(relance[0].montant.reste)}.`}
+        envoiPersonnalise={({ sujet, corps, signature }) => api('retraites.lot', { retraite_id: r.id, ids: relance.map((x) => x.id), op: 'relancer', sujet, corps, signature })}
+        onFermer={() => setRelance(null)} onEnvoye={(res) => { setRelance(null); s.quitter(); notifier(texteRapport(res, 'mail envoyé'), res.ignores?.length ? 'erreur' : undefined) }} />}
       {edition && <EditionRetraite r={r} onFermer={() => setEdition(false)} onFait={(x) => { setData(x); setEdition(false); notifier('Retraite enregistrée') }} />}
       {ouverte && <Inscription r={r} x={ouverte} onFermer={() => setOuverte(null)} onMaj={(nr) => { setData(nr); setOuverte(nr.inscriptions.find((y) => y.id === ouverte.id)) }} />}
       {invit && <Inviter r={r} onFermer={() => setInvit(false)} />}

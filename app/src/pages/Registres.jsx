@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { BookMarked, Loader2, Printer, PenLine } from 'lucide-react'
+import { BookMarked, Loader2, Printer, PenLine, ArrowUp, ArrowDown, ListOrdered, X } from 'lucide-react'
 import { api } from '../api.js'
 import { useApp } from '../App.jsx'
 import { TYPES } from '../types.js'
@@ -74,6 +74,7 @@ export default function Registres() {
   const [d, setD] = useState(null)
   const [erreur, setErreur] = useState(null)
   const [inscrire, setInscrire] = useState(null)
+  const [serie, setSerie] = useState(null)
   const [depart, setDepart] = useState('')
   const charger = () => api('registres', { registre, annee }).then((x) => { setD(x); setDepart(String(x.depart || 0)) }).catch(setErreur)
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -100,7 +101,8 @@ export default function Registres() {
 
           {d.a_inscrire.length > 0 && (
             <section className="carte mb-5 border-or/40 p-4">
-              <h2 className="mb-2 text-xl font-semibold">Actes à inscrire</h2>
+              <div className="mb-2 flex flex-wrap items-center gap-2"><h2 className="flex-1 text-xl font-semibold">Actes à inscrire</h2>
+                {d.a_inscrire.length > 1 && ecrit('registres') && <button className="btn-or text-sm" onClick={() => setSerie(d.a_inscrire)}><ListOrdered className="h-4 w-4" />Inscrire en série</button>}</div>
               <ul className="divide-y divide-nuit-50 text-sm">
                 {d.a_inscrire.map((x) => (
                   <li key={x.id} className="flex flex-wrap items-center gap-3 py-2">
@@ -141,7 +143,58 @@ export default function Registres() {
           </section>
         </>
       )}
+      {serie && <InscriptionSerie registre={registre} actes={serie} onFermer={() => setSerie(null)} onFait={() => { setSerie(null); charger() }} />}
       {inscrire && <InscriptionRegistre id={inscrire.id} nom={inscrire.nom} onFermer={() => setInscrire(null)} onInscrit={() => charger()} />}
     </>
+  )
+}
+
+/** Inscription en série : on range les actes dans l'ordre voulu ; les numéros se suivent (par année de célébration). */
+function InscriptionSerie({ registre, actes, onFermer, onFait }) {
+  const notifier = useNotif()
+  const [ordre, setOrdre] = useState(actes)
+  const [plan, setPlan] = useState(null)
+  const [envoi, setEnvoi] = useState(false)
+  const ids = ordre.map((x) => x.id)
+  useEffect(() => {
+    setPlan(null)
+    if (!ids.length) return
+    const t = setTimeout(() => api('registres', { serie: { registre, ids, apercu: true } }).then(setPlan).catch((e) => notifier(e.message, 'erreur')), 300)
+    return () => clearTimeout(t)
+  }, [ids.join(',')])   // eslint-disable-line react-hooks/exhaustive-deps
+  const bouger = (i, k) => setOrdre((l) => { const x = [...l], [a] = x.splice(i, 1); x.splice(i + k, 0, a); return x })
+  async function inscrire() {
+    setEnvoi(true)
+    try {
+      const r = await api('registres', { serie: { registre, ids } })
+      notifier(`${r.faits} acte${r.faits > 1 ? 's' : ''} inscrit${r.faits > 1 ? 's' : ''}` + (r.ignores.length ? ` · ${r.ignores.length} non inscrit(s) : ` + r.ignores.map((x) => `${x.nom} (${x.raison})`).join(', ') : ''), r.ignores.length ? 'erreur' : undefined)
+      onFait()
+    } catch (e) { notifier(e.message, 'erreur'); setEnvoi(false) }
+  }
+  const num = (id) => plan?.plan.find((x) => x.id === id)
+  return (
+    <Modale large titre="Inscrire au registre en série" onFermer={onFermer}
+      pied={<><button className="btn-clair" onClick={onFermer}>Annuler</button>
+        <button className="btn-principal" disabled={envoi || !plan?.plan.length} onClick={inscrire}>{envoi ? <Loader2 className="h-4 w-4 animate-spin" /> : <PenLine className="h-4 w-4" />}Inscrire {plan?.plan.length || ''} acte{plan?.plan.length > 1 ? 's' : ''}</button></>}>
+      <p className="mb-3 text-sm text-nuit-600">Rangez les actes dans l'ordre du registre (flèches) ; retirez ceux à inscrire plus tard. Les numéros se suivent à partir du prochain numéro libre de chaque année. Vérifiez avant d'inscrire : l'inscription coche l'étape « Inscription au registre » de chaque dossier.</p>
+      <table className="w-full text-sm">
+        <thead><tr className="border-b border-nuit-100 text-left text-xs uppercase text-nuit-600/60"><th className="py-1.5">Acte n°</th><th>Nom</th><th className="hidden sm:table-cell">Date</th><th /></tr></thead>
+        <tbody className="divide-y divide-nuit-50">
+          {ordre.map((x, i) => (
+            <tr key={x.id}>
+              <td className="py-1.5 tabular-nums font-semibold">{num(x.id) ? `${num(x.id).numero} / ${num(x.id).annee}` : <Loader2 className="h-3.5 w-3.5 animate-spin text-nuit-600/50" />}</td>
+              <td>{x.nom}<span className="block text-xs text-nuit-600/60">{TYPES[x.type]?.nom}</span></td>
+              <td className="hidden text-nuit-600/70 sm:table-cell">{x.date ? dateCourte(x.date) : ''}</td>
+              <td className="whitespace-nowrap text-right">
+                <button className="btn-icone p-1" disabled={!i} onClick={() => bouger(i, -1)} title="Monter"><ArrowUp className="h-4 w-4" /></button>
+                <button className="btn-icone p-1" disabled={i === ordre.length - 1} onClick={() => bouger(i, 1)} title="Descendre"><ArrowDown className="h-4 w-4" /></button>
+                <button className="btn-icone p-1 text-red-700" onClick={() => setOrdre((l) => l.filter((y) => y.id !== x.id))} title="Pas maintenant"><X className="h-4 w-4" /></button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {plan?.ignores?.length > 0 && <p className="mt-2 text-xs text-red-700">Mis de côté : {plan.ignores.map((x) => `${x.nom} (${x.raison})`).join(', ')}</p>}
+    </Modale>
   )
 }

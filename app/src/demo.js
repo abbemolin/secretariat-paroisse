@@ -260,6 +260,7 @@ export async function demoApi(action, p) {
     case 'registres': {
       if (p.dossier) return { registre: 'baptemes', nom_registre: 'Baptêmes', annee: String(new Date().getFullYear()), numero: '15' }
       if (p.inscrire) return demoApi('dossiers.lire', { id: p.inscrire.id })
+      if (p.serie) { const a = String(new Date().getFullYear()); const plan = p.serie.ids.map((id, k) => ({ id, nom: ({ d1: 'Louise WEBER', d2: 'Gabriel HOFFMANN' })[id] || id, annee: a, numero: String(15 + k) })); if (p.serie.apercu) return { plan, ignores: [] }; throw new Error('Démo : rien n\'est inscrit au registre.') }
       const noms = [['ARNOLD', 'Paul', 6], ['BAUER', 'Léa', 11], ['KLEIN', 'Hugo', 3], ['MARTIN', 'Zoé', 9], ['WEBER', 'Louise', 5]]
       return { registres: [['baptemes', 'Baptêmes', 2], ['communions', 'Premières communions', 0], ['professions', 'Professions de foi', 0], ['confirmations', 'Confirmations', 1], ['mariages', 'Mariages', 0], ['sepultures', 'Sépultures', 1]].map(([cle, nom, a]) => ({ cle, nom, a_inscrire: a })),
         registre: p.registre || 'baptemes', annee: p.annee || String(new Date().getFullYear()), annees: [String(new Date().getFullYear()), String(new Date().getFullYear() - 1)], depart: 2, prochain: 15,
@@ -449,6 +450,26 @@ export async function demoApi(action, p) {
       return { fraternite: fratDemo(p.dossier_id) }
     }
     case 'dossiers.creer': { const d = { id: 'd' + Date.now(), type: p.type, etat: 'ouvert', cree_le: new Date().toISOString(), source: 'Saisie : ' + moi.nom, email: p.infos?.email || '', telephone: p.infos?.telephone || '', date_celebration: '', evenement_id: '', responsable: p.responsable || '', maj_le: new Date().toISOString(), infos: p.infos || {}, etapes: {}, documents: {}, rencontres: [], pieces: [], fils: p.filId ? [p.filId] : [], historique: [{ date: new Date().toISOString(), par: moi.nom, texte: 'Dossier créé' }] }; etat.dossiers.unshift(d); if (p.filId) { const f = etat.fils.find((x) => x.id === p.filId); f.suivi = { ...(f.suivi || {}), dossier_id: d.id } } return complet(d) }
+    case 'dossiers.lot': {
+      let faits = 0
+      p.ids.forEach((id) => { const d = etat.dossiers.find((x) => x.id === id); if (!d) return; faits++
+        if (p.op === 'etape') { d.etapes = d.etapes || {}; if (p.fait === false) delete d.etapes[p.cle]; else d.etapes[p.cle] = { fait: true, date: new Date().toISOString(), par: moi.nom } }
+        else if (p.op === 'document') { d.documents = d.documents || {}; if (p.recu === false) delete d.documents[p.cle]; else d.documents[p.cle] = { recu: true } }
+        else if (p.op === 'etat') d.etat = p.valeur
+        else if (p.op === 'responsable') d.responsable = p.valeur
+        else if (p.op === 'annee') d.infos = { ...d.infos, [d.type === 'catechumene' || d.type === 'confirmand' ? 'annee_sacrements' : 'annee_scolaire']: p.valeur } })
+      return { faits, ignores: [] }
+    }
+    case 'dossiers.reclamer': case 'retraites.lot': if (p.op !== 'solder') throw new Error('Démo : aucun mail n\'est envoyé.')
+      { const r = etat.retraites.find((x) => x.id === p.retraite_id); let faits = 0; r.inscriptions.filter((x) => p.ids.includes(x.id)).forEach((x) => { const m = retMontant(r, x); if (m.reste > 0) { x.paiements = [...(x.paiements || []), { id: 'p' + Date.now() + faits, date: new Date().toISOString().slice(0, 10), montant: m.reste, mode: p.mode, par: moi.nom }]; faits++ } }); return { faits, ignores: [], retraite: retLire(r.id) } }
+    case 'cate.lot': {
+      let faits = 0
+      etat.cate.inscriptions.filter((x) => p.ids.includes(x.id)).forEach((x) => { faits++
+        if (p.op === 'solder') { const r = cateResume(x).reste; if (r > 0) x.paiements.push({ id: 'p' + Date.now() + faits, date: p.date || new Date().toISOString().slice(0, 10), montant: r, mode: p.mode, par: moi.nom }) }
+        else if (p.op === 'remis') x.manuels = x.manuels.map((m) => ({ ...m, remis: p.valeur !== false }))
+        else if (p.op === 'groupe') x.groupe = p.valeur })
+      return { faits, ignores: [] }
+    }
     case 'dossiers.modifier': {
       const d = etat.dossiers.find((x) => x.id === p.id)
       const avant = d.date_celebration
@@ -604,7 +625,7 @@ export async function demoApi(action, p) {
     case 'propositions.liste': return [{ id: 'p1', type: 'parcours', titre: 'Avent : un pas par jour (exemple)', debut: '2026-11-29', fin: '2026-12-24', statut: 'publiee', nb_etapes: 26, abonnes: 12 }]
     case 'propositions.lire': return { id: 'p1', type: 'parcours', titre: 'Avent : un pas par jour (exemple)', resume: '', image: '', debut: '2026-11-29', statut: 'publiee', etapes: [{ id: 'e1', titre: 'Veillez', texte: 'Texte d\'exemple', bible: 'Mt 24, 42', jour: '2026-11-29' }] }
     case 'propositions.ecrire': case 'propositions.dupliquer': case 'propositions.supprimer': case 'propositions.audio':
-    case 'annonces.notifier': case 'paroissiens.donsEcrire': case 'paroissiens.moderer':
+    case 'annonces.notifier': case 'paroissiens.donsEcrire': case 'paroissiens.moderer': case 'paroissiens.lot':
     case 'paroissiens.modifier': case 'paroissiens.inviter': case 'paroissiens.migrer': throw new Error('Démo : rien n\'est enregistré ni envoyé.')
     case 'charte.etat': case 'charte.accepter': return { acceptee_le: new Date().toISOString(), a_accepter: false, texte: [], responsable: '', contact: '' }
     default: throw new Error('Démo : action non simulée ' + action)
