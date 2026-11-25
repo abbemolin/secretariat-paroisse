@@ -105,24 +105,9 @@ Protection : case de consentement RGPD, champ piège anti-robots, 20 demandes pa
 
 ## Mettre à jour
 
-- **Serveur** : automatique. À chaque fusion sur `main` qui touche `backend/`, GitHub lance les tests puis envoie **tous** les fichiers
-  de `backend/` dans le projet Apps Script (les fichiers absents de GitHub sont retirés), crée une version et met à jour le déploiement
-  web (même URL). Si un test échoue, rien n'est envoyé. Suivi : onglet **Actions** de GitHub, « Envoyer le serveur vers Apps Script ».
-  Pour revenir en arrière : **Déployer → Gérer les déploiements → ✏️ → choisir une version précédente**.
-  Si `FEUILLES` a changé, relancez `installer()` (rien n'est effacé). Contrôle : fonction `verifierFichiers` (Verification.gs).
-
-### Envoi automatique du serveur (mise en route, une fois)
-
-1. Avec le compte propriétaire du projet Apps Script : https://script.google.com/home/usersettings → « API Google Apps Script » : **Activé**.
-2. Ouvrir https://shell.cloud.google.com (même compte) et lancer : `npx -y @google/clasp@2.4.2 login`
-3. Ouvrir le lien affiché, choisir le compte, **Autoriser**. Le navigateur arrive sur une page `localhost` qui ne s'affiche pas :
-   copier toute l'adresse de cette page.
-4. Dans Cloud Shell, ouvrir un 2ᵉ onglet (**+**) et lancer : `curl "ADRESSE_COPIÉE"` — le 1ᵉʳ onglet affiche « Authorization successful ».
-5. `cat ~/.clasprc.json`, copier tout le texte, puis GitHub → **Settings → Secrets and variables → Actions → New repository secret** :
-   nom `CLASPRC_JSON`, valeur = le texte copié. Supprimer ensuite le fichier : `rm ~/.clasprc.json`.
-6. GitHub → **Actions → Envoyer le serveur vers Apps Script → Run workflow**.
-
-L'autorisation se retire à tout moment sur https://myaccount.google.com/permissions (« clasp »).
+- **Serveur** : recollez dans l'éditeur Apps Script les fichiers modifiés (en ouvrant **le fichier du même nom** : jamais dans un autre),
+  puis **Déployer → Gérer les déploiements → ✏️ → Nouvelle version**. L'URL reste la même (ne faites pas « Nouveau déploiement »).
+  Contrôle : fonction `verifierFichiers` (Verification.gs) → « Tout est en place ». Si `FEUILLES` a changé, relancez `installer()`.
 - **Après l'arrivée de Contacts.gs** (droit d'écrire dans Google Contacts) : dans l'éditeur, sélectionnez la fonction `autoriserContacts`, ▶ Exécuter, acceptez le nouveau droit, puis nouvelle version du déploiement.
 - **Appli** : envoyez sur `main`, GitHub redéploie.
 - **Ajouter une étape, un champ ou un document à un type de dossier** : `app/src/types.js` (un seul endroit).
