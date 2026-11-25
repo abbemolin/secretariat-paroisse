@@ -75,6 +75,7 @@ function doPost(e) {
     if (action === 'public.notif') return json_({ ok: true, data: derniereNotifPublique_() });
     if (action === 'public.dons') return json_({ ok: true, data: fonctionActive_('dons') ? causesPubliques_() : [] });
     if (action === 'public.accordBapteme' || action === 'public.accordBaptemeEnvoyer') return json_({ ok: true, data: actionAccordBapteme_(action, p) });
+    if (action === 'public.depot' || action === 'public.depotEnvoyer') return json_({ ok: true, data: actionDepotPublic_(action, p) });
     if (action === 'public.surPlace') return json_({ ok: true, data: infosSurPlacePublic_(p) });
     if (action === 'public.fonctions') return json_({ ok: true, data: fonctionsApp_() });
     if (/^par\./.test(action)) return json_({ ok: true, data: actionParrain_(action, p) });
@@ -182,6 +183,7 @@ var ROUTES = {
   'formulaires.surPlaceEtat': { fn: function (p, s) { return etatSurPlaceRoute_(p, s); }, droit: 'dossiers' },
   'formulaires.retirer':   { fn: function (p, s) { return retirerEnvoiRoute_(p, s); }, droit: 'dossiers' },
   'dossiers.lot':          { fn: function (p, s) { return dossiersLotRoute_(p, s); }, droit: 'dossiers' },
+  'dossiers.lienDepot':    { fn: function (p, s) { return lienDepotRoute_(p, s); }, droit: 'dossiers' },
   'dossiers.reclamer':     { fn: function (p, s) { return reclamerDocumentsRoute_(p, s); }, droit: 'dossiers' },
   'cate.lot':              { fn: function (p, s) { return cateLotRoute_(p, s); } },
   'retraites.lot':         { fn: function (p, s) { return retraitesLotRoute_(p, s); } },

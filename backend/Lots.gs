@@ -72,7 +72,13 @@ function reclamerDocumentsRoute_(p, s) {
     var ctx = { nom: d.nom, enfant: i.enfant_prenoms || i.prenoms || '', documents: docs.map(function (x) { return '- ' + x; }).join('\n') };
     var corps = remplirModeleServeur_(p.corps, ctx), sujet = remplirModeleServeur_(p.sujet, ctx);
     try {
-      GmailApp.sendEmail(mail, sujet, corpsTexte_(corps, p.signature), { name: opts.name, from: opts.from, htmlBody: corpsHtml_(corps, p.signature) });
+      // Bouton « Déposer mes documents » : lien personnel du dossier (pièces envoyées plus tard)
+      var boutons = [];
+      if ((e.docs || []).length) {
+        boutons = [{ texte: 'Déposer mes documents', url: preparerDepot_(d.id, e.docs, s) }];
+        if (corps.indexOf('[Bouton : Déposer mes documents]') === -1) corps += '\n\n[Bouton : Déposer mes documents]';
+      }
+      GmailApp.sendEmail(mail, sujet, corpsTexte_(corps, p.signature, boutons), { name: opts.name, from: opts.from, htmlBody: corpsHtml_(corps, p.signature, boutons) });
       verrou_(function () { var x = trouverDossier_(d.id); ajouterHistorique_(x, s.nom, 'Documents réclamés par mail : ' + docs.join(', ')); ecrireLigne_('Dossiers', x); });
       faits++;
     } catch (er) { ignores.push({ id: d.id, nom: d.nom, raison: er.message }); }

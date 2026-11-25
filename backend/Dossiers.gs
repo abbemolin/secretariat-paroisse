@@ -14,7 +14,7 @@ var TYPES_DOSSIER = {
   confirmand: { nom: 'Confirmand adulte', dossier: 'Confirmands', public: true },
   premiere_communion: { nom: 'Première communion', dossier: 'Premières communions', public: true, collectif: true },
   profession_foi: { nom: 'Profession de foi', dossier: 'Professions de foi', public: true, collectif: true },
-  confirmation_jeune: { nom: 'Confirmation (jeunes)', dossier: 'Confirmations jeunes', public: false, collectif: true },
+  confirmation_jeune: { nom: 'Confirmation (jeunes)', dossier: 'Confirmations jeunes', public: true, collectif: true },
   bapteme_ailleurs: { nom: 'Baptême dans une autre paroisse', dossier: 'Baptêmes dans une autre paroisse', public: false, sansAgenda: true },   // accord du curé (B15) ; mêmes droits que les baptêmes
   parrainage: { nom: 'Certificat parrain / marraine', dossier: 'Certificats parrain marraine', public: false, sansAgenda: true },   // certificat d'aptitude ; mêmes droits que les baptêmes
   recommandation: { nom: 'Lettre de recommandation', dossier: 'Lettres de recommandation', public: false, sansAgenda: true }      // mêmes droits que les baptêmes
@@ -55,6 +55,7 @@ var CHAMPS_PUBLICS = {
   confirmand: { tous: ['nom', 'prenoms', 'telephone', 'email', 'message'], requis: ['nom', 'prenoms', 'telephone', 'email'] },
   premiere_communion: { tous: CHAMPS_ENFANT_, requis: ['enfant_nom', 'enfant_prenoms', 'enfant_naissance_date', 'telephone', 'email', 'preparation'] },
   profession_foi: { tous: CHAMPS_ENFANT_, requis: ['enfant_nom', 'enfant_prenoms', 'enfant_naissance_date', 'telephone', 'email', 'preparation'] },
+  confirmation_jeune: { tous: CHAMPS_ENFANT_.concat(['parrain_marraine']), requis: ['enfant_nom', 'enfant_prenoms', 'enfant_naissance_date', 'telephone', 'email', 'preparation'] },
   parrainage: { tous: ['prenoms', 'nom', 'naissance_date', 'naissance_lieu', 'adresse', 'telephone', 'email', 'bapteme_paroisse', 'bapteme_date',
                        'confirmation', 'confirmation_paroisse', 'confirmation_date', 'premiere_communion', 'charge', 'charge_sacrement',
                        'filleul_prenoms', 'filleul_nom', 'date_prevue', 'paroisse_prevue', 'envoyer_a', 'message'],
@@ -434,7 +435,7 @@ function recevoirDemandePublique_(p) {
     if (v !== undefined && v !== null) infos[k] = String(v).slice(0, k === 'message' ? 3000 : 300).trim();
   });
   conf.requis.forEach(function (k) { if (!infos[k] && !(surPlace && k === 'email')) throw erreur_('INVALIDE', 'Champ obligatoire manquant.'); });
-  if (['bapteme', 'premiere_communion', 'profession_foi'].indexOf(p.type) > -1 && !(infos.pere_nom || infos.mere_nom_jeune_fille)) throw erreur_('INVALIDE', 'Merci d\'indiquer au moins un des parents.');
+  if (['bapteme', 'premiere_communion', 'profession_foi', 'confirmation_jeune'].indexOf(p.type) > -1 && !(infos.pere_nom || infos.mere_nom_jeune_fille)) throw erreur_('INVALIDE', 'Merci d\'indiquer au moins un des parents.');
   if (infos.sexe && ['Garçon', 'Fille'].indexOf(infos.sexe) === -1) delete infos.sexe;
   if (p.type === 'parrainage') {
     if (CHARGES_PARRAIN.indexOf(infos.charge) === -1 || SACREMENTS_PARRAIN.indexOf(infos.charge_sacrement) === -1) throw erreur_('INVALIDE', 'Merci de préciser la charge (parrain ou marraine, baptême ou confirmation).');
@@ -446,11 +447,12 @@ function recevoirDemandePublique_(p) {
   }
   if (infos.preparation && PREPARATIONS.indexOf(infos.preparation) === -1) throw erreur_('INVALIDE', 'Lieu de préparation inconnu.');
   if (p.type === 'profession_foi' && infos.preparation === 'Herrade de Landsberg') throw erreur_('INVALIDE', 'La profession de foi se prépare en 3e : Herrade de Landsberg n\'est pas proposée.');
+  if (p.type === 'confirmation_jeune' && infos.preparation === 'Herrade de Landsberg') throw erreur_('INVALIDE', 'Herrade de Landsberg n\'est pas proposée pour la confirmation.');
   if (infos.preparation === 'Autre école' && !infos.ecole_autre) throw erreur_('INVALIDE', 'Merci de préciser le nom de l\'école.');
   if (TYPES_DOSSIER[p.type].collectif) infos.annee_scolaire = anneeScolaire_();
   if ((infos.email || !surPlace) && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(infos.email || '')) throw erreur_('INVALIDE', 'Adresse e-mail invalide.');
   var certificat = null;
-  if (p.type === 'premiere_communion' || p.type === 'profession_foi') {
+  if (p.type === 'premiere_communion' || p.type === 'profession_foi' || p.type === 'confirmation_jeune') {
     if (infos.bapteme_ou && infos.bapteme_ou !== BAPTISE_A_LA_PAROISSE && infos.bapteme_ou !== 'Dans une autre paroisse') delete infos.bapteme_ou;
     var aLaParoisse = infos.bapteme_ou === BAPTISE_A_LA_PAROISSE;
     if (aLaParoisse && !infos.bapteme_paroisse) infos.bapteme_paroisse = reglages_().paroisse;
@@ -473,7 +475,24 @@ function recevoirDemandePublique_(p) {
     certificat = { octets: oc, type: tf || 'application/octet-stream', ext: ex, cle: 'extrait_bapteme', libelle: 'Extrait d\'acte de baptême (joint au formulaire)' };
   }
 
+  var complete = false;
   var d = verrou_(function () {
+    // Confirmation des jeunes : un jeune déjà inscrit (import du catéchisme) a déjà son dossier → on le complète
+    var existant = p.type === 'confirmation_jeune' ? dossierJeuneExistant_(infos) : null;
+    if (existant) {
+      var don0 = json2_(existant.donnees, {}), i0 = don0.infos = don0.infos || {};
+      Object.keys(infos).forEach(function (k) {
+        if (k === 'message') { if (infos.message) i0.message = [i0.message, infos.message].filter(Boolean).join('\n\n'); }
+        else if (infos[k] && !i0[k]) i0[k] = infos[k];
+      });
+      existant.donnees = JSON.stringify(don0);
+      if (!existant.email && infos.email) existant.email = infos.email;
+      if (!existant.telephone && infos.telephone) existant.telephone = infos.telephone;
+      ajouterHistorique_(existant, surPlace ? surPlace.par : 'Formulaire du site', 'Formulaire d\'inscription reçu : dossier existant complété' + (surPlace ? ' (rempli au secrétariat)' : ''));
+      existant.maj_le = maintenant_(); existant.maj_par = surPlace ? surPlace.par : 'Formulaire';
+      complete = true;
+      return ecrireLigne_('Dossiers', existant);
+    }
     var nouveau = {
       id: uid_(), type: p.type, etat: 'ouvert', cree_le: maintenant_(), source: surPlace ? 'Rempli au secrétariat' : 'Formulaire du site',
       nom: nomDossier_(p.type, infos), email: infos.email || '', telephone: infos.telephone || '',
@@ -507,9 +526,9 @@ function recevoirDemandePublique_(p) {
     journaliser_(null, 'Formulaire rempli au secrétariat', TYPES_DOSSIER[d.type].nom + ' – ' + d.nom + ' (avec ' + surPlace.par + ')');
     return { recu: true, dossier_id: d.id };   // le secrétariat ouvre le dossier ; pas de notification à l'équipe
   }
-  journaliser_(null, 'Demande reçue (site)', TYPES_DOSSIER[d.type].nom + ' – ' + d.nom);
+  journaliser_(null, complete ? 'Inscription reçue (site) : dossier complété' : 'Demande reçue (site)', TYPES_DOSSIER[d.type].nom + ' – ' + d.nom);
   lignes_('Utilisateurs').filter(estActif_).forEach(function (u) {
-    notifier_(u.id, 'Nouvelle demande : ' + TYPES_DOSSIER[d.type].nom, d.nom, '#/dossiers/' + d.id);
+    notifier_(u.id, (complete ? 'Inscription reçue (dossier complété) : ' : 'Nouvelle demande : ') + TYPES_DOSSIER[d.type].nom, d.nom, '#/dossiers/' + d.id);
   });
   return { recu: true };
 }
@@ -521,8 +540,22 @@ function recevoirDemandePublique_(p) {
 var TITRES_COLLECTIFS = { premiere_communion: 'Premières communions', profession_foi: 'Professions de foi', confirmation_jeune: 'Confirmations' };
 
 /** Pour les formulaires (sans connexion) : date de la célébration de l'année et prise de rendez-vous avec le curé. */
+/** Dossier « Confirmation (jeunes) » ouvert pour le même jeune, la même année (même prénom, nom ; même date de naissance si connue). */
+function dossierJeuneExistant_(infos) {
+  var cle = function (x) { return sansAccents_(String(x || '')).replace(/[^a-z]/g, ''); };
+  var prenom = cle(String(infos.enfant_prenoms || '').split(/[\s,]+/)[0]), nom = cle(infos.enfant_nom);
+  if (!prenom || !nom) return null;
+  return lignes_('Dossiers').filter(function (d) {
+    if (d.type !== 'confirmation_jeune' || d.etat === 'annule') return false;
+    var i = json2_(d.donnees, {}).infos || {};
+    if ((i.annee_scolaire || '') !== infos.annee_scolaire) return false;
+    if (cle(i.enfant_nom) !== nom || cle(String(i.enfant_prenoms || '').split(/[\s,]+/)[0]) !== prenom) return false;
+    return !i.enfant_naissance_date || !infos.enfant_naissance_date || String(i.enfant_naissance_date).slice(0, 10) === String(infos.enfant_naissance_date).slice(0, 10);
+  })[0] || null;
+}
+
 function infosPubliques_(p) {
-  if (p.type !== 'premiere_communion' && p.type !== 'profession_foi') throw erreur_('INVALIDE', 'Formulaire inconnu.');
+  if (p.type !== 'premiere_communion' && p.type !== 'profession_foi' && p.type !== 'confirmation_jeune') throw erreur_('INVALIDE', 'Formulaire inconnu.');
   var annee = anneeScolaire_();
   var promo = promotions_()[p.type + '|' + annee] || {};
   var r = reglages_();

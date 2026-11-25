@@ -54,6 +54,11 @@ FORMULAIRES = {
         titre="Inscription à la profession de foi",
         intro="La profession de foi se fait en classe de 3e. Inscrivez votre enfant ici, que la préparation ait lieu à la paroisse ou dans son école.",
         groupes=groupes_enfant(["Paroisse", "Saints Louis et Zélie Martin", "Autre école"], "Classe (3e)")),
+    "confirmation_jeune": dict(
+        titre="Inscription à la confirmation",
+        intro="Vous souhaitez inscrire votre enfant à la préparation au sacrement de confirmation ? Remplissez ce formulaire, que la préparation ait lieu à la paroisse ou dans son école.",
+        groupes=(lambda g: g[:3] + [("Parrain ou marraine de confirmation", [c("parrain_marraine", "Prénom et nom (si déjà choisi)")])] + g[3:])(
+            groupes_enfant(["Paroisse", "Saints Louis et Zélie Martin", "Autre école"], "Classe"))),
     "mariage": dict(
         titre="Demande de mariage",
         intro="Vous souhaitez vous marier à l'église ? Merci de prendre contact le plus tôt possible, idéalement un an avant la date envisagée.",
@@ -310,7 +315,7 @@ def champ_html(ch):
 # Pages autonomes (liens envoyés par mail depuis l'onglet « Formulaires » du secrétariat)
 SLUGS = {"premiere_communion": "premiere-communion", "profession_foi": "profession-de-foi", "bapteme": "demande-bapteme",
          "mariage": "demande-mariage", "catechumene": "bapteme-adulte", "confirmand": "confirmation-adulte",
-         "parrainage": "certificat-parrain", "recommandation": "lettre-recommandation"}
+         "parrainage": "certificat-parrain", "recommandation": "lettre-recommandation", "confirmation_jeune": "confirmation-jeunes"}
 
 sortie = pathlib.Path(__file__).parent
 SITE = sortie / "site"
@@ -331,6 +336,8 @@ for nom in ('paiement', 'livres'):
     (SITE / nom / 'index.html').write_text((sortie / (nom + '.html')).read_text(encoding='utf-8').replace('__URL_SCRIPT__', json.dumps(URL)), encoding='utf-8')
 (SITE / 'accord-bapteme').mkdir(exist_ok=True)
 (SITE / 'accord-bapteme' / 'index.html').write_text((sortie / 'accord-bapteme.html').read_text(encoding='utf-8').replace('__URL_SCRIPT__', json.dumps(URL)), encoding='utf-8')
+(SITE / 'depot').mkdir(exist_ok=True)
+(SITE / 'depot' / 'index.html').write_text((sortie / 'depot.html').read_text(encoding='utf-8').replace('__URL_SCRIPT__', json.dumps(URL)), encoding='utf-8')
 (SITE / 'retraite').mkdir(exist_ok=True)
 (SITE / 'retraite' / 'index.html').write_text((sortie / 'retraite.html').read_text(encoding='utf-8').replace('__URL_SCRIPT__', json.dumps(URL)), encoding='utf-8')
 shutil.copy(sortie.parent / "app" / "public" / "logo-128.png", SITE / "logo-128.png")
@@ -339,8 +346,8 @@ for type_, f in FORMULAIRES.items():
         f'<fieldset{' data-enfant' if titre.startswith('Pour un enfant') else ''}><legend>{titre}</legend><div class="cg-grille">' + "".join(champ_html(ch) for ch in champs) + "</div></fieldset>"
         for titre, champs in f["groupes"])
     html = MODELE.format(type=type_, titre=f["titre"], intro=f["intro"], groupes=groupes, url=json.dumps(URL), a_la_paroisse=json.dumps(A_LA_PAROISSE, ensure_ascii=False),
-                        avec_infos='true' if type_ in ('premiere_communion', 'profession_foi') else 'false',
-                        nom_celebration=json.dumps({'premiere_communion': 'Première communion', 'profession_foi': 'Profession de foi'}.get(type_, ''), ensure_ascii=False))
+                        avec_infos='true' if type_ in ('premiere_communion', 'profession_foi', 'confirmation_jeune') else 'false',
+                        nom_celebration=json.dumps({'premiere_communion': 'Première communion', 'profession_foi': 'Profession de foi', 'confirmation_jeune': 'Confirmation'}.get(type_, ''), ensure_ascii=False))
     (sortie / f"formulaire-{type_}.html").write_text(html, encoding="utf-8")
     print("✓ formulaire-" + type_ + ".html")
     # Pages autonomes (envoyées par mail avec un bouton), hébergées avec l'appli
@@ -358,7 +365,7 @@ for type_, f in FORMULAIRES.items():
 
 # ─── Les pages publiques sont aussi servies par l'appli du secrétariat (secretariat.croix-glorieuse.org) ───
 APP_PUBLIC = sortie.parent / "app" / "public"
-for nom in ('premiere-communion', 'profession-de-foi', 'demande-bapteme', 'demande-mariage', 'bapteme-adulte', 'confirmation-adulte', 'certificat-parrain', 'lettre-recommandation', 'fraternite', 'rejoindre', 'retraite', 'paiement', 'livres', 'accord-bapteme'):
+for nom in ('premiere-communion', 'profession-de-foi', 'demande-bapteme', 'demande-mariage', 'bapteme-adulte', 'confirmation-adulte', 'certificat-parrain', 'lettre-recommandation', 'confirmation-jeunes', 'depot', 'fraternite', 'rejoindre', 'retraite', 'paiement', 'livres', 'accord-bapteme'):
     if (SITE / nom / 'index.html').exists():
         (APP_PUBLIC / nom).mkdir(exist_ok=True)
         shutil.copy(SITE / nom / 'index.html', APP_PUBLIC / nom / 'index.html')

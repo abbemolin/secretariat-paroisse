@@ -11,7 +11,7 @@ export default defineConfig({
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw.js',
-      injectManifest: { globPatterns: ['**/*.{js,css,html,svg,png}', '**/*-latin-*.woff2'], globIgnores: ['{premiere-communion,profession-de-foi,demande-bapteme,demande-mariage,bapteme-adulte,confirmation-adulte,accord-bapteme,certificat-parrain,lettre-recommandation,fraternite,rejoindre,retraite,paiement,livres,formulaires}/**'] },
+      injectManifest: { globPatterns: ['**/*.{js,css,html,svg,png}', '**/*-latin-*.woff2'], globIgnores: ['{premiere-communion,profession-de-foi,demande-bapteme,demande-mariage,bapteme-adulte,confirmation-adulte,accord-bapteme,certificat-parrain,confirmation-jeunes,depot,lettre-recommandation,fraternite,rejoindre,retraite,paiement,livres,formulaires}/**'] },
       includeAssets: ['logo.png', 'logo-128.png', 'apple-touch-icon.png'],
       manifest: {
         name: 'Secrétariat – La Croix glorieuse',
