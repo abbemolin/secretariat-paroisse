@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
+<title>Baptême – accord du curé – Paroisse La Croix glorieuse</title>
+<link rel="icon" href="../logo-128.png"><link rel="apple-touch-icon" href="../logo-128.png">
+<meta name="theme-color" content="#521a22">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#faf7f2;font-family:Arial,Helvetica,sans-serif;color:#2b2224;font-size:16px}
+.entete{background:#521a22;color:#fff;padding:14px 18px;display:flex;align-items:center;gap:12px}
+.entete img{width:44px;height:44px;border-radius:50%;background:#fff}
+.entete b{font-family:Georgia,serif;font-size:19px;display:block}.entete span{font-size:12.5px;color:#e8c9a8}
+main{max-width:560px;margin:0 auto;padding:16px}
+.carte{background:#fff;border-radius:12px;box-shadow:0 1px 8px rgba(82,26,34,.07);padding:16px;margin-bottom:12px}
+h1{font-family:Georgia,serif;color:#521a22;font-size:23px;margin:2px 0 8px}
+h2{font-family:Georgia,serif;color:#521a22;font-size:18px;margin:18px 0 4px}
+.petit{font-size:13.5px;color:#7a6a64;line-height:1.45}
+input{width:100%;border:1px solid #e0d2c6;border-radius:8px;padding:11px;font:inherit;background:#fff}
+label{display:block;font-size:13.5px;color:#6b5b55;margin:10px 0 4px}
+.grille{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}@media(max-width:520px){.grille{grid-template-columns:1fr}}
+.choix{display:flex;align-items:center;gap:10px;margin:8px 0;font-size:15px;cursor:pointer;color:#2b2224}
+.choix input{width:20px;height:20px;flex:none;margin:0;accent-color:#521a22}
+.bouton{display:inline-block;border:0;background:#521a22;color:#fff;border-radius:10px;padding:13px 22px;font-size:16px;font-weight:bold;cursor:pointer;margin-top:16px;width:100%}
+.bouton:disabled{opacity:.6}
+.info{background:#faf3ea;border-left:4px solid #d08c4c;border-radius:6px;padding:10px 12px;font-size:14.5px;margin:10px 0;line-height:1.45}
+.erreur{background:#fdeceb;color:#8a1f17;border-radius:6px;padding:10px 12px;margin:10px 0}
+.ok{background:#e8f5ec;color:#1d5e33;border-radius:6px;padding:12px;margin:10px 0;line-height:1.5}
+.cache{display:none}
+a{color:#a8662e}
+select,textarea{width:100%;border:1px solid #e0d2c6;border-radius:8px;padding:11px;font:inherit;background:#fff}
+textarea{min-height:90px}
+</style></head>
+<body>
+<div class="entete"><img src="../logo-128.png" alt=""><div><b>Baptême</b><span id="sous">Paroisse personnelle La Croix glorieuse</span></div></div>
+<main>
+  <div id="etat" class="info">Chargement…</div>
+  <div id="page"></div>
+</main>
+<script>
+(function () {
+  var URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzSjwHZONGGz0xfWXo_u4MJRYBon8eZZzyTvWNrgo6418zkoOXpzVDx3Q8nthP5rLAleg/exec";
+  var j = new URLSearchParams(location.search).get('j') || '';
+  var d = null;
+  function $(id) { return document.getElementById(id); }
+  function e(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function appel(action, p) {
+    p = p || {}; p.j = j;
+    return fetch(URL_SCRIPT, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: action, payload: p }) })
+      .then(function (r) { return r.json(); }).then(function (r) { if (!r.ok) throw new Error(r.message || 'Erreur'); return r.data; });
+  }
+  function erreur(t) { var z = $('z'); z.className = 'erreur'; z.textContent = t; z.style.display = 'block'; z.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+  // [clé, libellé, type, plein (toute la largeur)]
+  var ENFANT = [['enfant_prenoms', 'Prénoms'], ['enfant_nom', 'Nom'], ['sexe', 'Garçon ou fille', ['', 'Garçon', 'Fille']], ['enfant_naissance_date', 'Date de naissance', 'date'], ['enfant_naissance_lieu', 'Lieu de naissance']];
+  var PARENTS = [['pere_prenom', 'Prénom du père'], ['pere_nom', 'Nom du père'], ['mere_prenom', 'Prénom de la mère'], ['mere_nom_jeune_fille', 'Nom de jeune fille de la mère'],
+    ['adresse', 'Adresse (rue, numéro)', '', 1], ['commune', 'Code postal et commune'], ['telephone', 'Téléphone', 'tel']];
+  var DONNE = [['paroisse_bapteme', 'Paroisse où aura lieu le baptême'], ['commune_bapteme', 'Commune de cette paroisse'], ['diocese_bapteme', 'Diocèse'], ['cure_bapteme', 'Nom du curé de cette paroisse (si vous le connaissez)'], ['date_souhaitee', 'Date prévue du baptême', 'date']];
+  var DEMANDE = [['domicile_paroisse', 'Paroisse de votre domicile'], ['domicile_commune', 'Commune de cette paroisse'], ['domicile_diocese', 'Diocèse'], ['domicile_cure', 'Nom de votre curé (si vous le connaissez)'], ['date_souhaitee', 'Date souhaitée du baptême', 'date']];
+  function champ(c) {
+    var k = c[0], v = d.valeurs[k] || '', lib = c[1] + (d.obligatoires.indexOf(k) > -1 ? ' *' : ''), h;
+    if (Array.isArray(c[2])) h = '<select id="f-' + k + '">' + c[2].map(function (o) { return '<option' + (o === v ? ' selected' : '') + ' value="' + e(o) + '">' + (o ? e(o) : '—') + '</option>'; }).join('') + '</select>';
+    else h = '<input id="f-' + k + '" type="' + (c[2] || 'text') + '" value="' + e(v) + '">';
+    return '<div' + (c[3] ? ' style="grid-column:1/-1"' : '') + '><label for="f-' + k + '">' + e(lib) + '</label>' + h + '</div>';
+  }
+  function groupe(titre, l) { return '<h2>' + titre + '</h2><div class="grille">' + l.map(champ).join('') + '</div>'; }
+  function formulaire() {
+    var donne = d.sens === 'donne';
+    $('page').innerHTML = '<div class="carte"><h1>Accord du curé pour le baptême</h1>' +
+      (d.recu_le ? '<div class="info">Vous avez déjà rempli ce formulaire. Vous pouvez corriger vos réponses et l\'envoyer à nouveau.</div>' : '') +
+      '<p>' + (donne
+        ? 'Vous faites baptiser votre enfant dans une autre paroisse. Ces informations permettent au curé de ' + e(d.paroisse) + ' de préparer et signer son accord (formulaire diocésain B 15), que vous recevrez par mail.'
+        : 'Vous faites baptiser votre enfant à ' + e(d.paroisse) + '. Ces informations permettent de préparer le formulaire diocésain B 15 : vous le recevrez par mail, à faire signer par le curé de votre domicile.') + '</p>' +
+      groupe('L\'enfant', ENFANT) + groupe('Les parents', PARENTS) + groupe(donne ? 'Le baptême' : 'Votre paroisse (domicile)', donne ? DONNE : DEMANDE) +
+      '<h2>Un message (facultatif)</h2><textarea id="f-message">' + e(d.valeurs.message || '') + '</textarea>' +
+      '<label class="choix" style="margin-top:16px"><input type="checkbox" id="consent"><span>J\'accepte que la paroisse utilise ces informations pour la préparation du baptême et le document d\'accord.</span></label>' +
+      '<p class="petit">🔒 Seuls les prêtres et le secrétariat de la paroisse voient ces informations ; elles ne sont transmises à personne d\'autre. Responsable : la paroisse, représentée par le curé — secretariat@croix-glorieuse.org.</p>' +
+      '<div id="z" style="display:none"></div><button class="bouton" id="envoyer">Envoyer</button></div>';
+    $('envoyer').onclick = envoyer;
+  }
+  function envoyer() {
+    var champs = {}, toutes = ENFANT.concat(PARENTS, d.sens === 'donne' ? DONNE : DEMANDE);
+    toutes.forEach(function (c) { champs[c[0]] = $('f-' + c[0]).value.trim(); });
+    champs.message = $('f-message').value.trim();
+    var manque = d.obligatoires.filter(function (k) { return !champs[k]; });
+    if (manque.length) { var x = $('f-' + manque[0]); if (x) x.focus(); return erreur('Merci de remplir les champs marqués d\'une étoile.'); }
+    if (!$('consent').checked) return erreur('Merci de cocher la case d\'accord.');
+    var b = $('envoyer'); b.disabled = true; b.textContent = 'Envoi…';
+    appel('public.accordBaptemeEnvoyer', { champs: champs, consentement: true }).then(function () {
+      $('page').innerHTML = '<div class="carte"><h1>Merci !</h1><div class="ok">Vos réponses sont bien arrivées à la paroisse. ' + (d.sens === 'donne'
+        ? 'Vous recevrez par mail l\'accord signé du curé, à remettre à la paroisse du baptême.'
+        : 'Vous recevrez par mail le formulaire B 15 prérempli, à faire signer par le curé de votre domicile puis à nous rapporter.') + '</div></div>';
+      window.scrollTo(0, 0);
+    }).catch(function (er) { b.disabled = false; b.textContent = 'Envoyer'; erreur(er.message); });
+  }
+  if (!j) { $('etat').className = 'erreur'; $('etat').textContent = 'Lien incomplet. Utilisez le lien reçu par mail de la paroisse.'; return; }
+  appel('public.accordBapteme').then(function (r) { d = r; $('etat').style.display = 'none'; $('sous').textContent = r.paroisse || $('sous').textContent; formulaire(); })
+    .catch(function (er) { $('etat').className = 'erreur'; $('etat').textContent = er.message; });
+})();
+</script>
+</body></html>

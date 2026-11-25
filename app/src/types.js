@@ -39,6 +39,7 @@ export const TYPES = {
         T('adresse', 'Adresse'), T('telephone', 'Téléphone', 'tel'), T('email', 'E-mail', 'email'), T('parents_noms', 'Autres informations sur les parents')] },
       { titre: 'Parrain et marraine', champs: [T('parrain_nom', 'Parrain'), T('parrain_bapteme', 'Baptême / confirmation du parrain (paroisse, date)'), T('marraine_nom', 'Marraine'), T('marraine_bapteme', 'Baptême / confirmation de la marraine (paroisse, date)')] },
       { titre: 'Célébration', champs: [T('date_souhaitee', 'Date souhaitée', 'date'), ...CELEBRATION()] },
+      { titre: 'Paroisse du domicile (accord du curé, B15)', champs: [T('commune', 'Commune du domicile'), T('domicile_paroisse', 'Paroisse du domicile'), T('domicile_commune', 'Commune de cette paroisse'), T('domicile_diocese', 'Diocèse'), T('domicile_cure', 'Nom du curé')] },
       REGISTRE,
       { titre: 'Offrande', champs: [T('offrande', 'Montant reçu')] },
       MESSAGE
@@ -49,8 +50,26 @@ export const TYPES = {
       T('autorisation', 'Autorisation de la paroisse (si hors paroisse)'),
       T('offrande', 'Offrande / participation')
     ],
-    generer: ['B14'],
+    generer: ['B14', 'B15'],
+    accord: true,   // « Envoyer le formulaire » (accord du curé du domicile)
     reponses: ['accuse_bapteme', 'document_manquant']
+  },
+
+  // Famille de la paroisse qui fait baptiser son enfant ailleurs : le curé signe l'accord (Form. B 15)
+  bapteme_ailleurs: {
+    nom: 'Baptême dans une autre paroisse', pluriel: 'Baptêmes ailleurs', couleur: '#7d9bd9',
+    etapes: [T('recue', 'Demande reçue'), T('formulaire', 'Formulaire rempli'), T('accord', 'Accord signé'), T('envoye', 'Accord envoyé à la famille')],
+    sections: [
+      { titre: 'Enfant', champs: [T('enfant_prenoms', 'Prénoms'), T('enfant_nom', 'Nom'), T('sexe', 'Garçon ou fille', 'choix', { choix: ['', 'Garçon', 'Fille'] }), T('enfant_naissance_date', 'Né(e) le', 'date'), T('enfant_naissance_lieu', 'À')] },
+      { titre: 'Parents', champs: [T('pere_prenom', 'Prénom du père'), T('pere_nom', 'Nom du père'), T('mere_prenom', 'Prénom de la mère'), T('mere_nom_jeune_fille', 'Nom de jeune fille de la mère'),
+        T('adresse', 'Adresse'), T('commune', 'Commune'), T('telephone', 'Téléphone', 'tel'), T('email', 'E-mail', 'email')] },
+      { titre: 'Baptême prévu', champs: [T('paroisse_bapteme', 'Paroisse du baptême'), T('commune_bapteme', 'Commune'), T('diocese_bapteme', 'Diocèse'), T('cure_bapteme', 'Curé de cette paroisse'), T('date_souhaitee', 'Date prévue', 'date')] },
+      MESSAGE
+    ],
+    documents: [],
+    generer: ['B15'],
+    accord: true,
+    reponses: []
   },
 
   premiere_communion: {
@@ -208,7 +227,7 @@ export const TYPES = {
   }
 }
 
-export const ORDRE_TYPES = ['bapteme', 'premiere_communion', 'profession_foi', 'confirmation_jeune', 'mariage', 'obseques', 'catechumene', 'confirmand']
+export const ORDRE_TYPES = ['bapteme', 'bapteme_ailleurs', 'premiere_communion', 'profession_foi', 'confirmation_jeune', 'mariage', 'obseques', 'catechumene', 'confirmand']
 
 /** Types suivis par « promotion » (année de réception des sacrements). */
 export const PAR_ANNEE = ['catechumene', 'confirmand', 'premiere_communion', 'profession_foi', 'confirmation_jeune']

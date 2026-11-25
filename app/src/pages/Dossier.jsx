@@ -36,6 +36,7 @@ export default function Dossier() {
   const [courriers, setCourriers] = useState(false)
   const [mail, setMail] = useState(null)
   const [imprimer, setImprimer] = useState(null)
+  const [formAccord, setFormAccord] = useState(false)
   const [envoiPiece, setEnvoiPiece] = useState(null)
   const fichierRef = useRef()
   const docCible = useRef(null)
@@ -256,6 +257,7 @@ export default function Dossier() {
                 return rep && <button key={r} className="btn-clair" disabled={!d.email} onClick={() => ouvrirMail({ reponse: r, contexte: contexteMail })}><Send className="h-4 w-4" />{rep.titre}</button>
               })}
               <button className="btn-clair" disabled={!d.email} onClick={() => ouvrirMail({})}><Mail className="h-4 w-4" />Écrire{d.email ? '' : ' (pas d\'e-mail)'}</button>
+              {t.accord && <button className="btn-clair" disabled={!d.email} onClick={async () => { try { await avantAction(); setFormAccord(true) } catch { /* */ } }}><Send className="h-4 w-4" />Formulaire « accord du curé »{d.email ? '' : ' (pas d\'e-mail)'}</button>}
               {t.generer.map((g) => <button key={g} className="btn-or" onClick={async () => { try { await avantAction(); setImprimer(g) } catch { /* */ } }}><Printer className="h-4 w-4" />{IMPRIMABLES[g].titre}</button>)}
               {(t.actions || []).includes('notifier_paroisses') && <button className="btn-clair" onClick={mailNotificationParoisse}><Church className="h-4 w-4" />Notifier les paroisses de baptême</button>}
               {['confirmand', 'confirmation_jeune'].includes(d.type) && <button className="btn-clair" onClick={mailActeBapteme}><Mail className="h-4 w-4" />Demander l'acte de baptême</button>}
@@ -263,6 +265,11 @@ export default function Dossier() {
               {(t.actions || []).includes('notifier_paroisse_bapteme') && <button className="btn-clair" onClick={mailNotificationParoisse}><Church className="h-4 w-4" />Notifier la paroisse de baptême</button>}
               {(t.actions || []).includes('intention_messe') && <button className="btn-clair" disabled title="Liaison avec l'AppMESSE à venir"><Church className="h-4 w-4" />Intention de messe (AppMESSE, bientôt)</button>}
             </div>
+            {t.accord && (b.infos.accord_envoye_le || b.infos.accord_recu_le || b.infos.accord_b15_envoye_le) && (
+              <p className="mt-3 text-xs text-nuit-600/80">Accord du curé (B15) :{b.infos.accord_envoye_le && <> formulaire envoyé le {dateCourte(b.infos.accord_envoye_le)}</>}
+                {b.infos.accord_recu_le ? <> · <strong className="text-emerald-800">rempli le {dateCourte(b.infos.accord_recu_le)}</strong></> : b.infos.accord_envoye_le ? ' · pas encore rempli' : ''}
+                {b.infos.accord_b15_envoye_le && <> · B15 envoyé le {dateCourte(b.infos.accord_b15_envoye_le)}</>}</p>
+            )}
           </section>
 
           <section className="carte p-4">
@@ -324,7 +331,8 @@ export default function Dossier() {
       </fieldset>
 
       {mail && <Redaction {...mail} onFermer={() => setMail(null)} onEnvoye={async () => { setMail(null); notifier('Message envoyé et rattaché au dossier'); const x = await api('dossiers.lire', { id: d.id }); setD(x); setB(champsEditables(x)) }} />}
-      {imprimer && <Imprimer modele={IMPRIMABLES[imprimer]} dossier={{ ...d, ...b }} reglages={app.reglages}
+      {formAccord && <FormulaireAccord d={d} infos={b.infos} paroisse={app.reglages.paroisse} onFermer={() => setFormAccord(false)} onEnvoye={(x) => { setFormAccord(false); setD(x); setB(champsEditables(x)); notifier('Formulaire envoyé par mail') }} />}
+      {imprimer && <Imprimer modele={IMPRIMABLES[imprimer]} dossier={{ ...d, ...b }} reglages={{ ...app.reglages, cure_nom: app.utilisateurs.find((u) => u.role === 'cure')?.nom || '' }}
         onFermer={() => setImprimer(null)} onArchive={(x, msg) => { setD(x); setB(champsEditables(x)); notifier(msg || 'Document archivé dans le dossier') }} />}
       {courriers && <Courriers dossier={dossierCourant} onFermer={() => setCourriers(false)} onFait={(x) => { setD(x); setB(champsEditables(x)) }} />}
       {registre && <InscriptionRegistre id={d.id} nom={d.nom} onFermer={() => setRegistre(false)} onInscrit={(x) => { setD(x); setB(champsEditables(x)) }} />}
@@ -385,6 +393,20 @@ function Imprimer({ modele, dossier, reglages, onFermer, onArchive }) {
       onFermer()
     } catch (e) { notifier(e.message, 'erreur'); setArchivage(false) }
   }
+  const [padB15, setPadB15] = useState(false)
+  const confirmerB15 = useConfirmer()
+  async function envoyerB15(png) {
+    const signe = typeof png === 'string'
+    if (!signe && !(await confirmerB15({ titre: 'Envoyer le B15 à la famille', texte: `Le document prérempli part en PDF à ${dossier.email}, avec la demande de le faire signer par le curé de leur domicile. Une copie est archivée dans le dossier.`, bouton: 'Envoyer' }))) return
+    setPadB15(false); setArchivage(true)
+    try {
+      const le = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date())
+      const sign = signe ? { signature: png, sceau: await chargerSceau(), par: utilisateur.nom, le } : {}
+      const { base64 } = await htmlVersPdf(modele.html(v, sign))
+      onArchive(await api('dossiers.envoyerB15', { dossierId: dossier.id, pdf: base64 }), signe ? 'Accord signé, archivé et envoyé à la famille' : 'B15 envoyé à la famille et archivé')
+      onFermer()
+    } catch (e) { notifier(e.message, 'erreur'); setArchivage(false) }
+  }
   async function delivrer() {
     setArchivage(true)
     try { const x = await creerExtrait(v, dossier.id); nav(`/extraits/${x.id}`) } catch (e) { notifier(e.message, 'erreur'); setArchivage(false) }
@@ -394,6 +416,8 @@ function Imprimer({ modele, dossier, reglages, onFermer, onArchive }) {
     <Modale large titre={modele.titre} onFermer={onFermer}
       pied={<><button className="btn-clair mr-auto" onClick={onFermer}>Fermer</button>
         {modele === IMPRIMABLES.B14 && <button className="btn-or" onClick={delivrer} disabled={archivage}><FileText className="h-4 w-4" />Délivrer un extrait signé</button>}
+        {modele === IMPRIMABLES.B15 && dossier.type === 'bapteme_ailleurs' && <button className="btn-or" onClick={() => setPadB15(true)} disabled={archivage || !dossier.email || !(utilisateur.role === 'admin' || utilisateur.acces?.signer)} title={!dossier.email ? 'Pas d\'adresse e-mail dans le dossier' : ''}>{archivage ? <Loader2 className="h-4 w-4 animate-spin" /> : <PenLine className="h-4 w-4" />}Signer et envoyer à la famille</button>}
+        {modele === IMPRIMABLES.B15 && dossier.type === 'bapteme' && <button className="btn-or" onClick={envoyerB15} disabled={archivage || !dossier.email}>{archivage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Envoyer à la famille (à faire signer)</button>}
         {modele === IMPRIMABLES.B6 && <button className="btn-or" onClick={() => setEtapeSig(1)} disabled={archivage}>{archivage ? <Loader2 className="h-4 w-4 animate-spin" /> : <PenLine className="h-4 w-4" />}Faire signer</button>}
         {modele === IMPRIMABLES.B6 && <Aide>Le prêtre ou le diacre signe, puis le catéchumène, sur le même appareil. Le PDF avec le sceau est archivé dans le Drive et l'étape cochée.</Aide>}
         <button className="btn-clair" onClick={archiver} disabled={archivage}>{archivage ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}Archiver (PDF)</button>
@@ -415,6 +439,10 @@ function Imprimer({ modele, dossier, reglages, onFermer, onArchive }) {
         </div>
       </div>
     </Modale>
+    {padB15 && <PadSignature titre="Accord du curé (B15) – signature" nom={utilisateur.nom}
+      consigne={<>Signature de <strong>{utilisateur.nom}</strong>{v.cure_nom && v.cure_nom !== utilisateur.nom ? <> (le document indique « M. {v.cure_nom} »)</> : null}.</>}
+      note={`L'accord signé (avec le sceau) est archivé dans le dossier et envoyé en PDF à ${dossier.email}.`}
+      onFermer={() => setPadB15(false)} onValider={envoyerB15} />}
     {etapeSig === 1 && <PadSignature titre="B6 – signature 1/2 : prêtre ou diacre" nom={v.ministre || utilisateur.nom}
       consigne={<>Signature de <strong>{v.ministre || utilisateur.nom}</strong>, qui accueille le catéchumène.</>}
       note="Ensuite, passez l'appareil au catéchumène pour sa signature."
@@ -709,5 +737,34 @@ function EspaceDossier({ d, onMaj }) {
         corps={`Bonjour ${d.infos?.prenoms || ''},\n\nVoici le lien de votre espace personnel « La Croix glorieuse ». Vous y trouverez votre parcours vers le baptême, le calendrier, les textes que nous vous enverrons, et vous pourrez compléter votre dossier (informations, pièces, et y déposer votre lettre à l'évêque).\n[Bouton : ${B}]\n\nÀ la première visite, choisissez votre mot de passe : un code vous sera envoyé par mail. Vous pourrez ensuite installer l'application sur votre téléphone pour être prévenu(e) des nouveaux textes.\n\nAvec l'assurance de nos prières à toutes vos intentions,`}
         boutons={[{ texte: B, url: e.lien }]} dossier={d} onFermer={() => setMail(false)} onEnvoye={() => { setMail(false); notifier('Lien envoyé') }} />}
     </div>
+  )
+}
+
+/** Mail au demandeur avec le lien du formulaire en ligne (accord du curé, B15). */
+function FormulaireAccord({ d, infos, paroisse, onFermer, onEnvoye }) {
+  const notifier = useNotif()
+  const donne = d.type === 'bapteme_ailleurs', enfant = infos.enfant_prenoms ? ' de ' + infos.enfant_prenoms : ' de votre enfant'
+  const [sujet, setSujet] = useState('Baptême' + enfant + ' – accord du curé')
+  const [texte, setTexte] = useState('Bonjour,\n\n' + (donne
+    ? `Vous souhaitez faire baptiser votre enfant dans une autre paroisse. Pour que le curé de ${paroisse} puisse vous donner son accord (formulaire diocésain B 15), merci de compléter ce formulaire en ligne pour le baptême${enfant}.`
+    : `Vous souhaitez faire baptiser votre enfant à ${paroisse}. Comme vous habitez sur le territoire d'une autre paroisse, l'accord de votre curé est nécessaire (formulaire diocésain B 15). Merci de compléter ce formulaire en ligne : nous vous enverrons ensuite le document prérempli, à faire signer par votre curé.`) +
+    '\n\nCela prend quelques minutes.')
+  const [envoi, setEnvoi] = useState(false)
+  async function envoyer() {
+    setEnvoi(true)
+    try { onEnvoye(await api('dossiers.formulaireAccord', { id: d.id, sujet, texte })) } catch (e) { notifier(e.message, 'erreur'); setEnvoi(false) }
+  }
+  return (
+    <Modale titre="Formulaire « accord du curé »" onFermer={onFermer}
+      pied={<><button className="btn-clair" onClick={onFermer}>Annuler</button><button className="btn-principal" onClick={envoyer} disabled={envoi}>{envoi ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Envoyer à {d.email}</button></>}>
+      <p className="mb-3 text-xs text-nuit-600/70">{donne
+        ? 'La famille indique ses coordonnées et la paroisse où aura lieu le baptême ; le dossier se remplit. Vous signez ensuite l\'accord (B15) dans l\'appli et il part en PDF à la famille.'
+        : 'La famille indique sa paroisse de domicile ; le dossier se remplit. Vous envoyez ensuite le B15 prérempli à la famille, qui le fait signer par son curé et le rapporte (document « Autorisation »).'}
+        {infos.accord_envoye_le && ' Le lien envoyé le ' + dateCourte(infos.accord_envoye_le) + ' reste valable.'}</p>
+      <label className="etiquette">Objet</label>
+      <input className="champ mb-3" value={sujet} onChange={(e) => setSujet(e.target.value)} />
+      <label className="etiquette">Message (le bouton « Remplir le formulaire » et la formule de fin sont ajoutés)</label>
+      <textarea className="champ min-h-[170px]" value={texte} onChange={(e) => setTexte(e.target.value)} />
+    </Modale>
   )
 }
