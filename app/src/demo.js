@@ -372,7 +372,7 @@ export async function demoApi(action, p) {
     case 'agenda.creer': { const e = { ...p, id: 'e' + Date.now(), recurrent: false, dossier: '' }; etat.evenements.push(e); return e }
     case 'agenda.modifier': { const e = etat.evenements.find((x) => x.id === p.id); Object.assign(e, p); if (e.dossier) etat.dossiers.find((d) => d.id === e.dossier).date_celebration = p.debut; return e }
     case 'agenda.supprimer': { const e = etat.evenements.find((x) => x.id === p.id); if (e?.dossier) etat.dossiers.find((d) => d.id === e.dossier).date_celebration = ''; etat.evenements = etat.evenements.filter((x) => x.id !== p.id); return true }
-    case 'dossiers.liste': return etat.dossiers.map((d) => ({ ...resume(d), fraternite: fratDemo(d.id) || undefined })).sort((a, b) => b.maj_le.localeCompare(a.maj_le))
+    case 'dossiers.liste': return etat.dossiers.map((d, k) => ({ ...resume(d), fraternite: fratDemo(d.id) || undefined, app: d.type === 'catechumene' ? { etat: ['installee', 'ouverte', 'jamais', 'aucun'][k % 4], installee_le: k % 4 ? '' : new Date().toISOString(), vu_le: k % 4 < 2 ? new Date().toISOString() : '' } : undefined })).sort((a, b) => b.maj_le.localeCompare(a.maj_le))
     case 'dossiers.lire': { const d = complet(etat.dossiers.find((x) => x.id === p.id)); return { ...d, fraternite: fratDemo(d.id) } }
     case 'dossiers.importerCatechumenes': {
       const trouve = (x) => etat.dossiers.find((d) => d.type === 'catechumene' && String(d.infos.nom || '').toLowerCase() === String(x.nom).toLowerCase() && String(d.infos.prenoms || '').split(' ')[0].toLowerCase() === String(x.prenoms).split(' ')[0].toLowerCase())
@@ -625,7 +625,7 @@ export async function demoApi(action, p) {
     case 'propositions.liste': return [{ id: 'p1', type: 'parcours', titre: 'Avent : un pas par jour (exemple)', debut: '2026-11-29', fin: '2026-12-24', statut: 'publiee', nb_etapes: 26, abonnes: 12 }]
     case 'propositions.lire': return { id: 'p1', type: 'parcours', titre: 'Avent : un pas par jour (exemple)', resume: '', image: '', debut: '2026-11-29', statut: 'publiee', etapes: [{ id: 'e1', titre: 'Veillez', texte: 'Texte d\'exemple', bible: 'Mt 24, 42', jour: '2026-11-29' }] }
     case 'propositions.ecrire': case 'propositions.dupliquer': case 'propositions.supprimer': case 'propositions.audio':
-    case 'annonces.notifier': case 'paroissiens.donsEcrire': case 'paroissiens.moderer': case 'paroissiens.lot':
+    case 'annonces.notifier': case 'paroissiens.donsEcrire': case 'paroissiens.moderer': case 'paroissiens.lot': case 'espace.envoyerLiens':
     case 'paroissiens.modifier': case 'paroissiens.inviter': case 'paroissiens.migrer': throw new Error('Démo : rien n\'est enregistré ni envoyé.')
     case 'charte.etat': case 'charte.accepter': return { acceptee_le: new Date().toISOString(), a_accepter: false, texte: [], responsable: '', contact: '' }
     default: throw new Error('Démo : action non simulée ' + action)

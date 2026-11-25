@@ -177,8 +177,11 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
       }, 150);
     });
   }
+  // L'app ouverte depuis l'écran d'accueil (installée) : signalé au secrétariat à l'ouverture, pour savoir qui l'a installée.
+  function installee() { try { return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; } catch (x) { return false; } }
   function appelCpt(action, p) {
     p = p || {}; p.cs = sessionCpt();
+    if (action === 'cpt.lire' && installee()) p.installee = true;
     return fetch(URL_SCRIPT, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: action, payload: p }) })
       .then(function (r) { return r.json(); }).then(function (r) {
         if (!r.ok) { if (r.code === 'SESSION' && p.cs) { ecrireSessionCpt(''); if (MODE === 'p') visiteur(); } var er = new Error(r.message || 'Erreur'); er.code = r.code; throw er; }
@@ -190,6 +193,7 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     if (MODE === 'p') return appelCpt(action.replace(/^esp\./, 'cpt.'), p);
     if (MODE === 'v') return Promise.reject(new Error('Connectez-vous pour utiliser cette fonction.'));
     p = p || {}; p.c = c; p.session = session();
+    if (action === 'esp.lire' && installee()) p.installee = true;
     return fetch(URL_SCRIPT, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: action, payload: p }) })
       .then(function (r) { return r.json(); }).then(function (r) {
         if (!r.ok) { if (r.code === 'SESSION') { ecrireSession(''); try { localStorage.removeItem('esp_d_' + c); } catch (x) {} demarrer(); } var er = new Error(r.message || 'Erreur'); er.code = r.code; throw er; }

@@ -6,7 +6,7 @@
  * les textes publiés pour elle. Notification sur le téléphone à chaque nouveau texte.
  */
 
-var COLONNES_ESPACES = ['dossier_id', 'jeton', 'hash', 'sel', 'mdp_maj', 'cree_le', 'derniere_visite', 'prefs', 'favoris'];
+var COLONNES_ESPACES = ['dossier_id', 'jeton', 'hash', 'sel', 'mdp_maj', 'cree_le', 'derniere_visite', 'prefs', 'favoris', 'installee_le'];
 var COLONNES_TEXTES = ['id', 'cree_le', 'auteur', 'titre', 'corps', 'cible', 'fichiers', 'liens', 'lus', 'maj_le'];
 var COLONNES_CALENDRIER = ['id', 'date', 'heure_debut', 'heure_fin', 'titre', 'lieu', 'cible', 'note', 'parrains'];
 var ESPACE_SESSION_JOURS = 90;
@@ -165,7 +165,7 @@ function actionEspace_(action, p) {
 
   if (action === 'esp.lire') {
     // dernière visite écrite une fois par jour au plus (pas de verrou général à chaque ouverture)
-    if (String(esp.derniere_visite || '').slice(0, 10) !== aujourdhui_()) verrou_(function () { var x = lignes_('Espaces').filter(function (y) { return y.dossier_id === esp.dossier_id; })[0]; x.derniere_visite = maintenant_(); ecrireLigne_('Espaces', x); });
+    noterVisiteEspace_(esp.dossier_id, !!p.installee, true);
     try { var cpv = compteParDossier_(esp.dossier_id); if (cpv) noterVisiteCompte_(cpv); } catch (e) {}
     return vueEspace_(d);
   }
@@ -560,6 +560,54 @@ function demandeCorEspace_(d, preferences) {
 
 // ─── Administration (appli) ───
 
+/** Visite de l'espace (une écriture par jour au plus) ; installee : l'app est ouverte depuis l'écran d'accueil du téléphone. */
+function noterVisiteEspace_(dossierId, installee, visite) {
+  feuillesEspace_();
+  var x = lignes_('Espaces').filter(function (y) { return y.dossier_id === dossierId; })[0], auj = aujourdhui_();
+  if (!x) return;
+  var v = visite && String(x.derniere_visite || '').slice(0, 10) !== auj, i = installee && String(x.installee_le || '').slice(0, 10) !== auj;
+  if (!v && !i) return;
+  try { verrou_(function () { var y = lignes_('Espaces').filter(function (z) { return z.dossier_id === dossierId; })[0]; if (v) y.derniere_visite = maintenant_(); if (i) y.installee_le = maintenant_(); ecrireLigne_('Espaces', y); }); } catch (e) {}
+}
+/** État de l'app pour la liste des catéchumènes : installee · ouverte (navigateur) · jamais (lien pas encore ouvert) · aucun (espace pas créé). */
+function etatsAppEspaces_() {
+  feuillesEspace_();
+  var r = {}, comptes = {};
+  try { feuilleComptes_(); lignes_('Comptes').forEach(function (c) { if (c.dossier_id) comptes[c.dossier_id] = c; }); } catch (e) {}
+  lignes_('Espaces').forEach(function (x) {
+    var c = comptes[x.dossier_id] || {};
+    var vu = x.derniere_visite || x.mdp_maj || c.derniere_visite || '';
+    r[x.dossier_id] = { etat: x.installee_le ? 'installee' : vu ? 'ouverte' : 'jamais', installee_le: x.installee_le || '', vu_le: [x.derniere_visite, c.derniere_visite].filter(String).sort().pop() || '' };
+  });
+  return r;
+}
+/** « Renvoyer le lien de l'app » à plusieurs catéchumènes : espace créé si besoin, un mail personnel à chacun ({prenom}, [Bouton : Ouvrir mon espace]). */
+function envoyerLiensEspaceRoute_(p, s) {
+  var ids = idsLot_(p), quota = MailApp.getRemainingDailyQuota();
+  if (ids.length > quota) throw erreur_('QUOTA', 'Quota Gmail insuffisant aujourd\'hui : ' + quota + ' envois restants.');
+  var opts = optionsEnvoi_(), faits = 0, crees = 0, ignores = [];
+  ids.forEach(function (id) {
+    var d;
+    try { d = trouverDossier_(id); } catch (e) { ignores.push({ id: id, nom: id, raison: 'introuvable' }); return; }
+    if (d.type !== 'catechumene') { ignores.push({ id: id, nom: d.nom, raison: 'pas un catéchumène' }); return; }
+    if (!peutModifier_(s, 'dossiers', d.type)) { ignores.push({ id: id, nom: d.nom, raison: 'pas le droit de modifier' }); return; }
+    var mail = String(mailDossier_(d) || '').split(/[\s,;]+/).filter(String)[0];
+    if (!mail) { ignores.push({ id: id, nom: d.nom, raison: 'pas d\'adresse e-mail' }); return; }
+    try {
+      if (!espaceDuDossier_(id)) { lienEspace_({ id: id }, s); crees++; }
+      var esp = espaceDuDossier_(id), i = json2_(d.donnees, {}).infos || {};
+      var ctx = { prenom: String(i.prenoms || d.nom).split(' ')[0], nom: d.nom };
+      var corps = remplirModeleServeur_(p.corps, ctx), sujet = remplirModeleServeur_(p.sujet, ctx);
+      var boutons = [{ texte: 'Ouvrir mon espace', url: urlEspace_(esp.jeton) }];
+      if (!/\[Bouton : Ouvrir mon espace\]/.test(corps)) corps += '\n[Bouton : Ouvrir mon espace]';
+      GmailApp.sendEmail(mail, sujet, corpsTexte_(corps, p.signature, boutons), { name: opts.name, from: opts.from, htmlBody: corpsHtml_(corps, p.signature, boutons) });
+      verrou_(function () { var x = trouverDossier_(id); ajouterHistorique_(x, s.nom, 'Lien de l\'espace personnel envoyé par mail'); ecrireLigne_('Dossiers', x); });
+      faits++;
+    } catch (e) { ignores.push({ id: id, nom: d.nom, raison: e.message }); }
+  });
+  journaliser_(s, 'Catéchuménat : liens de l\'espace personnel envoyés', faits + ' mail(s)' + (crees ? ', ' + crees + ' espace(s) créé(s)' : ''));
+  return { faits: faits, crees: crees, ignores: ignores };
+}
 function espaceDuDossier_(id) {
   feuillesEspace_();
   return lignes_('Espaces').filter(function (y) { return y.dossier_id === id; })[0];
