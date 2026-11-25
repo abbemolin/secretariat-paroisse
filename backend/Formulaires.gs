@@ -5,6 +5,13 @@
  * Les envois du bouton « Formulaire « accord du curé » » d'un dossier apparaissent aussi dans le suivi.
  * Accès : chacun voit et envoie les formulaires des sortes de dossiers auxquelles il a accès.
  * RGPD : la liste garde l'adresse et le nom du destinataire ; un envoi est retiré à la demande, ou effacé après un an.
+ *
+ * « Remplir sur place » : le formulaire est rempli au secrétariat, avec la personne, sans mail.
+ *  - lien à usage unique (?p=…), valable 24 h : sur l'écran du secrétariat (« Remplir ici ») ou par QR code sur son téléphone ;
+ *  - l'adresse e-mail devient facultative ; la personne coche elle-même la case de consentement ;
+ *  - accusé de réception par mail au choix (case cochée par défaut) ; le dossier créé s'ouvre au secrétariat ;
+ *  - pas d'entrée dans le suivi des envois : le dossier garde la trace (« rempli au secrétariat avec … »).
+ *  RGPD : le jeton (propriété « surplace_… ») ne contient ni nom ni adresse ; effacé 48 h après sa création.
  */
 
 var FORMULAIRES_ENVOI = {
@@ -128,8 +135,76 @@ function retirerEnvoiRoute_(p, s) {
   });
   return listerFormulairesRoute_(p, s);
 }
-/** Entretien de nuit (RGPD) : envois de plus d'un an effacés. */
+// ─── Remplir sur place ───
+
+var DUREE_SUR_PLACE = 24 * 3600000;
+function lienSurPlace_(cle, jeton) {
+  var f = FORMULAIRES_ENVOI[cle];
+  return baseFormulaires_() + (/^accord_/.test(cle) ? 'accord-bapteme' : f.slug) + '/?p=' + jeton;
+}
+function surPlaceRoute_(p, s) {
+  var cle = String(p.formulaire || ''), f = FORMULAIRES_ENVOI[cle];
+  if (!f) throw erreur_('INVALIDE', 'Formulaire inconnu.');
+  if (!peutEnvoyer_(s, cle)) throw interdit_('Vous n\'avez pas accès à ces dossiers.');
+  var jeton = jeton_(), le = new Date();
+  props_().setProperty('surplace_' + jeton, JSON.stringify({ f: cle, par: s.nom, uid: s.uid, le: le.toISOString(), dossier: '' }));
+  journaliser_(s, 'Formulaire à remplir sur place', f.nom);
+  return { jeton: jeton, formulaire: cle, slug: /^accord_/.test(cle) ? 'accord-bapteme' : f.slug, lien: lienSurPlace_(cle, jeton),
+    expire_le: new Date(le.getTime() + DUREE_SUR_PLACE).toISOString() };
+}
+function lireSurPlace_(jeton) {
+  if (!/^[a-f0-9]{32}$/.test(String(jeton || ''))) return null;
+  return json2_(props_().getProperty('surplace_' + jeton), null);
+}
+/** Jeton valable (24 h, une seule réponse) pour l'un des formulaires donnés ; sinon erreur LIEN. */
+function exigerSurPlace_(jeton, cles) {
+  var x = lireSurPlace_(jeton);
+  if (!x || cles.indexOf(x.f) === -1) throw erreur_('LIEN', 'Ce lien n\'est pas valable. Demandez un nouveau code au secrétariat.');
+  if (x.dossier) throw erreur_('LIEN', 'Ce formulaire a déjà été rempli. Demandez un nouveau code au secrétariat.');
+  if (Date.now() - new Date(x.le).getTime() > DUREE_SUR_PLACE) throw erreur_('LIEN', 'Ce lien a expiré (24 h). Demandez un nouveau code au secrétariat.');
+  return x;
+}
+/** Le formulaire sur place a été rempli : jeton marqué (plus réutilisable), dossier retenu pour l'ouvrir au secrétariat. */
+function finirSurPlace_(jeton, dossierId) {
+  var x = lireSurPlace_(jeton);
+  if (!x) return;
+  x.dossier = dossierId; x.rempli_le = maintenant_();
+  props_().setProperty('surplace_' + jeton, JSON.stringify(x));
+}
+/** Page publique : le lien sur place est-il valable ? (sans donnée personnelle) */
+function infosSurPlacePublic_(p) {
+  compteurChef_('surplace_' + String(p.p || '').slice(0, 32), 60, 3600, 'Trop de demandes en peu de temps. Réessayez dans une heure.');
+  var x = exigerSurPlace_(p.p, Object.keys(FORMULAIRES_ENVOI));
+  return { formulaire: x.f, nom: FORMULAIRES_ENVOI[x.f].nom, expire_le: new Date(new Date(x.le).getTime() + DUREE_SUR_PLACE).toISOString() };
+}
+/** Secrétariat : le formulaire a-t-il été rempli (pour ouvrir le dossier créé) ? */
+function etatSurPlaceRoute_(p, s) {
+  var x = lireSurPlace_(p.jeton);
+  if (!x) return { existe: false };
+  if (!peutEnvoyer_(s, x.f)) throw interdit_('Vous n\'avez pas accès à ces dossiers.');
+  return { existe: true, dossier_id: x.dossier || '', expire: Date.now() - new Date(x.le).getTime() > DUREE_SUR_PLACE };
+}
+/** Accusé de réception (formulaire sur place, si la personne a donné son adresse et que la case est cochée). */
+function accuseSurPlace_(cle, mail) {
+  if (!normMail_(mail)) return;
+  try {
+    var opts = optionsEnvoi_(), nom = (FORMULAIRES_ENVOI[cle] || {}).nom || 'votre demande';
+    var texte = 'Bonjour,\n\nNous avons bien reçu votre demande : « ' + nom + ' ». Le secrétariat de la paroisse reviendra vers vous pour la suite.' +
+      '\n\nAvec l\'assurance de nos prières à toutes vos intentions,';
+    GmailApp.sendEmail(normMail_(mail), 'Accusé de réception – ' + nom, corpsTexte_(texte, 'paroisse'), { name: opts.name, from: opts.from, htmlBody: corpsHtml_(texte, 'paroisse') });
+  } catch (e) { console.error('accuseSurPlace_', e); }
+}
+/** Clé du formulaire d'envoi correspondant à une sorte de dossier du site (hors accords). */
+function cleFormulaireDeType_(type) {
+  return Object.keys(FORMULAIRES_ENVOI).filter(function (k) { return !/^accord_/.test(k) && FORMULAIRES_ENVOI[k].sorte === type; })[0] || '';
+}
+
+/** Entretien de nuit (RGPD) : envois de plus d'un an effacés ; liens « sur place » de plus de 48 h effacés. */
 function entretienEnvois_() {
+  var tout = props_().getProperties(), lim = Date.now() - 2 * DUREE_SUR_PLACE;
+  Object.keys(tout).forEach(function (k) {
+    if (k.indexOf('surplace_') === 0 && !(new Date(json2_(tout[k], {}).le).getTime() > lim)) props_().deleteProperty(k);
+  });
   if (!db_().getSheetByName('Envois')) return;
   var limite = new Date(Date.now() - 365 * 86400000).toISOString(), n = 0;
   verrou_(function () {

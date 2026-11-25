@@ -1,12 +1,13 @@
-import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Send, Loader2, RotateCw, Trash2, Printer, FileText, ClipboardList, CheckCircle2, Clock, FolderHeart, School } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Send, Loader2, RotateCw, Trash2, Printer, FileText, ClipboardList, CheckCircle2, Clock, FolderHeart, School, UserRound, MonitorSmartphone, QrCode } from 'lucide-react'
 import { api } from '../api.js'
 import { useApp } from '../App.jsx'
 import { Chargement, Erreur, EnTete, Modale, Vide, Aide, dateCourte, heure, useCharger, useConfirmer, useNotif } from '../ui.jsx'
 import { anneeScolaireActuelle } from '../types.js'
 import { IMPRIMABLES } from '../imprimables.js'
 import { Imprimer } from './Dossier.jsx'
+import qrcode from '../qrcode.js'
 
 const VUES = [['envoyer', 'Envoyer un formulaire'], ['suivi', 'Suivi des envois'], ['documents', 'Documents à imprimer']]
 const B = 'Remplir le formulaire'
@@ -43,6 +44,7 @@ function texteParDefaut(cle, { paroisse, vers, promo, rdv }) {
 export default function Formulaires() {
   const [vue, setVue] = useState('envoyer')
   const [envoi, setEnvoi] = useState(null)
+  const [surPlace, setSurPlace] = useState(null)
   const { data, chargement, erreur, recharger, setData } = useCharger(() => api('formulaires.liste'), [])
   const nonRemplis = (data?.envois || []).filter((x) => !x.rempli_le).length
   return (
@@ -56,20 +58,84 @@ export default function Formulaires() {
       {chargement && !data ? <Chargement /> : vue === 'envoyer' ? (
         !data?.catalogue?.length ? <Vide icone={ClipboardList} texte="Aucun formulaire : vous n'avez accès à aucune sorte de dossier." /> : (
           <>
-            <p className="mb-3 text-sm text-nuit-600">Le destinataire reçoit un mail avec un bouton vers le formulaire. <strong>Le dossier se crée quand il le remplit</strong> ; vous suivez la réponse dans « Suivi des envois ».</p>
+            <p className="mb-3 text-sm text-nuit-600"><strong>Par mail</strong> : le destinataire reçoit un bouton vers le formulaire ; vous suivez la réponse dans « Suivi des envois ».
+              {' '}<strong>Sur place</strong> : vous le remplissez avec la personne, sur votre écran ou sur son téléphone (QR code), sans mail. <strong>Le dossier se crée quand le formulaire est rempli.</strong></p>
             <div className="grid gap-3 sm:grid-cols-2">
               {data.catalogue.map((f) => (
-                <button key={f.cle} onClick={() => setEnvoi(f)} className="carte flex items-center gap-3 p-4 text-left hover:border-or">
-                  <Send className="h-5 w-5 shrink-0 text-or-600" />
-                  <div><div className="font-medium">{f.nom}</div>{f.ecole && <div className="text-xs text-nuit-600/70">À un parent ou à une école</div>}</div>
-                </button>
+                <div key={f.cle} className="carte p-4">
+                  <div className="font-medium">{f.nom}</div>
+                  {f.ecole && <div className="text-xs text-nuit-600/70">Par mail : à un parent ou à une école</div>}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button className="btn-clair h-8 py-1 text-xs" onClick={() => setEnvoi(f)}><Send className="h-3.5 w-3.5" />Envoyer par mail</button>
+                    <button className="btn-clair h-8 py-1 text-xs" onClick={() => setSurPlace(f)}><UserRound className="h-3.5 w-3.5" />Remplir sur place</button>
+                  </div>
+                </div>
               ))}
             </div>
           </>
         )
       ) : vue === 'suivi' ? <Suivi envois={data?.envois || []} setData={setData} /> : <Documents />}
+      {surPlace && <SurPlaceModale f={surPlace} onFermer={() => setSurPlace(null)} />}
       {envoi && <EnvoiModale f={envoi} onFermer={() => setEnvoi(null)} onEnvoye={(r) => { setData(r); setEnvoi(null); setVue('suivi') }} />}
     </>
+  )
+}
+
+/** Remplir un formulaire avec la personne, sans mail : sur cet écran, ou sur son téléphone par QR code (lien à usage unique, 24 h). */
+function SurPlaceModale({ f, onFermer }) {
+  const notifier = useNotif()
+  const nav = useNavigate()
+  // Un seul lien par ouverture de la fenêtre (pas d'actualisation automatique : le QR code ne doit pas changer)
+  const [sp, setSp] = useState(null)
+  const [erreur, setErreur] = useState(null)
+  const [essai, setEssai] = useState(0)
+  useEffect(() => {
+    let actif = true
+    setErreur(null)
+    api('formulaires.surPlace', { formulaire: f.cle }).then((r) => actif && setSp(r)).catch((e) => actif && setErreur(e))
+    return () => { actif = false }
+  }, [f.cle, essai])
+  const recharger = () => setEssai((n) => n + 1)
+  const lien = sp?.lien || ''
+  const qr = useMemo(() => {
+    if (!lien) return ''
+    try { const q = qrcode(0, 'M'); q.addData(lien); q.make(); return q.createDataURL(6, 4) } catch { return '' }
+  }, [lien])
+  // Rempli sur son téléphone : le dossier créé s'ouvre ici
+  useEffect(() => {
+    if (!sp?.jeton || sp.demo) return
+    let fini = false
+    const t = setInterval(async () => {
+      try {
+        const r = await api('formulaires.surPlaceEtat', { jeton: sp.jeton })
+        if (!fini && r.dossier_id) { fini = true; clearInterval(t); notifier('Formulaire rempli : dossier créé'); nav(`/dossiers/${r.dossier_id}`) }
+      } catch { /* réseau : on réessaie */ }
+    }, 4000)
+    return () => { fini = true; clearInterval(t) }
+  }, [sp?.jeton])
+  function remplirIci() {
+    const base = location.href.split('#')[0].replace(/[?].*$/, '').replace(/[^/]*$/, '')
+    location.href = `${base}${sp.slug}/?p=${sp.jeton}&ici=1`
+  }
+  return (
+    <Modale titre={f.nom} onFermer={onFermer} pied={<button className="btn-clair" onClick={onFermer}>Fermer</button>}>
+      <Erreur erreur={erreur} reessayer={recharger} />
+      {!sp ? !erreur && <Chargement /> : (
+        <div className="space-y-4">
+          <button className="btn-principal w-full justify-center py-3" onClick={remplirIci}><MonitorSmartphone className="h-5 w-5" />Remplir ici, sur cet écran</button>
+          <div className="rounded-lg border border-nuit-100 p-4 text-center">
+            <div className="mb-2 flex items-center justify-center gap-2 text-sm font-medium"><QrCode className="h-4 w-4 text-or-600" />Ou sur le téléphone de la personne</div>
+            {qr ? <img src={qr} alt="QR code du formulaire" className="mx-auto h-56 w-56" style={{ imageRendering: 'pixelated' }} /> : <p className="text-xs text-nuit-600/70 break-all">{sp.lien}</p>}
+            <p className="mt-2 text-xs text-nuit-600/80">Elle scanne ce code avec l'appareil photo et remplit le formulaire. Gardez cette fenêtre ouverte : le dossier s'ouvrira ici dès qu'elle aura envoyé.</p>
+          </div>
+          <ul className="space-y-1 text-xs text-nuit-600/80">
+            <li>• Lien valable 24 h, pour une seule réponse (jusqu'au {dateCourte(sp.expire_le)} à {heure(sp.expire_le)}).</li>
+            <li>• L'adresse e-mail est facultative ; si elle est donnée, un accusé de réception peut être envoyé (case cochée par défaut).</li>
+            <li>• 🔒 La personne coche elle-même la case de consentement. Le dossier garde la mention « rempli au secrétariat » avec votre nom.</li>
+          </ul>
+        </div>
+      )}
+    </Modale>
   )
 }
 
