@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Plus, HeartHandshake, Check, X, HelpCircle, Mail, PauseCircle, PlayCircle, Trash2, Send, Users, ShieldCheck, Crown, Loader2, Search, FolderHeart, UserCheck, UserX, Home, Eraser, RefreshCw, Archive } from 'lucide-react'
 import { api } from '../api.js'
 import { useApp } from '../App.jsx'
+import FonctionFermee from '../FonctionFermee.jsx'
 import { Chargement, Erreur, EnTete, Modale, Vide, dateCourte, dateHeure, useCharger, useConfirmer, useNotif } from '../ui.jsx'
 
 const COULEUR = {
@@ -59,6 +60,7 @@ export default function Paroissiens() {
     <>
       <EnTete titre="App des paroissiens" sousTitre="app.croix-glorieuse.org — demandes d'accès et comptes"
         actions={(utilisateur.role === 'admin' || utilisateur.role === 'cure') && data && !data.migration && <button className="btn-clair" disabled={!!occupe} onClick={migrer}>{occupe === 'migrer' && <Loader2 className="h-4 w-4 animate-spin" />}Reprendre les espaces des catéchumènes</button>} />
+      <FonctionFermee cle="comptes" texte="L'app des paroissiens est fermée : pas de connexion par adresse e-mail ni de demande d'accès." />
       <RappelRgpd />
       <div className="mb-4 flex gap-1 rounded-lg bg-nuit-50 p-1 text-sm">
         {VUES.map(([k, l]) => <button key={k} onClick={() => setVue(k)} className={`flex-1 rounded-md px-3 py-1.5 ${vue === k ? 'bg-white font-semibold text-nuit shadow-sm' : 'text-nuit-600'}`}>{l}{k === 'demandes' && demandes.length > 0 && <span className="ml-1.5 rounded-full bg-or px-1.5 text-[11px] font-bold text-white">{demandes.length}</span>}</button>)}

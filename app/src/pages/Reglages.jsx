@@ -14,7 +14,8 @@ import LiturgieReglages from './LiturgieReglages.jsx'
 export default function Reglages() {
   const { utilisateur } = useApp()
   const onglets = ONGLETS_REGLAGES.filter((o) => ongletPermis(utilisateur, o))
-  const [onglet, setOnglet] = useState(onglets[0])
+  if (utilisateur.role === 'admin' || utilisateur.role === 'cure') onglets.splice(1, 0, 'App des paroissiens')
+  const [onglet, setOnglet] = useState(new URLSearchParams(location.hash.split('?')[1] || '').get('onglet') === 'app' && onglets.includes('App des paroissiens') ? 'App des paroissiens' : onglets[0])
   return (
     <>
       <div className="mb-5"><h1 className="text-3xl font-semibold">Réglages</h1><p className="text-sm text-nuit-600/80">Paroisse, signatures, réponses types, tri des mails, journal des actions</p></div>
@@ -22,6 +23,7 @@ export default function Reglages() {
         {onglets.map((o) => <button key={o} onClick={() => setOnglet(o)} className={`pastille shrink-0 border px-3 py-1.5 text-sm ${onglet === o ? 'border-nuit bg-nuit text-white' : 'border-nuit-100 bg-white text-nuit-600'}`}>{o}</button>)}
       </div>
       {onglet === 'Paroisse' && <Paroisse />}
+      {onglet === 'App des paroissiens' && <FonctionsApp />}
       {onglet === 'Signatures' && <Signatures />}
       {onglet === 'Réponses types' && <Reponses />}
       {onglet === 'Modèles' && <Modeles />}
@@ -619,6 +621,47 @@ function PaiementsReglages() {
               <span className="font-medium">{(x.montant || 0).toLocaleString('fr-FR')} €</span><span className={`pastille ${STATUTS_PAIEMENT[x.statut]?.[1] || ''}`}>{STATUTS_PAIEMENT[x.statut]?.[0] || x.statut}</span></li>))}</ul>
         )}
       </div>
+    </div>
+  )
+}
+
+/** Interrupteurs des fonctions de l'app des paroissiens (curé et administrateurs). Rien n'est supprimé. */
+function FonctionsApp() {
+  const notifier = useNotif()
+  const { majDonnees } = useApp()
+  const { data, chargement, erreur, recharger, setData } = useCharger(() => api('fonctions.lire'), [])
+  const [occupe, setOccupe] = useState('')
+  async function basculer(cle, v) {
+    setOccupe(cle)
+    try {
+      const r = await api('fonctions.ecrire', { etat: { [cle]: v } })
+      setData(r); majDonnees({ fonctions: r.etat })
+      notifier((r.fonctions.find((f) => f.cle === cle)?.nom || '') + (v ? ' : activé' : ' : désactivé'))
+    } catch (e) { notifier(e.message, 'erreur') } finally { setOccupe('') }
+  }
+  if (chargement && !data) return <Chargement />
+  if (erreur) return <Erreur erreur={erreur} reessayer={recharger} />
+  const comptes = data.etat.comptes
+  return (
+    <div className="max-w-3xl space-y-3">
+      <p className="text-sm text-nuit-600">Activez ou désactivez chaque fonction de l'app des paroissiens (app.croix-glorieuse.org). <strong>Rien n'est supprimé</strong> : une fonction désactivée
+        disparaît de l'app — pour les paroissiens et dans l'espace des catéchumènes — et ses envois automatiques s'arrêtent. Les effacements RGPD continuent dans tous les cas.
+        Tout désactivé, l'app est comme avant : Bible et agenda pour tous, espace des catéchumènes et néophytes par leur lien.</p>
+      <div className="carte divide-y divide-nuit-50">
+        {data.fonctions.map((f) => {
+          const avecComptes = (f.cle === 'foyers' || f.cle === 'fraternite') && !comptes
+          return (
+            <div key={f.cle} className="flex items-start gap-3 px-4 py-3">
+              <div className="min-w-0 flex-1">
+                <div className="font-medium">{f.nom}</div>
+                <div className="text-xs text-nuit-600/80">{f.aide}{avecComptes && data.etat[f.cle] ? ' — sans effet tant que les comptes des paroissiens sont fermés.' : ''}</div>
+              </div>
+              {occupe === f.cle ? <Loader2 className="mt-1 h-5 w-5 animate-spin text-nuit-600" /> : <Interrupteur actif={!!data.etat[f.cle]} disabled={!data.modifiable || !!occupe} onChange={(v) => basculer(f.cle, v)} />}
+            </div>
+          )
+        })}
+      </div>
+      <p className="text-xs text-nuit-600/70">Chaque changement est noté au journal. Les pages « App des paroissiens » et « Propositions » restent dans le menu pour tout préparer.</p>
     </div>
   )
 }

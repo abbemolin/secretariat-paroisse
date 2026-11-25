@@ -23,6 +23,7 @@ function destinatairesAnnonces_() {
   return uids;
 }
 function notifierAnnonce_(p, s) {
+  exigerFonction_('annonces');
   var a = (sb_('get', '/rest/v1/annonces?select=id,titre,actif&id=eq.' + encodeURIComponent(p.id)) || [])[0];
   if (!a) throw erreur_('INTROUVABLE', 'Annonce introuvable.');
   if (!a.actif) throw erreur_('INVALIDE', 'Activez d\'abord l\'annonce : les paroissiens ne voient que les annonces actives.');

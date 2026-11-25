@@ -5,6 +5,7 @@ import { Megaphone, Plus, Pencil, Trash2, Flag, Check, Circle, GripVertical, Cal
 import { api, fichierEnBase64 } from '../api.js'
 import { Chargement, EnTete, Erreur, Interrupteur, Modale, Vide, useCharger, useConfirmer, useNotif } from '../ui.jsx'
 import { isoLocal } from '../annonces/semaine.js'
+import { useApp } from '../App.jsx'
 
 const FILTRES = [['toutes', 'Toutes'], ['actives', 'Actives'], ['prioritaires', 'Prioritaires'], ['inactives', 'Inactives']]
 const fmtDate = (iso) => (iso ? new Date(iso + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '')
@@ -164,6 +165,7 @@ export default function Annonces() {
 }
 
 function Carte({ a, glisse, poignee, onModifier, onDupliquer, onSupprimer, onPrio, onActif, onNotifier }) {
+  const { fonctions } = useApp()
   const expiree = a.date_fin && a.date_fin < aujourdhui()
   const chips = []
   if (a.event_date) chips.push([CalendarDays, fmtDate(a.event_date) + (a.event_heure ? ' à ' + a.event_heure.slice(0, 5) : ''), 'bg-or-50 text-or-600'])
@@ -191,7 +193,7 @@ function Carte({ a, glisse, poignee, onModifier, onDupliquer, onSupprimer, onPri
         <button className={`btn text-xs ${a.actif ? 'bg-emerald-50 text-emerald-800' : 'text-nuit-600 hover:bg-nuit-50'}`} onClick={onActif}>{a.actif ? <Check className="h-3.5 w-3.5" /> : <Circle className="h-3.5 w-3.5" />}{a.actif ? 'Active' : 'Inactive'}</button>
         <button className="btn text-xs text-nuit-600 hover:bg-nuit-50" onClick={onModifier}><Pencil className="h-3.5 w-3.5" />Modifier</button>
         <button className="btn text-xs text-nuit-600 hover:bg-nuit-50" onClick={onDupliquer}><CopyPlus className="h-3.5 w-3.5" />Dupliquer</button>
-        {a.actif && !a._enAttente && <button className="btn text-xs text-nuit-600 hover:bg-nuit-50" onClick={onNotifier} title="Notification sur les téléphones des paroissiens"><BellRing className="h-3.5 w-3.5" />Notifier</button>}
+        {a.actif && !a._enAttente && fonctions?.annonces && <button className="btn text-xs text-nuit-600 hover:bg-nuit-50" onClick={onNotifier} title="Notification sur les téléphones des paroissiens"><BellRing className="h-3.5 w-3.5" />Notifier</button>}
         <button className="btn ml-auto text-xs text-red-700 hover:bg-red-50" onClick={onSupprimer}><Trash2 className="h-3.5 w-3.5" />Supprimer</button>
       </div>
     </div>
@@ -211,8 +213,9 @@ function Fiche({ annonce, onFermer, onEnregistre }) {
   const [imageOk, setImageOk] = useState(true)
   const fichier = useRef(null)
   const ch = (k) => (e) => setF({ ...f, [k]: e.target.value })
+  const { fonctions } = useApp()
   const [causes, setCauses] = useState(null)
-  useEffect(() => { api('paroissiens.dons').then(setCauses).catch(() => setCauses([])) }, [])
+  useEffect(() => { if (fonctions?.dons) api('paroissiens.dons').then(setCauses).catch(() => setCauses([])); else setCauses([]) }, [fonctions?.dons])
 
   async function envoyerImage(e) {
     const x = e.target.files?.[0]

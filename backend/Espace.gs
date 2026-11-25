@@ -116,6 +116,7 @@ function actionEspace_(action, p) {
 
   var ctx = espaceParJeton_(p.c), esp = ctx.esp, d = ctx.d;
   var i0 = json2_(d.donnees, {}).infos || {};
+  var fonc = fonctionDeAction_(action); if (fonc) exigerFonction_(fonc);   // fonctions de l'app désactivées (Réglages)
   if (action === 'esp.etat') {
     var m = mailDossier_(d);
     return { prenom: i0.prenoms || '', mot_de_passe: !!esp.hash, mail: m ? masquerMail_(m) : '', session: sessionEspValide_(esp, p.session), cle_push: clePubliquePush_() };
@@ -387,7 +388,8 @@ function vueEspace_(d) {
     parrains: (don.parrains || []).map(function (z) { return parrainVue_(z, true); }), fraternite: frat,
     calendrier: cal, textes: textes, paroisse: reglages_().paroisse,
     annonces: annoncesPubliques_(),
-    dons: causesPubliques_()
+    dons: fonctionActive_('dons') ? causesPubliques_() : [],
+    fonctions: fonctionsApp_()
   };
 }
 
