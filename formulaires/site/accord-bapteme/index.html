@@ -39,12 +39,12 @@ textarea{min-height:90px}
 <script>
 (function () {
   var URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzSjwHZONGGz0xfWXo_u4MJRYBon8eZZzyTvWNrgo6418zkoOXpzVDx3Q8nthP5rLAleg/exec";
-  var q = new URLSearchParams(location.search), j = q.get('j') || '', ev = q.get('e') || '';
+  var q = new URLSearchParams(location.search), j = q.get('j') || '', ev = q.get('e') || '', sp = q.get('p') || '', ici = q.get('ici') === '1';
   var d = null;
   function $(id) { return document.getElementById(id); }
   function e(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   function appel(action, p) {
-    p = p || {}; if (j) p.j = j; if (ev) p.e = ev;
+    p = p || {}; if (j) p.j = j; if (ev) p.e = ev; if (sp && !j && !ev) p.p = sp;
     return fetch(URL_SCRIPT, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: action, payload: p }) })
       .then(function (r) { return r.json(); }).then(function (r) { if (!r.ok) throw new Error(r.message || 'Erreur'); return r.data; });
   }
@@ -65,11 +65,14 @@ textarea{min-height:90px}
   function formulaire() {
     var donne = d.sens === 'donne';
     $('page').innerHTML = '<div class="carte"><h1>Accord du curé pour le baptême</h1>' +
+      (d.sur_place ? '<div class="info"><strong>Formulaire rempli au secrétariat de la paroisse.</strong> L\'adresse e-mail est facultative.' + (ici ? ' <a href="../#/formulaires">Annuler et revenir au secrétariat</a>' : '') + '</div>' : '') +
       (d.recu_le ? '<div class="info">Vous avez déjà rempli ce formulaire. Vous pouvez corriger vos réponses et l\'envoyer à nouveau.</div>' : '') +
       '<p>' + (donne
         ? 'Vous faites baptiser votre enfant dans une autre paroisse. Ces informations permettent au curé de ' + e(d.paroisse) + ' de préparer et signer son accord (formulaire diocésain B 15), que vous recevrez par mail.'
         : 'Vous faites baptiser votre enfant à ' + e(d.paroisse) + '. Ces informations permettent de préparer le formulaire diocésain B 15 : vous le recevrez par mail, à faire signer par le curé de votre domicile.') + '</p>' +
       groupe('L\'enfant', ENFANT) + groupe('Les parents', PARENTS) + groupe(donne ? 'Le baptême' : 'Votre paroisse (domicile)', donne ? DONNE : DEMANDE) +
+      (d.sur_place ? '<h2>Pour vous joindre</h2><label for="f-email">E-mail (facultatif)</label><input id="f-email" type="email" autocomplete="email">' +
+        '<label class="choix"><input type="checkbox" id="accuse" checked><span>Envoyer un accusé de réception à cette adresse</span></label>' : '') +
       '<h2>Un message (facultatif)</h2><textarea id="f-message">' + e(d.valeurs.message || '') + '</textarea>' +
       '<label class="choix" style="margin-top:16px"><input type="checkbox" id="consent"><span>J\'accepte que la paroisse utilise ces informations pour la préparation du baptême et le document d\'accord.</span></label>' +
       '<p class="petit">🔒 Seuls les prêtres et le secrétariat de la paroisse voient ces informations ; elles ne sont transmises à personne d\'autre. Responsable : la paroisse, représentée par le curé — secretariat@croix-glorieuse.org.</p>' +
@@ -83,15 +86,22 @@ textarea{min-height:90px}
     var manque = d.obligatoires.filter(function (k) { return !champs[k]; });
     if (manque.length) { var x = $('f-' + manque[0]); if (x) x.focus(); return erreur('Merci de remplir les champs marqués d\'une étoile.'); }
     if (!$('consent').checked) return erreur('Merci de cocher la case d\'accord.');
+    var extra = {};
+    if (d.sur_place) {
+      extra.email = $('f-email').value.trim(); extra.accuse = $('accuse').checked;
+      if (extra.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(extra.email)) { $('f-email').focus(); return erreur('Adresse e-mail invalide.'); }
+    }
     var b = $('envoyer'); b.disabled = true; b.textContent = 'Envoi…';
-    appel('public.accordBaptemeEnvoyer', { champs: champs, consentement: true }).then(function () {
+    appel('public.accordBaptemeEnvoyer', Object.assign({ champs: champs, consentement: true }, extra)).then(function (r) {
+      if (d.sur_place && ici && r && r.dossier_id) { location.href = '../#/dossiers/' + r.dossier_id; return; }
+      if (d.sur_place) { $('page').innerHTML = '<div class="carte"><h1>Merci !</h1><div class="ok">Vos réponses sont bien arrivées au secrétariat de la paroisse.</div></div>'; window.scrollTo(0, 0); return; }
       $('page').innerHTML = '<div class="carte"><h1>Merci !</h1><div class="ok">Vos réponses sont bien arrivées à la paroisse. ' + (d.sens === 'donne'
         ? 'Vous recevrez par mail l\'accord signé du curé, à remettre à la paroisse du baptême.'
         : 'Vous recevrez par mail le formulaire B 15 prérempli, à faire signer par le curé de votre domicile puis à nous rapporter.') + '</div></div>';
       window.scrollTo(0, 0);
     }).catch(function (er) { b.disabled = false; b.textContent = 'Envoyer'; erreur(er.message); });
   }
-  if (!j && !ev) { $('etat').className = 'erreur'; $('etat').textContent = 'Lien incomplet. Utilisez le lien reçu par mail de la paroisse.'; return; }
+  if (!j && !ev && !sp) { $('etat').className = 'erreur'; $('etat').textContent = 'Lien incomplet. Utilisez le lien reçu par mail de la paroisse.'; return; }
   appel('public.accordBapteme').then(function (r) { d = r; $('etat').style.display = 'none'; $('sous').textContent = r.paroisse || $('sous').textContent; formulaire(); })
     .catch(function (er) { $('etat').className = 'erreur'; $('etat').textContent = er.message; });
 })();

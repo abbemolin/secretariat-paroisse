@@ -75,6 +75,7 @@ function doPost(e) {
     if (action === 'public.notif') return json_({ ok: true, data: derniereNotifPublique_() });
     if (action === 'public.dons') return json_({ ok: true, data: fonctionActive_('dons') ? causesPubliques_() : [] });
     if (action === 'public.accordBapteme' || action === 'public.accordBaptemeEnvoyer') return json_({ ok: true, data: actionAccordBapteme_(action, p) });
+    if (action === 'public.surPlace') return json_({ ok: true, data: infosSurPlacePublic_(p) });
     if (action === 'public.fonctions') return json_({ ok: true, data: fonctionsApp_() });
     if (/^par\./.test(action)) return json_({ ok: true, data: actionParrain_(action, p) });
     if (/^rej\./.test(action)) return json_({ ok: true, data: actionRejoindre_(action, p) });
@@ -177,6 +178,8 @@ var ROUTES = {
   'formulaires.liste':     { fn: function (p, s) { return listerFormulairesRoute_(p, s); }, droit: 'dossiers' },
   'formulaires.envoyer':   { fn: function (p, s) { return envoyerFormulaireRoute_(p, s); }, droit: 'dossiers' },
   'formulaires.relancer':  { fn: function (p, s) { return relancerFormulaireRoute_(p, s); }, droit: 'dossiers' },
+  'formulaires.surPlace':  { fn: function (p, s) { return surPlaceRoute_(p, s); }, droit: 'dossiers' },
+  'formulaires.surPlaceEtat': { fn: function (p, s) { return etatSurPlaceRoute_(p, s); }, droit: 'dossiers' },
   'formulaires.retirer':   { fn: function (p, s) { return retirerEnvoiRoute_(p, s); }, droit: 'dossiers' },
   'dossiers.lot':          { fn: function (p, s) { return dossiersLotRoute_(p, s); }, droit: 'dossiers' },
   'dossiers.reclamer':     { fn: function (p, s) { return reclamerDocumentsRoute_(p, s); }, droit: 'dossiers' },

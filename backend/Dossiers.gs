@@ -418,18 +418,22 @@ function recevoirDemandePublique_(p) {
   if (!conf) throw erreur_('INVALIDE', 'Formulaire inconnu.');
   if (p.site_web) return { recu: true };                // pot de miel anti-robots : on ignore sans le dire
   if (!p.consentement) throw erreur_('INVALIDE', 'Merci d\'accepter l\'utilisation de vos données.');
-  // Limite : 20 demandes par heure au total
-  var cache = CacheService.getScriptCache();
-  var n = Number(cache.get('public_n') || 0);
-  if (n >= 20) throw erreur_('LIMITE', 'Trop de demandes en ce moment. Merci de réessayer plus tard ou d\'écrire à ' + CONFIG.ALIAS + '.');
-  cache.put('public_n', String(n + 1), 3600);
+  // Rempli au secrétariat (« sur place ») : lien à usage unique, adresse e-mail facultative
+  var surPlace = p.surplace ? exigerSurPlace_(p.surplace, [cleFormulaireDeType_(p.type)]) : null;
+  if (!surPlace) {
+    // Limite : 20 demandes par heure au total
+    var cache = CacheService.getScriptCache();
+    var n = Number(cache.get('public_n') || 0);
+    if (n >= 20) throw erreur_('LIMITE', 'Trop de demandes en ce moment. Merci de réessayer plus tard ou d\'écrire à ' + CONFIG.ALIAS + '.');
+    cache.put('public_n', String(n + 1), 3600);
+  }
 
   var infos = {};
   conf.tous.forEach(function (k) {
     var v = p.champs && p.champs[k];
     if (v !== undefined && v !== null) infos[k] = String(v).slice(0, k === 'message' ? 3000 : 300).trim();
   });
-  conf.requis.forEach(function (k) { if (!infos[k]) throw erreur_('INVALIDE', 'Champ obligatoire manquant.'); });
+  conf.requis.forEach(function (k) { if (!infos[k] && !(surPlace && k === 'email')) throw erreur_('INVALIDE', 'Champ obligatoire manquant.'); });
   if (['bapteme', 'premiere_communion', 'profession_foi'].indexOf(p.type) > -1 && !(infos.pere_nom || infos.mere_nom_jeune_fille)) throw erreur_('INVALIDE', 'Merci d\'indiquer au moins un des parents.');
   if (infos.sexe && ['Garçon', 'Fille'].indexOf(infos.sexe) === -1) delete infos.sexe;
   if (p.type === 'parrainage') {
@@ -444,7 +448,7 @@ function recevoirDemandePublique_(p) {
   if (p.type === 'profession_foi' && infos.preparation === 'Herrade de Landsberg') throw erreur_('INVALIDE', 'La profession de foi se prépare en 3e : Herrade de Landsberg n\'est pas proposée.');
   if (infos.preparation === 'Autre école' && !infos.ecole_autre) throw erreur_('INVALIDE', 'Merci de préciser le nom de l\'école.');
   if (TYPES_DOSSIER[p.type].collectif) infos.annee_scolaire = anneeScolaire_();
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(infos.email || '')) throw erreur_('INVALIDE', 'Adresse e-mail invalide.');
+  if ((infos.email || !surPlace) && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(infos.email || '')) throw erreur_('INVALIDE', 'Adresse e-mail invalide.');
   var certificat = null;
   if (p.type === 'premiere_communion' || p.type === 'profession_foi') {
     if (infos.bapteme_ou && infos.bapteme_ou !== BAPTISE_A_LA_PAROISSE && infos.bapteme_ou !== 'Dans une autre paroisse') delete infos.bapteme_ou;
@@ -471,13 +475,13 @@ function recevoirDemandePublique_(p) {
 
   var d = verrou_(function () {
     var nouveau = {
-      id: uid_(), type: p.type, etat: 'ouvert', cree_le: maintenant_(), source: 'Formulaire du site',
-      nom: nomDossier_(p.type, infos), email: infos.email, telephone: infos.telephone || '',
+      id: uid_(), type: p.type, etat: 'ouvert', cree_le: maintenant_(), source: surPlace ? 'Rempli au secrétariat' : 'Formulaire du site',
+      nom: nomDossier_(p.type, infos), email: infos.email || '', telephone: infos.telephone || '',
       date_celebration: '', evenement_id: '', responsable: '',
       donnees: JSON.stringify({ infos: infos, etapes: {}, documents: {}, rencontres: [], pieces: [], fils: [], historique: [] }),
       maj_le: maintenant_(), maj_par: 'Formulaire'
     };
-    ajouterHistorique_(nouveau, 'Formulaire du site', 'Demande reçue');
+    ajouterHistorique_(nouveau, surPlace ? surPlace.par : 'Formulaire du site', surPlace ? 'Formulaire rempli au secrétariat avec ' + surPlace.par : 'Demande reçue');
     return ecrireLigne_('Dossiers', nouveau);
   });
   if (certificat) {
@@ -496,7 +500,13 @@ function recevoirDemandePublique_(p) {
       });
     } catch (e) { console.error('certificat formulaire', e); }
   }
-  if (p.envoi) marquerEnvoi_(String(p.envoi), d.id);   // formulaire envoyé depuis l'onglet « Formulaires »
+  if (p.envoi && !surPlace) marquerEnvoi_(String(p.envoi), d.id);   // formulaire envoyé depuis l'onglet « Formulaires »
+  if (surPlace) {
+    finirSurPlace_(p.surplace, d.id);
+    if (p.accuse && infos.email) accuseSurPlace_(surPlace.f, infos.email);
+    journaliser_(null, 'Formulaire rempli au secrétariat', TYPES_DOSSIER[d.type].nom + ' – ' + d.nom + ' (avec ' + surPlace.par + ')');
+    return { recu: true, dossier_id: d.id };   // le secrétariat ouvre le dossier ; pas de notification à l'équipe
+  }
   journaliser_(null, 'Demande reçue (site)', TYPES_DOSSIER[d.type].nom + ' – ' + d.nom);
   lignes_('Utilisateurs').filter(estActif_).forEach(function (u) {
     notifier_(u.id, 'Nouvelle demande : ' + TYPES_DOSSIER[d.type].nom, d.nom, '#/dossiers/' + d.id);

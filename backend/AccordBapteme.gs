@@ -76,9 +76,13 @@ function envoyerFormulaireAccordRoute_(p, s) {
 // ─── Page publique du formulaire (lien personnel) ───
 
 function actionAccordBapteme_(action, p) {
-  compteurChef_('accbap_' + String(p.j || p.e || '').slice(0, 32), 60, 3600, 'Trop de demandes en peu de temps. Réessayez dans une heure.');
-  var d = null, sens, env = null;
-  if (p.e && !p.j) {
+  compteurChef_('accbap_' + String(p.j || p.e || p.p || '').slice(0, 32), 60, 3600, 'Trop de demandes en peu de temps. Réessayez dans une heure.');
+  var d = null, sens, env = null, sp = null;
+  if (p.p && !p.j && !p.e) {
+    // rempli au secrétariat (« sur place ») : le dossier se crée à la réponse, adresse e-mail facultative
+    sp = exigerSurPlace_(p.p, ['accord_ailleurs', 'accord_ici']);
+    sens = sp.f === 'accord_ailleurs' ? 'donne' : 'demande';
+  } else if (p.e && !p.j) {
     // lien envoyé depuis l'onglet « Formulaires » : le dossier se crée à la réponse
     env = envoiParJeton_(p.e);
     if (!env || ['accord_ailleurs', 'accord_ici'].indexOf(env.formulaire) === -1) throw erreur_('LIEN', 'Ce lien n\'est plus valable. Contactez le secrétariat : secretariat@croix-glorieuse.org.');
@@ -92,7 +96,7 @@ function actionAccordBapteme_(action, p) {
   if (action === 'public.accordBapteme') {
     var valeurs = {};
     CHAMPS_ACCORD[sens].forEach(function (k) { if (i[k]) valeurs[k] = i[k]; });
-    return { sens: sens, paroisse: r.paroisse, diocese: r.diocese, valeurs: valeurs, recu_le: i.accord_recu_le || '', obligatoires: OBLIGATOIRES_ACCORD[sens], courriel: !d && !(env && env.email) };
+    return { sens: sens, paroisse: r.paroisse, diocese: r.diocese, valeurs: valeurs, recu_le: i.accord_recu_le || '', obligatoires: OBLIGATOIRES_ACCORD[sens], courriel: !d && !(env && env.email), sur_place: !!sp };
   }
   if (action !== 'public.accordBaptemeEnvoyer') throw erreur_('ACTION', 'Action inconnue.');
   if (p.consentement !== true) throw erreur_('INVALIDE', 'Merci d\'accepter l\'utilisation de ces informations pour la préparation du baptême.');
@@ -104,15 +108,20 @@ function actionAccordBapteme_(action, p) {
   ['enfant_naissance_date', 'date_souhaitee'].forEach(function (k) { if (ch[k] && !/^\d{4}-\d{2}-\d{2}$/.test(ch[k])) ch[k] = ''; });
   var manque = OBLIGATOIRES_ACCORD[sens].filter(function (k) { return !ch[k]; });
   if (manque.length) throw erreur_('INVALIDE', 'Merci de remplir tous les champs marqués d\'une étoile.');
+  var mailSp = '';
+  if (sp) {
+    mailSp = normMail_(p.email) || '';
+    if (String(p.email || '').trim() && !mailSp) throw erreur_('INVALIDE', 'Adresse e-mail invalide.');
+  }
   if (!d) {
     // création du dossier à la réponse
-    var type = sens === 'donne' ? 'bapteme_ailleurs' : 'bapteme';
+    var type = sens === 'donne' ? 'bapteme_ailleurs' : 'bapteme', mail = sp ? mailSp : env.email;
     d = verrou_(function () {
-      var nv = { id: uid_(), type: type, etat: 'ouvert', cree_le: maintenant_(), source: 'Formulaire envoyé (accord du curé)', nom: '', email: env.email, telephone: '',
+      var nv = { id: uid_(), type: type, etat: 'ouvert', cree_le: maintenant_(), source: sp ? 'Rempli au secrétariat (accord du curé)' : 'Formulaire envoyé (accord du curé)', nom: '', email: mail, telephone: '',
         date_celebration: '', evenement_id: '', responsable: '',
-        donnees: JSON.stringify({ infos: { email: env.email, accord_jeton: jeton_(), accord_envoye_le: env.envoye_le }, etapes: { recue: { fait: true, date: maintenant_(), par: 'Formulaire', libelle: 'Demande reçue' } }, documents: {}, rencontres: [], pieces: [], fils: [], historique: [] }),
-        maj_le: maintenant_(), maj_par: 'Formulaire' };
-      ajouterHistorique_(nv, 'Formulaire en ligne', 'Dossier créé par le formulaire « accord du curé » envoyé par ' + env.envoye_par);
+        donnees: JSON.stringify({ infos: { email: mail, accord_jeton: jeton_(), accord_envoye_le: sp ? '' : env.envoye_le }, etapes: { recue: { fait: true, date: maintenant_(), par: sp ? sp.par : 'Formulaire', libelle: 'Demande reçue' } }, documents: {}, rencontres: [], pieces: [], fils: [], historique: [] }),
+        maj_le: maintenant_(), maj_par: sp ? sp.par : 'Formulaire' };
+      ajouterHistorique_(nv, sp ? sp.par : 'Formulaire en ligne', sp ? 'Formulaire « accord du curé » rempli au secrétariat avec ' + sp.par : 'Dossier créé par le formulaire « accord du curé » envoyé par ' + env.envoye_par);
       return ecrireLigne_('Dossiers', nv);
     });
   }
@@ -124,11 +133,17 @@ function actionAccordBapteme_(action, p) {
     if (sens === 'donne') { don.etapes = don.etapes || {}; don.etapes.formulaire = { fait: true, date: maintenant_(), par: 'Formulaire en ligne', libelle: 'Formulaire rempli' }; }
     x.donnees = JSON.stringify(don);
     x.nom = nomDossier_(x.type, inf) || x.nom;
-    ajouterHistorique_(x, 'Formulaire en ligne', 'Formulaire « accord du curé » rempli par la famille');
-    x.maj_le = maintenant_(); x.maj_par = 'Formulaire en ligne';
+    if (!sp) ajouterHistorique_(x, 'Formulaire en ligne', 'Formulaire « accord du curé » rempli par la famille');
+    x.maj_le = maintenant_(); x.maj_par = sp ? sp.par : 'Formulaire en ligne';
     ecrireLigne_('Dossiers', x);
     return x;
   });
+  if (sp) {
+    finirSurPlace_(p.p, d2.id);
+    if (p.accuse && mailSp) accuseSurPlace_(sp.f, mailSp);
+    journaliser_(null, 'Formulaire rempli au secrétariat', 'Accord du curé – ' + d2.nom + ' (avec ' + sp.par + ')');
+    return { ok: true, sens: sens, dossier_id: d2.id };
+  }
   lignes_('Utilisateurs').filter(estActif_).forEach(function (u) {
     var sx = { role: u.role, acces: accesDe_(u) };
     if (u.role === 'admin' || peutLire_(sx, 'dossiers', 'bapteme')) notifier_(u.id, 'Baptême : formulaire reçu', d2.nom + (sens === 'donne' ? ' – accord à signer' : ' – B15 à envoyer à la famille'), '#/dossiers/' + d2.id);
