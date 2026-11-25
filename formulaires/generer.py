@@ -185,7 +185,7 @@ MODELE = """<meta charset="utf-8">
     bouton.disabled = true; bouton.textContent = 'Envoi…';
     lireFichier(sansCopie ? null : fichier).then(function(piece){{
       return fetch(URL_SCRIPT, {{ method: 'POST', headers: {{ 'Content-Type': 'text/plain;charset=utf-8' }},
-        body: JSON.stringify({{ action: 'public.demande', payload: {{ type: '{type}', champs: champs, fichier: piece, consentement: true, site_web: form.site_web.value }} }}) }});
+        body: JSON.stringify({{ action: 'public.demande', payload: {{ type: '{type}', champs: champs, fichier: piece, consentement: true, site_web: form.site_web.value, envoi: (new URLSearchParams(location.search).get('e') || '') }} }}) }});
     }})
       .then(function(r){{ return r.json(); }})
       .then(function(r){{
@@ -240,6 +240,10 @@ def champ_html(ch):
         cls = ""
     return f'<div class="{cls}"><label>{ch["label"]}{etoile}</label>{controle}</div>'
 
+# Pages autonomes (liens envoyés par mail depuis l'onglet « Formulaires » du secrétariat)
+SLUGS = {"premiere_communion": "premiere-communion", "profession_foi": "profession-de-foi", "bapteme": "demande-bapteme",
+         "mariage": "demande-mariage", "catechumene": "bapteme-adulte", "confirmand": "confirmation-adulte"}
+
 sortie = pathlib.Path(__file__).parent
 SITE = sortie / "site"
 SITE.mkdir(exist_ok=True)
@@ -272,21 +276,21 @@ for type_, f in FORMULAIRES.items():
     (sortie / f"formulaire-{type_}.html").write_text(html, encoding="utf-8")
     print("✓ formulaire-" + type_ + ".html")
     # Pages autonomes (envoyées par mail avec un bouton), hébergées avec l'appli
-    if type_ in ("premiere_communion", "profession_foi"):
+    if type_ in SLUGS:
         page = PAGE.format(titre=f["titre"], contenu=html)
         dest = sortie.parent / "app" / "public" / "formulaires"
         dest.mkdir(parents=True, exist_ok=True)
         (dest / f"{type_}.html").write_text(page, encoding="utf-8")
         print("✓ app/public/formulaires/" + type_ + ".html")
         # Site des formulaires à l'adresse de la paroisse (dépôt « formulaires », secretariat.croix-glorieuse.org)
-        slug = {"premiere_communion": "premiere-communion", "profession_foi": "profession-de-foi"}[type_]
+        slug = SLUGS[type_]
         (SITE / slug).mkdir(parents=True, exist_ok=True)
         (SITE / slug / "index.html").write_text(page, encoding="utf-8")
         print("✓ site/" + slug + "/")
 
 # ─── Les pages publiques sont aussi servies par l'appli du secrétariat (secretariat.croix-glorieuse.org) ───
 APP_PUBLIC = sortie.parent / "app" / "public"
-for nom in ('premiere-communion', 'profession-de-foi', 'fraternite', 'rejoindre', 'retraite', 'paiement', 'livres', 'accord-bapteme'):
+for nom in ('premiere-communion', 'profession-de-foi', 'demande-bapteme', 'demande-mariage', 'bapteme-adulte', 'confirmation-adulte', 'fraternite', 'rejoindre', 'retraite', 'paiement', 'livres', 'accord-bapteme'):
     if (SITE / nom / 'index.html').exists():
         (APP_PUBLIC / nom).mkdir(exist_ok=True)
         shutil.copy(SITE / nom / 'index.html', APP_PUBLIC / nom / 'index.html')

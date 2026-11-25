@@ -368,7 +368,7 @@ function Rencontres({ liste, onChange, couleur }) {
   )
 }
 
-function Imprimer({ modele, dossier, reglages, onFermer, onArchive }) {
+export function Imprimer({ modele, dossier, reglages, onFermer, onArchive, libre }) {
   const notifier = useNotif()
   const [v, setV] = useState(() => modele.depuis(dossier, reglages))
   const [archivage, setArchivage] = useState(false)
@@ -415,12 +415,12 @@ function Imprimer({ modele, dossier, reglages, onFermer, onArchive }) {
     <>
     <Modale large titre={modele.titre} onFermer={onFermer}
       pied={<><button className="btn-clair mr-auto" onClick={onFermer}>Fermer</button>
-        {modele === IMPRIMABLES.B14 && <button className="btn-or" onClick={delivrer} disabled={archivage}><FileText className="h-4 w-4" />Délivrer un extrait signé</button>}
-        {modele === IMPRIMABLES.B15 && dossier.type === 'bapteme_ailleurs' && <button className="btn-or" onClick={() => setPadB15(true)} disabled={archivage || !dossier.email || !(utilisateur.role === 'admin' || utilisateur.acces?.signer)} title={!dossier.email ? 'Pas d\'adresse e-mail dans le dossier' : ''}>{archivage ? <Loader2 className="h-4 w-4 animate-spin" /> : <PenLine className="h-4 w-4" />}Signer et envoyer à la famille</button>}
-        {modele === IMPRIMABLES.B15 && dossier.type === 'bapteme' && <button className="btn-or" onClick={envoyerB15} disabled={archivage || !dossier.email}>{archivage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Envoyer à la famille (à faire signer)</button>}
-        {modele === IMPRIMABLES.B6 && <button className="btn-or" onClick={() => setEtapeSig(1)} disabled={archivage}>{archivage ? <Loader2 className="h-4 w-4 animate-spin" /> : <PenLine className="h-4 w-4" />}Faire signer</button>}
-        {modele === IMPRIMABLES.B6 && <Aide>Le prêtre ou le diacre signe, puis le catéchumène, sur le même appareil. Le PDF avec le sceau est archivé dans le Drive et l'étape cochée.</Aide>}
-        <button className="btn-clair" onClick={archiver} disabled={archivage}>{archivage ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}Archiver (PDF)</button>
+        {!libre && modele === IMPRIMABLES.B14 && <button className="btn-or" onClick={delivrer} disabled={archivage}><FileText className="h-4 w-4" />Délivrer un extrait signé</button>}
+        {!libre && modele === IMPRIMABLES.B15 && dossier.type === 'bapteme_ailleurs' && <button className="btn-or" onClick={() => setPadB15(true)} disabled={archivage || !dossier.email || !(utilisateur.role === 'admin' || utilisateur.acces?.signer)} title={!dossier.email ? 'Pas d\'adresse e-mail dans le dossier' : ''}>{archivage ? <Loader2 className="h-4 w-4 animate-spin" /> : <PenLine className="h-4 w-4" />}Signer et envoyer à la famille</button>}
+        {!libre && modele === IMPRIMABLES.B15 && dossier.type === 'bapteme' && <button className="btn-or" onClick={envoyerB15} disabled={archivage || !dossier.email}>{archivage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Envoyer à la famille (à faire signer)</button>}
+        {!libre && modele === IMPRIMABLES.B6 && <button className="btn-or" onClick={() => setEtapeSig(1)} disabled={archivage}>{archivage ? <Loader2 className="h-4 w-4 animate-spin" /> : <PenLine className="h-4 w-4" />}Faire signer</button>}
+        {!libre && modele === IMPRIMABLES.B6 && <Aide>Le prêtre ou le diacre signe, puis le catéchumène, sur le même appareil. Le PDF avec le sceau est archivé dans le Drive et l'étape cochée.</Aide>}
+        {!libre && <button className="btn-clair" onClick={archiver} disabled={archivage}>{archivage ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}Archiver (PDF)</button>}
         <button className="btn-principal" onClick={() => cadre.current.contentWindow.print()}><Printer className="h-4 w-4" />Imprimer</button></>}>
       <div className="grid gap-4 md:grid-cols-[260px_1fr]">
         <div className="space-y-2 md:max-h-[60vh] md:overflow-y-auto md:pr-2">

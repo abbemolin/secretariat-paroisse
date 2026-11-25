@@ -32,6 +32,7 @@ function entretienNocturne() {
   try { entretienComptes_(); } catch (e) { console.error('entretien comptes', e); }
   try { entretienPrieres_(); } catch (e) { console.error('entretien prières', e); }
   try { entretienRgpd_(); } catch (e) { console.error('entretien RGPD', e); }
+  try { entretienEnvois_(); } catch (e) { console.error('entretien envois', e); }
   try { desactiverAnnoncesExpirees_(); } catch (e) { console.error('annonces expirées', e); }
   var jour = Utilities.formatDate(new Date(), 'Europe/Paris', 'u');   // 7 = dimanche
   if (jour === '7') try { sauvegarder_('automatique'); } catch (e) { console.error('sauvegarde', e); }

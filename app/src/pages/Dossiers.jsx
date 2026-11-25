@@ -42,8 +42,7 @@ export default function Dossiers() {
           {type === 'catechumene' && <ImportCatechumenes onFait={recharger} />}
           {type === 'catechumene' && data && <button className="btn-clair" onClick={() => imprimerCatechumenes(liste, annee, reglagesApp.paroisse)}><Printer className="h-4 w-4" /><span className="hidden sm:inline">Imprimer la liste</span></button>}
           {placable && <button className={sel ? 'btn-principal' : 'btn-clair'} onClick={() => setSel(sel ? null : new Set())}><HeartHandshake className="h-4 w-4" /><span className="hidden sm:inline">{sel ? 'Terminer' : 'Placer dans une fraternité'}</span></button>}
-          <button className="btn-clair" onClick={() => setEnvoiForm(true)}><Send className="h-4 w-4" /><span className="hidden sm:inline">Envoyer un formulaire</span></button>
-          <Aide>Envoie par mail, à un parent ou à une école, un bouton vers le formulaire de Première Communion ou de Profession de foi. Les réponses créent les dossiers ; l'acte de baptême est demandé.</Aide>
+          <button className="btn-clair" onClick={() => nav('/formulaires')}><Send className="h-4 w-4" /><span className="hidden sm:inline">Envoyer un formulaire</span></button>
           <button className="btn-clair" onClick={() => nav('/extraits')}><ScrollText className="h-4 w-4" />Extraits</button>
           <button className="btn-or" onClick={() => setNouveau(true)}><Plus className="h-4 w-4" />Nouveau dossier</button>
         </div>
