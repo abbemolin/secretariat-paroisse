@@ -105,8 +105,9 @@ Protection : case de consentement RGPD, champ piège anti-robots, 20 demandes pa
 
 ## Mettre à jour
 
-- **Serveur** : modifiez les fichiers dans l'éditeur Apps Script, puis **Déployer → Gérer les déploiements → ✏️ → Nouvelle version**.
-  L'URL reste la même (ne faites pas « Nouveau déploiement »). Si `FEUILLES` a changé, relancez `installer()` (rien n'est effacé).
+- **Serveur** : recollez dans l'éditeur Apps Script les fichiers modifiés (en ouvrant **le fichier du même nom** : jamais dans un autre),
+  puis **Déployer → Gérer les déploiements → ✏️ → Nouvelle version**. L'URL reste la même (ne faites pas « Nouveau déploiement »).
+  Contrôle : fonction `verifierFichiers` (Verification.gs) → « Tout est en place ». Si `FEUILLES` a changé, relancez `installer()`.
 - **Après l'arrivée de Contacts.gs** (droit d'écrire dans Google Contacts) : dans l'éditeur, sélectionnez la fonction `autoriserContacts`, ▶ Exécuter, acceptez le nouveau droit, puis nouvelle version du déploiement.
 - **Appli** : envoyez sur `main`, GitHub redéploie.
 - **Ajouter une étape, un champ ou un document à un type de dossier** : `app/src/types.js` (un seul endroit).

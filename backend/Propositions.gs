@@ -38,13 +38,13 @@ function lirePropRoute_(p) {
   if (!x) throw erreur_('INTROUVABLE', 'Proposition introuvable.');
   return propEquipe_(x, true);
 }
-function dateIso_(v) { v = String(v || ''); return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : ''; }
+function dateIsoStricte_(v) { v = String(v || ''); return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : ''; }
 function ecrirePropRoute_(p, s) {
   var court = function (v, n) { return String(v == null ? '' : v).trim().slice(0, n); };
   var type = p.type === 'texte' ? 'texte' : 'parcours';
   var titre = court(p.titre, 120);
   if (!titre) throw erreur_('INVALIDE', 'Le titre est obligatoire.');
-  var debut = dateIso_(p.debut);
+  var debut = dateIsoStricte_(p.debut);
   if (!debut) throw erreur_('INVALIDE', type === 'parcours' ? 'Indiquez la date du premier jour.' : 'Indiquez la date de publication.');
   var etapes = (p.etapes || []).slice(0, 120);
   if (type === 'texte') etapes = etapes.slice(0, 1);
@@ -64,7 +64,7 @@ function ecrirePropRoute_(p, s) {
     var avant = lignes_('PropEtapes').filter(function (e) { return e.proposition_id === x.id; });
     var gardes = {};
     etapes.forEach(function (e, k) {
-      var jour = type === 'texte' ? debut : (dateIso_(e.jour) || ajouterJours_(debut, k));
+      var jour = type === 'texte' ? debut : (dateIsoStricte_(e.jour) || ajouterJours_(debut, k));
       var y = avant.filter(function (a) { return a.id === e.id; })[0] || { id: uid_(), proposition_id: x.id };
       y.ordre = k + 1; y.jour = jour; y.titre = court(e.titre, 160); y.texte = court(e.texte, 20000); y.image = court(e.image, 500); y.bible = court(e.bible, 120);
       if (e.audio_id !== undefined) { y.audio_id = court(e.audio_id, 80); y.audio_nom = court(e.audio_nom, 160); }
@@ -80,7 +80,7 @@ function ecrirePropRoute_(p, s) {
   return lirePropRoute_({ id: id });
 }
 function dupliquerPropRoute_(p, s) {
-  var src = lirePropRoute_({ id: p.id }), debut = dateIso_(p.debut);
+  var src = lirePropRoute_({ id: p.id }), debut = dateIsoStricte_(p.debut);
   if (!debut) throw erreur_('INVALIDE', 'Indiquez la nouvelle date du premier jour.');
   var ecart = Math.round((new Date(debut + 'T12:00:00Z') - new Date(src.debut + 'T12:00:00Z')) / 86400000);
   return ecrirePropRoute_({ type: src.type, titre: src.titre, resume: src.resume, image: src.image, debut: debut, statut: 'brouillon',

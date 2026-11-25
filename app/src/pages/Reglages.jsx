@@ -239,8 +239,6 @@ function Sauvegardes() {
     if (ok) { await faire({ restaurer: s.id }, s.id, 'Sauvegarde restaurée.'); setTimeout(() => location.reload(), 1200) }
   }
   return (
-    <>
-    <MiseAJourServeur />
     <div className="carte p-4">
       <Erreur erreur={erreur} />
       <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -262,31 +260,6 @@ function Sauvegardes() {
           )}
         </>
       )}
-    </div>
-    </>
-  )
-}
-
-/** Mise à jour du serveur depuis GitHub (MiseAJour.gs) : état et bouton. */
-function MiseAJourServeur() {
-  const notifier = useNotif()
-  const { data, erreur, setData } = useCharger(() => api('serveur.maj'), [])
-  const [encours, setEncours] = useState(false)
-  async function maintenant() {
-    setEncours(true)
-    try { const r = await api('serveur.maj', { maintenant: true }); setData(r); notifier(r.resultat || 'Fait') } catch (e) { notifier(e.message, 'erreur') } finally { setEncours(false) }
-  }
-  const d = data?.derniere
-  return (
-    <div className="carte mb-4 p-4">
-      <h3 className="mb-1 font-semibold">Mise à jour du serveur</h3>
-      <p className="mb-3 text-sm text-nuit-600/80">Le serveur se met à jour tout seul depuis GitHub (vérification toutes les 15 minutes), seulement si tous les tests sont passés. Plus besoin de copier les fichiers dans Apps Script.</p>
-      <Erreur erreur={erreur} />
-      {data?.erreur && <p className="mb-2 rounded-lg bg-red-50 p-2 text-sm text-red-800">Dernière tentative : {data.erreur}</p>}
-      <div className="flex flex-wrap items-center gap-3">
-        <p className="flex-1 text-xs text-nuit-600/70">{d ? `Dernière mise à jour : ${dateHeure(d.le)} · version ${d.version} · ${d.fichiers} fichiers` : 'Pas encore de mise à jour automatique.'}</p>
-        <button className="btn-clair" disabled={encours} onClick={maintenant}>{encours ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />} Mettre à jour maintenant</button>
-      </div>
     </div>
   )
 }

@@ -34,8 +34,6 @@ jobs:
         env:
           # Facultatif : Settings → Secrets and variables → Actions → Variables → API_URL
           VITE_API_URL: ${{ vars.API_URL }}
-      - name: Fichiers du serveur (lus par MiseAJour.gs pour se mettre à jour tout seul)
-        run: node ../outils/publier-serveur.js dist
       - uses: actions/upload-pages-artifact@v3
         with:
           path: app/dist

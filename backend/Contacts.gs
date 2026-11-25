@@ -377,7 +377,7 @@ function contactsDesAdresses_(textes) {
 
 // ─────────────────────────────── ÉCRITURE ───────────────────────────────
 
-function nettoyerListe_(l, norm) {
+function nettoyerValeurs_(l, norm) {
   var vus = {}, r = [];
   (Array.isArray(l) ? l : String(l || '').split(/[,;|\n]+/)).forEach(function (v) {
     v = String(v || '').trim(); var k = norm(v);
@@ -403,8 +403,8 @@ function personneDepuisFiche_(f, ex) {
   return {
     resourceName: ex.resourceName, etag: ex.etag,
     names: (f.prenom || f.nom || f.civilite) ? [{ givenName: String(f.prenom || '').trim(), familyName: String(f.nom || '').trim(), honorificPrefix: String(f.civilite || '').trim() }] : [],
-    emailAddresses: nettoyerListe_(f.emails, normMail_).map(function (m) { return { value: m, type: typeMail[normMailC_(m)] || 'home' }; }),
-    phoneNumbers: nettoyerListe_(f.tels, cleTelOuTexte_).map(function (t) { return { value: t, type: typeTel[cleTelOuTexte_(t)] || typeTel_(t) }; }),
+    emailAddresses: nettoyerValeurs_(f.emails, normMail_).map(function (m) { return { value: m, type: typeMail[normMailC_(m)] || 'home' }; }),
+    phoneNumbers: nettoyerValeurs_(f.tels, cleTelOuTexte_).map(function (t) { return { value: t, type: typeTel[cleTelOuTexte_(t)] || typeTel_(t) }; }),
     addresses: adresse,
     organizations: String(f.organisation || '').trim() ? [{ name: String(f.organisation).trim() }] : [],
     biographies: String(f.note || '').trim() ? [{ value: String(f.note).trim().slice(0, 3000), contentType: 'TEXT_PLAIN' }] : [],
@@ -566,7 +566,7 @@ function importerContacts_(p, s) {
   var foyers = {};   // clé du fichier → id de foyer
   var nouveaux = [], fusions = {}, identiques = 0, rapport = [];
   lignes.forEach(function (f) {
-    f.emails = nettoyerListe_(f.emails, normMail_); f.tels = nettoyerListe_(f.tels, cleTelOuTexte_);
+    f.emails = nettoyerValeurs_(f.emails, normMail_); f.tels = nettoyerValeurs_(f.tels, cleTelOuTexte_);
     var c = chercherIndex_(ix, f.emails, f.tels);
     if (c && c._nouveau) {   // déjà dans ce lot : on complète
       var a0 = apportsFiche_(c, f);
