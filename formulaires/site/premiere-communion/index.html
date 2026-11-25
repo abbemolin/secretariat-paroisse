@@ -120,7 +120,7 @@ main .cg-form{font-family:Arial,Helvetica,sans-serif}</style></head>
     bouton.disabled = true; bouton.textContent = 'Envoi…';
     lireFichier(sansCopie ? null : fichier).then(function(piece){
       return fetch(URL_SCRIPT, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'public.demande', payload: { type: 'premiere_communion', champs: champs, fichier: piece, consentement: true, site_web: form.site_web.value } }) });
+        body: JSON.stringify({ action: 'public.demande', payload: { type: 'premiere_communion', champs: champs, fichier: piece, consentement: true, site_web: form.site_web.value, envoi: (new URLSearchParams(location.search).get('e') || '') } }) });
     })
       .then(function(r){ return r.json(); })
       .then(function(r){

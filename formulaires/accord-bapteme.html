@@ -39,12 +39,12 @@ textarea{min-height:90px}
 <script>
 (function () {
   var URL_SCRIPT = __URL_SCRIPT__;
-  var j = new URLSearchParams(location.search).get('j') || '';
+  var q = new URLSearchParams(location.search), j = q.get('j') || '', ev = q.get('e') || '';
   var d = null;
   function $(id) { return document.getElementById(id); }
   function e(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   function appel(action, p) {
-    p = p || {}; p.j = j;
+    p = p || {}; if (j) p.j = j; if (ev) p.e = ev;
     return fetch(URL_SCRIPT, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: action, payload: p }) })
       .then(function (r) { return r.json(); }).then(function (r) { if (!r.ok) throw new Error(r.message || 'Erreur'); return r.data; });
   }
@@ -91,7 +91,7 @@ textarea{min-height:90px}
       window.scrollTo(0, 0);
     }).catch(function (er) { b.disabled = false; b.textContent = 'Envoyer'; erreur(er.message); });
   }
-  if (!j) { $('etat').className = 'erreur'; $('etat').textContent = 'Lien incomplet. Utilisez le lien reçu par mail de la paroisse.'; return; }
+  if (!j && !ev) { $('etat').className = 'erreur'; $('etat').textContent = 'Lien incomplet. Utilisez le lien reçu par mail de la paroisse.'; return; }
   appel('public.accordBapteme').then(function (r) { d = r; $('etat').style.display = 'none'; $('sous').textContent = r.paroisse || $('sous').textContent; formulaire(); })
     .catch(function (er) { $('etat').className = 'erreur'; $('etat').textContent = er.message; });
 })();

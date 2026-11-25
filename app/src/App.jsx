@@ -2,7 +2,7 @@ import { Suspense, createContext, lazy, useCallback, useContext, useEffect, useS
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { BoutonRecherche } from './pages/RechercheGlobale.jsx'
 import MaJournee, { voitMaJournee } from './pages/MaJournee.jsx'
-import { Home, Mail, CalendarDays, FolderHeart, FolderOpen, Users, Settings, UserCircle, LogOut, Bell, CloudOff, RefreshCw, ScrollText, GraduationCap, HeartHandshake, Mountain, Flame, BookOpen, BookMarked, BarChart3, LifeBuoy, MoreHorizontal, X, Megaphone, CalendarRange, Newspaper, LayoutGrid, Church, BookOpenText, Sun, Cross, BookHeart, Smartphone, Sparkles } from 'lucide-react'
+import { Home, Mail, CalendarDays, FolderHeart, FolderOpen, Users, Settings, UserCircle, LogOut, Bell, CloudOff, RefreshCw, ScrollText, GraduationCap, HeartHandshake, Mountain, Flame, BookOpen, BookMarked, BarChart3, LifeBuoy, MoreHorizontal, X, Megaphone, CalendarRange, Newspaper, LayoutGrid, Church, BookOpenText, Sun, Cross, BookHeart, Smartphone, Sparkles, ClipboardList } from 'lucide-react'
 import { api, ecrireToken, enCache, fournir, lireToken, quandSessionExpire, estDemo, suivreFile, suivreReseau, viderFile } from './api.js'
 import { derniereMiseAJour, preparerHorsLigne } from './horsligne.js'
 import { Chargement, FournisseurNotif, ROLES, dateRelative, useNotif } from './ui.jsx'
@@ -28,6 +28,7 @@ const Dossiers = page(() => import('./pages/Dossiers.jsx'), '/dossiers')
 const Dossier = page(() => import('./pages/Dossier.jsx'))
 const Agenda = page(() => import('./pages/Agenda.jsx'), '/agenda')
 const Extraits = page(() => import('./pages/Extraits.jsx'), '/extraits')
+const Formulaires = page(() => import('./pages/Formulaires.jsx'), '/formulaires')
 const Catechisme = page(() => import('./pages/Catechisme.jsx'), '/catechisme')
 const IntentionsAujourdhui = page(() => import('./pages/IntentionsAujourdhui.jsx'), '/intentions')
 const Breviaire = page(() => import('./pages/Breviaire.jsx'), '/breviaire')
@@ -75,6 +76,7 @@ const MENU = [
   { to: '/agenda', label: 'Agenda', icone: CalendarDays, droit: 'agenda', bas: true },
   { groupe: 'Sacrements', items: [
     { to: '/dossiers', label: 'Dossiers', icone: FolderHeart, droit: 'dossiers', bas: true },
+    { to: '/formulaires', label: 'Formulaires', icone: ClipboardList, droit: 'dossiers' },
     { to: '/extraits', label: 'Extraits de baptême', icone: ScrollText, droit: 'extraits' },
     { to: '/registres', label: 'Registres', icone: BookMarked, droit: 'registres' }
   ] },
@@ -445,6 +447,7 @@ function Cadre() {
               {peut('mail') && <Route path="/courrier" element={<Courrier />} />}
               {peut('agenda') && <Route path="/agenda" element={<Agenda />} />}
               {peut('dossiers') && <Route path="/dossiers" element={<Dossiers />} />}
+              {peut('dossiers') && <Route path="/formulaires" element={<Formulaires />} />}
               {peut('dossiers') && <Route path="/dossiers/:id" element={<Dossier />} />}
               {peut('documents') && <Route path="/documents" element={<Documents />} />}
               {peut('catechisme') && <Route path="/catechisme" element={<Catechisme />} />}

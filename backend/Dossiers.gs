@@ -463,6 +463,7 @@ function recevoirDemandePublique_(p) {
       });
     } catch (e) { console.error('certificat formulaire', e); }
   }
+  if (p.envoi) marquerEnvoi_(String(p.envoi), d.id);   // formulaire envoyé depuis l'onglet « Formulaires »
   journaliser_(null, 'Demande reçue (site)', TYPES_DOSSIER[d.type].nom + ' – ' + d.nom);
   lignes_('Utilisateurs').filter(estActif_).forEach(function (u) {
     notifier_(u.id, 'Nouvelle demande : ' + TYPES_DOSSIER[d.type].nom, d.nom, '#/dossiers/' + d.id);
