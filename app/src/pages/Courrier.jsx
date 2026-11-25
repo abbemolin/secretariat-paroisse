@@ -5,6 +5,7 @@ import { api, enCache, fichierEnBase64, precharger, telechargerBase64 } from '..
 import { useApp } from '../App.jsx'
 import { TYPES, ORDRE_TYPES, remplirModele } from '../types.js'
 import { Chargement, Erreur, Vide, Modale, useNotif, useDifferer, Aide, dateRelative, dateHeure, nomExpediteur, taille, COULEURS_STATUT, initiales } from '../ui.jsx'
+import { useActualisation } from '../actualisation.js'
 import { ChoisirDocument } from './Documents.jsx'
 import { EditionEvenement } from './Agenda.jsx'
 import { creerExtrait } from './Extraits.jsx'
@@ -86,6 +87,15 @@ export default function Courrier() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { charger(0); setChoix(null) }, [filtre, libelle])
   useEffect(() => { api('mail.libelles').then(setLibelles).catch(() => {}) }, [])
+  // Actualisation automatique : nouveaux mails en tête de liste (les pages déjà chargées restent), fil ouvert relu
+  useActualisation(async () => {
+    if (recherche || chargement || choix) return
+    try {
+      const r = await api('mail.liste', { filtre, libelle, recherche: '', debut: 0 })
+      setFils((f) => [...r.fils, ...f.slice(r.fils.length).filter((x) => !r.fils.some((y) => y.id === x.id))])
+      if (ouvert) setVersion((v) => v + 1)
+    } catch { /* ignore */ }
+  })
 
   async function agir(fil, modif, message) {
     if (modif.archiver || modif.corbeille) {

@@ -4,6 +4,7 @@ import { AlertTriangle, ChevronDown, ChevronRight, FileText, Loader2, Mail, Penc
 import { api } from '../api.js'
 import { useApp } from '../App.jsx'
 import { Chargement, useConfirmer, useNotif } from '../ui.jsx'
+import { useActualisation } from '../actualisation.js'
 import { FenetreMail, FicheIntention, ZoneCelebration } from '../intentions/composants.jsx'
 import { MOIS, celebrants, chargerIntentions, dateCourte, dateLongue, doublons, estMesse, estPrivee, heureDe, heureFr, intentionsEnCache, messePassee, nomCelebrant, sansAdresse } from '../intentions/donnees.js'
 import Releve from '../intentions/Releve.jsx'
@@ -25,6 +26,7 @@ export default function IntentionsGerer() {
 
   const recharger = () => chargerIntentions().then(setListe).catch((e) => notifier(e.message, 'erreur'))
   useEffect(() => { recharger() }, [])   // eslint-disable-line react-hooks/exhaustive-deps
+  useActualisation(() => { if (!fiche && !mail) chargerIntentions().then(setListe).catch(() => {}) })
   const maj = (r) => setListe((l) => l.map((x) => (x.id === r.id ? { ...x, ...r } : x)).filter((x) => x.statut !== 'annule'))
 
   // Ouvert sur une intention (depuis Aujourd'hui ou une notification) : son mois déplié, la carte éclairée

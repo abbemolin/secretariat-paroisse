@@ -1435,6 +1435,30 @@ main.t2{zoom:1.15}main.t3{zoom:1.3}
     appel('esp.lire').then(function (r) { d = r; horsLigne = false; brouillon = null; $('etat').style.display = 'none'; garderHorsLigne(); rendre(); finDemarrage(); chargerFete(); })
       .catch(function (er) { if (er.code === 'SESSION') return; if (!er.code && reprendreHorsLigne()) return; $('etat').className = 'erreur'; $('etat').textContent = er.message; });
   }
+  // ─── Actualisation au retour dans l'app (après 30 secondes ailleurs), sauf pendant une saisie ───
+  var cacheeLe = 0;
+  function saisieEnCours() { var a = document.activeElement; return !!(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) || !!brouillon || suppression || !!demandeSac || ajoutParrain || demandeCor || foyerQuitter; }
+  function actualiserApp() {
+    if (APERCU || !navigator.onLine) return;
+    appelCpt('public.fonctions').then(function (f) { if (majFonctions(f) && d && !saisieEnCours()) rendre(); }).catch(function () {});
+    if (!d || MODE === 'v' || horsLigne === undefined || saisieEnCours()) return;
+    var req = MODE === 'p' ? appelCpt('cpt.lire') : appel('esp.lire');
+    req.then(function (r) {
+      if (saisieEnCours() || (MODE === 'p' && r.espace && r.espace.c)) return;
+      d = r; horsLigne = false; afaire = null;
+      if (MODE === 'p') { try { localStorage.setItem('cpt_d', JSON.stringify(r)); } catch (x) {} } else garderHorsLigne();
+      if (vue === 'propositions' && !propOuverte) chargerProps(true);
+      if (vue === 'priere') chargerPriere(true);
+      if (vue === 'sacrements') chargerSacrements(true);
+      if (vue === 'messe') chargerMesses(true);
+      if (vue === 'inscriptions') inscriptions = null;
+      rendre();
+    }).catch(function () {});
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') { cacheeLe = Date.now(); return; }
+    if (cacheeLe && Date.now() - cacheeLe > 30000) actualiserApp();
+  });
   function finDemarrage() { var z = $('demarrage'); if (z && !z.classList.contains('fini')) { z.classList.add('fini'); setTimeout(function () { z.remove(); }, 500); } }
   setTimeout(finDemarrage, 2500);   // au plus tard (connexion lente, écran de mot de passe…)
   function demarrer() {

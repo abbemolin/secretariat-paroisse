@@ -5,6 +5,7 @@ import { api } from '../api.js'
 import { useApp } from '../App.jsx'
 import { TYPES } from '../types.js'
 import { Chargement, Erreur, EnTete, Modale, useNotif, imprimerHtml, dateCourte } from '../ui.jsx'
+import { useActualisation } from '../actualisation.js'
 
 /** Fenêtre « Inscription au registre » : année et numéro d'acte proposés (modifiables), doublons refusés par le serveur. */
 export function InscriptionRegistre({ id, nom, onFermer, onInscrit }) {
@@ -77,6 +78,7 @@ export default function Registres() {
   const charger = () => api('registres', { registre, annee }).then((x) => { setD(x); setDepart(String(x.depart || 0)) }).catch(setErreur)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { charger() }, [registre, annee])
+  useActualisation(() => { if (!inscrire) api('registres', { registre, annee }).then(setD).catch(() => {}) })
   const aller = (r, a) => setParams({ r, a }, { replace: true })
   async function enregistrerDepart() {
     try { setD(await api('registres', { registre, annee, depart: { registre, annee, numero: depart } })); notifier('Enregistré') } catch (e) { notifier(e.message, 'erreur') }

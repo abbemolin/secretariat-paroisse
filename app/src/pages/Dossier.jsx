@@ -11,6 +11,7 @@ import ChoixFraternite from './ChoixFraternite.jsx'
 import { InscriptionRegistre } from './Registres.jsx'
 import Courriers from './Courriers.jsx'
 import { htmlVersPdf } from '../pdf.js'
+import { useActualisation } from '../actualisation.js'
 import { creerExtrait, PadSignature, chargerSceau } from './Extraits.jsx'
 import { PenLine, RefreshCw, HeartHandshake, Link2, Smartphone, Copy } from 'lucide-react'
 
@@ -56,6 +57,14 @@ export default function Dossier() {
   const [promotions, setPromotions] = useState({})
   useEffect(() => { api('promotions.liste').then(setPromotions).catch(() => {}) }, [])
   const modifie = useMemo(() => d && b && JSON.stringify(champsEditables(d)) !== JSON.stringify(b), [d, b])
+  // Actualisation automatique : seulement si rien n'est en cours de modification ici
+  const dActuel = useRef(null); dActuel.current = d
+  useActualisation(() => {
+    if (!dActuel.current || sauvegarde) return
+    const avant = JSON.stringify(bActuel.current)
+    if (JSON.stringify(champsEditables(dActuel.current)) !== avant) return
+    api('dossiers.lire', { id }).then((x) => { if (JSON.stringify(bActuel.current) === avant && x.id === id) { setD(x); setB(champsEditables(x)) } }).catch(() => {})
+  })
 
 
   if (erreur) return <Erreur erreur={erreur} />

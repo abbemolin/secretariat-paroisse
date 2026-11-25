@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
+import { useActualisation, modaleOuverte } from './actualisation.js'
 import { enCache, fileAttente } from './api.js'
 import { X, Loader2, AlertCircle, CheckCircle2, CloudOff } from 'lucide-react'
 
@@ -68,6 +69,7 @@ export function Vide({ icone: Icone, texte }) {
 }
 
 export function Modale({ titre, onFermer, children, pied, large }) {
+  useEffect(() => { modaleOuverte(1); return () => modaleOuverte(-1) }, [])
   useEffect(() => {
     const f = (e) => e.key === 'Escape' && onFermer()
     window.addEventListener('keydown', f)
@@ -190,6 +192,10 @@ function FournisseurToasts({ children }) {
 export function useCharger(fn, deps = [], cle) {
   const initial = cle ? enCache(cle[0], cle[1]) : undefined
   const [etat, setEtat] = useState({ data: initial ?? null, chargement: true, erreur: null })
+  const fnRef = useRef(fn)
+  fnRef.current = fn
+  // Actualisation automatique (toutes les minutes, et au retour sur l'onglet) : sans indicateur, erreurs ignorées
+  useActualisation(async () => { try { const d = await fnRef.current(); setEtat((e) => (e.chargement ? e : { ...e, data: d, erreur: null })) } catch { /* ignore */ } })
   const recharger = useCallback(async () => {
     setEtat((e) => ({ ...e, data: e.data ?? (cle ? enCache(cle[0], cle[1]) ?? null : null), chargement: true, erreur: null }))
     try { setEtat({ data: await fn(), chargement: false, erreur: null }) }
