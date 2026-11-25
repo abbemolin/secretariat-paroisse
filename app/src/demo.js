@@ -365,6 +365,14 @@ export async function demoApi(action, p) {
     case 'mail.lot': { const r = { faits: 0, suivis: {} }; for (const id of p.ids) { if (p.modif) await demoApi('mail.modifier', { id, ...p.modif }); if (p.suivi) r.suivis[id] = await demoApi('mail.suivi', { filId: id, ...p.suivi }); r.faits++ } return r }
     case 'mail.envoyer': { const fs = p.filId && etat.fils.find((x) => x.id === p.filId); if (fs?.suivi && ['À traiter', 'En cours'].includes(fs.suivi.statut)) { fs.suivi.statut = 'Traité'; return { filId: p.filId, suivi: fs.suivi } } if (p.dossierId) { const d = etat.dossiers.find((x) => x.id === p.dossierId); d.historique.push({ date: new Date().toISOString(), par: moi.nom, texte: 'Mail envoyé : ' + (p.sujet || '') }) } return { filId: 't1' } }
     case 'mail.groupes': return [{ id: 'g1', nom: 'Chorale', nb: 24 }, { id: 'g2', nom: 'Conseil pastoral', nb: 11 }, { id: 'g3', nom: 'Équipe d\'accueil', nb: 8 }]
+    case 'contacts.liste': return { contacts: DEMO_CONTACTS, groupes: DEMO_GROUPES_CONTACTS, synchro: new Date().toISOString() }
+    case 'contacts.lire': { const c = DEMO_CONTACTS.find((x) => x.id === p.id) || DEMO_CONTACTS[0]
+      return { ...c, adresse: { rue: '2 quai Charles Frey', cp: '67000', ville: c.ville || 'Strasbourg', pays: 'France' }, note: '', maj_le: new Date().toISOString(),
+        foyer_membres: DEMO_CONTACTS.filter((x) => x.foyer && x.foyer === c.foyer && x.id !== c.id), liens: c.id === 'c1' ? [{ sorte: 'Catéchisme', libelle: 'Léa Weber (CE1-CE2)', detail: '2026-2027', lien: '/catechisme' }] : [] } }
+    case 'contacts.doublons': return []
+    case 'contacts.envoyer': if (p.essai) return { nb: 2, sans: 0, quota: 90, canal: 'gmail' }; throw new Error('Démo : aucun mail n\'est envoyé.')
+    case 'contacts.ecrire': case 'contacts.supprimer': case 'contacts.groupe': case 'contacts.foyer': case 'contacts.importer': case 'contacts.fusionner': case 'contacts.pasDoublon': case 'contacts.auto':
+      throw new Error('Démo : rien n\'est enregistré dans Google Contacts.')
     case 'mail.envoiGroupe': return { nb: 24, quota: 96 }
     case 'mail.piecejointe': return { nom: 'certificat.pdf', type: 'application/pdf', base64: 'JVBERi0xLjQKMSAwIG9iajw8L1R5cGUvQ2F0YWxvZy9QYWdlcyAyIDAgUj4+ZW5kb2JqCjIgMCBvYmo8PC9UeXBlL1BhZ2VzL0tpZHNbMyAwIFJdL0NvdW50IDE+PmVuZG9iagozIDAgb2JqPDwvVHlwZS9QYWdlL1BhcmVudCAyIDAgUi9NZWRpYUJveFswIDAgMzAwIDIwMF0vQ29udGVudHMgNCAwIFIvUmVzb3VyY2VzPDwvRm9udDw8L0YxIDUgMCBSPj4+Pj4+ZW5kb2JqCjQgMCBvYmo8PC9MZW5ndGggNTI+PnN0cmVhbQpCVCAvRjEgMTggVGYgNDAgMTAwIFRkIChDZXJ0aWZpY2F0IGRlIGJhcHRlbWUpIFRqIEVUCmVuZHN0cmVhbSBlbmRvYmoKNSAwIG9iajw8L1R5cGUvRm9udC9TdWJ0eXBlL1R5cGUxL0Jhc2VGb250L0hlbHZldGljYT4+ZW5kb2JqCnRyYWlsZXI8PC9Sb290IDEgMCBSPj4KJSVFT0Y=' }
     case 'documents.telecharger': return { nom: 'exemple.txt', type: 'text/plain', base64: btoa('Fichier de demonstration') }
@@ -657,4 +665,11 @@ const demoInt = [
   { id: 6, date_messe: jIso(12), heure_messe: '09:00', nom_intention: 'Intention particulière', type_intention: 'Vivant', nom_donateur: 'Sœur Anne', email_donateur: 'non@renseigne.fr', statut: 'valide', mail_envoye: true, google_event_id: 'prive_' + jIso(12) + '_1' },
   { id: 7, date_messe: jIso(20), heure_messe: '18:30', nom_intention: 'Guérison de Paul', type_intention: 'Vivant', nom_donateur: 'Mme Roth', email_donateur: 'roth@example.fr', statut: 'refuse', date_alternative: jIso(21), google_event_id: null },
   { id: 8, date_messe: jIso(-30), heure_messe: '18:30', nom_intention: 'Défunts de la famille Meyer', type_intention: 'Défunt', nom_donateur: 'M. Meyer', email_donateur: 'non@renseigne.fr', statut: 'valide', mail_envoye: true, celebrant: 'molin', celebre_le: jIso(-30) + 'T19:00:00Z', google_event_id: null }
+]
+
+const DEMO_GROUPES_CONTACTS = [{ id: 'contactGroups/g1', nom: 'Chorale', nb: 2, auto: false }, { id: 'contactGroups/g2', nom: 'Catéchisme 2026-2027 – CE1-CE2', nb: 1, auto: true }]
+const DEMO_CONTACTS = [
+  { id: 'c1', prenom: 'Claire', nom: 'Weber', civilite: '', organisation: '', emails: ['claire.weber@exemple.fr'], tels: ['06 12 34 56 78'], ville: 'Strasbourg', groupes: ['contactGroups/g1', 'contactGroups/g2'], foyer: 'f1', origine: 'Import' },
+  { id: 'c2', prenom: 'Marc', nom: 'Weber', civilite: '', organisation: '', emails: ['marc.weber@exemple.fr'], tels: [], ville: 'Strasbourg', groupes: ['contactGroups/g1'], foyer: 'f1', origine: 'Import' },
+  { id: 'c3', prenom: '', nom: '', civilite: '', organisation: 'Mairie de Strasbourg', emails: [], tels: ['03 68 98 50 00'], ville: 'Strasbourg', groupes: [], foyer: '', origine: 'Import' }
 ]

@@ -24,7 +24,7 @@ export function quandSessionExpire(fn) { surSessionExpiree = fn }
 
 // ─── Affichage instantané et hors connexion : dernière réponse connue des lectures, gardée sur l'appareil ───
 // (IndexedDB « secretariat-cache », chargée en mémoire au démarrage : les pages la lisent sans attendre)
-const LECTURES = ['journee.resume', 'intentions.liste', 'intentions.agenda', 'app.init', 'accueil.resume', 'dossiers.liste', 'dossiers.lire', 'cate.liste', 'cate.lire',
+const LECTURES = ['journee.resume', 'contacts.liste', 'contacts.lire', 'intentions.liste', 'intentions.agenda', 'app.init', 'accueil.resume', 'dossiers.liste', 'dossiers.lire', 'cate.liste', 'cate.lire',
   'cate.reglages', 'cor.liste', 'cor.reglages', 'extraits.liste', 'extraits.lire', 'retraites.liste', 'retraites.lire', 'mail.liste', 'promotions.liste', 'agenda.evenements',
   'documents.liste', 'annonces.liste', 'newsletter.semaine', 'newsletter.lire', 'textes.liste', 'livres.liste', 'catechumenat.reglages', 'notifications.liste']
 const CACHE = new Map()

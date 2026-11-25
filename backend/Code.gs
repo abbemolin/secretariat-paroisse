@@ -14,6 +14,7 @@
  *   Confirmands.gs formulaire Google des confirmands adultes
  *   CorUnum.gs    fraternités Cor Unum (formulaire Google, équipes, chefs, anciens)
  *   Tri.gs        tri automatique des mails entrants (mots-clés, réponse auto horaires)
+ *   Contacts.gs   contacts (Google Contacts) : fiches, foyers, groupes automatiques, import, doublons, envois groupés
  *   Newsletter.gs tuile « Annonces et newsletter » (annonces, feuille de semaine, newsletter Brevo)
  *   Installation.gs  installer() à lancer une fois
  */
@@ -135,6 +136,18 @@ var ROUTES = {
 
   'mail.liste':            { fn: function (p, s) { return listerMails_(p, s); }, droit: 'mail' },
   'mail.fil':              { fn: function (p, s) { return lireFil_(p, s); }, droit: 'mail' },
+  'contacts.liste':        { fn: function (p, s) { return contactsRoute_('contacts.liste', p, s); } },
+  'contacts.lire':         { fn: function (p, s) { return contactsRoute_('contacts.lire', p, s); } },
+  'contacts.ecrire':       { fn: function (p, s) { return contactsRoute_('contacts.ecrire', p, s); } },
+  'contacts.supprimer':    { fn: function (p, s) { return contactsRoute_('contacts.supprimer', p, s); } },
+  'contacts.groupe':       { fn: function (p, s) { return contactsRoute_('contacts.groupe', p, s); } },
+  'contacts.foyer':        { fn: function (p, s) { return contactsRoute_('contacts.foyer', p, s); } },
+  'contacts.importer':     { fn: function (p, s) { return contactsRoute_('contacts.importer', p, s); } },
+  'contacts.doublons':     { fn: function (p, s) { return contactsRoute_('contacts.doublons', p, s); } },
+  'contacts.fusionner':    { fn: function (p, s) { return contactsRoute_('contacts.fusionner', p, s); } },
+  'contacts.pasDoublon':   { fn: function (p, s) { return contactsRoute_('contacts.pasDoublon', p, s); } },
+  'contacts.auto':         { fn: function (p, s) { return contactsRoute_('contacts.auto', p, s); } },
+  'contacts.envoyer':      { fn: function (p, s) { return contactsRoute_('contacts.envoyer', p, s); } },
   'mail.piecejointe':      { fn: function (p, s) { return pieceJointe_(p, s); }, droit: 'mail' },
   'mail.envoyer':          { fn: function (p, s) { return envoyerMail_(p, s); }, droit: 'mail' },
   'mail.libelles':         { fn: function (p, s) { return listerLibelles_(p, s); }, droit: 'mail' },
@@ -143,7 +156,7 @@ var ROUTES = {
   'mail.lot':              { fn: function (p, s) { return lotMails_(p, s); }, droit: 'mail' },
   'mail.commenter':        { fn: function (p, s) { return commenterMail_(p, s); }, droit: 'mail' },
   'mail.groupes':          { fn: function (p, s) { return listerGroupesContacts_(p, s); }, droit: 'mail' },
-  'mail.envoiGroupe':      { fn: function (p, s) { return envoyerAuGroupe_(p, s); }, droit: 'mail' },
+  'mail.envoiGroupe':      { fn: function (p, s) { return envoyerContacts_(p, s); }, droit: 'mail' },
   'tri.lire':              { fn: function (p, s) { return lireTri_(p, s); }, droit: 'mail' },
   'tri.ecrire':            { fn: function (p, s) { return ecrireTri_(p, s); }, droit: 'reglages' },
   'tri.tester':            { fn: function (p, s) { return testerTri_(p, s); }, droit: 'mail' },
