@@ -3,9 +3,12 @@ import { useEffect, useState } from 'react'
 import { Mail, UserCheck, FolderHeart, CalendarDays, ChevronRight, Bell, ExternalLink, ListChecks, CheckCircle2, SlidersHorizontal, ArrowUp, ArrowDown } from 'lucide-react'
 import { chargerAppMesse, CELEBRANTS, COULEURS_LITURGIQUES, LIEN_APPMESSE } from '../appmesse.js'
 import { api } from '../api.js'
-import { useApp } from '../App.jsx'
+import { useApp, Espaces } from '../App.jsx'
+import MaJournee, { voitMaJournee } from './MaJournee.jsx'
+import { chargerCalendrier, jourLiturgique } from '../liturgie/calendrier.js'
+import { COULEURS } from '../liturgie/ordo.js'
 import { TYPES, prochaineEtape } from '../types.js'
-import { Chargement, Erreur, Modale, useNotif, heure, jourLong, dateRelative, useCharger } from '../ui.jsx'
+import { Chargement, Erreur, Modale, useNotif, heure, jourLong, dateRelative, useCharger, pluriel } from '../ui.jsx'
 
 // AppMESSE chargée une seule fois (en-tête + carte « Fête du jour »)
 let promesseAppMesse = null
@@ -18,18 +21,22 @@ export default function Accueil() {
   const { utilisateur, peut } = useApp()
   const { data, chargement, erreur, recharger, setData } = useCharger(() => api('accueil.resume'), [], ['accueil.resume', {}])
   const [perso, setPerso] = useState(false)
-  const [fete, setFete] = useState(null)
-  useEffect(() => { appMesse().then((x) => setFete(x?.ordo?.find((o) => o.date === new Date().toLocaleDateString('sv-SE')) || null)).catch(() => {}) }, [])
+  // Fête du jour : la même source que « Ma journée » et le bréviaire (ordo de la paroisse)
+  const [, setCal] = useState(0)
+  useEffect(() => { chargerCalendrier().then(() => setCal((n) => n + 1)).catch(() => {}) }, [])
+  const auj = new Date()
+  const fete = jourLiturgique(auj.getFullYear(), auj.getMonth() + 1, auj.getDate())
+  const journee = voitMaJournee(peut)
   const salut = new Date().getHours() < 18 ? 'Bonjour' : 'Bonsoir'
   const prefs = data?.blocs || { ordre: Object.keys(BLOCS), masques: [] }
 
   const rendus = {
     chiffres: () => (
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {peut('mail') && <Tuile to="/courrier" icone={Mail} chiffre={data.mailsNonLus} libelle="e-mails non lus" />}
-        {peut('mail') && <Tuile to="/courrier?filtre=mes" icone={UserCheck} chiffre={data.mesMails} libelle="mails qui me sont attribués" accent={data.mesMails > 0} />}
-        {peut('dossiers') && <Tuile to="/dossiers" icone={FolderHeart} chiffre={data.dossiersOuverts} libelle="dossiers en cours" />}
-        {peut('agenda') && <Tuile to="/agenda" icone={CalendarDays} chiffre={data.evenements?.length} libelle="événements sur 7 jours" />}
+        {peut('mail') && <Tuile to="/courrier" icone={Mail} chiffre={data.mailsNonLus} libelle={pluriel(data.mailsNonLus, 'e-mail non lu', 'e-mails non lus')} />}
+        {peut('mail') && <Tuile to="/courrier?filtre=mes" icone={UserCheck} chiffre={data.mesMails} libelle={pluriel(data.mesMails, 'mail qui m\'est attribué', 'mails qui me sont attribués')} accent={data.mesMails > 0} />}
+        {peut('dossiers') && <Tuile to="/dossiers" icone={FolderHeart} chiffre={data.dossiersOuverts} libelle={pluriel(data.dossiersOuverts, 'dossier en cours', 'dossiers en cours')} />}
+        {peut('agenda') && <Tuile to="/agenda" icone={CalendarDays} chiffre={data.evenements?.length} libelle={pluriel(data.evenements?.length, 'événement sur 7 jours', 'événements sur 7 jours')} />}
       </div>
     ),
     afaire: () => data.afaire && (
@@ -46,7 +53,7 @@ export default function Accueil() {
         )}
       </section>
     ),
-    fete: () => <FeteEtIntentions />,
+    fete: () => !journee && <FeteEtIntentions />,
     demandes: () => peut('dossiers') && (
       <section className="carte p-5">
         <Titre texte="Nouvelles demandes" lien="/dossiers" />
@@ -64,7 +71,7 @@ export default function Accueil() {
           {data.notifications.slice(0, 5).map((n) => (
             <li key={n.id}><Link to={(n.lien || '#/').replace(/^#/, '')} className={`flex items-start gap-2 py-2 text-sm hover:text-or-600 ${n.lu ? 'opacity-60' : ''}`}>
               <Bell className="mt-0.5 h-4 w-4 shrink-0 text-or" /><div className="min-w-0 flex-1"><div className="font-medium">{n.titre}</div><div className="truncate text-xs text-nuit-600/70">{n.texte}</div></div>
-              <span className="text-xs text-nuit-600/50">{dateRelative(n.date)}</span></Link></li>
+              <span className="text-xs text-nuit-600/75">{dateRelative(n.date)}</span></Link></li>
           ))}
         </ul>
       </section>
@@ -106,9 +113,12 @@ export default function Accueil() {
         <p className="mt-1 flex min-w-0 items-center gap-1.5 text-sm text-nuit-600/80">
           <span className="shrink-0 first-letter:uppercase sm:hidden">{new Date().toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
           <span className="hidden shrink-0 first-letter:uppercase sm:inline">{jourLong(new Date())}</span>
-          {fete && <><span className="shrink-0">·</span><span className="h-2.5 w-2.5 shrink-0 rounded-full border border-nuit-100" style={{ background: COULEURS_LITURGIQUES[fete.couleur] || '#ddd' }} title={`Couleur liturgique : ${fete.couleur}`} /><span className="truncate" title={fete.fete}>{fete.fete}</span></>}
+          {fete?.fete && <><span className="shrink-0">·</span><span className="h-2.5 w-2.5 shrink-0 rounded-full border border-nuit-100" style={{ background: COULEURS[fete.couleur] || '#ddd' }} title={`Couleur liturgique : ${fete.couleur}`} /><span className="truncate" title={fete.fete}>{fete.fete}</span></>}
         </p>
       </div>
+      {/* Ma journée (prêtres) et « À traiter », puis les autres espaces de l'appli */}
+      {journee && <div className="-mt-3 mb-5"><MaJournee /></div>}
+      <div className="mb-5"><Espaces /></div>
       <Erreur erreur={erreur} reessayer={recharger} />
       {chargement && !data ? <Chargement /> : data && (
         <div className="space-y-5">
@@ -141,7 +151,7 @@ function Personnaliser({ prefs, onFermer, onEnregistre }) {
         {ordre.map((b, i) => (
           <li key={b} className="flex items-center gap-2 px-3 py-2">
             <label className="flex flex-1 cursor-pointer items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-[#521a22]" checked={!masques.includes(b)} onChange={(e) => setMasques(e.target.checked ? masques.filter((x) => x !== b) : [...masques, b])} />
-              <span className={masques.includes(b) ? 'text-nuit-600/50 line-through' : ''}>{BLOCS[b]}</span></label>
+              <span className={masques.includes(b) ? 'text-nuit-600/75 line-through' : ''}>{BLOCS[b]}</span></label>
             <button className="btn-clair px-2 py-1" disabled={i === 0} onClick={() => bouger(i, -1)} aria-label="Monter"><ArrowUp className="h-4 w-4" /></button>
             <button className="btn-clair px-2 py-1" disabled={i === ordre.length - 1} onClick={() => bouger(i, 1)} aria-label="Descendre"><ArrowDown className="h-4 w-4" /></button>
           </li>
@@ -163,7 +173,7 @@ function ListeDossiers({ liste, vide }) {
         <li key={d.id}><Link to={`/dossiers/${d.id}`} className="flex items-center gap-3 py-2.5 text-sm hover:text-or-600">
           <span className="pastille text-white" style={{ background: TYPES[d.type].couleur }}>{TYPES[d.type].nom}</span>
           <span className="min-w-0 flex-1 truncate font-medium">{d.nom}</span>
-          <span className="hidden truncate text-xs text-nuit-600/60 sm:block">{prochaineEtape(d.type, d.etapes, d)?.label}</span>
+          <span className="hidden truncate text-xs text-nuit-600/75 sm:block">{prochaineEtape(d.type, d.etapes, d)?.label}</span>
           <ChevronRight className="h-4 w-4 text-nuit-600/40" />
         </Link></li>
       ))}
@@ -207,15 +217,15 @@ function FeteEtIntentions() {
           const liste = intentionsDu(j), oj = ordoDu(j)
           return (
             <div key={j} className="py-1.5">
-              {semaine && <div className="mt-1 text-xs font-medium text-nuit-600 first-letter:uppercase">{jourLong(j + 'T12:00')}{oj && j !== auj ? <span className="font-normal text-nuit-600/60"> — {oj.fete}</span> : null}</div>}
-              {!liste.length ? <p className="text-sm text-nuit-600/60">{j === auj ? "Aucune intention aujourd'hui." : 'Aucune intention.'}</p> : (
+              {semaine && <div className="mt-1 text-xs font-medium text-nuit-600 first-letter:uppercase">{jourLong(j + 'T12:00')}{oj && j !== auj ? <span className="font-normal text-nuit-600/75"> — {oj.fete}</span> : null}</div>}
+              {!liste.length ? <p className="text-sm text-nuit-600/75">{j === auj ? "Aucune intention aujourd'hui." : 'Aucune intention.'}</p> : (
                 <ul className="divide-y divide-nuit-50">
                   {liste.map((i) => (
                     <li key={i.id} className="flex items-baseline gap-3 py-1.5 text-sm">
                       <span className="w-12 shrink-0 font-medium text-nuit">{i.heure_messe || '—'}</span>
-                      <span className="min-w-0 flex-1"><span className="text-xs text-nuit-600/60">{i.type_intention} · </span>{i.nom_intention}</span>
-                      {i.statut === 'en_attente' && <span className="pastille bg-amber-100 py-0 text-[10px] text-amber-900">à valider</span>}
-                      {i.celebrant && <span className="shrink-0 text-xs text-nuit-600/60">{CELEBRANTS[i.celebrant] || i.celebrant}</span>}
+                      <span className="min-w-0 flex-1"><span className="text-xs text-nuit-600/75">{i.type_intention} · </span>{i.nom_intention}</span>
+                      {i.statut === 'en_attente' && <span className="pastille bg-amber-100 py-0 text-xs text-amber-900">à valider</span>}
+                      {i.celebrant && <span className="shrink-0 text-xs text-nuit-600/75">{CELEBRANTS[i.celebrant] || i.celebrant}</span>}
                     </li>
                   ))}
                 </ul>

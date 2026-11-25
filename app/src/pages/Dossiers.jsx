@@ -7,7 +7,7 @@ import { api, precharger } from '../api.js'
 import { analyserClasseur, lireClasseur, STATUTS_IMPORT } from '../importCatechumenes.js'
 import { useApp } from '../App.jsx'
 import { TYPES, ORDRE_TYPES, ETATS, prochaineEtape, documentsManquants, PAR_ANNEE, anneeSacrements, etapesDe, documentsDe, libelleAnnee, TITRES_COLLECTIFS, anneeScolaireActuelle, estOptionnel, ALERTES, choixAnnees, choixAnneesScolaires } from '../types.js'
-import { Chargement, Erreur, Modale, Vide, useCharger, enSuppression, Aide, useNotif, imprimerHtml, dateCourte, initiales, versLocal, jourLong, heure, COULEURS_STATUT } from '../ui.jsx'
+import { Chargement, Erreur, Modale, Vide, useCharger, enSuppression, Aide, useNotif, imprimerHtml, dateCourte, initiales, versLocal, jourLong, heure, COULEURS_STATUT, nb } from '../ui.jsx'
 import { useSelection, BoutonSelection, BarreSelection, MenuAction, useActionGroupee, texteRapport } from '../selection.jsx'
 
 export default function Dossiers() {
@@ -55,7 +55,7 @@ export default function Dossiers() {
         </div>
       </div>
 
-      <div className="-mx-1 mb-3 flex gap-1.5 overflow-x-auto px-1 pb-1">
+      <div className="barre-onglets mb-3">
         <button onClick={() => changer({ type: '', annee: '' })} className={`pastille shrink-0 border py-1 ${!type ? 'border-nuit bg-nuit text-white' : 'border-nuit-100 bg-white text-nuit-600'}`}>Tous</button>
         {ORDRE_TYPES.map((t) => (
           <button key={t} onClick={() => changer({ type: t, annee: '' })} className={`pastille shrink-0 gap-1.5 border py-1 ${type === t ? 'border-nuit bg-nuit text-white' : 'border-nuit-100 bg-white text-nuit-600'}`}>
@@ -78,7 +78,7 @@ export default function Dossiers() {
       })()}
       {TYPES[type]?.collectif && annee && annee !== 'aucune' && <Promotion type={type} annee={annee} dossiers={liste} />}
       <div className="mb-4 grid gap-2 sm:grid-cols-[1fr_auto]">
-        <div className="relative"><Search className="absolute left-3 top-2.5 h-4 w-4 text-nuit-600/50" />
+        <div className="relative"><Search className="absolute left-3 top-2.5 h-4 w-4 text-nuit-600/75" />
           <input className="champ pl-9" placeholder="Nom, e-mail, téléphone…" value={texte} onChange={(e) => setTexte(e.target.value)} /></div>
         <select className="champ" value={etat} onChange={(e) => changer({ etat: e.target.value })}>
           <option value="ouvert">En cours</option><option value="clos">Clos</option><option value="annule">Annulés</option><option value="tous">Tous</option>
@@ -98,16 +98,16 @@ export default function Dossiers() {
                   <div key={d.id}>
                   {entete && <div className="bg-or-50 px-4 py-1.5 font-titre text-lg font-semibold text-or-600">{anneeSacrements(d) ? libelleAnnee(type) + anneeSacrements(d) : 'Année non fixée'}</div>}
                   <button onPointerEnter={() => !sel && precharger('dossiers.lire', { id: d.id })} onTouchStart={() => !sel && precharger('dossiers.lire', { id: d.id })} onClick={() => sel ? s.basculer(d.id) : nav(`/dossiers/${d.id}`)} className={`${sel?.has(d.id) ? 'bg-or-50 ' : ''}grid w-full grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-1 px-4 py-3 text-left text-sm hover:bg-nuit-50/50 md:grid-cols-[150px_1fr_200px_120px_40px]`}>
-                    <span className="flex flex-col gap-0.5">{sel && <input type="checkbox" readOnly checked={sel.has(d.id)} className="mb-1 h-4 w-4 accent-[#521a22]" aria-label={`Choisir ${d.nom}`} />}<span className="pastille w-fit text-white" style={{ background: t.couleur }}>{t.nom}</span>
-                      {PAR_ANNEE.includes(d.type) && !parAnnee && anneeSacrements(d) && <span className="pastille w-fit border border-or/40 py-0 text-[10px] text-or-600">{anneeSacrements(d)}</span>}</span>
+                    <span className="flex flex-col gap-0.5">{sel && <input type="checkbox" readOnly checked={sel.has(d.id)} className="mb-1 h-4 w-4 accent-[#521a22]" aria-label={`Choisir ${d.nom}`} />}<span className="pastille w-fit whitespace-nowrap text-white" style={{ background: t.couleur }} title={t.nom}>{t.court || t.nom}</span>
+                      {PAR_ANNEE.includes(d.type) && !parAnnee && anneeSacrements(d) && <span className="pastille w-fit border border-or/40 py-0 text-xs text-or-600">{anneeSacrements(d)}</span>}</span>
                     <span className="min-w-0"><span className="flex items-center gap-2 truncate font-medium">{d.photo && <img src={d.photo} alt="" className="h-7 w-7 shrink-0 rounded-full object-cover" />}<span className="truncate">{d.nom}</span></span>
-                      <span className="block truncate text-xs text-nuit-600/60">{d.etat !== 'ouvert' ? <span className={`pastille py-0 ${COULEURS_STATUT[d.etat]}`}>{ETATS[d.etat]}</span> : prochaine ? '→ ' + prochaine.label : 'Toutes les étapes faites'}{manquants > 0 && d.etat === 'ouvert' && ` · ${manquants} document${manquants > 1 ? 's' : ''} manquant${manquants > 1 ? 's' : ''}`}</span>
-                      {(d.alertes?.length > 0 || d.fraternite) && <span className="mt-0.5 flex flex-wrap gap-1">{d.alertes?.map((a) => <span key={a} className={`pastille py-0 text-[10px] ${ALERTES[a]?.classe}`}>{ALERTES[a]?.nom}</span>)}
-                        {d.fraternite && <span className="pastille gap-0.5 bg-rose-50 py-0 text-[10px] text-rose-800"><HeartHandshake className="h-2.5 w-2.5" />Cor Unum : {d.fraternite.equipe || 'à répartir'}{d.fraternite.ancien ? ' (ancien)' : ''}</span>}</span>}
-                      {t.collectif && d.preparation && <span className="mt-0.5 flex flex-wrap gap-1"><span className="pastille py-0 text-[10px] border border-nuit-100 text-nuit-600">{d.preparation}</span>{d.preparation !== 'Paroisse' && !d.etapes.includes('validation') && <span className="pastille bg-amber-100 py-0 text-[10px] text-amber-900">à valider par le curé</span>}</span>}</span>
-                    <span className="hidden md:block"><span className="block h-1.5 overflow-hidden rounded-full bg-nuit-50"><span className="block h-full rounded-full" style={{ width: `${(faites / total) * 100}%`, background: t.couleur }} /></span><span className="text-[11px] text-nuit-600/60">{faites}/{total} étapes</span></span>
+                      <span className="block truncate text-xs text-nuit-600/75">{d.etat !== 'ouvert' ? <span className={`pastille py-0 ${COULEURS_STATUT[d.etat]}`}>{ETATS[d.etat]}</span> : prochaine ? '→ ' + prochaine.label : 'Toutes les étapes faites'}{manquants > 0 && d.etat === 'ouvert' && ` · ${manquants} document${manquants > 1 ? 's' : ''} manquant${manquants > 1 ? 's' : ''}`}</span>
+                      {(d.alertes?.length > 0 || d.fraternite) && <span className="mt-0.5 flex flex-wrap gap-1">{d.alertes?.map((a) => <span key={a} className={`pastille py-0 text-xs ${ALERTES[a]?.classe}`}>{ALERTES[a]?.nom}</span>)}
+                        {d.fraternite && <span className="pastille gap-0.5 bg-rose-50 py-0 text-xs text-rose-800"><HeartHandshake className="h-2.5 w-2.5" />Cor Unum : {d.fraternite.equipe || 'à répartir'}{d.fraternite.ancien ? ' (ancien)' : ''}</span>}</span>}
+                      {t.collectif && d.preparation && <span className="mt-0.5 flex flex-wrap gap-1"><span className="pastille py-0 text-xs border border-nuit-100 text-nuit-600">{d.preparation}</span>{d.preparation !== 'Paroisse' && !d.etapes.includes('validation') && <span className="pastille bg-amber-100 py-0 text-xs text-amber-900">à valider par le curé</span>}</span>}</span>
+                    <span className="hidden md:block"><span className="block h-1.5 overflow-hidden rounded-full bg-nuit-50"><span className="block h-full rounded-full" style={{ width: `${(faites / total) * 100}%`, background: t.couleur }} /></span><span className="text-xs text-nuit-600/75">{faites}/{total} étapes</span></span>
                     <span className="text-right text-xs text-nuit-600/70 md:text-left">{d.date_celebration ? <span className="inline-flex items-center gap-1 font-medium text-nuit"><Globe className="h-3 w-3 text-or" />{dateCourte(d.date_celebration)}</span> : d.date_souhaitee ? 'souhaité ' + dateCourte(d.date_souhaitee) : '—'}</span>
-                    <span className="hidden justify-end md:flex">{d.responsable && <span title={nomUtilisateur(d.responsable)} className="flex h-7 w-7 items-center justify-center rounded-full bg-nuit text-[10px] font-semibold text-white">{initiales(nomUtilisateur(d.responsable))}</span>}</span>
+                    <span className="hidden justify-end md:flex">{d.responsable && <span title={nomUtilisateur(d.responsable)} className="flex h-7 w-7 items-center justify-center rounded-full bg-nuit text-xs font-semibold text-white">{initiales(nomUtilisateur(d.responsable))}</span>}</span>
                   </button>
                   </div>
                 )
@@ -308,7 +308,7 @@ function ImportConfirmands({ dossiers, onFait }) {
     setOccupe(true)
     try {
       const r = await api('conf.importer')
-      notifier(r.nouveaux || r.completes ? `${r.nouveaux} nouveau(x), ${r.completes} complété(s)${r.accuses ? `, ${r.accuses} accusé(s) envoyé(s)` : ''}` : 'Aucune nouvelle inscription')
+      notifier(r.nouveaux || r.completes ? `${nb(r.nouveaux, 'nouveau', 'nouveaux')}, ${nb(r.completes, 'complété', 'complétés')}${r.accuses ? `, ${nb(r.accuses, 'accusé envoyé', 'accusés envoyés')}` : ''}` : 'Aucune nouvelle inscription')
       if (r.erreurs?.length) notifier(r.erreurs.slice(0, 2).join(' · '), 'erreur')
       onFait()
     } catch (e) { notifier(e.message, 'erreur') } finally { setOccupe(false) }
@@ -321,7 +321,7 @@ function ImportConfirmands({ dossiers, onFait }) {
         corps={"Bonjour {prenom},\n\nPour pouvoir recevoir le sacrement de confirmation, nous avons besoin de connaître la date et le lieu (paroisse et commune) de votre baptême.\n\nVos parents ou votre parrain et votre marraine pourront sans doute vous aider ; le livret de famille catholique l'indique aussi. Merci de nous répondre simplement par retour de mail.\n\nAvec l'assurance de nos prières à toutes vos intentions,"}
         destinataires={`Un mail personnel à chacun des ${aTrouver.length} confirmands dont le baptême est à trouver ({prenom} est rempli pour chacun)`}
         envoiPersonnalise={({ sujet, corps, signature }) => api('conf.relancer', { ids: aTrouver.map((d) => d.id), sujet, corps, signature })}
-        onFermer={() => setRelance(false)} onEnvoye={(r) => { setRelance(false); notifier(`Envoyé à ${r?.nb} confirmand(s)`); onFait() }} />}
+        onFermer={() => setRelance(false)} onEnvoye={(r) => { setRelance(false); notifier(`Envoyé à ${nb(r?.nb, 'confirmand', 'confirmands')}`); onFait() }} />}
     </>
   )
 }
@@ -349,7 +349,7 @@ function ImportCatechumenes({ onFait }) {
       <input ref={fichier} type="file" accept=".xlsx" className="hidden" onChange={choisi} />
       <button className="btn-clair" onClick={() => fichier.current?.click()} disabled={occupe}>{occupe ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}<span className="hidden sm:inline">Importer un tableau</span></button>
       <Aide>Choisissez le fichier Excel des catéchumènes (un onglet par année). Un aperçu s'ouvre : chaque personne a un statut proposé que vous pouvez corriger avant d'importer. Un dossier qui existe déjà n'est que complété.</Aide>
-      {apercu && <ApercuImport apercu={apercu} onFermer={() => setApercu(null)} onFait={(r) => { setApercu(null); notifier(`${r.nouveaux} dossier(s) créé(s), ${r.completes} complété(s)`); onFait() }} />}
+      {apercu && <ApercuImport apercu={apercu} onFermer={() => setApercu(null)} onFait={(r) => { setApercu(null); notifier(`${nb(r.nouveaux, 'dossier créé', 'dossiers créés')}, ${nb(r.completes, 'complété', 'complétés')}`); onFait() }} />}
     </>
   )
 }
@@ -359,7 +359,7 @@ function ApercuImport({ apercu, onFermer, onFait }) {
   const [personnes, setPersonnes] = useState(apercu.personnes)
   const [filtre, setFiltre] = useState('')
   const [envoi, setEnvoi] = useState(false)
-  const nb = (s) => personnes.filter((p) => p.statut === s).length
+  const nbStatut = (s) => personnes.filter((p) => p.statut === s).length
   const vus = personnes.filter((p) => !filtre || p.statut === filtre)
   const changer = (cle, statut) => setPersonnes((l) => l.map((p) => (p.cle === cle ? { ...p, statut } : p)))
   const aImporter = personnes.filter((p) => p.statut !== 'ignorer')
@@ -376,20 +376,20 @@ function ApercuImport({ apercu, onFermer, onFait }) {
       <p className="mb-3 text-sm text-nuit-600">Onglets lus : {apercu.onglets.join(', ')}. Vérifiez le statut de chacun, surtout les baptisés de 2025 et 2026. Une personne présente dans plusieurs onglets n'apparaît qu'une fois.</p>
       <div className="mb-3 flex flex-wrap gap-1.5">
         <button className={`pastille border ${!filtre ? 'border-or bg-or text-white' : 'border-nuit-100 bg-white text-nuit-600'}`} onClick={() => setFiltre('')}>Tous {personnes.length}</button>
-        {STATUTS_IMPORT.filter(([s]) => nb(s)).map(([s, l]) => <button key={s} className={`pastille border ${filtre === s ? 'border-or bg-or text-white' : 'border-nuit-100 bg-white text-nuit-600'}`} onClick={() => setFiltre(s)}>{l} {nb(s)}</button>)}
+        {STATUTS_IMPORT.filter(([s]) => nbStatut(s)).map(([s, l]) => <button key={s} className={`pastille border ${filtre === s ? 'border-or bg-or text-white' : 'border-nuit-100 bg-white text-nuit-600'}`} onClick={() => setFiltre(s)}>{l} {nbStatut(s)}</button>)}
       </div>
       <ul className="divide-y divide-nuit-100">
         {vus.map((p) => (
           <li key={p.cle} className="grid gap-2 py-2.5 text-sm sm:grid-cols-[1fr_200px]">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-1.5"><span className="font-medium">{p.prenoms} {String(p.nom).toUpperCase()}</span>
-                <span className="text-[11px] text-nuit-600/60">{p.onglets.join(' · ')}</span>
-                {p.existant ? <span className="pastille bg-sky-100 py-0 text-[10px] text-sky-900">complète le dossier existant</span> : <span className="pastille bg-emerald-100 py-0 text-[10px] text-emerald-900">nouveau</span>}
-                {p.accompagnateur && <span className="text-[11px] text-nuit-600/70">· {p.accompagnateur}</span>}</div>
+                <span className="text-xs text-nuit-600/75">{p.onglets.join(' · ')}</span>
+                {p.existant ? <span className="pastille bg-sky-100 py-0 text-xs text-sky-900">complète le dossier existant</span> : <span className="pastille bg-emerald-100 py-0 text-xs text-emerald-900">nouveau</span>}
+                {p.accompagnateur && <span className="text-xs text-nuit-600/70">· {p.accompagnateur}</span>}</div>
               {p.notes.length > 0 && <div className="mt-0.5 text-xs italic text-amber-800">{p.notes.join(' · ')}</div>}
-              <div className="text-[11px] text-nuit-600/60">{[p.naissance_date && 'né(e) le ' + p.naissance_date.split('-').reverse().join('/'), p.email, p.telephone, p.entree_date && 'entrée ' + p.entree_date.split('-').reverse().join('/')].filter(Boolean).join(' · ')}</div>
+              <div className="text-xs text-nuit-600/75">{[p.naissance_date && 'né(e) le ' + p.naissance_date.split('-').reverse().join('/'), p.email, p.telephone, p.entree_date && 'entrée ' + p.entree_date.split('-').reverse().join('/')].filter(Boolean).join(' · ')}</div>
             </div>
-            <select className={`champ py-1.5 text-sm ${p.statut === 'ignorer' ? 'text-nuit-600/50' : ''}`} value={p.statut} onChange={(e) => changer(p.cle, e.target.value)}>
+            <select className={`champ py-1.5 text-sm ${p.statut === 'ignorer' ? 'text-nuit-600/75' : ''}`} value={p.statut} onChange={(e) => changer(p.cle, e.target.value)}>
               {STATUTS_IMPORT.map(([s, l]) => <option key={s} value={s}>{l}</option>)}
             </select>
           </li>

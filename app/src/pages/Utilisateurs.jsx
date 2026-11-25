@@ -27,7 +27,7 @@ export default function Utilisateurs() {
           {data?.map((u) => (
             <button key={u.id} onClick={() => setEdition(u)} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm hover:bg-nuit-50/50">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-nuit-50 font-titre text-lg font-semibold text-nuit">{u.nom[0]}</div>
-              <div className="min-w-0 flex-1"><div className="font-medium">{u.nom}{u.id === moi.id && <span className="ml-1 text-xs text-nuit-600/60">(vous)</span>}</div><div className="text-xs text-nuit-600/60">{u.identifiant} · dernière connexion {dateHeure(u.derniere_connexion)}</div></div>
+              <div className="min-w-0 flex-1"><div className="font-medium">{u.nom}{u.id === moi.id && <span className="ml-1 text-xs text-nuit-600/75">(vous)</span>}</div><div className="text-xs text-nuit-600/75">{u.identifiant} · dernière connexion {dateHeure(u.derniere_connexion)}</div></div>
               <span className="pastille bg-nuit-50 text-nuit">{ROLES[u.role]}{u.acces_perso && u.role !== 'admin' ? ' · accès ajustés' : ''}</span>
               {!u.actif && <span className="pastille bg-red-50 text-red-700">désactivé</span>}
             </button>
@@ -72,7 +72,7 @@ function Edition({ u, onFermer, onFait }) {
         <div><label className="etiquette">{nouveau ? 'Mot de passe provisoire' : 'Nouveau mot de passe (laisser vide pour ne pas changer)'}</label>
           <div className="flex gap-2"><input className="champ font-mono" value={f.motdepasse} onChange={maj('motdepasse')} />
             <button type="button" className="btn-clair" onClick={generer} title="Générer"><KeyRound className="h-4 w-4" /></button></div>
-          <p className="mt-1 text-xs text-nuit-600/60">8 caractères minimum. Communiquez-le à la personne, qui le changera dans « Mon compte ».</p></div>
+          <p className="mt-1 text-xs text-nuit-600/75">8 caractères minimum. Communiquez-le à la personne, qui le changera dans « Mon compte ».</p></div>
         {!nouveau && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={f.actif} onChange={maj('actif')} />Compte actif (décocher coupe l'accès immédiatement)</label>}
         <Acces role={f.role} acces={acces} onChange={setAcces} />
         <Erreur erreur={erreur} />
@@ -133,7 +133,7 @@ function Acces({ role, acces: a, onChange }) {
               className={`pastille border px-2.5 py-1 text-xs ${on ? 'border-nuit bg-nuit text-white' : 'border-nuit-100 bg-white text-nuit-600'}`}>{o}</button>) })}
         </div>
       </div>
-      <Ligne label={<span>Peut signer <span className="text-xs text-nuit-600/60">(extraits de baptême, B6, courriers)</span></span>}><Interrupteur actif={!!a.signer} onChange={(v) => onChange({ ...a, signer: v })} /></Ligne>
+      <Ligne label={<span>Peut signer <span className="text-xs text-nuit-600/75">(extraits de baptême, B6, courriers)</span></span>}><Interrupteur actif={!!a.signer} onChange={(v) => onChange({ ...a, signer: v })} /></Ligne>
     </div>
   )
 }

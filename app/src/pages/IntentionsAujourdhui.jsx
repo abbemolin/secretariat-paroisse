@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BookOpen, ChevronRight } from 'lucide-react'
 import { useApp } from '../App.jsx'
-import { Chargement, useNotif } from '../ui.jsx'
+import { Chargement, useNotif, pluriel } from '../ui.jsx'
 import { chargerCalendrier, jourLiturgique } from '../liturgie/calendrier.js'
 import { COULEURS } from '../liturgie/ordo.js'
 import { ZoneCelebration } from '../intentions/composants.jsx'
@@ -49,7 +49,7 @@ export default function IntentionsAujourdhui() {
                   <span className="w-14 shrink-0 font-titre text-xl font-semibold tabular-nums text-nuit">{heureFr(heureDe(e))}</span>
                   <div className="min-w-0 flex-1">
                     <div className="text-xs uppercase tracking-wide text-nuit-600/70">{typeMesse(e)}</div>
-                    <div className="font-medium text-nuit">{it ? it.nom_intention : <span className="text-nuit-600/60">Pas d'intention</span>}</div>
+                    <div className="font-medium text-nuit">{it ? it.nom_intention : <span className="text-nuit-600/75">Pas d'intention</span>}</div>
                     {it?.nom_donateur && <div className="text-sm text-nuit-600">{it.nom_donateur}{it.statut !== 'valide' ? ' · en attente' : ''}</div>}
                   </div>
                 </div>
@@ -64,9 +64,9 @@ export default function IntentionsAujourdhui() {
         <h2 className="mb-2 text-xl font-semibold text-nuit">À traiter</h2>
         {!enAttente.length && !aEnvoyer.length && !nonCelebrees.length ? <p className="text-sm text-nuit-600">Rien à traiter. 🙏</p> : (
           <div className="space-y-1">
-            <Ligne n={enAttente.length} texte="demande(s) en attente de validation" couleur="text-red-700" items={enAttente} onClic={(i) => nav(`/intentions/gerer?id=${i.id}`)} />
-            <Ligne n={aEnvoyer.length} texte="confirmation(s) à envoyer" couleur="text-or-600" items={aEnvoyer} onClic={(i) => nav(`/intentions/gerer?id=${i.id}`)} />
-            <Ligne n={nonCelebrees.length} texte="messe(s) passée(s) non déclarée(s) célébrée(s)" couleur="text-nuit-700" items={nonCelebrees} onClic={() => nav('/intentions/gerer?filtre=non')} />
+            <Ligne n={enAttente.length} texte={pluriel(enAttente.length, 'demande en attente de validation', 'demandes en attente de validation')} couleur="text-red-700" items={enAttente} onClic={(i) => nav(`/intentions/gerer?id=${i.id}`)} />
+            <Ligne n={aEnvoyer.length} texte={pluriel(aEnvoyer.length, 'confirmation à envoyer', 'confirmations à envoyer')} couleur="text-or-600" items={aEnvoyer} onClic={(i) => nav(`/intentions/gerer?id=${i.id}`)} />
+            <Ligne n={nonCelebrees.length} texte={pluriel(nonCelebrees.length, 'messe passée non déclarée célébrée', 'messes passées non déclarées célébrées')} couleur="text-nuit-700" items={nonCelebrees} onClic={() => nav('/intentions/gerer?filtre=non')} />
           </div>
         )}
       </div>

@@ -59,7 +59,7 @@ function Registre() {
         <span className="flex gap-2">{peutSigner && <BoutonSelection s={s} />}
         <button className="btn-or" onClick={nouveau} disabled={creation}>{creation ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}Nouvel extrait</button></span>
       </div>
-      <div className="relative mb-4"><Search className="absolute left-3 top-2.5 h-4 w-4 text-nuit-600/50" />
+      <div className="relative mb-4"><Search className="absolute left-3 top-2.5 h-4 w-4 text-nuit-600/75" />
         <input className="champ pl-9" placeholder="Nom, année, n° d'acte…" value={texte} onChange={(e) => setTexte(e.target.value)} /></div>
       <Erreur erreur={erreur} reessayer={recharger} />
       {chargement && !data ? <Chargement /> : (
@@ -69,7 +69,7 @@ function Registre() {
               {liste.map((x) => (
                 <button key={x.id} onClick={() => (s.actif ? x.statut !== 'signe' && s.basculer(x.id) : nav(`/extraits/${x.id}`))} className="grid w-full grid-cols-[1fr_auto] items-center gap-x-3 gap-y-0.5 px-4 py-3 text-left text-sm hover:bg-nuit-50/50 md:grid-cols-[1fr_170px_140px_120px]">
                   <span className="flex min-w-0 items-center gap-3"><Case s={s} id={x.id} nom={x.nom} disabled={x.statut === 'signe'} title={x.statut === 'signe' ? 'Déjà signé' : ''} /><span className="min-w-0"><span className="block truncate font-medium">{x.nom}</span>
-                    <span className="block text-xs text-nuit-600/60">Registre {x.valeurs.annee || '—'} · acte n° {x.valeurs.acte || '—'}{x.dossier_id && ' · depuis un dossier'}{x.demande?.email ? ' · demandé par ' + x.demande.email : ''}</span></span></span>
+                    <span className="block text-xs text-nuit-600/75">Registre {x.valeurs.annee || '—'} · acte n° {x.valeurs.acte || '—'}{x.dossier_id && ' · depuis un dossier'}{x.demande?.email ? ' · demandé par ' + x.demande.email : ''}</span></span></span>
                   <span className="hidden text-xs text-nuit-600/70 md:block">Créé le {dateCourte(x.cree_le)}<br />par {x.cree_par}</span>
                   <span className="hidden text-xs text-nuit-600/70 md:block">{x.envois.length ? `Envoyé ${x.envois.length} fois` : '—'}</span>
                   <span className="justify-self-end">{x.statut === 'signe'
@@ -82,7 +82,7 @@ function Registre() {
         </div>
       )}
       <BarreSelection s={s} tous={liste.filter((x) => x.statut !== 'signe').map((x) => x.id)}>
-        <button className="btn-or py-1.5 text-xs" onClick={() => setLot(liste.filter((x) => s.a(x.id)))}><PenLine className="h-3.5 w-3.5" />Signer et envoyer ({s.n})</button>
+        <button className="btn-principal py-1.5 text-xs" onClick={() => setLot(liste.filter((x) => s.a(x.id)))}><PenLine className="h-3.5 w-3.5" />Signer et envoyer ({s.n})</button>
       </BarreSelection>
       {lot && <SignatureLot extraits={lot} onFermer={() => setLot(null)} onFait={() => { setLot(null); s.quitter(); recharger() }} />}
     </>
@@ -236,7 +236,7 @@ function Extrait({ id }) {
         <div className="space-y-3">
           <div className="carte flex flex-wrap gap-2 p-3">
             {x.peutSigner
-              ? <button className="btn-or" onClick={() => setPad(true)} disabled={!!occupe}>{occupe === 'sign' ? <Loader2 className="h-4 w-4 animate-spin" /> : <PenLine className="h-4 w-4" />}{signe ? 'Signer à nouveau' : 'Signer'}</button>
+              ? <button className="btn-principal" onClick={() => setPad(true)} disabled={!!occupe}>{occupe === 'sign' ? <Loader2 className="h-4 w-4 animate-spin" /> : <PenLine className="h-4 w-4" />}{signe ? 'Signer à nouveau' : 'Signer'}</button>
               : <span className="self-center rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">Votre compte n'est pas autorisé à signer. Un administrateur peut l'ajouter dans Réglages → Paroisse → « Peuvent signer les extraits ».</span>}
             <button className="btn-clair" onClick={() => cadre.current.contentWindow.print()}><Printer className="h-4 w-4" />Imprimer</button>
             <button className="btn-clair" onClick={telecharger} disabled={!!occupe}>{occupe === 'pdf' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}PDF</button>
@@ -309,7 +309,7 @@ export function PadSignature({ nom, titre = "Signer l'extrait", consigne, note, 
         <button className="btn-principal" onClick={valider} disabled={vide}><PenLine className="h-4 w-4" />Valider la signature</button></>}>
       <p className="mb-2 text-sm text-nuit-600">{consigne || <>Signez dans le cadre, au doigt, au stylet ou à la souris. Signature de <strong>{nom}</strong>.</>}</p>
       <canvas ref={canvas} className="w-full touch-none rounded-lg border-2 border-dashed border-nuit-100 bg-white" style={{ aspectRatio: '5 / 2' }} />
-      <p className="mt-2 text-xs text-nuit-600/60">{note || "La signature est apposée avec le sceau sur l'extrait, puis le PDF signé est archivé dans le Drive."}</p>
+      <p className="mt-2 text-xs text-nuit-600/75">{note || "La signature est apposée avec le sceau sur l'extrait, puis le PDF signé est archivé dans le Drive."}</p>
     </Modale>
   )
 }

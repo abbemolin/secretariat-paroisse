@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 import { useActualisation, modaleOuverte } from './actualisation.js'
 import { enCache, fileAttente } from './api.js'
-import { X, Loader2, AlertCircle, CheckCircle2, CloudOff } from 'lucide-react'
+import { X, Loader2, AlertCircle, CheckCircle2, CloudOff, MoreHorizontal } from 'lucide-react'
 
 // ─── Formats ───
 const fmtJour = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
@@ -46,6 +46,9 @@ export const COULEURS_STATUT = {
 }
 
 export const initiales = (nom) => String(nom || '?').replace(/^(abbé|père|sœur|soeur)\s+/i, '').split(/\s+/).map((m) => m[0]).slice(0, 2).join('').toUpperCase()
+/** Accord au singulier ou au pluriel : nb(3, 'contact créé', 'contacts créés') → « 3 contacts créés ». */
+export const pluriel = (n, singulier, plurielle) => (Math.abs(Number(n) || 0) > 1 ? plurielle : singulier)
+export const nb = (n, singulier, plurielle) => `${n} ${pluriel(n, singulier, plurielle)}`
 export const dateCourte = (s) => (s ? new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(String(s).length === 10 ? s + 'T12:00:00' : s)) : '—')
 
 // ─── Composants ───
@@ -212,7 +215,7 @@ export function Aide({ children, className = '' }) {
   return (
     <span className={`relative inline-flex align-middle ${className}`}>
       <button type="button" onClick={(e) => { e.stopPropagation(); setOuvert(!ouvert) }} aria-label="Aide"
-        className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-or/50 bg-or-50 text-[11px] font-bold text-or-600 hover:bg-or-100">?</button>
+        className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-or/50 bg-or-50 text-xs font-bold text-or-600 hover:bg-or-100">?</button>
       {ouvert && <>
         <span className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setOuvert(false) }} />
         <span className="carte absolute left-1/2 top-6 z-50 w-72 -translate-x-1/2 p-3 text-left text-xs font-normal normal-case leading-relaxed text-nuit-700 shadow-lg" onClick={(e) => e.stopPropagation()}>{children}</span>
@@ -254,5 +257,35 @@ export function Interrupteur({ actif, onChange, disabled }) {
       className={`relative h-7 w-12 shrink-0 rounded-full transition ${actif ? 'bg-or' : 'bg-nuit-100'} disabled:opacity-50`}>
       <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-all ${actif ? 'left-[22px]' : 'left-0.5'}`} />
     </button>
+  )
+}
+
+/** Menu « ⋯ » pour les actions secondaires d'une barre d'outils.
+ *  actions : [{ icone, libelle, onClick, disabled, aide }] (les éléments faux sont ignorés). */
+export function MenuPlusActions({ actions, libelle = 'Plus' }) {
+  const [ouvert, setOuvert] = useState(false)
+  const liste = (actions || []).filter(Boolean)
+  if (!liste.length) return null
+  return (
+    <div className="relative">
+      <button className="btn-clair" aria-haspopup="menu" aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)} title="Autres actions">
+        <MoreHorizontal className="h-4 w-4" /><span className="hidden sm:inline">{libelle}</span>
+      </button>
+      {ouvert && <>
+        <div className="fixed inset-0 z-40" onClick={() => setOuvert(false)} />
+        <div role="menu" className="carte absolute right-0 z-50 mt-1 w-60 overflow-hidden py-1 shadow-lg">
+          {liste.map((a) => {
+            const I = a.icone
+            return (
+              <button key={a.libelle} role="menuitem" disabled={a.disabled} title={a.aide || undefined}
+                onClick={() => { setOuvert(false); a.onClick() }}
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-nuit-700 hover:bg-nuit-50 disabled:cursor-not-allowed disabled:opacity-50">
+                {I && <I className="h-4 w-4 shrink-0 text-nuit-600" />}{a.libelle}
+              </button>
+            )
+          })}
+        </div>
+      </>}
+    </div>
   )
 }

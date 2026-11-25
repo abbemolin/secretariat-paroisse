@@ -168,7 +168,7 @@ export default function Courriers({ dossier, onFermer, onFait }) {
           ))}
         </div>
       )}
-      <p className="mt-3 text-xs text-nuit-600/60">Les textes se modifient dans Réglages → Modèles.</p>
+      <p className="mt-3 text-xs text-nuit-600/75">Les textes se modifient dans Réglages → Modèles.</p>
     </Modale>
   )
 
@@ -181,7 +181,7 @@ export default function Courriers({ dossier, onFermer, onFait }) {
       </> : <>
         <button className="btn-clair mr-auto" onClick={() => setModele(null)}><ArrowLeft className="h-4 w-4" />Modèles</button>
         <button className="btn-clair" onClick={() => cadre.current.contentWindow.print()}><Printer className="h-4 w-4" />Imprimer sans signer</button>
-        {peutSigner && <button className="btn-or" disabled={!!occupe} onClick={() => setPad(true)}>{occupe === 'signer' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSignature className="h-4 w-4" />}Signer</button>}
+        {peutSigner && <button className="btn-principal" disabled={!!occupe} onClick={() => setPad(true)}>{occupe === 'signer' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSignature className="h-4 w-4" />}Signer</button>}
       </>}>
         <div className="grid gap-4 md:grid-cols-[300px_1fr]">
           <div className="space-y-2 md:max-h-[62vh] md:overflow-y-auto md:pr-2">

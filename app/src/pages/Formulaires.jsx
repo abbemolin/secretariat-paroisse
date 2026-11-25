@@ -52,7 +52,7 @@ export default function Formulaires() {
       <EnTete titre="Formulaires" sousTitre="Envoyer un formulaire en ligne, suivre les réponses, imprimer les documents" />
       <div className="mb-4 flex gap-1 rounded-lg bg-nuit-50 p-1 text-sm">
         {VUES.map(([k, l]) => <button key={k} onClick={() => setVue(k)} className={`flex-1 rounded-md px-3 py-1.5 ${vue === k ? 'bg-white font-semibold text-nuit shadow-sm' : 'text-nuit-600'}`}>{l}
-          {k === 'suivi' && nonRemplis > 0 && <span className="ml-1.5 rounded-full bg-or px-1.5 text-[11px] font-bold text-white">{nonRemplis}</span>}</button>)}
+          {k === 'suivi' && nonRemplis > 0 && <span className="ml-1.5 rounded-full bg-or px-1.5 text-xs font-bold text-white">{nonRemplis}</span>}</button>)}
       </div>
       <Erreur erreur={erreur} reessayer={recharger} />
       {chargement && !data ? <Chargement /> : vue === 'envoyer' ? (
@@ -217,14 +217,14 @@ function Suivi({ envois, setData }) {
               <div className="min-w-0 flex-1">
                 <div className="font-medium">{x.formulaire_nom}</div>
                 <div className="text-xs text-nuit-600/80">{x.ecole ? <><School className="mr-1 inline h-3 w-3" />{x.ecole} · </> : x.nom ? x.nom + ' · ' : ''}{x.email}</div>
-                <div className="text-xs text-nuit-600/60">Envoyé le {dateCourte(x.envoye_le)} par {x.envoye_par}{x.relances > 0 && ` · relancé ${x.relances} fois (dernière le ${dateCourte(x.relance_le)})`}</div>
+                <div className="text-xs text-nuit-600/75">Envoyé le {dateCourte(x.envoye_le)} par {x.envoye_par}{x.relances > 0 && ` · relancé ${x.relances} fois (dernière le ${dateCourte(x.relance_le)})`}</div>
               </div>
               {x.rempli_le
                 ? <span className="pastille bg-green-50 text-green-800"><CheckCircle2 className="h-3 w-3" />{x.reponses > 1 ? `${x.reponses} réponses` : `rempli le ${dateCourte(x.rempli_le)}`}</span>
                 : <span className="pastille bg-or-50 text-or-600"><Clock className="h-3 w-3" />pas encore rempli</span>}
               {x.dossier_ids.slice(0, 3).map((id, k) => <Link key={id} to={`/dossiers/${id}`} className="pastille border border-nuit-100 text-nuit hover:border-or"><FolderHeart className="h-3 w-3" />dossier{x.dossier_ids.length > 1 ? ' ' + (k + 1) : ''}</Link>)}
               {(!x.rempli_le || x.ecole) && <button className="btn-clair h-8 py-1 text-xs" disabled={!!occupe} onClick={() => op(x, 'relancer', 'Rappel envoyé')}>{occupe === x.id + 'relancer' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCw className="h-3.5 w-3.5" />}Relancer</button>}
-              <button className="btn-icone p-1 text-nuit-600/50 hover:text-red-700" title="Retirer de la liste" disabled={!!occupe} onClick={() => op(x, 'retirer', 'Retiré de la liste')}><Trash2 className="h-4 w-4" /></button>
+              <button className="btn-icone p-1 text-nuit-600/75 hover:text-red-700" title="Retirer de la liste" disabled={!!occupe} onClick={() => op(x, 'retirer', 'Retiré de la liste')}><Trash2 className="h-4 w-4" /></button>
             </div>
           ))}
         </div>

@@ -4,7 +4,7 @@ import { BookMarked, Loader2, Printer, PenLine, ArrowUp, ArrowDown, ListOrdered,
 import { api } from '../api.js'
 import { useApp } from '../App.jsx'
 import { TYPES } from '../types.js'
-import { Chargement, Erreur, EnTete, Modale, useNotif, imprimerHtml, dateCourte } from '../ui.jsx'
+import { Chargement, Erreur, EnTete, Modale, useNotif, imprimerHtml, dateCourte, nb } from '../ui.jsx'
 import { useActualisation } from '../actualisation.js'
 
 /** Fenêtre « Inscription au registre » : année et numéro d'acte proposés (modifiables), doublons refusés par le serveur. */
@@ -37,7 +37,7 @@ export function InscriptionRegistre({ id, nom, onFermer, onInscrit }) {
             <label className="block text-sm"><span className="mb-1 block text-nuit-600/80">Année du registre</span><input className="champ" inputMode="numeric" value={annee} onChange={(e) => changerAnnee(e.target.value)} /></label>
             <label className="block text-sm"><span className="mb-1 block text-nuit-600/80">Acte n°</span><input className="champ" value={numero} onChange={(e) => setNumero(e.target.value)} autoFocus /></label>
           </div>
-          <p className="text-xs text-nuit-600/60">Numéro proposé : le suivant de l'année. Vous pouvez le changer ; un numéro déjà attribué cette année est refusé.</p>
+          <p className="text-xs text-nuit-600/75">Numéro proposé : le suivant de l'année. Vous pouvez le changer ; un numéro déjà attribué cette année est refusé.</p>
           <Erreur erreur={erreur} />
         </div>
       )}
@@ -91,10 +91,10 @@ export default function Registres() {
       <Erreur erreur={erreur} />
       {!d ? <Chargement /> : (
         <>
-          <div className="-mx-1 mb-4 flex gap-1.5 overflow-x-auto px-1">
+          <div className="barre-onglets mb-4">
             {d.registres.map((r) => (
               <button key={r.cle} onClick={() => aller(r.cle, annee)} className={`pastille shrink-0 border px-3 py-1.5 text-sm ${r.cle === registre ? 'border-nuit bg-nuit text-white' : 'border-nuit-100 bg-white text-nuit-600'}`}>
-                {r.nom}{r.a_inscrire > 0 && <span className="ml-1.5 rounded-full bg-or px-1.5 text-[11px] text-white">{r.a_inscrire}</span>}
+                {r.nom}{r.a_inscrire > 0 && <span className="ml-1.5 rounded-full bg-or px-1.5 text-xs text-white">{r.a_inscrire}</span>}
               </button>
             ))}
           </div>
@@ -122,9 +122,9 @@ export default function Registres() {
                 {d.annees.map((a) => <option key={a} value={a}>{a}</option>)}
               </select>
             </div>
-            {!d.table.length ? <p className="py-6 text-center text-sm text-nuit-600/60"><BookMarked className="mx-auto mb-2 h-6 w-6 opacity-40" />Aucun acte inscrit en {annee}.</p> : (
+            {!d.table.length ? <p className="py-6 text-center text-sm text-nuit-600/75"><BookMarked className="mx-auto mb-2 h-6 w-6 opacity-40" />Aucun acte inscrit en {annee}.</p> : (
               <table className="w-full text-sm">
-                <thead><tr className="border-b border-nuit-100 text-left text-xs uppercase text-nuit-600/60"><th className="py-1.5">Nom</th><th>Prénom(s)</th><th className="hidden sm:table-cell">Date</th><th className="text-right">Acte n°</th></tr></thead>
+                <thead><tr className="border-b border-nuit-100 text-left text-xs uppercase text-nuit-600/75"><th className="py-1.5">Nom</th><th>Prénom(s)</th><th className="hidden sm:table-cell">Date</th><th className="text-right">Acte n°</th></tr></thead>
                 <tbody className="divide-y divide-nuit-50">
                   {d.table.map((x, i) => (
                     <tr key={i}><td className="py-1.5"><Link to={`/dossiers/${x.id}`} className="font-medium hover:underline">{x.nom}</Link></td><td>{x.prenoms}</td><td className="hidden text-nuit-600/70 sm:table-cell">{x.date ? dateCourte(x.date) : ''}</td><td className="text-right tabular-nums">{x.numero}</td></tr>
@@ -132,7 +132,7 @@ export default function Registres() {
                 </tbody>
               </table>
             )}
-            <p className="mt-3 text-xs text-nuit-600/60">Prochain numéro proposé en {annee} : <b>{d.prochain}</b></p>
+            <p className="mt-3 text-xs text-nuit-600/75">Prochain numéro proposé en {annee} : <b>{d.prochain}</b></p>
             {ecrit('registres') && (
               <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-nuit-50 pt-3 text-sm">
                 <span className="text-nuit-600/80">Dernier acte de {annee} inscrit avant l'application :</span>
@@ -167,7 +167,7 @@ function InscriptionSerie({ registre, actes, onFermer, onFait }) {
     setEnvoi(true)
     try {
       const r = await api('registres', { serie: { registre, ids } })
-      notifier(`${r.faits} acte${r.faits > 1 ? 's' : ''} inscrit${r.faits > 1 ? 's' : ''}` + (r.ignores.length ? ` · ${r.ignores.length} non inscrit(s) : ` + r.ignores.map((x) => `${x.nom} (${x.raison})`).join(', ') : ''), r.ignores.length ? 'erreur' : undefined)
+      notifier(`${r.faits} acte${r.faits > 1 ? 's' : ''} inscrit${r.faits > 1 ? 's' : ''}` + (r.ignores.length ? ` · ${nb(r.ignores.length, 'non inscrit', 'non inscrits')} : ` + r.ignores.map((x) => `${x.nom} (${x.raison})`).join(', ') : ''), r.ignores.length ? 'erreur' : undefined)
       onFait()
     } catch (e) { notifier(e.message, 'erreur'); setEnvoi(false) }
   }
@@ -178,12 +178,12 @@ function InscriptionSerie({ registre, actes, onFermer, onFait }) {
         <button className="btn-principal" disabled={envoi || !plan?.plan.length} onClick={inscrire}>{envoi ? <Loader2 className="h-4 w-4 animate-spin" /> : <PenLine className="h-4 w-4" />}Inscrire {plan?.plan.length || ''} acte{plan?.plan.length > 1 ? 's' : ''}</button></>}>
       <p className="mb-3 text-sm text-nuit-600">Rangez les actes dans l'ordre du registre (flèches) ; retirez ceux à inscrire plus tard. Les numéros se suivent à partir du prochain numéro libre de chaque année. Vérifiez avant d'inscrire : l'inscription coche l'étape « Inscription au registre » de chaque dossier.</p>
       <table className="w-full text-sm">
-        <thead><tr className="border-b border-nuit-100 text-left text-xs uppercase text-nuit-600/60"><th className="py-1.5">Acte n°</th><th>Nom</th><th className="hidden sm:table-cell">Date</th><th /></tr></thead>
+        <thead><tr className="border-b border-nuit-100 text-left text-xs uppercase text-nuit-600/75"><th className="py-1.5">Acte n°</th><th>Nom</th><th className="hidden sm:table-cell">Date</th><th /></tr></thead>
         <tbody className="divide-y divide-nuit-50">
           {ordre.map((x, i) => (
             <tr key={x.id}>
-              <td className="py-1.5 tabular-nums font-semibold">{num(x.id) ? `${num(x.id).numero} / ${num(x.id).annee}` : <Loader2 className="h-3.5 w-3.5 animate-spin text-nuit-600/50" />}</td>
-              <td>{x.nom}<span className="block text-xs text-nuit-600/60">{TYPES[x.type]?.nom}</span></td>
+              <td className="py-1.5 tabular-nums font-semibold">{num(x.id) ? `${num(x.id).numero} / ${num(x.id).annee}` : <Loader2 className="h-3.5 w-3.5 animate-spin text-nuit-600/75" />}</td>
+              <td>{x.nom}<span className="block text-xs text-nuit-600/75">{TYPES[x.type]?.nom}</span></td>
               <td className="hidden text-nuit-600/70 sm:table-cell">{x.date ? dateCourte(x.date) : ''}</td>
               <td className="whitespace-nowrap text-right">
                 <button className="btn-icone p-1" disabled={!i} onClick={() => bouger(i, -1)} title="Monter"><ArrowUp className="h-4 w-4" /></button>

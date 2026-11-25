@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Check, Upload, Loader2, Mail, Printer, FileText, Download, ExternalLink, Globe, Plus, Trash2, History, Send, Church, FileSignature } from 'lucide-react'
 import { api, fichierEnBase64, telechargerBase64, enCache, vignetteImage } from '../api.js'
 import { useApp } from '../App.jsx'
-import { estOptionnel, ALERTES, TYPES, ETATS, documentsManquants, PAR_ANNEE, anneeSacrements, choixAnnees, etapesDe, documentsDe, choixAnneesScolaires, lieuPreparation, libelleAnnee } from '../types.js'
+import { estOptionnel, ALERTES, TYPES, ETATS, documentsManquants, prochaineEtape, PAR_ANNEE, anneeSacrements, choixAnnees, etapesDe, documentsDe, choixAnneesScolaires, lieuPreparation, libelleAnnee } from '../types.js'
 import { IMPRIMABLES } from '../imprimables.js'
 import { Chargement, Erreur, Modale, useNotif, useConfirmer, useDifferer, useAutoEnregistrement, EtatEnregistrement, Aide, dateHeure, dateRelative, dateCourte, versLocal, jourLong, heure } from '../ui.jsx'
 import { Redaction } from './Courrier.jsx'
@@ -37,6 +37,7 @@ export default function Dossier() {
   const [registre, setRegistre] = useState(false)
   const [courriers, setCourriers] = useState(false)
   const [mail, setMail] = useState(null)
+  const [sectionsVues, setSectionsVues] = useState(() => new Set())   // sections vides ouvertes à la demande
   const [depot, setDepot] = useState(null)   // { lien, qr } : QR code du dépôt des pièces
   const [prepDepot, setPrepDepot] = useState(false)
   const [imprimer, setImprimer] = useState(null)
@@ -192,6 +193,19 @@ export default function Dossier() {
 
       {(etatAuto || modifie) && <div className="-mt-3 mb-3 flex justify-end"><EtatEnregistrement etat={etatAuto === 'erreur' ? 'erreur' : modifie || sauvegarde ? 'encours' : etatAuto} /></div>}
 
+      {/* Où en est le dossier, d'un coup d'œil */}
+      {(() => {
+        const faites = Object.keys(b.etapes).filter((k) => b.etapes[k]?.fait)
+        const suite = prochaineEtape(d.type, faites, b.infos)
+        return (
+          <div className="mb-5 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-nuit-100/70 bg-white px-4 py-2.5 text-sm" role="status">
+            <span><span className="text-nuit-600/80">Prochaine étape : </span><strong className="text-nuit">{suite ? suite.label : 'toutes les étapes sont faites'}</strong></span>
+            {documentsDe(d.type, b.infos).length > 0 && <span className={manquants.length ? 'text-amber-800' : 'text-emerald-800'}>{manquants.length ? `${manquants.length} document${manquants.length > 1 ? 's' : ''} manquant${manquants.length > 1 ? 's' : ''}` : 'Tous les documents sont là'}</span>}
+            {!t.sansDate && <span><span className="text-nuit-600/80">Célébration : </span>{b.date_celebration ? <strong className="text-nuit">{dateCourte(b.date_celebration)}</strong> : <span className="text-nuit-600">pas encore fixée</span>}</span>}
+          </div>
+        )
+      })()}
+
       <fieldset disabled={lecture} className="grid min-w-0 gap-5 lg:grid-cols-3">
         {/* Colonne de suivi */}
         <div className="space-y-5">
@@ -202,9 +216,9 @@ export default function Dossier() {
                 const fait = b.etapes[e.cle]?.fait
                 return (
                   <li key={e.cle}><button onClick={() => basculerEtape(e)} className="flex w-full items-start gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-nuit-50">
-                    <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] ${fait ? 'border-transparent text-white' : 'border-nuit-100 text-nuit-600/60'}`} style={fait ? { background: t.couleur } : {}}>{fait ? <Check className="h-3 w-3" /> : i + 1}</span>
-                    <span className="min-w-0"><span className={fait ? 'text-nuit-600/70' : 'font-medium'}>{e.label}</span>{estOptionnel(e, b.infos) && <span className="ml-1 text-[11px] italic text-nuit-600/50">facultatif</span>}
-                      {fait && <span className="block text-[11px] text-nuit-600/50">{dateCourte(b.etapes[e.cle].date)} · {b.etapes[e.cle].par}</span>}</span>
+                    <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-xs ${fait ? 'border-transparent text-white' : 'border-nuit-100 text-nuit-600/75'}`} style={fait ? { background: t.couleur } : {}}>{fait ? <Check className="h-3 w-3" /> : i + 1}</span>
+                    <span className="min-w-0"><span className={fait ? 'text-nuit-600/70' : 'font-medium'}>{e.label}</span>{estOptionnel(e, b.infos) && <span className="ml-1 text-xs italic text-nuit-600/75">facultatif</span>}
+                      {fait && <span className="block text-xs text-nuit-600/75">{dateCourte(b.etapes[e.cle].date)} · {b.etapes[e.cle].par}</span>}</span>
                   </button></li>
                 )
               })}
@@ -305,9 +319,15 @@ export default function Dossier() {
           </section>
 
           <section className="carte p-4">
-            <h2 className="mb-3 text-xl font-semibold">Informations</h2>
+            <div className="mb-3 flex items-center justify-between gap-2"><h2 className="text-xl font-semibold">Informations</h2>
+              {t.sections.some((x) => !x.champs.some((c) => b.infos[c.cle])) && <button type="button" className="text-xs text-or-600 hover:underline" onClick={() => setSectionsVues(sectionsVues.size ? new Set() : new Set(t.sections.map((x) => x.titre)))}>{sectionsVues.size ? 'Replier les sections vides' : 'Afficher toutes les sections'}</button>}</div>
+            {/* Les sections encore vides sont repliées : un clic les ouvre */}
+            {t.sections.some((x) => !x.champs.some((c) => b.infos[c.cle]) && !sectionsVues.has(x.titre)) && (
+              <div className="mb-4 flex flex-wrap gap-1.5">{t.sections.filter((x) => !x.champs.some((c) => b.infos[c.cle]) && !sectionsVues.has(x.titre)).map((x) => (
+                <button type="button" key={x.titre} className="pastille border border-dashed border-nuit-100 bg-white px-2.5 py-1 text-nuit-600 hover:border-or hover:text-or-600" onClick={() => setSectionsVues(new Set([...sectionsVues, x.titre]))}><Plus className="mr-1 h-3 w-3" />{x.titre}</button>))}</div>
+            )}
             <div className="space-y-5">
-              {t.sections.map((s) => (
+              {t.sections.filter((x) => x.champs.some((c) => b.infos[c.cle]) || sectionsVues.has(x.titre)).map((s) => (
                 <fieldset key={s.titre}>
                   <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-or-600">{s.titre}</legend>
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -331,13 +351,13 @@ export default function Dossier() {
             <section className="carte p-4">
               <div className="mb-2 flex items-center justify-between"><h2 className="text-xl font-semibold">Pièces (Drive)</h2>
                 <button className="btn-icone" title="Ajouter une pièce" onClick={() => choisirFichier(null)}>{envoiPiece === 'autre' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}</button></div>
-              {!d.pieces.length ? <p className="text-sm text-nuit-600/60">Aucune pièce.</p> : (
+              {!d.pieces.length ? <p className="text-sm text-nuit-600/75">Aucune pièce.</p> : (
                 <ul className="divide-y divide-nuit-50 text-sm">
                   {d.pieces.slice().reverse().map((p) => (
                     <li key={p.id} className="flex items-center gap-2 py-1.5">
-                      <FileText className={`h-4 w-4 shrink-0 ${p.genere ? 'text-or' : 'text-nuit-600/60'}`} />
-                      <span className="min-w-0 flex-1"><span className="block truncate">{p.libelle}</span><span className="text-[11px] text-nuit-600/50">{dateCourte(p.date)} · {p.par}</span></span>
-                      <button className="btn-icone p-1" onClick={async () => { try { telechargerBase64(await api('documents.telecharger', { id: p.id })) } catch (e) { notifier(e.message, 'erreur') } }}><Download className="h-4 w-4" /></button>
+                      <FileText className={`h-4 w-4 shrink-0 ${p.genere ? 'text-or' : 'text-nuit-600/75'}`} />
+                      <span className="min-w-0 flex-1"><span className="block truncate">{p.libelle}</span><span className="text-xs text-nuit-600/75">{dateCourte(p.date)} · {p.par}</span></span>
+                      <button aria-label="Télécharger" title="Télécharger" className="btn-icone p-1" onClick={async () => { try { telechargerBase64(await api('documents.telecharger', { id: p.id })) } catch (e) { notifier(e.message, 'erreur') } }}><Download className="h-4 w-4" /></button>
                     </li>
                   ))}
                 </ul>
@@ -345,9 +365,9 @@ export default function Dossier() {
             </section>
             <section className="carte p-4">
               <h2 className="mb-2 text-xl font-semibold">Mails</h2>
-              {!d.fils.length ? <p className="text-sm text-nuit-600/60">Aucun mail rattaché.</p> : (
+              {!d.fils.length ? <p className="text-sm text-nuit-600/75">Aucun mail rattaché.</p> : (
                 <ul className="divide-y divide-nuit-50 text-sm">
-                  {d.fils.map((f) => <li key={f.id}><Link to={`/courrier?fil=${f.id}`} className="flex items-center gap-2 py-1.5 hover:text-or-600"><Mail className="h-4 w-4 shrink-0 text-nuit-600/60" /><span className="min-w-0 flex-1 truncate">{f.sujet}</span><span className="text-[11px] text-nuit-600/50">{dateRelative(f.date)}</span><ExternalLink className="h-3 w-3 opacity-40" /></Link></li>)}
+                  {d.fils.map((f) => <li key={f.id}><Link to={`/courrier?fil=${f.id}`} className="flex items-center gap-2 py-1.5 hover:text-or-600"><Mail className="h-4 w-4 shrink-0 text-nuit-600/75" /><span className="min-w-0 flex-1 truncate">{f.sujet}</span><span className="text-xs text-nuit-600/75">{dateRelative(f.date)}</span><ExternalLink className="h-3 w-3 opacity-40" /></Link></li>)}
                 </ul>
               )}
             </section>
@@ -356,7 +376,7 @@ export default function Dossier() {
           <section className="carte p-4">
             <h2 className="mb-2 flex items-center gap-2 text-xl font-semibold"><History className="h-4 w-4 text-or" />Historique</h2>
             <ul className="space-y-1 text-sm">
-              {d.historique.slice(0, 30).map((h, i) => <li key={i} className="flex gap-3"><span className="w-32 shrink-0 text-xs text-nuit-600/60">{dateHeure(h.date)}</span><span className="min-w-0"><span className="text-nuit-600/70">{h.par} — </span>{h.texte}</span></li>)}
+              {d.historique.slice(0, 30).map((h, i) => <li key={i} className="flex gap-3"><span className="w-32 shrink-0 text-xs text-nuit-600/75">{dateHeure(h.date)}</span><span className="min-w-0"><span className="text-nuit-600/70">{h.par} — </span>{h.texte}</span></li>)}
             </ul>
           </section>
         </div>
@@ -388,14 +408,14 @@ function Rencontres({ liste, onChange, couleur }) {
   return (
     <section className="carte p-4">
       <h2 className="mb-1 text-xl font-semibold">Rencontres</h2>
-      <p className="mb-2 text-xs text-nuit-600/60">{liste.length ? `Présent(e) à ${presents} sur ${liste.length}` : 'Aucune rencontre notée.'}</p>
+      <p className="mb-2 text-xs text-nuit-600/75">{liste.length ? `Présent(e) à ${presents} sur ${liste.length}` : 'Aucune rencontre notée.'}</p>
       <ul className="space-y-1">
         {liste.map((r) => (
           <li key={r.id} className="flex items-center gap-2 text-sm">
             <button onClick={() => onChange(liste.map((x) => (x.id === r.id ? { ...x, present: !x.present } : x)))} className={`pastille w-16 justify-center border ${r.present ? 'border-transparent text-white' : 'border-red-200 bg-red-50 text-red-700'}`} style={r.present ? { background: couleur } : {}}>{r.present ? 'présent' : 'absent'}</button>
             <span className="w-20 shrink-0 text-xs text-nuit-600/70">{r.date ? dateCourte(r.date) : '—'}</span>
             <span className="min-w-0 flex-1 truncate">{r.titre}</span>
-            <button className="btn-icone p-1 text-nuit-600/40 hover:text-red-700" onClick={() => onChange(liste.filter((x) => x.id !== r.id))}><Trash2 className="h-3.5 w-3.5" /></button>
+            <button aria-label="Supprimer" title="Supprimer" className="btn-icone p-1 text-nuit-600/40 hover:text-red-700" onClick={() => onChange(liste.filter((x) => x.id !== r.id))}><Trash2 className="h-3.5 w-3.5" /></button>
           </li>
         ))}
       </ul>
@@ -455,9 +475,9 @@ export function Imprimer({ modele, dossier, reglages, onFermer, onArchive, libre
     <>
     <Modale large titre={modele.titre} onFermer={onFermer}
       pied={<><button className="btn-clair mr-auto" onClick={onFermer}>Fermer</button>
-        {!libre && modele === IMPRIMABLES.B14 && <button className="btn-or" onClick={delivrer} disabled={archivage}><FileText className="h-4 w-4" />Délivrer un extrait signé</button>}
-        {!libre && modele === IMPRIMABLES.B15 && dossier.type === 'bapteme_ailleurs' && <button className="btn-or" onClick={() => setPadB15(true)} disabled={archivage || !dossier.email || !(utilisateur.role === 'admin' || utilisateur.acces?.signer)} title={!dossier.email ? 'Pas d\'adresse e-mail dans le dossier' : ''}>{archivage ? <Loader2 className="h-4 w-4 animate-spin" /> : <PenLine className="h-4 w-4" />}Signer et envoyer à la famille</button>}
-        {!libre && modele === IMPRIMABLES.B15 && dossier.type === 'bapteme' && <button className="btn-or" onClick={envoyerB15} disabled={archivage || !dossier.email}>{archivage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Envoyer à la famille (à faire signer)</button>}
+        {!libre && modele === IMPRIMABLES.B14 && <button className="btn-principal" onClick={delivrer} disabled={archivage}><FileText className="h-4 w-4" />Délivrer un extrait signé</button>}
+        {!libre && modele === IMPRIMABLES.B15 && dossier.type === 'bapteme_ailleurs' && <button className="btn-principal" onClick={() => setPadB15(true)} disabled={archivage || !dossier.email || !(utilisateur.role === 'admin' || utilisateur.acces?.signer)} title={!dossier.email ? 'Pas d\'adresse e-mail dans le dossier' : ''}>{archivage ? <Loader2 className="h-4 w-4 animate-spin" /> : <PenLine className="h-4 w-4" />}Signer et envoyer à la famille</button>}
+        {!libre && modele === IMPRIMABLES.B15 && dossier.type === 'bapteme' && <button className="btn-principal" onClick={envoyerB15} disabled={archivage || !dossier.email}>{archivage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Envoyer à la famille (à faire signer)</button>}
         {!libre && modele === IMPRIMABLES.B6 && <button className="btn-or" onClick={() => setEtapeSig(1)} disabled={archivage}>{archivage ? <Loader2 className="h-4 w-4 animate-spin" /> : <PenLine className="h-4 w-4" />}Faire signer</button>}
         {!libre && modele === IMPRIMABLES.B6 && <Aide>Le prêtre ou le diacre signe, puis le catéchumène, sur le même appareil. Le PDF avec le sceau est archivé dans le Drive et l'étape cochée.</Aide>}
         {!libre && <button className="btn-clair" onClick={archiver} disabled={archivage}>{archivage ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}Archiver (PDF)</button>}
@@ -513,14 +533,14 @@ function RendezVousCure({ infos, email, onChoix, onRappel }) {
           <p className="text-sm font-medium first-letter:uppercase">{jourLong(infos.rdv_cure_date)} à {heure(infos.rdv_cure_date)}</p>
           {infos.rdv_cure_lieu && <p className="text-xs text-nuit-600/70">{infos.rdv_cure_lieu}</p>}
           <div className="mt-3 flex flex-wrap gap-2">
-            {!passe && <button className="btn-or py-1.5 text-xs" disabled={!email} onClick={onRappel}><Mail className="h-4 w-4" />Envoyer le rappel aux parents</button>}
+            {!passe && <button className="btn-principal py-1.5 text-xs" disabled={!email} onClick={onRappel}><Mail className="h-4 w-4" />Envoyer le rappel aux parents</button>}
             <button className="btn-clair py-1.5 text-xs" onClick={() => { setOuvert(true); if (!liste) api('agenda.rendezvous', { email }).then(setListe).catch(setErreur) }}>Changer</button>
             <button className="btn-clair py-1.5 text-xs" onClick={() => onChoix(null)}>Retirer</button>
           </div>
         </>
       ) : (
         <>
-          {!liste && !erreur ? <p className="text-xs text-nuit-600/60">Recherche dans l'agenda…</p>
+          {!liste && !erreur ? <p className="text-xs text-nuit-600/75">Recherche dans l'agenda…</p>
             : trouves.length ? (
               <div className="space-y-1.5">
                 <p className="text-xs text-emerald-800">Trouvé dans l'agenda (réservé avec l'e-mail des parents) :</p>
@@ -530,7 +550,7 @@ function RendezVousCure({ infos, email, onChoix, onRappel }) {
                   </button>
                 ))}
               </div>
-            ) : <p className="text-xs text-nuit-600/60">Aucun rendez-vous trouvé avec l'e-mail des parents.</p>}
+            ) : <p className="text-xs text-nuit-600/75">Aucun rendez-vous trouvé avec l'e-mail des parents.</p>}
           <button className="btn-clair mt-2 w-full py-1.5 text-xs" onClick={() => setOuvert(true)}>Choisir dans l'agenda</button>
         </>
       )}
@@ -542,7 +562,7 @@ function RendezVousCure({ infos, email, onChoix, onRappel }) {
               {liste.map((e) => (
                 <li key={e.id}><button onClick={() => { onChoix(e); setOuvert(false) }} className={`flex w-full items-start gap-3 px-2 py-2 text-left text-sm hover:bg-nuit-50 ${e.correspond ? 'bg-emerald-50' : ''}`}>
                   <span className="w-36 shrink-0 text-xs text-nuit-600/80 first-letter:uppercase">{jourLong(e.debut)}<br /><b>{heure(e.debut)}</b></span>
-                  <span className="min-w-0"><span className="block font-medium">{e.titre}</span><span className="block truncate text-xs text-nuit-600/60">{e.invites?.join(', ')}</span>{e.correspond && <span className="text-xs text-emerald-800">correspond à l'e-mail des parents</span>}</span>
+                  <span className="min-w-0"><span className="block font-medium">{e.titre}</span><span className="block truncate text-xs text-nuit-600/75">{e.invites?.join(', ')}</span>{e.correspond && <span className="text-xs text-emerald-800">correspond à l'e-mail des parents</span>}</span>
                 </button></li>
               ))}
             </ul>
@@ -604,8 +624,8 @@ function FraterniteDossier({ d, onMaj }) {
       {f ? <>
         <span className="min-w-0 flex-1">Fraternité Cor Unum {f.annee} : <Link to={`/cor-unum?annee=${f.annee}&vue=tous&fiche=${f.id}`} className="font-semibold text-rose-800 hover:underline">{f.equipe || 'à répartir'}</Link>
           {f.chefs?.length > 0 && <span className="text-nuit-600/70"> · chef : {f.chefs.join(', ')}</span>}
-          {f.ancien && <span className="pastille ml-1.5 bg-nuit-100 py-0 text-[10px] text-nuit-600">ancien membre</span>}
-          {f.mode === 'auto' && <span className="ml-1.5 text-[11px] text-nuit-600/60">(reconnu par le nom)</span>}</span>
+          {f.ancien && <span className="pastille ml-1.5 bg-nuit-100 py-0 text-xs text-nuit-600">ancien membre</span>}
+          {f.mode === 'auto' && <span className="ml-1.5 text-xs text-nuit-600/75">(reconnu par le nom)</span>}</span>
         <span className="flex flex-wrap gap-1.5"><button className="btn-or px-2.5 py-1 text-xs" onClick={() => setPlacer(true)}><HeartHandshake className="h-3.5 w-3.5" />{f.equipe && !f.ancien ? 'Changer de fraternité' : 'Placer dans une fraternité'}</button>
           <button className="btn-clair px-2.5 py-1 text-xs" title="Relier le dossier à une autre fiche Cor Unum" onClick={() => setChoix(true)}>Autre fiche</button><button className="btn-clair px-2.5 py-1 text-xs" onClick={delier}>Délier</button></span>
       </> : <>
@@ -664,7 +684,7 @@ function ParrainsEspace({ d, liste, occupe, action }) {
       {liste.map((z) => (
         <div key={z.id} className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
           <span className="min-w-0 flex-1"><b>{ROLE[z.role]}</b> : {z.nom}{z.email && <span className="text-nuit-600/70"> · {z.email}</span>}
-            <span className={`pastille ml-2 py-0 text-[11px] ${z.cert_le ? 'bg-emerald-100 text-emerald-900' : 'bg-amber-100 text-amber-900'}`}>{z.cert_le ? `certificat reçu le ${dateCourte(z.cert_le)}` : z.envoye_le ? `lien envoyé le ${dateCourte(z.envoye_le)}` : 'lien pas envoyé'}</span></span>
+            <span className={`pastille ml-2 py-0 text-xs ${z.cert_le ? 'bg-emerald-100 text-emerald-900' : 'bg-amber-100 text-amber-900'}`}>{z.cert_le ? `certificat reçu le ${dateCourte(z.cert_le)}` : z.envoye_le ? `lien envoyé le ${dateCourte(z.envoye_le)}` : 'lien pas envoyé'}</span></span>
           <span className="flex gap-1.5">
             {z.email && !z.cert_le && <button className="btn-clair px-2.5 py-1 text-xs" disabled={occupe} onClick={() => action('parrain.envoyer', { parrain_id: z.id }, 'Lien envoyé')}><Mail className="h-3.5 w-3.5" />{z.envoye_le ? 'Renvoyer' : 'Envoyer le lien'}</button>}
             <button className="btn-clair px-2.5 py-1 text-xs" onClick={() => copier(z.lien)}><Copy className="h-3.5 w-3.5" /></button>
@@ -692,7 +712,7 @@ function Signalements({ liste, occupe, action }) {
   return (
     <div className="mt-2 border-t border-nuit-100 pt-2">
       <div className="flex flex-wrap items-center gap-2"><span className="font-medium">Erreurs signalées</span>
-        {ouverts.length > 0 ? <span className="pastille bg-amber-100 py-0 text-[11px] text-amber-900">{ouverts.length} à traiter</span> : <span className="text-xs text-nuit-600/70">tout est traité</span>}
+        {ouverts.length > 0 ? <span className="pastille bg-amber-100 py-0 text-xs text-amber-900">{ouverts.length} à traiter</span> : <span className="text-xs text-nuit-600/70">tout est traité</span>}
         {traites.length > 0 && <button className="text-xs text-or-600 underline" onClick={() => setVoirTraites(!voirTraites)}>{voirTraites ? 'Masquer les traitées' : `Voir les traitées (${traites.length})`}</button>}
       </div>
       {[...ouverts, ...(voirTraites ? traites : [])].map((z) => (
@@ -744,13 +764,13 @@ function EspaceDossier({ d, onMaj }) {
         <span className="min-w-0 flex-1"><b>Espace personnel</b> <span className="text-nuit-600/70">(app « La Croix glorieuse »)</span>
           {e.existe && <span className="block text-xs text-nuit-600/70">{e.mot_de_passe ? `Mot de passe choisi le ${dateCourte(e.mot_de_passe)}` : 'Mot de passe pas encore choisi'}{e.derniere_visite ? ` · dernière visite ${dateRelative(e.derniere_visite)}` : ''}{!e.mail ? ' · aucune adresse e-mail dans le dossier' : ''}</span>}</span>
         {!e.existe ? <button className="btn-clair px-2.5 py-1 text-xs" disabled={occupe} onClick={() => action('espace.lien', {}, 'Espace personnel créé')}>Créer son espace</button> : <span className="flex flex-wrap gap-1.5">
-          <button className="btn-or px-2.5 py-1 text-xs" disabled={!e.mail} onClick={() => setMail(true)}><Mail className="h-3.5 w-3.5" />Envoyer le lien</button>
+          <button className="btn-principal px-2.5 py-1 text-xs" disabled={!e.mail} onClick={() => setMail(true)}><Mail className="h-3.5 w-3.5" />Envoyer le lien</button>
           <button className="btn-clair px-2.5 py-1 text-xs" onClick={copier}><Copy className="h-3.5 w-3.5" />Copier</button>
           <button className="btn-clair px-2.5 py-1 text-xs" disabled={occupe} onClick={nouveau}><RefreshCw className="h-3.5 w-3.5" />Nouveau lien</button></span>}
       </div>
       {(l.texte || l.statut) && (
         <div className="mt-2 border-t border-nuit-100 pt-2">
-          <div className="flex flex-wrap items-center gap-2"><span className="font-medium">Lettre à l'évêque</span><span className={`pastille py-0 text-[11px] ${STATUTS[l.statut]?.[1] || ''}`}>{STATUTS[l.statut]?.[0] || l.statut}</span>
+          <div className="flex flex-wrap items-center gap-2"><span className="font-medium">Lettre à l'évêque</span><span className={`pastille py-0 text-xs ${STATUTS[l.statut]?.[1] || ''}`}>{STATUTS[l.statut]?.[0] || l.statut}</span>
             {l.statut === 'deposee' && <span className="text-xs text-nuit-600/70">déposée dans l'app le {dateCourte(l.deposee_le)}</span>}
             {l.statut === 'annoncee' && <span className="text-xs text-nuit-600/70">déposée au presbytère le {dateCourte(l.annoncee_le)} (d'après la personne)</span>}
             {l.fichier && <a className="text-xs text-or-600 underline" href={l.fichier} target="_blank" rel="noreferrer">Ouvrir le fichier</a>}
@@ -760,7 +780,7 @@ function EspaceDossier({ d, onMaj }) {
               {l.statut === 'annoncee' ? (
                 <button className="btn-or px-2.5 py-1 text-xs" disabled={occupe} onClick={() => action('espace.lettre', { recue: true, ...(scan ? { fichier: scan } : {}) }, 'Lettre reçue : étape et document cochés').then(() => setScan(null))}>{occupe ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}Reçue</button>
               ) : (
-                <button className="btn-or px-2.5 py-1 text-xs" disabled={occupe || l.statut === 'brouillon' || l.statut === 'a_corriger'} onClick={() => action('espace.lettre', { valider: true }, 'Lettre validée : étape et document cochés')}>{occupe ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}Valider</button>
+                <button className="btn-principal px-2.5 py-1 text-xs" disabled={occupe || l.statut === 'brouillon' || l.statut === 'a_corriger'} onClick={() => action('espace.lettre', { valider: true }, 'Lettre validée : étape et document cochés')}>{occupe ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}Valider</button>
               )}</span>}
           </div>
           {l.statut === 'annoncee' && <label className="mt-1.5 flex cursor-pointer items-center gap-2 text-xs text-nuit-600/80"><Upload className="h-3.5 w-3.5" />{scan ? `Scan joint : ${scan.nom}` : 'Joindre le scan de la lettre (facultatif)'}

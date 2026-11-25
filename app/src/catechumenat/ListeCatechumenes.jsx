@@ -104,7 +104,7 @@ export default function ListeCatechumenes() {
         <button onClick={() => setSansApp(!sansApp)} title="Celles et ceux qui n'ont pas encore installé l'app personnelle sur leur téléphone" className={`pastille ml-auto gap-1 border py-1 ${sansApp ? 'border-nuit bg-nuit text-white' : 'border-nuit-100 bg-white text-nuit-600'}`}><Smartphone className="h-3.5 w-3.5" />App pas installée <span className="ml-1 opacity-70">{nbSansApp}</span></button>
       </div>
       <div className="mb-4 flex flex-wrap gap-2">
-        <div className="relative min-w-[200px] flex-1"><Search className="absolute left-3 top-2.5 h-4 w-4 text-nuit-600/50" />
+        <div className="relative min-w-[200px] flex-1"><Search className="absolute left-3 top-2.5 h-4 w-4 text-nuit-600/75" />
           <input className="champ pl-9" placeholder="Nom, prénom de baptême, e-mail, téléphone…" value={texte} onChange={(e) => setTexte(e.target.value)} /></div>
         <button className="btn-clair" disabled={!avecMail.length || !ecrit('dossiers', 'catechumene')} onClick={() => setMail(true)} title={`Un mail personnel à chacun (${avecMail.length})`}><Mail className="h-4 w-4" />Écrire à {visibles.length > 1 ? `ces ${avecMail.length}` : 'ce catéchumène'}</button>
         <button className="btn-clair" disabled={!visibles.length || exporte} onClick={exporter}>{exporte ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}<span className="hidden sm:inline">Tableur</span></button>
@@ -115,7 +115,7 @@ export default function ListeCatechumenes() {
         <div className="carte overflow-hidden">
           {groupes.map((g) => (
             <div key={g.cle}>
-              <div className="flex items-baseline gap-2 bg-or-50 px-4 py-1.5"><span className="font-titre text-lg font-semibold text-or-600">{g.titre}</span>{g.sous && <span className="text-xs text-nuit-600/70">{g.sous}</span>}<span className="ml-auto text-xs text-nuit-600/60">{g.liste.length}</span></div>
+              <div className="flex items-baseline gap-2 bg-or-50 px-4 py-1.5"><span className="font-titre text-lg font-semibold text-or-600">{g.titre}</span>{g.sous && <span className="text-xs text-nuit-600/70">{g.sous}</span>}<span className="ml-auto text-xs text-nuit-600/75">{g.liste.length}</span></div>
               <div className="divide-y divide-nuit-50">{g.liste.map((d) => <Ligne key={d.id} d={d} s={s} neophyte={g.cle === 'neophytes'} />)}</div>
             </div>
           ))}
@@ -150,11 +150,11 @@ function Ligne({ d, s, neophyte }) {
         <span className="min-w-0 flex-1">
           <span className="block truncate font-medium text-nuit">{d.nom}{d.liste?.prenom_bapteme && <span className="font-normal text-nuit-600"> · {d.liste.prenom_bapteme}</span>}</span>
           <span className="block truncate text-xs text-nuit-600/70">{neophyte ? 'Néophyte' : prochaine ? '→ ' + prochaine.label : 'Toutes les étapes faites'}{manquants > 0 && !neophyte ? ` · ${manquants} document${manquants > 1 ? 's' : ''} manquant${manquants > 1 ? 's' : ''}` : ''}</span>
-          <span className="mt-1 flex flex-wrap items-center gap-2">{!neophyte && <><span className="block h-1.5 w-28 overflow-hidden rounded-full bg-nuit-50"><span className="block h-full rounded-full" style={{ width: `${total ? (faites / total) * 100 : 0}%`, background: t.couleur }} /></span><span className="text-[11px] text-nuit-600/60">{faites}/{total}</span></>}
-            <span className={`pastille gap-0.5 border py-0 text-[10px] ${ETATS_APP[etatApp(d)].classe}`} title={titreApp(d)}><Smartphone className="h-2.5 w-2.5" />{ETATS_APP[etatApp(d)].nom}</span>
-            {!neophyte && d.alertes?.map((a) => <span key={a} className={`pastille py-0 text-[10px] ${ALERTES[a]?.classe}`}>{ALERTES[a]?.nom}</span>)}</span>
+          <span className="mt-1 flex flex-wrap items-center gap-2">{!neophyte && <><span className="block h-1.5 w-28 overflow-hidden rounded-full bg-nuit-50"><span className="block h-full rounded-full" style={{ width: `${total ? (faites / total) * 100 : 0}%`, background: t.couleur }} /></span><span className="text-xs text-nuit-600/75">{faites}/{total}</span></>}
+            <span className={`pastille gap-0.5 border py-0 text-xs ${ETATS_APP[etatApp(d)].classe}`} title={titreApp(d)}><Smartphone className="h-2.5 w-2.5" />{ETATS_APP[etatApp(d)].nom}</span>
+            {!neophyte && d.alertes?.map((a) => <span key={a} className={`pastille py-0 text-xs ${ALERTES[a]?.classe}`}>{ALERTES[a]?.nom}</span>)}</span>
         </span>
-        {d.date_celebration && <span className={`hidden shrink-0 text-right text-xs sm:block ${futur ? 'text-nuit' : 'text-nuit-600/70'}`}><span className="inline-flex items-center gap-1 font-medium"><CalendarDays className="h-3.5 w-3.5 text-or" />{dateCourte(d.date_celebration)}</span>{d.liste?.lieu && <span className="block max-w-[11rem] truncate text-nuit-600/60">{d.liste.lieu}</span>}</span>}
+        {d.date_celebration && <span className={`hidden shrink-0 text-right text-xs sm:block ${futur ? 'text-nuit' : 'text-nuit-600/70'}`}><span className="inline-flex items-center gap-1 font-medium"><CalendarDays className="h-3.5 w-3.5 text-or" />{dateCourte(d.date_celebration)}</span>{d.liste?.lieu && <span className="block max-w-[11rem] truncate text-nuit-600/75">{d.liste.lieu}</span>}</span>}
       </Link>
       {d.telephone ? <a href={telLien(d.telephone)} className="btn-icone shrink-0 text-or-600" title={`Appeler ${d.telephone}`} aria-label={`Appeler ${d.nom}`}><Phone className="h-4 w-4" /><span className="ml-1 hidden text-xs lg:inline">{d.telephone}</span></a> : <span className="w-9 shrink-0" />}
       <Link to={`/dossiers/${d.id}`} className="hidden shrink-0 text-nuit-600/40 hover:text-or-600 sm:block" title="Ouvrir le dossier"><FolderHeart className="h-4 w-4" /></Link>

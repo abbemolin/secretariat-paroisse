@@ -54,7 +54,7 @@ export default function MaJournee() {
       <div className={`carte overflow-hidden ${avecIntentions ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
         <button className="flex w-full items-center gap-3 bg-nuit px-4 py-3 text-left text-white disabled:cursor-default" disabled={!avecLiturgie} onClick={() => nav(`/messe?date=${iso}`)}>
           <span className="h-3 w-3 shrink-0 rounded-full border border-white/40" style={{ background: COULEURS[o?.couleur] || '#ccc' }} title={o?.couleur} />
-          <span className="min-w-0 flex-1"><span className="block text-[11px] uppercase tracking-wider text-white/55">Ma journée{o?.classe ? ' · ' + o.classe : ''}</span><span className="block font-titre text-lg font-semibold leading-tight">{o?.fete || ''}</span></span>
+          <span className="min-w-0 flex-1"><span className="block text-xs uppercase tracking-wider text-white/55">Ma journée{o?.classe ? ' · ' + o.classe : ''}</span><span className="block font-titre text-lg font-semibold leading-tight">{o?.fete || ''}</span></span>
           {avecLiturgie && <BookOpen className="h-5 w-5 shrink-0 text-white/70" aria-label="Messe du jour" />}
         </button>
         {avecIntentions && (!messes ? <p className="px-4 py-3 text-sm text-nuit-600/70">Messes du jour…</p>
@@ -65,8 +65,8 @@ export default function MaJournee() {
                 <div className="flex items-start gap-3">
                   <span className="w-12 shrink-0 font-titre text-lg font-semibold tabular-nums text-nuit">{heureFr(heureDe(e))}</span>
                   <div className="min-w-0 flex-1">
-                    <div className="text-[11px] uppercase tracking-wide text-nuit-600/70">{typeMesse(e)}</div>
-                    <div className="font-medium leading-snug text-nuit">{it ? it.nom_intention : <span className="text-nuit-600/60">Pas d'intention</span>}</div>
+                    <div className="text-xs uppercase tracking-wide text-nuit-600/70">{typeMesse(e)}</div>
+                    <div className="font-medium leading-snug text-nuit">{it ? it.nom_intention : <span className="text-nuit-600/75">Pas d'intention</span>}</div>
                     {it?.nom_donateur && <div className="text-xs text-nuit-600">{it.nom_donateur}{it.statut !== 'valide' ? ' · en attente' : ''}</div>}
                   </div>
                 </div>
@@ -81,7 +81,7 @@ export default function MaJournee() {
         {/* Office de l'heure */}
         {avecLiturgie && (
           <div className="carte p-4">
-            <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-or-600"><Clock className="h-3.5 w-3.5" />Office de l'heure</div>
+            <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-or-600"><Clock className="h-3.5 w-3.5" />Office de l'heure</div>
             <button className="flex w-full items-center gap-3 rounded-xl bg-or-50 px-3 py-2.5 text-left hover:bg-or-100" onClick={() => nav(`/breviaire?heure=${heure}`)}>
               <span className="flex-1 font-titre text-2xl font-semibold text-nuit">{nomHeure}</span><ChevronRight className="h-5 w-5 text-or-600" />
             </button>
@@ -92,12 +92,12 @@ export default function MaJournee() {
         )}
         {/* À traiter */}
         <div className="carte p-4">
-          <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-or-600">À traiter</div>
+          <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-or-600">À traiter</div>
           {!aTraiter.length ? <p className="py-1 text-sm text-nuit-600">{resume ? 'Rien qui vous attende. 🙏' : '…'}</p> : (
             <div className="-mx-2">
               {aTraiter.map((x) => { const I = x.icone; return (
                 <button key={x.texte} className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left hover:bg-nuit-50/60" onClick={x.aller}>
-                  <I className="h-4 w-4 shrink-0 text-nuit-600/60" /><span className="w-6 text-right font-titre text-xl font-semibold text-nuit">{x.n}</span><span className="flex-1 text-sm leading-snug text-nuit-700">{x.texte}</span><ChevronRight className="h-4 w-4 text-nuit-600/40" />
+                  <I className="h-4 w-4 shrink-0 text-nuit-600/75" /><span className="w-6 text-right font-titre text-xl font-semibold text-nuit">{x.n}</span><span className="flex-1 text-sm leading-snug text-nuit-700">{x.texte}</span><ChevronRight className="h-4 w-4 text-nuit-600/40" />
                 </button>
               ) })}
             </div>

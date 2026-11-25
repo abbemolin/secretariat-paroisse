@@ -5,7 +5,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Contact, Plus, Upload, Copy, Send, RefreshCw, Search, Mail, Phone, MessageSquare, MapPin, Home, Pencil, Trash2, Loader2, X, Users, Settings2, ArrowLeft, Link2, ChevronRight, Building2, FileSpreadsheet, CheckCircle2 } from 'lucide-react'
 import { api } from '../api.js'
 import { useApp } from '../App.jsx'
-import { Chargement, Erreur, Vide, Modale, EnTete, Aide, useNotif, useDifferer, useCharger, useConfirmer, initiales, dateCourte, enSuppression } from '../ui.jsx'
+import { Chargement, Erreur, Vide, Modale, EnTete, Aide, useNotif, useDifferer, useCharger, useConfirmer, initiales, dateCourte, enSuppression, nb, pluriel, MenuPlusActions } from '../ui.jsx'
 import { useSelection, BoutonSelection, Case, BarreSelection, MenuAction } from '../selection.jsx'
 import { EnvoiContacts } from '../envoiContacts.jsx'
 import { Redaction } from './Courrier.jsx'
@@ -61,7 +61,7 @@ function ListeContacts({ data, chargement, erreur, recharger, setData }) {
     setAuto(true)
     try {
       const r = await api('contacts.auto')
-      notifier(`${r.crees} contact(s) créé(s), ${r.completes} complété(s) · groupes : ${r.groupes.ajouts} ajout(s), ${r.groupes.retraits} retrait(s)`)
+      notifier(`${nb(r.crees, 'contact créé', 'contacts créés')}, ${nb(r.completes, 'complété', 'complétés')} · groupes : ${nb(r.groupes.ajouts, 'ajout', 'ajouts')}, ${nb(r.groupes.retraits, 'retrait', 'retraits')}`)
       recharger()
     } catch (e) { notifier(e.message, 'erreur') } finally { setAuto(false) }
   }
@@ -69,7 +69,7 @@ function ListeContacts({ data, chargement, erreur, recharger, setData }) {
     try {
       const gs = await api('contacts.groupe', { action, id: g, ids })
       setData((d) => ({ ...d, groupes: gs, contacts: d.contacts.map((c) => (ids.includes(c.id) ? { ...c, groupes: action === 'ajouter' ? [...new Set([...c.groupes, g])] : c.groupes.filter((x) => x !== g) } : c)) }))
-      notifier(`${ids.length} contact(s) ${action === 'ajouter' ? 'ajouté(s) à' : 'retiré(s) de'} « ${nomGroupe(g)} »`)
+      notifier(`${nb(ids.length, 'contact', 'contacts')} ${action === 'ajouter' ? pluriel(ids.length, 'ajouté à', 'ajoutés à') : pluriel(ids.length, 'retiré de', 'retirés de')} « ${nomGroupe(g)} »`)
       s.vider()
     } catch (e) { notifier(e.message, 'erreur') }
   }
@@ -81,19 +81,20 @@ function ListeContacts({ data, chargement, erreur, recharger, setData }) {
     <>
       <EnTete titre="Contacts" sousTitre={data ? `${contacts.length} contacts · Google Contacts du compte paroisse` : 'Google Contacts du compte paroisse'}
         actions={<>
-          {peutEcrire && <button className="btn-principal" onClick={() => setFenetre('nouveau')}><Plus className="h-4 w-4" />Nouveau</button>}
+          {peutEcrire && <button className="btn-or" onClick={() => setFenetre('nouveau')}><Plus className="h-4 w-4" />Nouveau</button>}
           <button className="btn-clair" onClick={() => setFenetre('envoi')}><Send className="h-4 w-4" /><span className="hidden sm:inline">Envoi groupé</span></button>
           <BoutonSelection s={s} />
-          {peutEcrire && <button className="btn-clair" onClick={() => setFenetre('groupes')}><Settings2 className="h-4 w-4" /><span className="hidden sm:inline">Groupes</span></button>}
-          {peutEcrire && <button className="btn-clair" onClick={() => setFenetre('doublons')}><Copy className="h-4 w-4" /><span className="hidden sm:inline">Doublons</span></button>}
-          {peutEcrire && <button className="btn-clair" onClick={() => setFenetre('import')}><Upload className="h-4 w-4" /><span className="hidden sm:inline">Importer</span></button>}
-          {peutEcrire && <button className="btn-clair" onClick={majAuto} disabled={auto} title="Créer les contacts manquants et mettre à jour les groupes automatiques (fait aussi toutes les heures)">
-            {auto ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}<span className="hidden lg:inline">Mettre à jour</span></button>}
+          <MenuPlusActions actions={peutEcrire && [
+            { icone: Settings2, libelle: 'Groupes', onClick: () => setFenetre('groupes') },
+            { icone: Copy, libelle: 'Doublons', onClick: () => setFenetre('doublons') },
+            { icone: Upload, libelle: 'Importer', onClick: () => setFenetre('import') },
+            { icone: auto ? Loader2 : RefreshCw, libelle: auto ? 'Mise à jour…' : 'Mettre à jour', onClick: majAuto, disabled: auto, aide: 'Créer les contacts manquants et mettre à jour les groupes automatiques (fait aussi toutes les heures)' }
+          ]} />
         </>} />
 
       <div className="mb-3 flex flex-wrap gap-2">
         <div className="relative min-w-[220px] flex-1">
-          <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-nuit-600/50" />
+          <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-nuit-600/75" />
           <input className="champ pl-9" value={q} onChange={(e) => { setQ(e.target.value); setLimite(150) }} placeholder="Nom, e-mail, téléphone, ville…" />
         </div>
         <select className="champ w-auto max-w-full" value={groupe} onChange={(e) => { setGroupe(e.target.value); setLimite(150) }}>
@@ -120,8 +121,8 @@ function ListeContacts({ data, chargement, erreur, recharger, setData }) {
                     <div className="truncate font-medium">{nomContact(c)}{c.foyer && <Home className="ml-1.5 inline h-3.5 w-3.5 text-or" aria-label="Foyer" />}</div>
                     {c.organisation && (c.prenom || c.nom) && <div className="truncate text-xs text-nuit-600/70">{c.organisation}</div>}
                   </div>
-                  <div className="truncate text-sm text-nuit-600">{c.emails[0] || <span className="text-nuit-600/40">—</span>}{c.emails.length > 1 && <span className="text-xs text-nuit-600/50"> +{c.emails.length - 1}</span>}</div>
-                  <div className="truncate text-sm text-nuit-600">{c.tels[0] || ''}{c.ville && <span className="text-xs text-nuit-600/60">{c.tels[0] ? ' · ' : ''}{c.ville}</span>}</div>
+                  <div className="truncate text-sm text-nuit-600">{c.emails[0] || <span className="text-nuit-600/40">—</span>}{c.emails.length > 1 && <span className="text-xs text-nuit-600/75"> +{c.emails.length - 1}</span>}</div>
+                  <div className="truncate text-sm text-nuit-600">{c.tels[0] || ''}{c.ville && <span className="text-xs text-nuit-600/75">{c.tels[0] ? ' · ' : ''}{c.ville}</span>}</div>
                 </div>
                 <div className="hidden w-[230px] shrink-0 flex-wrap justify-end gap-1 overflow-hidden xl:flex">
                   {c.groupes.slice(0, 2).map((g) => nomGroupe(g) && <span key={g} className="pastille max-w-[140px] truncate bg-nuit-50 text-nuit-600">{nomGroupe(g)}</span>)}
@@ -189,7 +190,7 @@ function GererGroupes({ groupes, onFermer, onChange }) {
           {!manuels.length ? <p className="text-sm text-nuit-600/70">Aucun groupe pour l'instant. Sélectionnez des contacts dans la liste puis « Ajouter au groupe… », ou créez un groupe ici.</p> : (
             <ul className="divide-y divide-nuit-50 rounded-lg border border-nuit-100">
               {manuels.map((g) => <li key={g.id} className="flex items-center gap-2 px-3 py-2 text-sm">
-                <span className="flex-1">{g.nom} <span className="text-nuit-600/60">({g.nb})</span></span>
+                <span className="flex-1">{g.nom} <span className="text-nuit-600/75">({g.nb})</span></span>
                 <button className="btn-icone" title="Renommer" onClick={() => setEdition(g)}><Pencil className="h-4 w-4" /></button>
                 <button className="btn-icone" title="Supprimer" onClick={() => supprimer(g)}><Trash2 className="h-4 w-4" /></button>
               </li>)}
@@ -261,23 +262,23 @@ function FicheContact({ id, liste, onChange }) {
       <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
         <section className="carte space-y-3 p-5">
           <h2 className="text-lg font-semibold">Coordonnées</h2>
-          {!c.emails.length && !c.tels.length && !c.adresse && <p className="text-sm text-nuit-600/60">Aucune coordonnée.</p>}
-          {c.emails.map((m) => <div key={m} className="flex items-center gap-2 text-sm"><Mail className="h-4 w-4 text-nuit-600/50" />
+          {!c.emails.length && !c.tels.length && !c.adresse && <p className="text-sm text-nuit-600/75">Aucune coordonnée.</p>}
+          {c.emails.map((m) => <div key={m} className="flex items-center gap-2 text-sm"><Mail className="h-4 w-4 text-nuit-600/75" />
             {peut('mail') ? <button className="text-left text-or-600 hover:underline" onClick={() => setEcrire(m)}>{m}</button> : <a href={`mailto:${m}`} className="text-or-600 hover:underline">{m}</a>}</div>)}
-          {c.tels.map((t) => <div key={t} className="flex items-center gap-2 text-sm"><Phone className="h-4 w-4 text-nuit-600/50" />
+          {c.tels.map((t) => <div key={t} className="flex items-center gap-2 text-sm"><Phone className="h-4 w-4 text-nuit-600/75" />
             <a href={`tel:${telLien(t)}`} className="text-or-600 hover:underline">{t}</a>
             <a href={`sms:${telLien(t)}`} className="btn-icone p-1" title="SMS"><MessageSquare className="h-3.5 w-3.5" /></a></div>)}
-          {c.adresse && <div className="flex items-start gap-2 text-sm"><MapPin className="mt-0.5 h-4 w-4 text-nuit-600/50" />
+          {c.adresse && <div className="flex items-start gap-2 text-sm"><MapPin className="mt-0.5 h-4 w-4 text-nuit-600/75" />
             <a className="hover:underline" target="_blank" rel="noreferrer" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([c.adresse.rue, c.adresse.cp, c.adresse.ville].join(' '))}`}>
               {c.adresse.rue}{(c.adresse.cp || c.adresse.ville) && <><br />{c.adresse.cp} {c.adresse.ville}</>}</a></div>}
           {c.note && <p className="whitespace-pre-line rounded-lg bg-nuit-50/60 p-3 text-sm">{c.note}</p>}
-          <p className="pt-1 text-[11px] text-nuit-600/50">{c.origine && <>Origine : {c.origine} · </>}{c.maj_le && <>modifié le {dateCourte(c.maj_le)}</>}</p>
+          <p className="pt-1 text-xs text-nuit-600/75">{c.origine && <>Origine : {c.origine} · </>}{c.maj_le && <>modifié le {dateCourte(c.maj_le)}</>}</p>
         </section>
 
         <section className="carte space-y-3 p-5">
           <h2 className="flex items-center gap-2 text-lg font-semibold"><Home className="h-5 w-5 text-or" />Foyer</h2>
           {c.foyer_membres.length ? <ul className="space-y-1">{c.foyer_membres.map((m) => <li key={m.id}><Link className="text-sm text-or-600 hover:underline" to={`/contacts/${m.id}`}>{nomContact(m)}</Link></li>)}</ul>
-            : <p className="text-sm text-nuit-600/60">Pas de foyer.</p>}
+            : <p className="text-sm text-nuit-600/75">Pas de foyer.</p>}
           {peutEcrire && <div className="flex flex-wrap gap-2">
             <button className="btn-clair py-1.5 text-xs" onClick={() => setChoixFoyer(true)}><Link2 className="h-3.5 w-3.5" />{c.foyer ? 'Ajouter une personne' : 'Relier à une personne'}</button>
             {c.foyer && <button className="btn-clair py-1.5 text-xs" onClick={quitterFoyer}>Quitter le foyer</button>}
@@ -285,7 +286,7 @@ function FicheContact({ id, liste, onChange }) {
 
           <h2 className="flex items-center gap-2 pt-2 text-lg font-semibold"><Users className="h-5 w-5 text-or" />Groupes</h2>
           <div className="flex flex-wrap gap-1.5">
-            {!c.groupes.length && <span className="text-sm text-nuit-600/60">Dans aucun groupe.</span>}
+            {!c.groupes.length && <span className="text-sm text-nuit-600/75">Dans aucun groupe.</span>}
             {c.groupes.map((g) => { const x = nomGroupe(g); if (!x) return null
               return <span key={g} className={`pastille gap-1 ${x.auto ? 'bg-nuit-50 text-nuit-600' : 'bg-or-50 text-or-600'}`} title={x.auto ? 'Groupe automatique' : ''}>{x.nom}
                 {!x.auto && peutEcrire && <button onClick={() => groupeAction('retirer', g)} aria-label="Retirer du groupe"><X className="h-3 w-3" /></button>}</span> })}
@@ -296,12 +297,12 @@ function FicheContact({ id, liste, onChange }) {
 
       <section className="carte mt-4 p-5">
         <h2 className="mb-3 text-lg font-semibold">Dans l'appli</h2>
-        {!c.liens.length ? <p className="text-sm text-nuit-600/60">Rien de relié (dossier, catéchisme, Cor Unum, retraite, app des paroissiens) avec ces coordonnées.</p> : (
+        {!c.liens.length ? <p className="text-sm text-nuit-600/75">Rien de relié (dossier, catéchisme, Cor Unum, retraite, app des paroissiens) avec ces coordonnées.</p> : (
           <ul className="divide-y divide-nuit-50">
             {c.liens.map((l, i) => <li key={i}><Link to={l.lien} className="flex items-center gap-3 py-2 text-sm hover:bg-nuit-50/50">
               <span className="pastille w-28 shrink-0 justify-center bg-or-50 text-or-600">{l.sorte}</span>
               <span className="min-w-0 flex-1 truncate">{l.libelle}</span>
-              <span className="shrink-0 text-xs text-nuit-600/60">{l.detail}</span><ChevronRight className="h-4 w-4 text-nuit-600/30" />
+              <span className="shrink-0 text-xs text-nuit-600/75">{l.detail}</span><ChevronRight className="h-4 w-4 text-nuit-600/30" />
             </Link></li>)}
           </ul>)}
       </section>
@@ -327,8 +328,8 @@ function ChoisirContact({ titre, contacts, exclure = [], onFermer, onChoix }) {
       <input className="champ" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Chercher une personne…" autoFocus />
       <ul className="mt-2 divide-y divide-nuit-50">
         {l.map((c) => <li key={c.id}><button className="flex w-full items-center justify-between gap-2 px-2 py-2 text-left text-sm hover:bg-nuit-50" onClick={() => onChoix(c)}>
-          <span>{nomContact(c)}</span><span className="truncate text-xs text-nuit-600/60">{c.emails[0] || c.tels[0] || ''}</span></button></li>)}
-        {mots.length > 0 && !l.length && <li className="py-3 text-sm text-nuit-600/60">Personne trouvé.</li>}
+          <span>{nomContact(c)}</span><span className="truncate text-xs text-nuit-600/75">{c.emails[0] || c.tels[0] || ''}</span></button></li>)}
+        {mots.length > 0 && !l.length && <li className="py-3 text-sm text-nuit-600/75">Personne trouvé.</li>}
       </ul>
     </Modale>
   )
@@ -385,7 +386,7 @@ function EditionContact({ contact, groupes = [], onFermer, onEnregistre }) {
       {!c.id && groupes.some((g) => !g.auto) && <div className="mt-3"><label className="etiquette">Groupes</label>
         <div className="flex flex-wrap gap-1.5">{groupes.filter((g) => !g.auto).map((g) => { const on = f.groupes.includes(g.id)
           return <button key={g.id} className={`pastille border ${on ? 'border-or bg-or-50 text-or-600' : 'border-nuit-100 text-nuit-600'}`} onClick={() => setF({ ...f, groupes: on ? f.groupes.filter((x) => x !== g.id) : [...f.groupes, g.id] })}>{g.nom}</button> })}</div></div>}
-      <p className="mt-3 text-[11px] text-nuit-600/60">Enregistré dans Google Contacts du compte paroisse. Les informations restent dans la paroisse (charte de confidentialité).</p>
+      <p className="mt-3 text-xs text-nuit-600/75">Enregistré dans Google Contacts du compte paroisse. Les informations restent dans la paroisse (charte de confidentialité).</p>
       <div className="mt-2"><Erreur erreur={erreur} /></div>
     </Modale>
   )
@@ -478,7 +479,7 @@ function ImportContacts({ onFermer, onFini }) {
                       {[...f.emails.map((x, j) => ['emails', j, x]), ...f.tels.map((x, j) => ['tels', j, x])].filter(([, , x]) => x.a === i).map(([k, j, x]) => (
                         <button key={k + j} className="pastille border border-nuit-100 bg-white text-nuit-600 hover:border-or" title="Passer à l'autre personne"
                           onClick={() => majFiche(f.cle, (y) => ({ ...y, [k]: y[k].map((z, n) => (n === j ? { ...z, a: (z.a + 1) % y.personnes.length } : z)) }))}>{x.v}</button>))}
-                    </span>)) : <span className="text-xs text-nuit-600/60">une seule fiche</span>}
+                    </span>)) : <span className="text-xs text-nuit-600/75">une seule fiche</span>}
                 </div>))}
             </div>
           </div>}
@@ -518,14 +519,14 @@ function Doublons({ onFermer }) {
     {c.organisation && <div className="text-xs text-nuit-600/70">{c.organisation}</div>}
     {[...c.emails, ...c.tels].map((x) => <div key={x} className="truncate text-xs text-nuit-600">{x}</div>)}
     {c.ville && <div className="text-xs text-nuit-600/70">{c.ville}</div>}
-    {c.origine && <div className="mt-1 truncate text-[10px] text-nuit-600/50">{c.origine}</div>}
+    {c.origine && <div className="mt-1 truncate text-xs text-nuit-600/75">{c.origine}</div>}
   </div>
   return (
     <Modale large titre="Doublons probables" onFermer={onFermer} pied={<button className="btn-principal" onClick={onFermer}>Fermer</button>}>
       <Erreur erreur={erreur} reessayer={recharger} />
       {!data ? <Chargement texte="Recherche des doublons…" /> : !data.length ? <Vide icone={CheckCircle2} texte="Aucun doublon probable." /> : (
         <div className="space-y-3">
-          <p className="text-xs text-nuit-600/70">{data.length} paire(s). « Garder » réunit les deux fiches dans celle choisie (e-mails, téléphones, adresse, groupes, foyer) et supprime l'autre de Google Contacts.</p>
+          <p className="text-xs text-nuit-600/70">{nb(data.length, 'paire', 'paires')}. « Garder » réunit les deux fiches dans celle choisie (e-mails, téléphones, adresse, groupes, foyer) et supprime l'autre de Google Contacts.</p>
           {data.map((x) => { const cle = x.a.id + x.b.id
             return <div key={cle} className="rounded-xl border border-nuit-100 p-3">
               <div className="mb-2 flex flex-wrap gap-1">{x.raisons.map((r) => <span key={r} className="pastille bg-or-50 text-or-600">{r}</span>)}</div>

@@ -38,7 +38,7 @@ export function demarrerActualisation({ attente = () => 0, demo = false } = {}) 
   if (demarre || typeof window === 'undefined') return
   demarre = true
   let cachee = 0
-  const swPossible = !demo && 'serviceWorker' in navigator
+  const swPossible = 'serviceWorker' in navigator   // aussi en démonstration : l'aperçu doit montrer la dernière version
   const verifierVersion = () => { if (swPossible) navigator.serviceWorker.getRegistration().then((r) => r && r.update()).catch(() => {}) }
   setInterval(() => actualiserTout(false), PERIODE)
   document.addEventListener('visibilitychange', () => {
@@ -57,6 +57,7 @@ export function demarrerActualisation({ attente = () => 0, demo = false } = {}) 
     if (occupe() || attente() > 0 || Date.now() - dernierGeste < 30000) { setTimeout(essayer, 15000); return }
     location.reload()
   }
-  navigator.serviceWorker.addEventListener('controllerchange', () => { if (avaitUnControleur) { aRecharger = true; essayer() } })
+  // Une nouvelle version est prête : bandeau « Mettre à jour » (le rechargement se fait aussi de lui-même au calme)
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (avaitUnControleur) { aRecharger = true; window.dispatchEvent(new Event('nouvelle-version')); essayer() } })
   setInterval(verifierVersion, 10 * 60000)
 }

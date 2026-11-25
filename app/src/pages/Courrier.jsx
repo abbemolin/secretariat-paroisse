@@ -161,10 +161,10 @@ export default function Courrier() {
       <div className="flex gap-5">
         <div className={`${ouvert ? 'hidden lg:flex' : 'flex'} min-w-0 flex-1 flex-col lg:max-w-md`}>
           <form className="relative mb-3" onSubmit={(e) => { e.preventDefault(); charger(0) }}>
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-nuit-600/50" />
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-nuit-600/75" />
             <input className="champ pl-9" placeholder="Rechercher (nom, sujet, adresse…)" value={recherche} onChange={(e) => setRecherche(e.target.value)} />
           </form>
-          <div className="-mx-1 mb-2 flex gap-1.5 overflow-x-auto px-1 pb-1">
+          <div className="barre-onglets mb-2">
             {FILTRES.map(({ cle, nom, icone: I }) => (
               <button key={cle} onClick={() => changer({ filtre: cle, libelle: '', fil: '' })} className={`pastille shrink-0 gap-1 border py-1 ${filtre === cle && !libelle ? 'border-nuit bg-nuit text-white' : 'border-nuit-100 bg-white text-nuit-600'}`}><I className="h-3 w-3" />{nom}</button>
             ))}
@@ -208,16 +208,16 @@ export default function Courrier() {
                 <div className="flex items-center gap-2">
                   {choix && (choix.has(f.id) ? <CheckSquare className="h-4 w-4 shrink-0 text-or-600" /> : <Square className="h-4 w-4 shrink-0 text-nuit-600/40" />)}
                   {f.nonLu && <span className="h-2 w-2 shrink-0 rounded-full bg-or" />}
-                  <span className={`min-w-0 flex-1 truncate text-sm ${f.nonLu ? 'font-semibold' : ''}`}>{filtre === 'envoyes' ? 'À : ' + nomExpediteur(f.a) : nomExpediteur(f.de)}{f.nb > 1 && <span className="ml-1 text-xs text-nuit-600/60">({f.nb})</span>}</span>
+                  <span className={`min-w-0 flex-1 truncate text-sm ${f.nonLu ? 'font-semibold' : ''}`}>{filtre === 'envoyes' ? 'À : ' + nomExpediteur(f.a) : nomExpediteur(f.de)}{f.nb > 1 && <span className="ml-1 text-xs text-nuit-600/75">({f.nb})</span>}</span>
                   {f.important && <Star className="h-3.5 w-3.5 fill-or text-or" />}
-                  <span className="shrink-0 text-xs text-nuit-600/60">{dateRelative(f.date)}</span>
+                  <span className="shrink-0 text-xs text-nuit-600/75">{dateRelative(f.date)}</span>
                 </div>
                 <div className={`truncate text-sm ${f.nonLu ? 'font-medium' : 'text-nuit-700'}`}>{f.sujet}</div>
                 <EtiquettesTri tri={f.tri} />
                 <div className="flex items-center gap-1.5">
-                  <span className="min-w-0 flex-1 truncate text-xs text-nuit-600/60">{f.extrait}</span>
+                  <span className="min-w-0 flex-1 truncate text-xs text-nuit-600/75">{f.extrait}</span>
                   {f.suivi?.dossier_id && <FolderHeart className="h-3.5 w-3.5 text-or" />}
-                  {f.suivi?.statut && <span className={`pastille py-0 text-[10px] ${COULEURS_STATUT[f.suivi.statut]}`}>{f.suivi.statut}</span>}
+                  {f.suivi?.statut && <span className={`pastille py-0 text-xs ${COULEURS_STATUT[f.suivi.statut]}`}>{f.suivi.statut}</span>}
                   {f.suivi?.attribue_a && <span title={nomUtilisateur(f.suivi.attribue_a)} className="flex h-5 w-5 items-center justify-center rounded-full bg-nuit text-[9px] font-semibold text-white">{initiales(nomUtilisateur(f.suivi.attribue_a))}</span>}
                 </div>
               </button>
@@ -302,7 +302,7 @@ function Fil({ id, onRetour, onAgir, onRepondre, onSuivi, onLu, suivants = [] })
   return (
     <div className="min-w-0 flex-1">
       <div className="mb-3 flex flex-wrap items-center gap-1">
-        <button className="btn-icone lg:hidden" onClick={onRetour}><ArrowLeft className="h-5 w-5" /></button>
+        <button aria-label="Retour" title="Retour" className="btn-icone lg:hidden" onClick={onRetour}><ArrowLeft className="h-5 w-5" /></button>
         {fil && <>
           <button className="btn-clair" onClick={() => zoneReponse.current?.ouvrir()}><Reply className="h-4 w-4" />Répondre</button>
           <button className="btn-icone" title="Répondre à tous" onClick={() => onRepondre(fil, true)}><ReplyAll className="h-4 w-4" /></button>
@@ -343,14 +343,14 @@ function Fil({ id, onRetour, onAgir, onRepondre, onSuivi, onLu, suivants = [] })
               {fil.messages.map((m) => (
                 <article key={m.id} className="border-t border-nuit-50 pt-4 first:border-0 first:pt-0">
                   <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2 text-sm">
-                    <div><span className="font-semibold">{nomExpediteur(m.de)}</span> <span className="text-xs text-nuit-600/60">{m.de.match(/<(.+)>/)?.[1]}</span>
-                      <div className="text-xs text-nuit-600/60">à {m.a}{m.cc && `, cc ${m.cc}`}</div></div>
-                    <span className="text-xs text-nuit-600/60">{dateHeure(m.date)}</span>
+                    <div><span className="font-semibold">{nomExpediteur(m.de)}</span> <span className="text-xs text-nuit-600/75">{m.de.match(/<(.+)>/)?.[1]}</span>
+                      <div className="text-xs text-nuit-600/75">à {m.a}{m.cc && `, cc ${m.cc}`}</div></div>
+                    <span className="text-xs text-nuit-600/75">{dateHeure(m.date)}</span>
                   </div>
                   <CorpsMail html={m.html} />
                   {m.pieces.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{m.pieces.map((p) => (
                     <button key={p.index} onClick={() => ouvrirPj(m, p)} className="btn-clair py-1.5 text-xs" title={/pdf|image/.test(p.type || '') ? 'Aperçu' : 'Télécharger'}>
-                      {pj === m.id + p.index ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : /pdf|image/.test(p.type || '') ? <Eye className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}{p.nom} <span className="text-nuit-600/50">{taille(p.taille)}</span></button>
+                      {pj === m.id + p.index ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : /pdf|image/.test(p.type || '') ? <Eye className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}{p.nom} <span className="text-nuit-600/75">{taille(p.taille)}</span></button>
                   ))}</div>}
                 </article>
               ))}
@@ -362,7 +362,7 @@ function Fil({ id, onRetour, onAgir, onRepondre, onSuivi, onLu, suivants = [] })
 
           {/* Commentaires internes */}
           <div className="carte p-4">
-            <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold"><MessageSquare className="h-4 w-4 text-or" />Commentaires internes <span className="font-normal text-nuit-600/60">(invisibles de l'expéditeur)</span></h3>
+            <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold"><MessageSquare className="h-4 w-4 text-or" />Commentaires internes <span className="font-normal text-nuit-600/75">(invisibles de l'expéditeur)</span></h3>
             <div className="space-y-2">
               {fil.commentaires.map((c) => (
                 <div key={c.id} className="rounded-lg bg-nuit-50/60 px-3 py-2 text-sm"><div className="text-xs text-nuit-600/70"><strong>{c.auteur}</strong> · {dateRelative(c.date)}</div><div className="whitespace-pre-wrap">{c.texte}</div></div>
@@ -493,9 +493,9 @@ function EtiquettesTri({ tri }) {
   if (!tri || (!tri.categories?.length && !tri.prioritaire && !tri.auto)) return null
   return (
     <div className="mt-1 flex flex-wrap gap-1">
-      {tri.prioritaire && <span className="pastille gap-0.5 bg-red-50 py-0 text-[10px] text-red-700"><AlertTriangle className="h-2.5 w-2.5" />Prioritaire</span>}
-      {tri.categories.map((c) => <span key={c} className="pastille bg-or-50 py-0 text-[10px] text-or-600">{nomTri(c)}</span>)}
-      {tri.auto && <span className="pastille gap-0.5 bg-emerald-50 py-0 text-[10px] text-emerald-700"><CheckCircle2 className="h-2.5 w-2.5" />Réponse auto</span>}
+      {tri.prioritaire && <span className="pastille gap-0.5 bg-red-50 py-0 text-xs text-red-700"><AlertTriangle className="h-2.5 w-2.5" />Prioritaire</span>}
+      {tri.categories.map((c) => <span key={c} className="pastille bg-or-50 py-0 text-xs text-or-600">{nomTri(c)}</span>)}
+      {tri.auto && <span className="pastille gap-0.5 bg-emerald-50 py-0 text-xs text-emerald-700"><CheckCircle2 className="h-2.5 w-2.5" />Réponse auto</span>}
     </div>
   )
 }
@@ -684,7 +684,7 @@ export function Redaction({ mode, fil, dossier, a: aInit = '', sujet: sujetInit 
               {signatures.map((s) => <option key={s.cle} value={s.cle}>{s.nom}</option>)}
             </select></div>
           <div className="apercu-clair rounded-lg border border-nuit-100 bg-white p-3"><ApercuSignature sig={signatures.find((s) => s.cle === signature)} reglages={reglages} /></div>
-          <p className="text-[11px] text-nuit-600/60">Envoyé depuis secretariat@croix-glorieuse.org{dossier ? ' · rattaché au dossier' : ''}.</p>
+          <p className="text-xs text-nuit-600/75">Envoyé depuis secretariat@croix-glorieuse.org{dossier ? ' · rattaché au dossier' : ''}.</p>
         </div>
       </div>
       {choixDoc && <ChoisirDocument onFermer={() => setChoixDoc(false)} onChoix={(d) => { setDocs([...docs, d]); setChoixDoc(false) }} />}

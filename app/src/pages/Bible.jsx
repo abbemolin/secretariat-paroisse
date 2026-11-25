@@ -99,7 +99,7 @@ export default function Bible() {
         <BoutonSombre />
         <button className="btn-icone" onClick={() => setRecherche(true)} aria-label="Rechercher" title="Rechercher"><Search className="h-5 w-5" /></button>
         <button className="btn-icone relative" onClick={() => setPanneauMarques(true)} aria-label="Marque-pages" title="Marque-pages">
-          <Bookmark className="h-5 w-5" />{marques.length > 0 && <span className="absolute -right-0.5 -top-0.5 rounded-full bg-or px-1 text-[10px] font-bold text-white">{marques.length}</span>}
+          <Bookmark className="h-5 w-5" />{marques.length > 0 && <span className="absolute -right-0.5 -top-0.5 rounded-full bg-or px-1 text-xs font-bold text-white">{marques.length}</span>}
         </button>
       </div>
 
@@ -116,7 +116,7 @@ export default function Bible() {
                       <button key={x} onClick={() => (INFOS_LIVRES[x]?.[1] === 1 ? aller(x, 1) : setGrille(x))} title={x}
                         className={`flex min-h-[64px] flex-col items-center justify-center rounded-xl border px-1 py-2 text-center transition hover:-translate-y-px hover:shadow-sm ${x === livre ? 'ring-2 ring-or' : ''} ${t === 'AT' ? 'border-or-100 bg-or-50' : 'border-nuit-100 bg-nuit-50'}`}>
                         <span className={`font-titre text-xl font-semibold leading-none ${t === 'AT' ? 'text-or-600' : 'text-nuit'}`}>{INFOS_LIVRES[x]?.[0]}</span>
-                        <span className="mt-1 line-clamp-2 text-[11px] leading-tight text-nuit-600">{x}</span>
+                        <span className="mt-1 line-clamp-2 text-xs leading-tight text-nuit-600">{x}</span>
                       </button>
                     ))}
                   </div>

@@ -3,7 +3,7 @@ import { Loader2, Plus, Trash2, RotateCcw, Wand2, AlertTriangle, CheckCircle2, D
 import { api, fichierEnBase64 } from '../api.js'
 import { chargerSceau, oublierSceau } from './Extraits.jsx'
 import { useApp } from '../App.jsx'
-import { Chargement, Erreur, useCharger, useNotif, useConfirmer, dateHeure, Interrupteur } from '../ui.jsx'
+import { Chargement, Erreur, useCharger, useNotif, useConfirmer, dateHeure, Interrupteur, nb } from '../ui.jsx'
 import { ApercuSignature } from './Courrier.jsx'
 import { VARIABLES_COURRIER } from './Courriers.jsx'
 import { ONGLETS_REGLAGES, ongletPermis } from '../acces.js'
@@ -19,23 +19,29 @@ export default function Reglages() {
   return (
     <>
       <div className="mb-5"><h1 className="text-3xl font-semibold">Réglages</h1><p className="text-sm text-nuit-600/80">Paroisse, signatures, réponses types, tri des mails, journal des actions</p></div>
-      <div className="-mx-1 mb-5 flex gap-1.5 overflow-x-auto px-1">
-        {onglets.map((o) => <button key={o} onClick={() => setOnglet(o)} className={`pastille shrink-0 border px-3 py-1.5 text-sm ${onglet === o ? 'border-nuit bg-nuit text-white' : 'border-nuit-100 bg-white text-nuit-600'}`}>{o}</button>)}
+      {/* Onglets : colonne à gauche sur ordinateur, barre défilante sur téléphone */}
+      <div className="lg:grid lg:grid-cols-[210px_1fr] lg:items-start lg:gap-6">
+        <nav aria-label="Rubriques des réglages" className="barre-onglets mb-5 lg:sticky lg:top-0 lg:mb-0 lg:flex-col lg:flex-nowrap lg:rounded-xl lg:border lg:border-nuit-100/70 lg:bg-white lg:p-2">
+          {onglets.map((o) => <button key={o} onClick={() => setOnglet(o)} aria-current={onglet === o ? 'page' : undefined}
+            className={`rounded-full border px-3 py-1.5 text-left text-sm lg:rounded-lg lg:border-0 ${onglet === o ? 'border-nuit bg-nuit text-white' : 'border-nuit-100 bg-white text-nuit-600 hover:bg-nuit-50'}`}>{o}</button>)}
+        </nav>
+        <div className="min-w-0">
+        {onglet === 'Paroisse' && <Paroisse />}
+        {onglet === 'App des paroissiens' && <FonctionsApp />}
+        {onglet === 'Signatures' && <Signatures />}
+        {onglet === 'Réponses types' && <Reponses />}
+        {onglet === 'Modèles' && <Modeles />}
+        {onglet === 'Tri automatique' && <TriAutomatique />}
+        {onglet === 'Catéchisme' && <CatechismeReglages />}
+        {onglet === 'Confirmands' && <ConfirmandsReglages />}
+        {onglet === 'Cor Unum' && <CorUnumReglages />}
+        {onglet === 'Paiements en ligne' && <PaiementsReglages />}
+        {onglet === 'Newsletter' && <NewsletterReglages />}
+        {onglet === 'Liturgie' && <LiturgieReglages />}
+        {onglet === 'Journal' && <Journal />}
+        {onglet === 'Sauvegardes' && <Sauvegardes />}
+        </div>
       </div>
-      {onglet === 'Paroisse' && <Paroisse />}
-      {onglet === 'App des paroissiens' && <FonctionsApp />}
-      {onglet === 'Signatures' && <Signatures />}
-      {onglet === 'Réponses types' && <Reponses />}
-      {onglet === 'Modèles' && <Modeles />}
-      {onglet === 'Tri automatique' && <TriAutomatique />}
-      {onglet === 'Catéchisme' && <CatechismeReglages />}
-      {onglet === 'Confirmands' && <ConfirmandsReglages />}
-      {onglet === 'Cor Unum' && <CorUnumReglages />}
-      {onglet === 'Paiements en ligne' && <PaiementsReglages />}
-      {onglet === 'Newsletter' && <NewsletterReglages />}
-      {onglet === 'Liturgie' && <LiturgieReglages />}
-      {onglet === 'Journal' && <Journal />}
-      {onglet === 'Sauvegardes' && <Sauvegardes />}
     </>
   )
 }
@@ -73,7 +79,7 @@ function Sceau() {
       <h2 className="text-xl font-semibold">Sceau paroissial</h2>
       <p className="text-xs text-nuit-600/70">Apposé sur les extraits de baptême signés. Image PNG (fond transparent ou blanc).</p>
       <div className="flex h-36 items-center justify-center rounded-lg border border-dashed border-nuit-100 bg-white">
-        {img === null ? <Loader2 className="h-5 w-5 animate-spin" /> : img ? <img src={img} alt="Sceau" className="max-h-32" /> : <span className="text-xs text-nuit-600/50">Aucun sceau</span>}
+        {img === null ? <Loader2 className="h-5 w-5 animate-spin" /> : img ? <img src={img} alt="Sceau" className="max-h-32" /> : <span className="text-xs text-nuit-600/75">Aucun sceau</span>}
       </div>
       <label className="btn-clair w-full cursor-pointer">{envoi && <Loader2 className="h-4 w-4 animate-spin" />}{img ? 'Remplacer' : 'Choisir l\'image'}
         <input type="file" accept="image/png,image/jpeg" className="hidden" onChange={(e) => choisir(e.target.files[0])} /></label>
@@ -88,7 +94,7 @@ function Signataires() {
     <div className="carte space-y-2 p-5">
       <h2 className="text-xl font-semibold">Peuvent signer</h2>
       <p className="text-sm text-nuit-600/80">{ok.length ? ok.map((u) => u.nom).join(', ') : 'Personne'}.</p>
-      <p className="text-xs text-nuit-600/60">Extraits, B6 et courriers. Se règle dans Utilisateurs → fiche de la personne → « Peut signer ».</p>
+      <p className="text-xs text-nuit-600/75">Extraits, B6 et courriers. Se règle dans Utilisateurs → fiche de la personne → « Peut signer ».</p>
     </div>
   )
 }
@@ -183,7 +189,7 @@ function Journal() {
       <Erreur erreur={erreur} />
       {chargement ? <Chargement /> : (
         <ul className="divide-y divide-nuit-50 text-sm">
-          {data?.map((j, i) => <li key={i} className="flex flex-wrap gap-x-3 py-2"><span className="w-36 shrink-0 text-xs text-nuit-600/60">{dateHeure(j.date)}</span><span className="font-medium">{j.utilisateur}</span><span>{j.action}</span><span className="text-nuit-600/70">{j.detail}</span></li>)}
+          {data?.map((j, i) => <li key={i} className="flex flex-wrap gap-x-3 py-2"><span className="w-36 shrink-0 text-xs text-nuit-600/75">{dateHeure(j.date)}</span><span className="font-medium">{j.utilisateur}</span><span>{j.action}</span><span className="text-nuit-600/70">{j.detail}</span></li>)}
         </ul>
       )}
     </div>
@@ -207,7 +213,7 @@ function Modeles() {
     <div className="space-y-4">
       <div className="carte p-4 text-sm text-nuit-600/80">
         <p className="mb-2">Ces textes pré-remplissent les courriers (bouton « Courriers » d'un dossier) ; ils restent modifiables avant la signature. Variables remplacées automatiquement :</p>
-        <div className="flex flex-wrap gap-1.5">{VARIABLES_COURRIER.map(([k, l]) => <span key={k} className="pastille bg-nuit-50 text-xs" title={l}><code>{'{' + k + '}'}</code> <span className="text-nuit-600/60">{l}</span></span>)}</div>
+        <div className="flex flex-wrap gap-1.5">{VARIABLES_COURRIER.map(([k, l]) => <span key={k} className="pastille bg-nuit-50 text-xs" title={l}><code>{'{' + k + '}'}</code> <span className="text-nuit-600/75">{l}</span></span>)}</div>
       </div>
       {liste.map((m, i) => (
         <div key={m.cle} className="carte space-y-2 p-4">
@@ -247,7 +253,7 @@ function Sauvegardes() {
       </div>
       {chargement ? <Chargement /> : (
         <>
-          {data?.entretien && <p className="mb-2 text-xs text-nuit-600/60">Dernier entretien automatique : {dateHeure(data.entretien)}</p>}
+          {data?.entretien && <p className="mb-2 text-xs text-nuit-600/75">Dernier entretien automatique : {dateHeure(data.entretien)}</p>}
           {!data?.sauvegardes?.length ? <p className="text-sm text-nuit-600/70">Aucune sauvegarde pour l'instant.</p> : (
             <ul className="divide-y divide-nuit-50 text-sm">
               {data.sauvegardes.map((s) => (
@@ -369,7 +375,7 @@ function TriAutomatique() {
         <div className="carte p-5">
           <h2 className="mb-2 text-lg font-semibold">Réponses automatiques envoyées</h2>
           {journal.chargement ? <Chargement /> : !auto.length ? <p className="text-sm text-nuit-600/70">Aucune pour l'instant.</p> : (
-            <ul className="divide-y divide-nuit-50 text-sm">{auto.slice(0, 40).map((j, i) => <li key={i} className="py-2"><div className="text-xs text-nuit-600/60">{dateHeure(j.date)}</div>{j.detail}</li>)}</ul>
+            <ul className="divide-y divide-nuit-50 text-sm">{auto.slice(0, 40).map((j, i) => <li key={i} className="py-2"><div className="text-xs text-nuit-600/75">{dateHeure(j.date)}</div>{j.detail}</li>)}</ul>
           )}
         </div>
       </div>
@@ -397,7 +403,7 @@ function CatechismeReglages() {
   }
   async function importer() {
     setImporte(true)
-    try { const r = await api('cate.importer'); notifier(r.nouvelles ? `${r.nouvelles} inscription(s) importée(s)` : 'Aucune nouvelle inscription'); if (r.erreurs?.length) notifier(r.erreurs.slice(0, 3).join(' · '), 'erreur') }
+    try { const r = await api('cate.importer'); notifier(r.nouvelles ? nb(r.nouvelles, 'inscription importée', 'inscriptions importées') : 'Aucune nouvelle inscription'); if (r.erreurs?.length) notifier(r.erreurs.slice(0, 3).join(' · '), 'erreur') }
     catch (e) { notifier(e.message, 'erreur') } finally { setImporte(false) }
   }
   const majF = (i, k, v) => setF({ ...f, feuilles: f.feuilles.map((x, j) => (j === i ? { ...x, [k]: v } : x)) })
@@ -417,7 +423,7 @@ function CatechismeReglages() {
               <div className="grid grid-cols-[110px_1fr_auto] items-end gap-2">
                 <div><label className="etiquette">Année</label><input className="champ py-1.5" placeholder="2027-2028" value={x.annee || ''} onChange={(e) => majF(i, 'annee', e.target.value)} /></div>
                 <div><label className="etiquette">Feuille de réponses (adresse)</label><input className="champ py-1.5 text-xs" placeholder="https://docs.google.com/spreadsheets/d/…" value={x.id} onChange={(e) => majF(i, 'id', e.target.value)} /></div>
-                <button className="btn-icone text-red-700" onClick={() => setF({ ...f, feuilles: f.feuilles.filter((_, j) => j !== i) })}><Trash2 className="h-4 w-4" /></button>
+                <button aria-label="Supprimer" title="Supprimer" className="btn-icone text-red-700" onClick={() => setF({ ...f, feuilles: f.feuilles.filter((_, j) => j !== i) })}><Trash2 className="h-4 w-4" /></button>
               </div>
               {x.nom ? <p className="text-xs text-emerald-700">✓ {x.nom}</p> : x.erreur ? <p className="text-xs text-red-700">{x.erreur}</p> : null}
             </div>
@@ -444,7 +450,7 @@ function CatechismeReglages() {
             <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2">
               <input className="champ py-1.5" placeholder="Nom de l'école" value={x.nom} onChange={(e) => majE(i, 'nom', e.target.value)} />
               <input className="champ py-1.5" placeholder="E-mail du responsable" value={x.email} onChange={(e) => majE(i, 'email', e.target.value)} />
-              <button className="btn-icone text-red-700" onClick={() => setF({ ...f, ecoles: f.ecoles.filter((_, j) => j !== i) })}><Trash2 className="h-4 w-4" /></button>
+              <button aria-label="Supprimer" title="Supprimer" className="btn-icone text-red-700" onClick={() => setF({ ...f, ecoles: f.ecoles.filter((_, j) => j !== i) })}><Trash2 className="h-4 w-4" /></button>
             </div>
           ))}
           <button className="text-sm text-or-600 hover:underline" onClick={() => setF({ ...f, ecoles: [...f.ecoles, { nom: '', email: '' }] })}><Plus className="mr-1 inline h-3.5 w-3.5" />Ajouter une école</button>
@@ -473,7 +479,7 @@ function CorUnumReglages() {
   }
   async function importer() {
     setImporte(true)
-    try { const r = await api('cor.importer'); notifier(r.nouvelles || r.fusionnees ? `${r.nouvelles} nouvelle(s), ${r.fusionnees} mise(s) à jour` : 'Aucune nouvelle réponse') } catch (e) { notifier(e.message, 'erreur') } finally { setImporte(false) }
+    try { const r = await api('cor.importer'); notifier(r.nouvelles || r.fusionnees ? `${nb(r.nouvelles, 'nouvelle', 'nouvelles')}, ${nb(r.fusionnees, 'mise à jour', 'mises à jour')}` : 'Aucune nouvelle réponse') } catch (e) { notifier(e.message, 'erreur') } finally { setImporte(false) }
   }
   const majF = (i, k, v) => setF({ ...f, feuilles: f.feuilles.map((x, j) => (j === i ? { ...x, [k]: v } : x)) })
   return (
@@ -486,7 +492,7 @@ function CorUnumReglages() {
             <div className="grid grid-cols-[110px_1fr_auto] items-end gap-2">
               <div><label className="etiquette">Année</label><input className="champ py-1.5" placeholder="2027-2028" value={x.annee || ''} onChange={(e) => majF(i, 'annee', e.target.value)} /></div>
               <div><label className="etiquette">Feuille de réponses (adresse)</label><input className="champ py-1.5 text-xs" value={x.id} onChange={(e) => majF(i, 'id', e.target.value)} /></div>
-              <button className="btn-icone text-red-700" onClick={() => setF({ ...f, feuilles: f.feuilles.filter((_, j) => j !== i) })}><Trash2 className="h-4 w-4" /></button>
+              <button aria-label="Supprimer" title="Supprimer" className="btn-icone text-red-700" onClick={() => setF({ ...f, feuilles: f.feuilles.filter((_, j) => j !== i) })}><Trash2 className="h-4 w-4" /></button>
             </div>
             {x.nom ? <p className="text-xs text-emerald-700">✓ {x.nom}</p> : x.erreur ? <p className="text-xs text-red-700">{x.erreur}</p> : null}
           </div>
@@ -528,7 +534,7 @@ function ConfirmandsReglages() {
   }
   async function importer() {
     setImporte(true)
-    try { const r = await api('conf.importer'); notifier(r.nouveaux || r.completes ? `${r.nouveaux} nouveau(x), ${r.completes} complété(s)` : 'Aucune nouvelle inscription') } catch (e) { notifier(e.message, 'erreur') } finally { setImporte(false) }
+    try { const r = await api('conf.importer'); notifier(r.nouveaux || r.completes ? `${nb(r.nouveaux, 'nouveau', 'nouveaux')}, ${nb(r.completes, 'complété', 'complétés')}` : 'Aucune nouvelle inscription') } catch (e) { notifier(e.message, 'erreur') } finally { setImporte(false) }
   }
   const majF = (i, k, v) => setF({ ...f, feuilles: f.feuilles.map((x, j) => (j === i ? { ...x, [k]: v } : x)) })
   return (
@@ -542,7 +548,7 @@ function ConfirmandsReglages() {
               <div><label className="etiquette">Année scolaire</label><input className="champ py-1.5" placeholder="2027-2028" value={x.annee || ''} onChange={(e) => majF(i, 'annee', e.target.value)} /></div>
               <div><label className="etiquette">Confirmation</label><input className="champ py-1.5" placeholder="2028" value={x.annee_confirmation || ''} onChange={(e) => majF(i, 'annee_confirmation', e.target.value)} /></div>
               <div><label className="etiquette">Feuille de réponses (adresse)</label><input className="champ py-1.5 text-xs" value={x.id} onChange={(e) => majF(i, 'id', e.target.value)} /></div>
-              <button className="btn-icone text-red-700" onClick={() => setF({ ...f, feuilles: f.feuilles.filter((_, j) => j !== i) })}><Trash2 className="h-4 w-4" /></button>
+              <button aria-label="Supprimer" title="Supprimer" className="btn-icone text-red-700" onClick={() => setF({ ...f, feuilles: f.feuilles.filter((_, j) => j !== i) })}><Trash2 className="h-4 w-4" /></button>
             </div>
             {x.nom ? <p className="text-xs text-emerald-700">✓ {x.nom}</p> : x.erreur ? <p className="text-xs text-red-700">{x.erreur}</p> : null}
           </div>
@@ -617,7 +623,7 @@ function PaiementsReglages() {
         <h2 className="mb-2 text-xl font-semibold">Derniers paiements en ligne</h2>
         {!f.derniers.length ? <p className="text-sm text-nuit-600/70">Aucun pour l'instant.</p> : (
           <ul className="divide-y divide-nuit-100 text-sm">{f.derniers.map((x) => (
-            <li key={x.id} className="flex items-center gap-3 py-2"><span className="w-24 shrink-0 text-xs text-nuit-600/70">{dateHeure(x.date)}</span><span className="flex-1">{x.libelle}<span className="block text-xs text-nuit-600/60">{x.email}</span></span>
+            <li key={x.id} className="flex items-center gap-3 py-2"><span className="w-24 shrink-0 text-xs text-nuit-600/70">{dateHeure(x.date)}</span><span className="flex-1">{x.libelle}<span className="block text-xs text-nuit-600/75">{x.email}</span></span>
               <span className="font-medium">{(x.montant || 0).toLocaleString('fr-FR')} €</span><span className={`pastille ${STATUTS_PAIEMENT[x.statut]?.[1] || ''}`}>{STATUTS_PAIEMENT[x.statut]?.[0] || x.statut}</span></li>))}</ul>
         )}
       </div>

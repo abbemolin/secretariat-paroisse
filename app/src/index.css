@@ -6,6 +6,8 @@
   html, body, #root { height: 100%; }
   body { @apply text-nuit-800 antialiased; -webkit-tap-highlight-color: transparent; }
   h1, h2, h3 { @apply font-titre; }
+  /* Chiffres alignés dans Cormorant : sinon le « 1 » ressemble à un « I » */
+  h1, h2, h3, .font-titre { font-feature-settings: "lnum" 1; }
 }
 
 @layer components {
@@ -22,6 +24,12 @@
 }
 
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+
+/* Barres d'onglets et de filtres : passent à la ligne sur ordinateur ; défilent sans barre visible sur téléphone */
+.barre-onglets { display: flex; gap: .375rem; overflow-x: auto; scrollbar-width: none; margin: 0 -.25rem; padding: 0 .25rem .25rem; }
+.barre-onglets::-webkit-scrollbar { display: none; }
+.barre-onglets > * { flex-shrink: 0; }
+@media (min-width: 640px) { .barre-onglets { flex-wrap: wrap; overflow: visible; } }
 
 /* ─── Taille du texte (Mon compte → Affichage) ─── */
 html.texte-grand { font-size: 17.5px; }

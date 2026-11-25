@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, CalendarDays, Copy, Loader2, MapPin, Mountain, Pencil, Plus, Printer, Send, Trash2, Users, Wallet, Car, HeartPulse, Check } from 'lucide-react'
 import { api } from '../api.js'
 import { TYPES } from '../types.js'
-import { Chargement, Erreur, Modale, Vide, useCharger, useNotif, useDifferer, enSuppression, Aide, Interrupteur, imprimerHtml, dateCourte } from '../ui.jsx'
+import { Chargement, Erreur, Modale, Vide, useCharger, useNotif, useDifferer, enSuppression, Aide, Interrupteur, imprimerHtml, dateCourte, nb } from '../ui.jsx'
 import { Redaction } from './Courrier.jsx'
 import { useSelection, BoutonSelection, BarreSelection, MenuAction, Case, useActionGroupee, texteRapport } from '../selection.jsx'
 import { BellRing } from 'lucide-react'
@@ -44,7 +44,7 @@ function Liste() {
     <>
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div><h1 className="text-3xl font-semibold leading-tight">Retraites</h1><p className="mt-0.5 text-sm text-nuit-600/80">Première communion, profession de foi, confirmation</p></div>
-        <button className="btn-principal" onClick={() => setEdition({ annee: data?.annee })}><Plus className="h-4 w-4" />Nouvelle retraite</button>
+        <button className="btn-or" onClick={() => setEdition({ annee: data?.annee })}><Plus className="h-4 w-4" />Nouvelle retraite</button>
       </div>
       {data && <div className="mb-4 flex flex-wrap gap-1.5">{data.annees.map((a) => (
         <button key={a} className={`pastille border ${a === data.annee ? 'border-or bg-or text-white' : 'border-nuit-100 bg-white text-nuit-600'}`} onClick={() => setParams({ annee: a })}>{a}</button>))}</div>}
@@ -142,7 +142,7 @@ function Fiche({ id }) {
           <button key={x.id} onClick={() => (s.actif ? s.basculer(x.id) : setOuverte(x))} className={`${s.a(x.id) ? 'bg-or-50 ' : ''}grid w-full grid-cols-[1fr_auto] items-center gap-3 px-4 py-3 text-left text-sm hover:bg-nuit-50/50`}>
             <span className="flex min-w-0 items-start gap-3"><Case s={s} id={x.id} nom={x.contact_nom} /><span className="min-w-0"><span className="block font-medium">{x.participants.map((p) => `${p.prenoms} ${String(p.nom).toUpperCase()}`).join(', ')}</span>
               <span className="block truncate text-xs text-nuit-600/70">{t.public === 'enfants' ? `Parent : ${x.contact_nom} · ` : ''}{x.contact_email} · inscrit le {dateCourte(x.cree_le)}{x.participants.some((p) => p.allergies) ? ' · ⚠ allergies / régime' : ''}{x.covoiturage === 'propose' ? ` · propose ${x.covoit_places} place(s)` : x.covoiturage === 'cherche' ? ' · cherche une place' : ''}</span>
-              {x.participants.some((p) => p.dossier_id) && <span className="mt-0.5 flex flex-wrap gap-1">{x.participants.filter((p) => p.dossier_id).map((p) => <span key={p.dossier_id} className="pastille bg-nuit-50 py-0 text-[10px] text-nuit-600">dossier de {p.prenoms}</span>)}</span>}</span></span>
+              {x.participants.some((p) => p.dossier_id) && <span className="mt-0.5 flex flex-wrap gap-1">{x.participants.filter((p) => p.dossier_id).map((p) => <span key={p.dossier_id} className="pastille bg-nuit-50 py-0 text-xs text-nuit-600">dossier de {p.prenoms}</span>)}</span>}</span></span>
             <span className="text-right">{x.statut === 'annule' ? <span className="pastille bg-nuit-100 text-nuit-600">Annulée</span> : x.montant.reste > 0 ? <><span className="block font-medium">{euros(x.montant.reste)}</span><span className="text-xs text-nuit-600/70">reste sur {euros(x.montant.du)}</span></> : x.montant.du > 0 ? <span className="pastille bg-emerald-100 text-emerald-900"><Check className="h-3 w-3" />Payé</span> : null}</span>
           </button>
         ))}
@@ -208,7 +208,7 @@ function Inscription({ r, x, onFermer, onMaj }) {
             {ligne('E-mail', x.contact_email)}{ligne('Téléphone', x.contact_tel)}
             {ligne('Contact d\'urgence', [x.urgence_nom, x.urgence_tel].filter(Boolean).join(' – '))}
             {t.public === 'enfants' && ligne('Autorisation parentale', x.autorisation || 'NON')}
-            {ligne('Covoiturage', x.covoiturage === 'propose' ? `Propose ${x.covoit_places} place(s)` : x.covoiturage === 'cherche' ? 'Cherche une place' : '')}
+            {ligne('Covoiturage', x.covoiturage === 'propose' ? `Propose ${nb(x.covoit_places, 'place', 'places')}` : x.covoiturage === 'cherche' ? 'Cherche une place' : '')}
             {ligne('Remarque', x.remarque)}{ligne('Inscription', `${x.source} · ${dateCourte(x.cree_le)}${x.maj_le !== x.cree_le ? ' · modifiée le ' + dateCourte(x.maj_le) : ''}`)}
           </div>
         </div>
@@ -224,14 +224,14 @@ function Inscription({ r, x, onFermer, onMaj }) {
           <h3 className="etiquette mt-4">Paiements</h3>
           {!x.paiements.length ? <p className="text-sm text-nuit-600/70">Aucun paiement.</p> : x.paiements.map((q) => (
             <div key={q.id} className="flex items-center gap-2 border-b border-nuit-100 py-1.5 text-sm"><span className="flex-1">{dateCourte(q.date)} · {q.mode}{q.part === 'ceremonie' ? ' (cérémonie)' : q.part === 'retraite' ? ' (retraite)' : ''} · {q.par}</span><span className="font-medium">{euros(q.montant)}</span>
-              <button className="btn-icone p-1 text-red-700" disabled={occupe} onClick={() => action({ retirer: q.id }, 'Paiement retiré')}><Trash2 className="h-3.5 w-3.5" /></button></div>
+              <button aria-label="Supprimer" title="Supprimer" className="btn-icone p-1 text-red-700" disabled={occupe} onClick={() => action({ retirer: q.id }, 'Paiement retiré')}><Trash2 className="h-3.5 w-3.5" /></button></div>
           ))}
           <div className="mt-3 grid grid-cols-[1fr_1fr] gap-2">
             <input className="champ" inputMode="decimal" placeholder="Montant" value={p.montant} onChange={(ev) => setP({ ...p, montant: ev.target.value })} />
             <input className="champ" type="date" value={p.date} onChange={(ev) => setP({ ...p, date: ev.target.value })} />
           </div>
           <div className="mt-2 flex flex-wrap gap-1.5">{MODES.map((m) => <button key={m} className={`pastille border ${p.mode === m ? 'border-or bg-or text-white' : 'border-nuit-100 bg-white text-nuit-600'}`} onClick={() => setP({ ...p, mode: m })}>{m}</button>)}</div>
-          <button className="btn-or mt-2 w-full" disabled={occupe || !Number(String(p.montant).replace(',', '.'))} onClick={() => action({ ajouter: { ...p, montant: String(p.montant).replace(',', '.') } }, 'Paiement enregistré').then(() => setP({ ...p, montant: '' }))}>{occupe ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}Enregistrer le paiement</button>
+          <button className="btn-principal mt-2 w-full" disabled={occupe || !Number(String(p.montant).replace(',', '.'))} onClick={() => action({ ajouter: { ...p, montant: String(p.montant).replace(',', '.') } }, 'Paiement enregistré').then(() => setP({ ...p, montant: '' }))}>{occupe ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}Enregistrer le paiement</button>
         </div>
       </div>
     </Modale>
@@ -278,7 +278,7 @@ function EditionRetraite({ r, onFermer, onFait }) {
                 <input className="champ flex-1 py-1.5" placeholder="Repas, chambre (2 nuits)…" value={l.libelle} onChange={(ev) => majPrix(i, 'libelle', ev.target.value)} />
                 <input className="champ w-20 py-1.5" inputMode="decimal" placeholder="€" value={l.montant} onChange={(ev) => majPrix(i, 'montant', ev.target.value)} />
                 <button className={`pastille border py-1 text-xs ${l.obligatoire ? 'border-or bg-or text-white' : 'border-nuit-100 bg-white text-nuit-600'}`} onClick={() => majPrix(i, 'obligatoire', !l.obligatoire)}>{l.obligatoire ? 'Compris' : 'Option'}</button>
-                <button className="btn-icone p-1 text-red-700" onClick={() => setV((w) => ({ ...w, prix: w.prix.filter((_, j) => j !== i) }))}><Trash2 className="h-3.5 w-3.5" /></button>
+                <button aria-label="Supprimer" title="Supprimer" className="btn-icone p-1 text-red-700" onClick={() => setV((w) => ({ ...w, prix: w.prix.filter((_, j) => j !== i) }))}><Trash2 className="h-3.5 w-3.5" /></button>
               </div>
             ))}
             <button className="btn-clair py-1 text-xs" onClick={() => setV((w) => ({ ...w, prix: [...w.prix, { libelle: '', montant: '', obligatoire: true }] }))}><Plus className="h-3.5 w-3.5" />Ajouter une ligne</button>
@@ -324,8 +324,8 @@ function Inviter({ r, onFermer }) {
           {liste.map((d) => (
             <li key={d.id}><button className="flex w-full items-center gap-3 py-2 text-left text-sm disabled:opacity-50" disabled={!d.email} onClick={() => basculer(d.id)}>
               <span className={`flex h-5 w-5 items-center justify-center rounded border ${choix.includes(d.id) ? 'border-or bg-or text-white' : 'border-nuit-200'}`}>{choix.includes(d.id) && <Check className="h-3.5 w-3.5" />}</span>
-              <span className="flex-1"><span className="font-medium">{d.nom}</span>{d.type === 'catechumene' && <span className="pastille ml-1.5 bg-amber-100 py-0 text-[10px] text-amber-900">catéchumène</span>}<span className="block text-xs text-nuit-600/70">{d.email || 'pas d\'adresse e-mail'}</span></span>
-              {d.inscrit && <span className="pastille bg-emerald-100 py-0 text-[10px] text-emerald-900">déjà inscrit</span>}
+              <span className="flex-1"><span className="font-medium">{d.nom}</span>{d.type === 'catechumene' && <span className="pastille ml-1.5 bg-amber-100 py-0 text-xs text-amber-900">catéchumène</span>}<span className="block text-xs text-nuit-600/70">{d.email || 'pas d\'adresse e-mail'}</span></span>
+              {d.inscrit && <span className="pastille bg-emerald-100 py-0 text-xs text-emerald-900">déjà inscrit</span>}
             </button></li>
           ))}
         </ul>

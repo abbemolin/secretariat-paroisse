@@ -81,7 +81,7 @@ export default function IntentionsGerer() {
           <button key={k} onClick={() => setPretre(k)} className={`rounded-full px-3 py-1 text-sm ${pretre === k ? 'bg-nuit text-white' : 'bg-white text-nuit-700 ring-1 ring-nuit-100 hover:bg-nuit-50'}`}>{n}{k === 'non' && nonCelebrees.length ? ` (${nonCelebrees.length})` : ''}</button>
         ))}
       </div>
-      <div className="relative mb-4"><Search className="absolute left-3 top-2.5 h-4 w-4 text-nuit-600/60" /><input className="champ pl-9" placeholder="Rechercher par nom, donateur…" value={filtre} onChange={(e) => setFiltre(e.target.value)} /></div>
+      <div className="relative mb-4"><Search className="absolute left-3 top-2.5 h-4 w-4 text-nuit-600/75" /><input className="champ pl-9" placeholder="Rechercher par nom, donateur…" value={filtre} onChange={(e) => setFiltre(e.target.value)} /></div>
 
       {dbl.length > 0 && (
         <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-800">
@@ -108,7 +108,7 @@ export default function IntentionsGerer() {
               <button className="flex w-full items-center gap-2 px-4 py-2.5 text-left hover:bg-nuit-50/50" onClick={() => setOuverts((o) => ({ ...o, [m]: !ouvert }))}>
                 {ouvert ? <ChevronDown className="h-4 w-4 text-nuit-600" /> : <ChevronRight className="h-4 w-4 text-nuit-600" />}
                 <span className="flex-1 font-titre text-lg font-semibold capitalize text-nuit">{MOIS[+mo - 1]} {a}</span>
-                <span className={`pastille ${!items.length ? 'bg-nuit-50 text-nuit-600/60' : nbAtt ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>{items.length}</span>
+                <span className={`pastille ${!items.length ? 'bg-nuit-50 text-nuit-600/75' : nbAtt ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>{items.length}</span>
                 {nbAtt > 0 && <span className="pastille bg-red-50 text-red-700">{nbAtt} en attente</span>}
               </button>
               {ouvert && (items.length ? <div className="divide-y divide-nuit-50 border-t border-nuit-50">{items.map((i) => <Carte key={i.id} i={i} eclaire={eclaire === String(i.id)} liste={liste} onMaj={maj} onModifier={() => setFiche(i)} onMail={() => setMail({ i })} onRefuser={() => setMail({ i, refus: true })} onAnnuler={() => annuler(i)} />)}</div>
@@ -158,7 +158,7 @@ function Carte({ i, eclaire, liste, onMaj, onModifier, onMail, onRefuser, onAnnu
         <span className="ml-auto text-xs text-nuit-600">{i.type_intention}</span>
       </div>
       <div className="mt-0.5 font-titre text-lg font-semibold text-nuit">{i.nom_intention}</div>
-      <div className="text-sm text-nuit-600">{i.nom_donateur}{' · '}{sansAdresse(i) ? <span className="italic text-nuit-600/60">sans adresse</span> : i.email_donateur}</div>
+      <div className="text-sm text-nuit-600">{i.nom_donateur}{' · '}{sansAdresse(i) ? <span className="italic text-nuit-600/75">sans adresse</span> : i.email_donateur}</div>
       {i.commentaire && <div className="mt-1 rounded-lg bg-nuit-50/60 px-2 py-1 text-sm text-nuit-700">🗒 {i.commentaire}</div>}
       {!enCours && i.statut === 'valide' && !sansAdresse(i) && <div className="mt-1 text-xs">{i.mail_envoye ? <span className="text-emerald-700">✅ Mail envoyé</span> : <span className="text-or-600">⚠ Confirmation à envoyer</span>}</div>}
       {enCours && <Validation i={i} liste={liste} onMaj={onMaj} onRefuser={onRefuser} onAnnuler={onAnnuler} />}
@@ -226,7 +226,7 @@ function Validation({ i, liste, onMaj, onRefuser, onAnnuler }) {
         ) : (
           <>
             {messes.map((h) => pris(h)
-              ? <span key={h} className="rounded-full bg-nuit-50 px-3 py-1 text-sm text-nuit-600/60" title="Déjà réservé">🔒 {heureFr(h)}</span>
+              ? <span key={h} className="rounded-full bg-nuit-50 px-3 py-1 text-sm text-nuit-600/75" title="Déjà réservé">🔒 {heureFr(h)}</span>
               : <button key={h} onClick={() => setHeure(h)} className={`rounded-full px-3 py-1 text-sm ${heure === h ? 'bg-nuit text-white' : 'ring-1 ring-nuit-100 hover:bg-nuit-50'}`}>{heureFr(h)}</button>)}
             <button className="rounded-full px-3 py-1 text-sm italic text-or-600 ring-1 ring-or-100" onClick={() => setPrivee(true)}>+ Privée</button>
           </>

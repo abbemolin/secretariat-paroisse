@@ -18,10 +18,10 @@ const nomComplet = (m) => `${m.prenoms} ${String(m.nom).toUpperCase()}`.trim()
 function Profils({ m, sansParoissien = true }) {
   return (
     <>
-      {m.profils.filter((p) => !sansParoissien || p !== 'Paroissien').map((p) => <span key={p} className={`pastille py-0 text-[10px] ${COULEURS_PROFILS[p] || ''}`}>{COURT[p] || p}</span>)}
-      {m.nouveau && m.statut !== 'ancien' && <span className="pastille bg-or text-white py-0 text-[10px]">Nouveau dans l'équipe</span>}
-      {m.chef_possible && <span className="pastille gap-0.5 border border-or py-0 text-[10px] text-or-600"><Crown className="h-2.5 w-2.5" />chef possible</span>}
-      {m.dossiers.map((d) => <Link key={d.id} to={`/dossiers/${d.id}`} onClick={(e) => e.stopPropagation()} className="pastille gap-0.5 border py-0 text-[10px] hover:underline" style={{ borderColor: TYPES[d.type]?.couleur, color: TYPES[d.type]?.couleur }}><FolderHeart className="h-2.5 w-2.5" />{TYPES[d.type]?.nom}</Link>)}
+      {m.profils.filter((p) => !sansParoissien || p !== 'Paroissien').map((p) => <span key={p} className={`pastille py-0 text-xs ${COULEURS_PROFILS[p] || ''}`}>{COURT[p] || p}</span>)}
+      {m.nouveau && m.statut !== 'ancien' && <span className="pastille bg-or text-white py-0 text-xs">Nouveau dans l'équipe</span>}
+      {m.chef_possible && <span className="pastille gap-0.5 border border-or py-0 text-xs text-or-600"><Crown className="h-2.5 w-2.5" />chef possible</span>}
+      {m.dossiers.map((d) => <Link key={d.id} to={`/dossiers/${d.id}`} onClick={(e) => e.stopPropagation()} className="pastille gap-0.5 border py-0 text-xs hover:underline" style={{ borderColor: TYPES[d.type]?.couleur, color: TYPES[d.type]?.couleur }}><FolderHeart className="h-2.5 w-2.5" />{TYPES[d.type]?.nom}</Link>)}
     </>
   )
 }
@@ -142,10 +142,10 @@ export default function CorUnum() {
             ))}
           </div>
           <div className="mb-3 flex flex-wrap items-center gap-2">
-            <div className="-mx-1 flex flex-1 gap-1.5 overflow-x-auto px-1 pb-1">
+            <div className="barre-onglets flex-1">
               {ONGLETS.map(([k, l, n]) => <button key={k} onClick={() => changer({ vue: k })} className={`pastille shrink-0 gap-1.5 border py-1 ${onglet === k ? 'border-nuit bg-nuit text-white' : 'border-nuit-100 bg-white text-nuit-600'}`}>{l}<span className="opacity-60">{n}</span></button>)}
             </div>
-            <div className="relative w-full sm:w-64"><Search className="absolute left-3 top-2.5 h-4 w-4 text-nuit-600/50" /><input className="champ pl-9" placeholder="Rechercher…" value={texte} onChange={(e) => setTexte(e.target.value)} /></div>
+            <div className="relative w-full sm:w-64"><Search className="absolute left-3 top-2.5 h-4 w-4 text-nuit-600/75" /><input className="champ pl-9" placeholder="Rechercher…" value={texte} onChange={(e) => setTexte(e.target.value)} /></div>
           </div>
 
           {onglet === 'equipes' && (
@@ -171,12 +171,12 @@ export default function CorUnum() {
                     </ul>
                     {anciens.length > 0 && (
                       <details className="mt-2 text-sm"><summary className="cursor-pointer text-xs text-nuit-600/70">{anciens.length} ancien{anciens.length > 1 ? 's' : ''} pas encore réinscrit{anciens.length > 1 ? 's' : ''}</summary>
-                        <ul className="mt-1 space-y-0.5">{anciens.map((m) => <li key={m.id}><button className="text-left text-nuit-600/60 hover:underline" onClick={() => setFiche(m)}>{nomComplet(m)}{m.note ? <span className="text-xs italic"> — {m.note}</span> : ''}</button></li>)}</ul>
+                        <ul className="mt-1 space-y-0.5">{anciens.map((m) => <li key={m.id}><button className="text-left text-nuit-600/75 hover:underline" onClick={() => setFiche(m)}>{nomComplet(m)}{m.note ? <span className="text-xs italic"> — {m.note}</span> : ''}</button></li>)}</ul>
                       </details>
                     )}
                     {data.fils?.[e.id]?.prochaine && <p className="mt-2 flex items-center gap-1.5 text-xs text-nuit-600"><CalendarDays className="h-3.5 w-3.5 text-or" />Prochaine rencontre : {new Date(data.fils[e.id].prochaine.date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}{data.fils[e.id].prochaine.lieu ? ` — ${data.fils[e.id].prochaine.lieu}` : ''}</p>}
                     <div className="mt-3 flex flex-wrap gap-1.5 border-t border-nuit-50 pt-3">
-                      <button className={`btn-clair px-2.5 py-1 text-xs ${data.fils?.[e.id]?.non_lus ? 'border-or bg-or-50' : ''}`} onClick={() => setFil(e)}><MessageSquare className="h-3.5 w-3.5" />Messages{data.fils?.[e.id]?.non_lus ? <span className="rounded-full bg-or px-1.5 text-[10px] font-semibold text-white">{data.fils[e.id].non_lus}</span> : ''}</button>
+                      <button className={`btn-clair px-2.5 py-1 text-xs ${data.fils?.[e.id]?.non_lus ? 'border-or bg-or-50' : ''}`} onClick={() => setFil(e)}><MessageSquare className="h-3.5 w-3.5" />Messages{data.fils?.[e.id]?.non_lus ? <span className="rounded-full bg-or px-1.5 text-xs font-semibold text-white">{data.fils[e.id].non_lus}</span> : ''}</button>
                       <button className="btn-clair px-2.5 py-1 text-xs" onClick={() => setLien(e)}><Link2 className="h-3.5 w-3.5" />Lien du chef</button>
                       <Aide>Lien secret, sans compte : le chef voit ses membres, en ajoute, note les rencontres et vous écrit. « Nouveau lien » désactive l'ancien.</Aide>
                       <button className="btn-clair px-2.5 py-1 text-xs" disabled={!chefs.some((c) => c.email)} onClick={() => mailChef(e)}><Crown className="h-3.5 w-3.5" />Liste au chef</button>
@@ -227,9 +227,9 @@ export default function CorUnum() {
             <div className="carte divide-y divide-nuit-50">
               <div className="flex justify-end px-4 py-2"><BoutonSelection s={s} /></div>
               {filtre(membres).map((m) => (
-                <button key={m.id} className={`flex w-full flex-wrap items-center gap-1.5 px-4 py-2.5 text-left text-sm hover:bg-nuit-50/50 ${m.statut === 'ancien' ? 'text-nuit-600/60' : ''}`} onClick={() => s.actif ? s.basculer(m.id) : setFiche(m)}>
+                <button key={m.id} className={`flex w-full flex-wrap items-center gap-1.5 px-4 py-2.5 text-left text-sm hover:bg-nuit-50/50 ${m.statut === 'ancien' ? 'text-nuit-600/75' : ''}`} onClick={() => s.actif ? s.basculer(m.id) : setFiche(m)}>
                   <Case s={s} id={m.id} nom={nomComplet(m)} />
-                  <span className="min-w-[180px] flex-1">{nomComplet(m)}<span className="block text-xs text-nuit-600/60">{m.equipe_id ? `Fraternité ${nomEquipe(m.equipe_id)}` : 'À répartir'}{m.statut === 'ancien' ? ' · ancien, pas réinscrit' : ''}</span></span>
+                  <span className="min-w-[180px] flex-1">{nomComplet(m)}<span className="block text-xs text-nuit-600/75">{m.equipe_id ? `Fraternité ${nomEquipe(m.equipe_id)}` : 'À répartir'}{m.statut === 'ancien' ? ' · ancien, pas réinscrit' : ''}</span></span>
                   <Profils m={m} />
                 </button>
               ))}
@@ -345,7 +345,7 @@ function Fiche({ m, annee, equipes, profils, membres = [], onFermer, onMaj, onSu
               ? <span key={p} title="D'après le dossier" className={`pastille gap-1 border py-1 ${liens.auto.includes(p) ? 'border-transparent ' + COULEURS_PROFILS[p] : 'border-dashed border-nuit-100 bg-white text-nuit-600/40'}`}>{p}{liens.auto.includes(p) && <FolderHeart className="h-3 w-3" />}</span>
               : <label key={p} className={`pastille cursor-pointer gap-1 border py-1 ${v.profils.includes(p) ? 'border-transparent ' + COULEURS_PROFILS[p] : 'border-nuit-100 bg-white text-nuit-600'}`}><input type="checkbox" className="hidden" checked={v.profils.includes(p)} onChange={(e) => maj('profils', e.target.checked ? [...v.profils, p] : v.profils.filter((x) => x !== p))} />{p}</label>
           ))}</div>
-            {liens.dossiers.length > 0 && <p className="mt-1 text-[11px] text-nuit-600/60">Catéchumène, néophyte et confirmand suivent le dossier.</p>}</div>
+            {liens.dossiers.length > 0 && <p className="mt-1 text-xs text-nuit-600/75">Catéchumène, néophyte et confirmand suivent le dossier.</p>}</div>
           {!nouveau && (
             <div className="rounded-xl border border-rose-200 bg-rose-50/60 p-3">
               <div className="mb-1.5 flex items-center justify-between gap-2"><span className="etiquette mb-0">Dossier de sacrement</span>
@@ -355,7 +355,7 @@ function Fiche({ m, annee, equipes, profils, membres = [], onFermer, onMaj, onSu
                 return (
                   <div key={d.id} className="flex flex-wrap items-center gap-2 py-1 text-sm">
                     <Link to={`/dossiers/${d.id}`} className="pastille gap-1 border bg-white py-0.5 hover:underline" style={{ borderColor: TYPES[d.type]?.couleur, color: TYPES[d.type]?.couleur }}><FolderHeart className="h-3 w-3" />{TYPES[d.type]?.nom}</Link>
-                    <span className="flex-1 text-xs text-nuit-600">{d.etat !== 'ouvert' ? ETATS[d.etat] : pe ? '→ ' + pe.label : 'Toutes les étapes faites'}{d.mode === 'auto' && <span className="text-nuit-600/50"> · reconnu par le nom</span>}</span>
+                    <span className="flex-1 text-xs text-nuit-600">{d.etat !== 'ouvert' ? ETATS[d.etat] : pe ? '→ ' + pe.label : 'Toutes les étapes faites'}{d.mode === 'auto' && <span className="text-nuit-600/75"> · reconnu par le nom</span>}</span>
                     <button className="btn-clair px-2 py-0.5 text-xs" onClick={() => lier(d.id, true, 'Lien avec le dossier défait')}>Délier</button>
                   </div>
                 )
@@ -447,7 +447,7 @@ function Fil({ e, annee, onFermer }) {
               {!d.messages.length && <p className="text-sm text-nuit-600/70">Aucun message. Le chef voit ce fil sur sa page.</p>}
               {d.messages.map((m) => (
                 <div key={m.id} className={`max-w-[85%] whitespace-pre-wrap rounded-xl px-3 py-2 text-sm ${m.cote === 'chef' ? 'bg-white' : 'ml-auto bg-nuit text-white'}`}>
-                  <div className="mb-0.5 text-[11px] opacity-70">{m.cote === 'chef' ? `${m.auteur} (chef)` : m.auteur} · {dateFil(m.date)}</div>{m.texte}
+                  <div className="mb-0.5 text-xs opacity-70">{m.cote === 'chef' ? `${m.auteur} (chef)` : m.auteur} · {dateFil(m.date)}</div>{m.texte}
                 </div>
               ))}
             </div>
