@@ -14,7 +14,8 @@ var TYPES_DOSSIER = {
   confirmand: { nom: 'Confirmand adulte', dossier: 'Confirmands', public: true },
   premiere_communion: { nom: 'Première communion', dossier: 'Premières communions', public: true, collectif: true },
   profession_foi: { nom: 'Profession de foi', dossier: 'Professions de foi', public: true, collectif: true },
-  confirmation_jeune: { nom: 'Confirmation (jeunes)', dossier: 'Confirmations jeunes', public: false, collectif: true }
+  confirmation_jeune: { nom: 'Confirmation (jeunes)', dossier: 'Confirmations jeunes', public: false, collectif: true },
+  bapteme_ailleurs: { nom: 'Baptême dans une autre paroisse', dossier: 'Baptêmes dans une autre paroisse', public: false, sansAgenda: true }   // accord du curé (B15) ; mêmes droits que les baptêmes
 };
 
 // Lieux de préparation (premières communions, professions de foi)
@@ -52,7 +53,7 @@ var CHAMPS_PUBLICS = {
 function nomDossier_(type, i) {
   i = i || {};
   var np = function (prenoms, nom) { return [prenoms, String(nom || '').toUpperCase()].filter(String).join(' '); };
-  if (type === 'bapteme' || type === 'premiere_communion' || type === 'profession_foi' || type === 'confirmation_jeune') return np(i.enfant_prenoms, i.enfant_nom);
+  if (type === 'bapteme' || type === 'bapteme_ailleurs' || type === 'premiere_communion' || type === 'profession_foi' || type === 'confirmation_jeune') return np(i.enfant_prenoms, i.enfant_nom);
   if (type === 'mariage') return [np(i.fiancee_prenoms, i.fiancee_nom), np(i.fiance_prenoms, i.fiance_nom)].filter(String).join(' & ');
   if (type === 'obseques') return np(i.defunt_prenoms, i.defunt_nom);
   return np(i.prenoms, i.nom);
@@ -105,7 +106,7 @@ function trouverDossier_(id) {
 }
 
 function listerDossiers_(p, s) {
-  var sortesOk = s ? sortesLisibles_(s) : SORTES_ACCES;
+  var sortesOk = s ? sortesLisibles_(s) : SORTES_ACCES.concat(['bapteme_ailleurs']);
   var ds = lignes_('Dossiers').filter(function (x) { return sortesOk.indexOf(x.type) > -1; });
   if (p.type) ds = ds.filter(function (x) { return x.type === p.type; });
   if (p.etat) ds = ds.filter(function (x) { return x.etat === p.etat; });

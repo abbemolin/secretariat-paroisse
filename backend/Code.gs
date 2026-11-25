@@ -73,6 +73,7 @@ function doPost(e) {
     if (action === 'public.infos') return json_({ ok: true, data: infosPubliques_(p) });
     if (action === 'public.notif') return json_({ ok: true, data: derniereNotifPublique_() });
     if (action === 'public.dons') return json_({ ok: true, data: fonctionActive_('dons') ? causesPubliques_() : [] });
+    if (action === 'public.accordBapteme' || action === 'public.accordBaptemeEnvoyer') return json_({ ok: true, data: actionAccordBapteme_(action, p) });
     if (action === 'public.fonctions') return json_({ ok: true, data: fonctionsApp_() });
     if (/^par\./.test(action)) return json_({ ok: true, data: actionParrain_(action, p) });
     if (/^rej\./.test(action)) return json_({ ok: true, data: actionRejoindre_(action, p) });
@@ -160,6 +161,8 @@ var ROUTES = {
   'dossiers.modifier':     { fn: function (p, s) { return modifierDossier_(p, s); }, droit: 'dossiers' },
   'dossiers.photo':        { fn: function (p, s) { return photoDossier_(p, s); }, droit: 'dossiers' },
   'dossiers.piece':        { fn: function (p, s) { return deposerPieceDossier_(p, s); }, droit: 'dossiers' },
+  'dossiers.formulaireAccord': { fn: function (p, s) { return envoyerFormulaireAccordRoute_(p, s); }, droit: 'dossiers' },
+  'dossiers.envoyerB15':   { fn: function (p, s) { return envoyerB15Route_(p, s); }, droit: 'dossiers' },
   'dossiers.archiver':     { fn: function (p, s) { return archiverDocumentDossier_(p, s); }, droit: 'dossiers' },
   'dossiers.supprimer':    { fn: function (p, s) { return supprimerDossier_(p, s); }, droit: 'dossiers' },
   'dossiers.signerB6':     { fn: function (p, s) { return signerB6_(p, s); }, droit: 'dossiers' },

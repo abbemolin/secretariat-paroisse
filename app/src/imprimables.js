@@ -194,4 +194,61 @@ export const SEPULTURE = {
   }
 }
 
-export const IMPRIMABLES = { B14, B6, sepulture: SEPULTURE }
+// ─── B15 – Accord du curé du domicile des parents (si l'enfant est baptisé dans une autre paroisse) ───
+// « donne » (dossier bapteme_ailleurs) : La Croix glorieuse accorde, vers la paroisse du baptême.
+// « demande » (dossier de baptême ici) : le curé du domicile accorde, vers La Croix glorieuse (prérempli, à faire signer).
+export const B15 = {
+  titre: 'Accord du curé du domicile (B15)',
+  champs: [
+    ['paroisse', 'Paroisse (du curé qui accorde)'], ['diocese', 'Diocèse'], ['cure_nom', 'M. (nom du curé)'], ['cure_de', 'Curé de'],
+    ['parents', 'Accorde à Mr et Mme'], ['demeurant', 'Demeurant à'], ['diocese_domicile', 'Diocèse du domicile'],
+    ['sexe', 'Fils ou fille', 'sexe'], ['enfant', 'Prénoms et nom de l\'enfant'], ['dest_cure', 'À M. le curé de'], ['dest_diocese', 'Diocèse de'],
+    ['fait_a', 'Fait à'], ['fait_le', 'Le']
+  ],
+  depuis(d, r) {
+    const i = d.infos || {}, donne = d.type === 'bapteme_ailleurs'
+    const pere = [i.pere_prenom, i.pere_nom].filter(Boolean).join(' '), mere = [i.mere_prenom, i.mere_nom_jeune_fille].filter(Boolean).join(' ')
+    const lieu = (paroisse, commune) => [paroisse, commune && !String(paroisse || '').includes(commune) ? commune : ''].filter(Boolean).join(', ')
+    return {
+      paroisse: donne ? r.paroisse : i.domicile_paroisse || '', diocese: donne ? r.diocese : i.domicile_diocese || '',
+      cure_nom: donne ? r.cure_nom || '' : i.domicile_cure || '', cure_de: donne ? r.paroisse : lieu(i.domicile_paroisse, i.domicile_commune),
+      parents: [pere, mere].filter(Boolean).join(' et '), demeurant: [i.adresse, i.commune].filter(Boolean).join(', '),
+      diocese_domicile: donne ? r.diocese : i.domicile_diocese || '',
+      sexe: i.sexe || '', enfant: [i.enfant_prenoms, String(i.enfant_nom || '').toUpperCase()].filter(Boolean).join(' '),
+      dest_cure: donne ? lieu(i.paroisse_bapteme, i.commune_bapteme) : r.paroisse, dest_diocese: donne ? i.diocese_bapteme || '' : r.diocese,
+      fait_a: donne ? r.commune : '', fait_le: donne ? aujourdhui() : ''
+    }
+  },
+  /** sign (facultatif) : { signature: dataURL, sceau: dataURL, par, le } */
+  html(v, sign = {}) {
+    const f = v.sexe === 'Fille', g = v.sexe === 'Garçon'
+    const barre = (mot, garde) => (garde ? `<b>${mot}</b>` : `<span style="text-decoration:line-through;color:#999">${mot}</span>`)
+    const fils = f || g ? `${barre('fils', g)} - ${barre('fille', f)}` : 'fils - fille'
+    return doc(`
+      <style>.titre2{text-align:center;color:#d9534f;font-weight:bold;font-size:15pt;margin:2mm 0 12mm}</style>
+      <div class="form">Form. <b>B 15</b></div>
+      <div class="titre" style="margin:12mm 0 1mm;font-size:16pt">ACCORD DU CURÉ DU DOMICILE DES PARENTS</div>
+      <div class="titre2">si l'enfant est baptisé dans une autre paroisse</div>
+      ${ligne('Paroisse', v.paroisse)}
+      <div class="l"><span>Diocèse</span><span class="v moyen">${e(v.diocese)}</span><span style="flex:1"></span></div>
+      ${ligne('M.', v.cure_nom)}
+      ${ligne('curé de', v.cure_de)}
+      ${ligne('accorde à Mr et Mme', v.parents)}
+      ${ligne('demeurant à', v.demeurant)}
+      <div class="l"><span class="v" style="border:0"></span><span>diocèse de</span><span class="v moyen">${e(v.diocese_domicile)}</span></div>
+      <div class="l"><span>de présenter la demande de Baptême de leur ${fils}</span><span class="v">${e(v.enfant)}</span></div>
+      ${ligne('à M. le curé de', v.dest_cure)}
+      <div class="l"><span class="v" style="border:0"></span><span>diocèse de</span><span class="v moyen">${e(v.dest_diocese)}</span></div>
+      <div class="l" style="margin-top:8mm;padding-left:40mm"><span>A</span><span class="v">${e(v.fait_a)}</span><span>le</span><span class="v moyen" style="flex-basis:45mm">${e(v.fait_le)}</span></div>
+      <div class="sig" style="align-items:flex-start;margin-top:8mm">
+        <div style="width:60mm;text-align:center">Sceau
+          ${sign.sceau ? `<div style="margin-top:2mm"><img src="${sign.sceau}" style="max-width:38mm;max-height:38mm;opacity:.92"></div>` : ''}</div>
+        <div style="width:62mm;text-align:center">Signature
+          ${sign.signature ? `<div style="margin-top:2mm"><img src="${sign.signature}" style="max-width:58mm;max-height:24mm"></div>` : ''}
+          ${sign.par ? `<div style="font-size:8.5pt;color:#555;margin-top:1mm">${e(sign.par)}${sign.le ? ', le ' + e(sign.le) : ''}</div>` : ''}</div>
+      </div>
+    `)
+  }
+}
+
+export const IMPRIMABLES = { B14, B15, B6, sepulture: SEPULTURE }

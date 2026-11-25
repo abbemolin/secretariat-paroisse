@@ -103,6 +103,9 @@ const etat = {
     { id: 'e7', titre: 'Mariage', lieu: 'Église', description: '', journee: false, debut: jour(23, 15), fin: jour(23, 16, 30), recurrent: false, dossier: 'd4' }
   ],
   dossiers: [
+    { id: 'da1', type: 'bapteme_ailleurs', etat: 'ouvert', cree_le: jour(-3, 9), source: 'Saisie : Marie', email: 'famille.muller@example.fr', telephone: '06 22 33 44 55', date_celebration: '', evenement_id: '', responsable: '', maj_le: jour(-1, 9),
+      infos: { enfant_prenoms: 'Jeanne', enfant_nom: 'Muller', sexe: 'Fille', enfant_naissance_date: '2026-09-14', enfant_naissance_lieu: 'Strasbourg', pere_prenom: 'Paul', pere_nom: 'Muller', mere_prenom: 'Anne', mere_nom_jeune_fille: 'Klein', adresse: '4 rue des Juifs', commune: '67000 Strasbourg', email: 'famille.muller@example.fr', paroisse_bapteme: 'Saint-Martin', commune_bapteme: 'Colmar', diocese_bapteme: 'Strasbourg', date_souhaitee: '2027-05-09', accord_envoye_le: jour(-3, 9), accord_recu_le: jour(-1, 9) },
+      etapes: { recue: { fait: true, date: jour(-3, 9) }, formulaire: { fait: true, date: jour(-1, 9) } }, documents: {}, rencontres: [], pieces: [], fils: [], historique: [{ date: jour(-1, 9), par: 'Formulaire en ligne', texte: 'Formulaire « accord du curé » rempli par la famille' }] },
     { id: 'd1', type: 'bapteme', etat: 'ouvert', cree_le: jour(0, 10, 13), source: 'Formulaire du site', email: 'julie.weber@example.fr', telephone: '06 12 34 56 78', date_celebration: '', evenement_id: '', responsable: 'u3', maj_le: jour(0, 10, 13),
       infos: { enfant_prenoms: 'Louise', enfant_nom: 'Weber', enfant_naissance_date: '2026-08-02', enfant_naissance_lieu: 'Strasbourg', parents_noms: 'Julie et Marc Weber', adresse: '12 rue du Dôme, Strasbourg', telephone: '06 12 34 56 78', email: 'julie.weber@example.fr', parrain_nom: 'Thomas Weber', marraine_nom: 'Claire Roth', date_souhaitee: '2027-04-18', message: 'Nous souhaiterions un baptême au printemps, après Pâques si possible.' },
       etapes: { recue: { fait: true, date: jour(0, 10, 13), par: 'Formulaire', libelle: 'Demande reçue' } }, documents: {}, rencontres: [], pieces: [], fils: ['t1'],
@@ -186,7 +189,7 @@ const resume = (d) => ({ ...d, alertes: alertesDemo(d), autre_confession: d.info
 const complet = (d) => ({ ...d, alertes: alertesDemo(d), nom: nomDe(d), historique: [...d.historique].reverse(), fils: d.fils.map((id) => etat.fils.find((f) => f.id === id)).filter(Boolean).map((f) => ({ id: f.id, sujet: f.sujet, date: f.date })) })
 function nomDe(d) {
   const i = d.infos, np = (p, n) => [p, String(n || '').toUpperCase()].filter(Boolean).join(' ')
-  if (['bapteme', 'premiere_communion', 'profession_foi', 'confirmation_jeune'].includes(d.type)) return np(i.enfant_prenoms, i.enfant_nom)
+  if (['bapteme', 'bapteme_ailleurs', 'premiere_communion', 'profession_foi', 'confirmation_jeune'].includes(d.type)) return np(i.enfant_prenoms, i.enfant_nom)
   if (d.type === 'mariage') return [np(i.fiancee_prenoms, i.fiancee_nom), np(i.fiance_prenoms, i.fiance_nom)].filter(Boolean).join(' & ')
   if (d.type === 'obseques') return np(i.defunt_prenoms, i.defunt_nom)
   return np(i.prenoms, i.nom) || d.nom || '(sans nom)'

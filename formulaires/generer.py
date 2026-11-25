@@ -257,6 +257,8 @@ QRCODE_JS = (sortie / 'qrcode.min.js').read_text(encoding='utf-8')
 for nom in ('paiement', 'livres'):
     (SITE / nom).mkdir(exist_ok=True)
     (SITE / nom / 'index.html').write_text((sortie / (nom + '.html')).read_text(encoding='utf-8').replace('__URL_SCRIPT__', json.dumps(URL)), encoding='utf-8')
+(SITE / 'accord-bapteme').mkdir(exist_ok=True)
+(SITE / 'accord-bapteme' / 'index.html').write_text((sortie / 'accord-bapteme.html').read_text(encoding='utf-8').replace('__URL_SCRIPT__', json.dumps(URL)), encoding='utf-8')
 (SITE / 'retraite').mkdir(exist_ok=True)
 (SITE / 'retraite' / 'index.html').write_text((sortie / 'retraite.html').read_text(encoding='utf-8').replace('__URL_SCRIPT__', json.dumps(URL)), encoding='utf-8')
 shutil.copy(sortie.parent / "app" / "public" / "logo-128.png", SITE / "logo-128.png")
@@ -284,7 +286,7 @@ for type_, f in FORMULAIRES.items():
 
 # ─── Les pages publiques sont aussi servies par l'appli du secrétariat (secretariat.croix-glorieuse.org) ───
 APP_PUBLIC = sortie.parent / "app" / "public"
-for nom in ('premiere-communion', 'profession-de-foi', 'fraternite', 'rejoindre', 'retraite', 'paiement', 'livres'):
+for nom in ('premiere-communion', 'profession-de-foi', 'fraternite', 'rejoindre', 'retraite', 'paiement', 'livres', 'accord-bapteme'):
     if (SITE / nom / 'index.html').exists():
         (APP_PUBLIC / nom).mkdir(exist_ok=True)
         shutil.copy(SITE / nom / 'index.html', APP_PUBLIC / nom / 'index.html')
