@@ -33,7 +33,7 @@ var FICHIERS_ATTENDUS = {
     'Liturgie.gs': ['commentairesBible_', 'ordoMesses_', 261],
     'Livres.gs': ['feuilleCommandes_', 'mailCommande_', 194],
     'Lots.gs': ['idsLot_', 'paroissiensLotRoute_', 203],
-    'MiseAJour.gs': ['mettreAJourServeur', 'majServeurRoute_', 103],
+    'MiseAJour.gs': ['mettreAJourServeur', 'majServeurRoute_', 104],
     'Modeles.gs': ['modeles_', 'courrierRoute_', 77],
     'Newsletter.gs': ['nlReglages_', 'annulerNewsletter_', 413],
     'Priere.gs': ['feuillePrieres_', 'entretienPrieres_', 158],

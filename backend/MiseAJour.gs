@@ -42,7 +42,8 @@ function majAppel_(methode, chemin, corps) {
   if (corps) o.payload = JSON.stringify(corps);
   var r = UrlFetchApp.fetch(MAJ_API + ScriptApp.getScriptId() + chemin, o), code = r.getResponseCode(), t = r.getContentText();
   if (code >= 300) {
-    if (code === 403 && /has not been used|disabled|usersettings/i.test(t)) throw new Error('Activez « API Google Apps Script » sur https://script.google.com/home/usersettings puis relancez.');
+    var detail = ''; try { detail = JSON.parse(t).error.message; } catch (e) { detail = t.slice(0, 300); }
+    if (code === 403 && /usersettings/i.test(t)) throw new Error('Activez « API Google Apps Script » sur https://script.google.com/home/usersettings (avec le compte propriétaire du projet), attendez quelques minutes puis relancez. Détail : ' + detail);
     throw new Error('Apps Script API ' + code + ' : ' + t.slice(0, 300));
   }
   return t ? JSON.parse(t) : {};
