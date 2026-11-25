@@ -46,7 +46,7 @@ var FICHIERS_ATTENDUS = {
     'Sacrements.gs': ['demanderSacrementApp_', 'ecrireCausesDons_', 137],
     'Statistiques.gs': ['statSacrements_', 'statistiquesRoute_', 77],
     'Stockage.gs': ['proprietesReelles_', 'ecrireStock_', 73],
-    'Tri.gs': ['triReglages_', 'triDuFil_', 265]
+    'Tri.gs': ['triReglages_', 'triDuFil_', 274]
 };
 function verifierFichiers() {
   var g = (function () { return this; })(), manquants = [], coupes = [];

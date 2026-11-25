@@ -151,10 +151,19 @@ function testerTri_(p) {
 function adresseDe_(de) { var m = String(de || '').match(/<([^>]+)>/); return (m ? m[1] : String(de || '')).trim().toLowerCase(); }
 function nomDe_(de) { var m = String(de || '').match(/^\s*"?([^"<]+?)"?\s*</); return m ? m[1].trim() : ''; }
 
+/** Adresse Gmail du compte qui fait tourner le serveur.
+ *  Session.getEffectiveUser() exige l'autorisation userinfo.email, absente du manifeste :
+ *  on lit d'abord l'identifiant de l'agenda principal (= l'adresse du compte), autorisé par le scope calendar. */
+function adresseDuCompte_() {
+  try { var id = CalendarApp.getDefaultCalendar().getId(); if (/@/.test(id)) return id; } catch (e) {}
+  try { return Session.getEffectiveUser().getEmail(); } catch (e) {}
+  return '';
+}
+
 function mesAdresses_() {
   var c = CacheService.getScriptCache(), v = c.get('mes_adresses');
   if (v) return JSON.parse(v);
-  var l = [Session.getEffectiveUser().getEmail(), CONFIG.ALIAS].concat(GmailApp.getAliases()).map(function (a) { return String(a).toLowerCase(); });
+  var l = [adresseDuCompte_(), CONFIG.ALIAS].concat(GmailApp.getAliases()).filter(Boolean).map(function (a) { return String(a).toLowerCase(); });
   c.put('mes_adresses', JSON.stringify(l), 21600);
   return l;
 }
