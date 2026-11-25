@@ -642,6 +642,7 @@ export async function demoApi(action, p) {
     case 'propositions.ecrire': case 'propositions.dupliquer': case 'propositions.supprimer': case 'propositions.audio':
     case 'annonces.notifier': case 'paroissiens.donsEcrire': case 'paroissiens.moderer': case 'paroissiens.lot': case 'espace.envoyerLiens':
     case 'paroissiens.modifier': case 'paroissiens.inviter': case 'paroissiens.migrer': throw new Error('Démo : rien n\'est enregistré ni envoyé.')
+    case 'serveur.maj': return { derniere: { le: new Date().toISOString(), version: 42, fichiers: 46 }, erreur: '', resultat: p.maintenant ? 'Démo : le serveur est déjà à jour.' : '' }
     case 'charte.etat': case 'charte.accepter': return { acceptee_le: new Date().toISOString(), a_accepter: false, texte: [], responsable: '', contact: '' }
     default: throw new Error('Démo : action non simulée ' + action)
   }
