@@ -5,6 +5,7 @@ import { api, enCache } from '../api.js'
 import { TYPES } from '../types.js'
 import { Chargement, Erreur, Modale, Vide, useCharger, useNotif, useDifferer, enSuppression, Aide, imprimerHtml, dateCourte, Interrupteur } from '../ui.jsx'
 import { Redaction } from './Courrier.jsx'
+import { useSelection, BoutonSelection, BarreSelection, MenuAction, Case, useActionGroupee } from '../selection.jsx'
 
 /** Types de dossiers qu'une inscription peut ouvrir. */
 export const DEMANDES_CATE = ['bapteme', 'premiere_communion', 'profession_foi', 'confirmation_jeune']
@@ -44,7 +45,15 @@ function Liste() {
   const [importe, setImporte] = useState(false)
   const [nouveau, setNouveau] = useState(false)
   const [mail, setMail] = useState(null)
-  const { data, chargement, erreur, recharger } = useCharger(() => api('cate.liste', { annee }), [annee], ['cate.liste', { annee }])
+  const { data, chargement, erreur, recharger, setData } = useCharger(() => api('cate.liste', { annee }), [annee], ['cate.liste', { annee }])
+  const s = useSelection()
+  const lancer = useActionGroupee()
+  function actionLot(titre, op, extra, transformer, ids) {
+    const avant = data
+    lancer({ titre, texte: `${titre} : ${ids.length} inscription${ids.length > 1 ? 's' : ''}. Vous pourrez annuler pendant 10 secondes.`,
+      appliquer: () => setData((d) => ({ ...d, inscriptions: d.inscriptions.map((x) => (ids.includes(x.id) ? { ...x, ...transformer(x) } : x)) })),
+      annuler: () => setData(avant), executer: () => api('cate.lot', { ids, op, ...extra }), apres: () => { s.quitter(); recharger() } })
+  }
   const changer = (p) => setParams(Object.fromEntries(Object.entries({ annee, groupe, impayes: impayes ? '1' : '', ...p }).filter(([, v]) => v)))
 
   const toutes = (data?.inscriptions || []).filter((x) => !enSuppression.has(x.id))
@@ -116,10 +125,12 @@ function Liste() {
             <button className="btn-clair" disabled={!liste.length} onClick={() => setMail({ ids: liste.map((x) => x.id), individuel: false })}><Mail className="h-4 w-4" />Mail aux parents</button>
             <button className="btn-clair" disabled={!liste.some((x) => x.reste > 0)} onClick={() => setMail({ ids: liste.filter((x) => x.reste > 0).map((x) => x.id), individuel: true })}><BellRing className="h-4 w-4" />Relancer les impayés</button>
             <button className="btn-clair" disabled={!liste.length} onClick={imprimer}><Printer className="h-4 w-4" /><span className="hidden sm:inline">Imprimer</span></button>
+            <BoutonSelection s={s} />
           </div>
           <div className="carte divide-y divide-nuit-50 overflow-hidden">
             {!liste.length ? <Vide icone={GraduationCap} texte={toutes.length ? 'Aucune inscription ici.' : 'Aucune inscription pour cette année. Utilisez « Importer le formulaire ».'} /> : liste.map((x) => (
-              <button key={x.id} onClick={() => nav(`/catechisme/${x.id}`)} className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-left transition hover:bg-nuit-50/60">
+              <button key={x.id} onClick={() => (s.actif ? s.basculer(x.id) : nav(`/catechisme/${x.id}`))} className={`${s.a(x.id) ? 'bg-or-50 ' : ''}flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-left transition hover:bg-nuit-50/60`}>
+                <Case s={s} id={x.id} nom={x.prenoms + ' ' + x.nom} />
                 <span className="min-w-[180px] flex-1"><span className="font-semibold">{String(x.nom).toUpperCase()}</span> {x.prenoms}
                   <span className="block text-xs text-nuit-600/70">{x.classe || 'classe ?'}{!groupe && x.groupe ? ` · ${x.groupe}` : ''}{x.email ? ` · ${x.email}` : ''}</span></span>
                 <span className="flex flex-wrap gap-1">{x.demandes.map((d) => <PastilleDemande key={d.type} d={d} />)}</span>
@@ -130,6 +141,19 @@ function Liste() {
           </div>
         </>
       )}
+      {data && <BarreSelection s={s} tous={liste.map((x) => x.id)} raccourcis={[['Impayés', liste.filter((x) => x.reste > 0).map((x) => x.id)], ['Livres à remettre', liste.filter((x) => x.nb_manuels > 0 && !x.manuels_remis).map((x) => x.id)]]}>
+        {(() => {
+          const choisis = liste.filter((x) => s.a(x.id)), aSolder = choisis.filter((x) => x.reste > 0), livres = choisis.filter((x) => x.nb_manuels > 0)
+          return <>
+            <MenuAction libelle={`Cotisation payée (${aSolder.length})…`} disabled={!aSolder.length} choix={[['Espèces', 'En espèces'], ['Chèque', 'Par chèque'], ['Virement', 'Par virement']]}
+              onChoix={(mode) => actionLot(`Cotisation soldée (${mode.toLowerCase()}, reste dû de chacun)`, 'solder', { mode }, () => ({ paye: undefined, reste: 0 }), aSolder.map((x) => x.id))} />
+            <button className="btn-clair py-1.5 text-xs" disabled={!livres.length} onClick={() => actionLot('Livres remis', 'remis', { valeur: true }, () => ({ manuels_remis: true }), livres.map((x) => x.id))}><BookOpen className="h-3.5 w-3.5" />Livres remis ({livres.length})</button>
+            <MenuAction libelle="Groupe…" choix={[...data.groupes.map((g) => [g, g]), ['-', 'Sans groupe']]}
+              onChoix={(g, l) => actionLot(`Groupe : ${l}`, 'groupe', { valeur: g === '-' ? '' : g }, () => ({ groupe: g === '-' ? '' : g }), choisis.map((x) => x.id))} />
+            <button className="btn-clair py-1.5 text-xs" disabled={!aSolder.length} onClick={() => setMail({ ids: aSolder.map((x) => x.id), individuel: true })}><BellRing className="h-3.5 w-3.5" />Relancer ({aSolder.length})</button>
+          </>
+        })()}
+      </BarreSelection>}
       {nouveau && data && <NouvelleInscription annee={data.annee} groupes={data.groupes} onFermer={() => setNouveau(false)} onCree={(x) => nav(`/catechisme/${x.id}`)} />}
       {mail && <MailParents {...mail} nomListe={nomListe} onFermer={() => setMail(null)} />}
     </>

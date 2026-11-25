@@ -7,6 +7,7 @@ import { B14 } from '../imprimables.js'
 import { htmlVersPdf, telechargerBlob } from '../pdf.js'
 import { Chargement, Erreur, Modale, Vide, useCharger, useNotif, useDifferer, enSuppression, dateHeure, dateCourte } from '../ui.jsx'
 import { Redaction } from './Courrier.jsx'
+import { useSelection, BoutonSelection, BarreSelection, Case } from '../selection.jsx'
 
 const dateLongue = (d) => new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }).format(d ? new Date(d) : new Date())
 
@@ -32,7 +33,10 @@ export default function Extraits() {
 
 function Registre() {
   const nav = useNavigate()
-  const { reglages } = useApp()
+  const { reglages, utilisateur } = useApp()
+  const s = useSelection()
+  const [lot, setLot] = useState(null)
+  const peutSigner = utilisateur.role === 'admin' || !!utilisateur.acces?.signer
   const [texte, setTexte] = useState('')
   const [creation, setCreation] = useState(false)
   const { data, chargement, erreur, recharger } = useCharger(() => api('extraits.liste'), [], ['extraits.liste', {}])
@@ -52,7 +56,8 @@ function Registre() {
     <>
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div><h1 className="text-3xl font-semibold">Extraits de baptême</h1><p className="text-sm text-nuit-600/80">Registre des extraits délivrés (B14)</p></div>
-        <button className="btn-or" onClick={nouveau} disabled={creation}>{creation ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}Nouvel extrait</button>
+        <span className="flex gap-2">{peutSigner && <BoutonSelection s={s} />}
+        <button className="btn-or" onClick={nouveau} disabled={creation}>{creation ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}Nouvel extrait</button></span>
       </div>
       <div className="relative mb-4"><Search className="absolute left-3 top-2.5 h-4 w-4 text-nuit-600/50" />
         <input className="champ pl-9" placeholder="Nom, année, n° d'acte…" value={texte} onChange={(e) => setTexte(e.target.value)} /></div>
@@ -62,9 +67,9 @@ function Registre() {
           {!liste.length ? <Vide icone={ScrollText} texte="Aucun extrait pour l'instant." /> : (
             <div className="divide-y divide-nuit-50">
               {liste.map((x) => (
-                <button key={x.id} onClick={() => nav(`/extraits/${x.id}`)} className="grid w-full grid-cols-[1fr_auto] items-center gap-x-3 gap-y-0.5 px-4 py-3 text-left text-sm hover:bg-nuit-50/50 md:grid-cols-[1fr_170px_140px_120px]">
-                  <span className="min-w-0"><span className="block truncate font-medium">{x.nom}</span>
-                    <span className="block text-xs text-nuit-600/60">Registre {x.valeurs.annee || '—'} · acte n° {x.valeurs.acte || '—'}{x.dossier_id && ' · depuis un dossier'}</span></span>
+                <button key={x.id} onClick={() => (s.actif ? x.statut !== 'signe' && s.basculer(x.id) : nav(`/extraits/${x.id}`))} className="grid w-full grid-cols-[1fr_auto] items-center gap-x-3 gap-y-0.5 px-4 py-3 text-left text-sm hover:bg-nuit-50/50 md:grid-cols-[1fr_170px_140px_120px]">
+                  <span className="flex min-w-0 items-center gap-3"><Case s={s} id={x.id} nom={x.nom} disabled={x.statut === 'signe'} title={x.statut === 'signe' ? 'Déjà signé' : ''} /><span className="min-w-0"><span className="block truncate font-medium">{x.nom}</span>
+                    <span className="block text-xs text-nuit-600/60">Registre {x.valeurs.annee || '—'} · acte n° {x.valeurs.acte || '—'}{x.dossier_id && ' · depuis un dossier'}{x.demande?.email ? ' · demandé par ' + x.demande.email : ''}</span></span></span>
                   <span className="hidden text-xs text-nuit-600/70 md:block">Créé le {dateCourte(x.cree_le)}<br />par {x.cree_par}</span>
                   <span className="hidden text-xs text-nuit-600/70 md:block">{x.envois.length ? `Envoyé ${x.envois.length} fois` : '—'}</span>
                   <span className="justify-self-end">{x.statut === 'signe'
@@ -76,7 +81,54 @@ function Registre() {
           )}
         </div>
       )}
+      <BarreSelection s={s} tous={liste.filter((x) => x.statut !== 'signe').map((x) => x.id)}>
+        <button className="btn-or py-1.5 text-xs" onClick={() => setLot(liste.filter((x) => s.a(x.id)))}><PenLine className="h-3.5 w-3.5" />Signer et envoyer ({s.n})</button>
+      </BarreSelection>
+      {lot && <SignatureLot extraits={lot} onFermer={() => setLot(null)} onFait={() => { setLot(null); s.quitter(); recharger() }} />}
     </>
+  )
+}
+
+/** Une seule signature pour plusieurs extraits ; puis chacun part par mail à son demandeur (texte commun relu avant). */
+function SignatureLot({ extraits, onFermer, onFait }) {
+  const notifier = useNotif()
+  const { utilisateur, signatures } = useApp()
+  const [sujet, setSujet] = useState('Extrait de baptême – {nom}')
+  const [corps, setCorps] = useState("Bonjour,\n\nVoici l'extrait de baptême de {nom} que vous avez demandé.\n\nAvec l'assurance de nos prières à toutes vos intentions,")
+  const [pad, setPad] = useState(false)
+  const [avance, setAvance] = useState(null)   // { fait, total }
+  const avecMail = extraits.filter((x) => x.demande?.email)
+  async function signer(png) {
+    setPad(false); setAvance({ fait: 0, total: extraits.length })
+    const sceau = await chargerSceau(), le = dateLongue(), sig = utilisateur.signature || signatures[0]?.cle || ''
+    let signes = 0, envoyes = 0
+    const echecs = []
+    for (const x of extraits) {
+      try {
+        const { base64 } = await htmlVersPdf(B14.html(x.valeurs, { signature: png, sceau, par: utilisateur.nom, le }))
+        await api('extraits.signer', { id: x.id, signature: png.split(',')[1], pdf: base64 }); signes++
+        if (x.demande?.email) {
+          const remplir = (t) => t.replace(/\{nom\}/g, x.nom)
+          await api('extraits.envoyer', { id: x.id, a: x.demande.email, sujet: remplir(sujet), corps: remplir(corps), signatureMail: sig }); envoyes++
+        }
+      } catch (e) { echecs.push(`${x.nom} (${e.message})`) }
+      setAvance((a) => ({ ...a, fait: a.fait + 1 }))
+    }
+    notifier(`${signes} extrait${signes > 1 ? 's' : ''} signé${signes > 1 ? 's' : ''}, ${envoyes} envoyé${envoyes > 1 ? 's' : ''}` + (echecs.length ? ` · non traités : ${echecs.join(', ')}` : ''), echecs.length ? 'erreur' : undefined)
+    onFait()
+  }
+  if (pad) return <PadSignature nom={utilisateur.nom} titre={`Signer ${extraits.length} extraits`} note="La même signature (avec le sceau) est apposée sur chaque extrait ; chacun est archivé dans le Drive." onFermer={() => setPad(false)} onValider={signer} />
+  return (
+    <Modale titre={`Signer et envoyer ${extraits.length} extrait${extraits.length > 1 ? 's' : ''}`} onFermer={avance ? () => {} : onFermer}
+      pied={avance ? <span className="mr-auto flex items-center gap-2 text-sm"><Loader2 className="h-4 w-4 animate-spin" />{avance.fait} / {avance.total}…</span>
+        : <><button className="btn-clair" onClick={onFermer}>Annuler</button><button className="btn-principal" onClick={() => setPad(true)}><PenLine className="h-4 w-4" />Signer</button></>}>
+      <ul className="mb-3 max-h-40 divide-y divide-nuit-50 overflow-y-auto rounded-lg border border-nuit-100 text-sm">
+        {extraits.map((x) => <li key={x.id} className="flex justify-between gap-2 px-3 py-1.5"><span>{x.nom}</span><span className="truncate text-xs text-nuit-600/70">{x.demande?.email || 'pas d\'adresse : signé seulement'}</span></li>)}
+      </ul>
+      <p className="mb-2 text-xs text-nuit-600/70">{avecMail.length} extrait{avecMail.length > 1 ? 's' : ''} partiront par mail à leur demandeur, avec le PDF signé. {'{nom}'} est remplacé pour chacun.</p>
+      <label className="etiquette">Objet</label><input className="champ mb-2" value={sujet} onChange={(e) => setSujet(e.target.value)} disabled={!!avance} />
+      <label className="etiquette">Message</label><textarea className="champ min-h-[120px]" value={corps} onChange={(e) => setCorps(e.target.value)} disabled={!!avance} />
+    </Modale>
   )
 }
 

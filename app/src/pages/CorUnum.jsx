@@ -5,6 +5,7 @@ import { api } from '../api.js'
 import { TYPES, prochaineEtape, ETATS } from '../types.js'
 import { Chargement, Erreur, Modale, Vide, useCharger, useNotif, useConfirmer, useDifferer, enSuppression, Aide } from '../ui.jsx'
 import { Redaction } from './Courrier.jsx'
+import { useSelection, BoutonSelection, Case, BarreSelection, useActionGroupee } from '../selection.jsx'
 
 export const COULEURS_PROFILS = {
   'Catéchumène': 'bg-amber-100 text-amber-900', 'Confirmand': 'bg-rose-100 text-rose-900', 'Néophyte': 'bg-emerald-100 text-emerald-900',
@@ -56,6 +57,23 @@ export default function CorUnum() {
     setOccupe(nom)
     try { const r = await fn(); if (r?.membres) setData(r); else if (r?.liste) setData(r.liste); if (msg) notifier(typeof msg === 'function' ? msg(r) : msg) }
     catch (e) { notifier(e.message, 'erreur') } finally { setOccupe('') }
+  }
+  const s = useSelection()
+  const lancer = useActionGroupee()
+  useEffect(() => { if (onglet !== 'tous') s.quitter() }, [onglet])  // eslint-disable-line react-hooks/exhaustive-deps
+  function statutLot(statut) {
+    const ids = s.ids().filter((id) => { const m = membres.find((x) => x.id === id); return m && (statut === 'ancien' ? m.statut !== 'ancien' : m.statut === 'ancien') })
+    const n = ids.length
+    if (!n) { notifier(statut === 'ancien' ? 'Ces personnes sont déjà anciennes.' : 'Aucun ancien dans la sélection.', 'erreur'); return }
+    const avant = data
+    lancer({
+      titre: statut === 'ancien' ? `Passer ${n} personne${n > 1 ? 's' : ''} en « ancien »` : `Réactiver ${n} personne${n > 1 ? 's' : ''}`,
+      texte: (statut === 'ancien' ? 'Elles ne seront plus comptées dans les fraternités de cette année (fiches conservées) : ' : 'Elles redeviennent actives : ') + ids.map((id) => nomComplet(membres.find((x) => x.id === id))).slice(0, 12).join(', ') + (n > 12 ? '…' : ''),
+      appliquer: () => { setData((d) => ({ ...d, membres: d.membres.map((x) => ids.includes(x.id) ? { ...x, statut } : x) })); s.vider() },
+      annuler: () => setData(avant),
+      executer: async () => { const r = await api('cor.modifier', { ids, annee: data.annee, statut }); setData(r); return { faits: n } },
+      verbe: statut === 'ancien' ? 'passé en ancien' : 'réactivé'
+    })
   }
   const placer = (ids, equipe_id) => action('placer', () => api('cor.modifier', { ids, annee: data.annee, equipe_id }), ids.length > 1 ? `${ids.length} personnes placées` : 'Placé dans l\'équipe')
 
@@ -207,13 +225,21 @@ export default function CorUnum() {
 
           {onglet === 'tous' && (
             <div className="carte divide-y divide-nuit-50">
+              <div className="flex justify-end px-4 py-2"><BoutonSelection s={s} /></div>
               {filtre(membres).map((m) => (
-                <button key={m.id} className={`flex w-full flex-wrap items-center gap-1.5 px-4 py-2.5 text-left text-sm hover:bg-nuit-50/50 ${m.statut === 'ancien' ? 'text-nuit-600/60' : ''}`} onClick={() => setFiche(m)}>
+                <button key={m.id} className={`flex w-full flex-wrap items-center gap-1.5 px-4 py-2.5 text-left text-sm hover:bg-nuit-50/50 ${m.statut === 'ancien' ? 'text-nuit-600/60' : ''}`} onClick={() => s.actif ? s.basculer(m.id) : setFiche(m)}>
+                  <Case s={s} id={m.id} nom={nomComplet(m)} />
                   <span className="min-w-[180px] flex-1">{nomComplet(m)}<span className="block text-xs text-nuit-600/60">{m.equipe_id ? `Fraternité ${nomEquipe(m.equipe_id)}` : 'À répartir'}{m.statut === 'ancien' ? ' · ancien, pas réinscrit' : ''}</span></span>
                   <Profils m={m} />
                 </button>
               ))}
             </div>
+          )}
+          {onglet === 'tous' && (
+            <BarreSelection s={s} tous={filtre(membres).map((m) => m.id)} raccourcis={[['Pas d\'équipe cette année', filtre(actifs).filter((m) => !m.equipe_id).map((m) => m.id)], ['Anciens', filtre(membres).filter((m) => m.statut === 'ancien').map((m) => m.id)]]}>
+              <button className="btn-clair py-1.5 text-xs" onClick={() => statutLot('ancien')}>Passer en ancien</button>
+              <button className="btn-clair py-1.5 text-xs" onClick={() => statutLot('actif')}>Réactiver</button>
+            </BarreSelection>
           )}
         </>
       )}

@@ -80,6 +80,7 @@ function actesAInscrire_(registre) {
 function registresRoute_(p, s) {
   if (p.dossier) return propositionRegistre_({ id: p.dossier, annee: p.annee });
   if (p.inscrire) return inscrireRegistre_(p.inscrire, s);
+  if (p.serie) return registreSerie_(p.serie, s);   // inscription en série (Lots.gs)
   if (p.depart) {   // { registre, annee, numero }
     if (!peutModifier_(s, 'registres')) throw erreur_('INTERDIT', 'Accès aux registres en lecture seulement.');
     var r = reglagesRegistres_(); r[p.depart.registre] = r[p.depart.registre] || {};

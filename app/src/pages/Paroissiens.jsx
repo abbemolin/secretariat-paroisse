@@ -4,6 +4,7 @@ import { Plus, HeartHandshake, Check, X, HelpCircle, Mail, PauseCircle, PlayCirc
 import { api } from '../api.js'
 import { useApp } from '../App.jsx'
 import FonctionFermee from '../FonctionFermee.jsx'
+import { useSelection, BoutonSelection, Case, BarreSelection, useActionGroupee } from '../selection.jsx'
 import { Chargement, Erreur, EnTete, Modale, Vide, dateCourte, dateHeure, useCharger, useConfirmer, useNotif } from '../ui.jsx'
 
 const COULEUR = {
@@ -38,6 +39,21 @@ export default function Paroissiens() {
   const comptes = useMemo(() => data?.comptes || [], [data])
   const demandes = comptes.filter((c) => c.statut === 'attente' || c.statut === 'precisions').sort((a, b) => String(a.cree_le).localeCompare(String(b.cree_le)))
 
+  const s = useSelection()
+  const lancer = useActionGroupee()
+  const bloquee = (c) => !!(c.demande?.mineur && c.demande?.accord?.reponse !== 'oui')
+  const reconnues = demandes.filter((c) => c.rapprochement?.length > 0 && !bloquee(c)).map((c) => c.id)
+  function accepterLot() {
+    const choisies = demandes.filter((c) => s.a(c.id) && !bloquee(c))
+    if (!choisies.length) return
+    lancer({
+      titre: `Accepter ${choisies.length} demande${choisies.length > 1 ? 's' : ''}`,
+      texte: `Chacun reçoit son invitation par mail : ${choisies.map((c) => `${c.prenom} ${c.nom}`).slice(0, 15).join(', ')}${choisies.length > 15 ? '…' : ''}.`,
+      bouton: 'Accepter et envoyer', externe: true, verbe: 'accepté',
+      executer: async () => { const r = await api('paroissiens.lot', { op: 'valider', ids: choisies.map((c) => c.id) }); if (r.liste) setData(r.liste); s.quitter(); return r }
+    })
+  }
+
   async function operer(c, op, extra = {}, message) {
     setOccupe(c.id + op)
     try { setData(await api('paroissiens.modifier', { id: c.id, op, ...extra })); if (message) notifier(message); setOuvert(null) }
@@ -68,7 +84,13 @@ export default function Paroissiens() {
       <Erreur erreur={erreur} reessayer={recharger} />
       {chargement && !data ? <Chargement /> : vue === 'demandes' ? (
         !demandes.length ? <Vide icone={UserCheck} texte="Aucune demande d'accès à examiner." /> : (
-          <div className="space-y-3">{demandes.map((c) => <Demande key={c.id} c={c} occupe={occupe} operer={operer} onOuvrir={() => setOuvert({ c, mode: 'refuser' })} onPrecisions={() => setOuvert({ c, mode: 'precisions' })} />)}</div>
+          <div className="space-y-3">
+            {demandes.length > 1 && <div className="flex justify-end"><BoutonSelection s={s} /></div>}
+            {demandes.map((c) => <Demande key={c.id} c={c} s={s} bloquee={bloquee(c)} occupe={occupe} operer={operer} onOuvrir={() => setOuvert({ c, mode: 'refuser' })} onPrecisions={() => setOuvert({ c, mode: 'precisions' })} />)}
+            <BarreSelection s={s} tous={reconnues}>
+              <button className="btn-principal py-1.5 text-xs" onClick={accepterLot}><Check className="h-4 w-4" />Accepter ({demandes.filter((c) => s.a(c.id) && !bloquee(c)).length})</button>
+            </BarreSelection>
+          </div>
         )
       ) : vue === 'comptes' ? (
         <>
@@ -110,7 +132,7 @@ function Rapprochement({ l }) {
   )
 }
 
-function Demande({ c, occupe, operer, onOuvrir, onPrecisions }) {
+function Demande({ c, s, bloquee, occupe, operer, onOuvrir, onPrecisions }) {
   const d = c.demande || {}
   const confirmer = useConfirmer()
   async function accepter() {
@@ -123,8 +145,8 @@ function Demande({ c, occupe, operer, onOuvrir, onPrecisions }) {
   return (
     <div className="carte p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <div><div className="font-titre text-xl font-semibold">{c.prenom} {c.nom}</div>
-          <div className="text-sm text-nuit-600">{c.mail} · {c.telephone}</div></div>
+        <div className="flex items-start gap-2">{s && <span className="mt-1.5"><Case s={s} id={c.id} nom={`${c.prenom} ${c.nom}`} disabled={bloquee} title={bloquee ? 'Lycéen(ne) : accord du parent attendu — à accepter une par une' : undefined} /></span>}<div><div className="font-titre text-xl font-semibold">{c.prenom} {c.nom}</div>
+          <div className="text-sm text-nuit-600">{c.mail} · {c.telephone}</div></div></div>
         <div className="text-right text-xs text-nuit-600/70">Demande du {dateHeure(c.cree_le)}{c.statut === 'precisions' && <div className="mt-1 pastille bg-or-50 text-or-600">Précisions demandées</div>}</div>
       </div>
       <div className="mt-2 space-y-0.5 text-sm">
@@ -327,6 +349,21 @@ function MurPriere() {
   const [occ, setOcc] = useState('')
   const l = data || []
   const aRelire = l.filter((x) => x.statut === 'relecture' || x.statut === 'masquee')
+  const s = useSelection()
+  const lancer = useActionGroupee()
+  function lot(o) {
+    const ids = s.ids().filter((id) => l.find((x) => x.id === id && x.statut !== (o === 'publier' ? 'publiee' : 'refusee')))
+    if (!ids.length) { notifier(o === 'publier' ? 'Déjà sur le mur.' : 'Déjà non publiées.', 'erreur'); return }
+    const avant = data
+    lancer({
+      titre: o === 'publier' ? `Publier ${ids.length} intention${ids.length > 1 ? 's' : ''} sur le mur` : `Ne pas publier ${ids.length} intention${ids.length > 1 ? 's' : ''}`,
+      texte: ids.map((id) => `« ${String(l.find((x) => x.id === id).texte).slice(0, 60)}… »`).slice(0, 6).join('\n') + (ids.length > 6 ? '\n…' : ''),
+      appliquer: () => { setData((d) => d.map((x) => ids.includes(x.id) ? { ...x, statut: o === 'publier' ? 'publiee' : 'refusee' } : x)); s.vider() },
+      annuler: () => setData(avant),
+      executer: async () => { const r = await api('paroissiens.lot', { op: o, ids }); if (r.prieres) setData(r.prieres); return r },
+      verbe: o === 'publier' ? 'publiée' : 'non publiée'
+    })
+  }
   async function op(x, o) {
     if (o === 'supprimer' && !(await confirmer({ titre: 'Supprimer l\'intention', texte: 'Elle disparaît du mur et de la liste du déposant.', bouton: 'Supprimer', danger: true }))) return
     setOcc(x.id + o)
@@ -334,7 +371,7 @@ function MurPriere() {
   }
   const carte = (x) => (
     <div key={x.id} className="carte p-4 text-sm">
-      <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-nuit-600/70"><span>{dateHeure(x.cree_le)}</span><span>· {x.auteur}</span>
+      <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-nuit-600/70"><Case s={s} id={x.id} nom="cette intention" /><span>{dateHeure(x.cree_le)}</span><span>· {x.auteur}</span>
         {x.statut === 'masquee' && <span className="pastille bg-red-50 text-red-700">masquée ({x.signalements} signalements)</span>}
         {x.statut === 'relecture' && <span className="pastille bg-or-100 text-or-600">à relire</span>}
         {x.statut === 'refusee' && <span className="pastille bg-nuit-50 text-nuit-600">non publiée</span>}
@@ -355,10 +392,15 @@ function MurPriere() {
       <Erreur erreur={erreur} />
       {chargement && !data ? <Chargement /> : (
         <div className="space-y-3">
+          {l.length > 1 && <div className="flex justify-end"><BoutonSelection s={s} /></div>}
           {!aRelire.length && <Vide icone={Check} texte="Aucune intention à relire." />}
           {aRelire.map(carte)}
           <button className="btn-clair" onClick={() => setTout(!tout)}>{tout ? 'Masquer les autres intentions' : `Voir toutes les intentions (${l.length})`}</button>
           {tout && l.filter((x) => !aRelire.includes(x)).map(carte)}
+          <BarreSelection s={s} tous={(tout ? l : aRelire).map((x) => x.id)} raccourcis={[['À relire', aRelire.map((x) => x.id)]]}>
+            <button className="btn-principal py-1.5 text-xs" onClick={() => lot('publier')}><Check className="h-4 w-4" />Publier</button>
+            <button className="btn-clair py-1.5 text-xs" onClick={() => lot('refuser')}><X className="h-4 w-4" />Ne pas publier</button>
+          </BarreSelection>
         </div>
       )}
     </>
