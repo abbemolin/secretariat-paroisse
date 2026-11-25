@@ -87,7 +87,7 @@ export default function CalendrierPropre() {
         </div>
         <BoutonSombre />
         <button className="btn-clair" onClick={() => setHisto(true)}><History className="h-4 w-4" />Historique</button>
-        <button className="btn-principal" onClick={() => setFiche(vide())}><Plus className="h-4 w-4" />Ajouter une fête</button>
+        <button className="btn-or" onClick={() => setFiche(vide())}><Plus className="h-4 w-4" />Ajouter une fête</button>
       </div>
 
       {c && (
@@ -111,7 +111,7 @@ export default function CalendrierPropre() {
                     <span className="min-w-0 flex-1"><span className="block truncate font-titre text-lg font-semibold text-nuit">{x.nom_fr || x.nom_la}</span>
                       <span className="block truncate text-xs text-nuit-600/80">{RANGS[x.rang]} · {x.base ? 'textes de la fête romaine' : nomCommun(x.commun)}{((n) => (n ? ` · ${n} pièce${n > 1 ? 's' : ''} propre${n > 1 ? 's' : ''}` : ''))(Object.keys(x.office || {}).length + Object.keys(x.messe || {}).length)}{x.note ? ' · ⚠ ' + x.note : ''}</span></span>
                     <span className={`pastille shrink-0 ${x.groupe === 'communaute' ? 'bg-or-50 text-or-600' : 'bg-nuit-50 text-nuit-600'}`}>{GROUPES[x.groupe]}</span>
-                    <ChevronRight className="h-4 w-4 shrink-0 text-nuit-600/50" />
+                    <ChevronRight className="h-4 w-4 shrink-0 text-nuit-600/75" />
                   </button>
                 </li>
               ) : (
@@ -119,7 +119,7 @@ export default function CalendrierPropre() {
                   <button className="flex w-full items-center gap-3 px-4 py-2 text-left hover:bg-nuit-50/60" onClick={() => setMention({ ...x, avant: x.date })}>
                     <span className="w-14 shrink-0 text-sm leading-tight tabular-nums text-nuit-600 sm:w-28">{dateFr(x.date)}</span>
                     <span className="min-w-0 flex-1 truncate text-sm italic text-nuit-700">{x.nom} <span className="not-italic text-nuit-600/70">(facultatif, mention seule)</span></span>
-                    <ChevronRight className="h-4 w-4 shrink-0 text-nuit-600/50" />
+                    <ChevronRight className="h-4 w-4 shrink-0 text-nuit-600/75" />
                   </button>
                 </li>
               ))}
@@ -236,7 +236,7 @@ function Pieces({ titre, liste, plus, valeurs, onChange }) {
           return (
             <div key={cle}>
               <button className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-nuit-50/60" onClick={() => setOuverte(ouvert ? null : cle)}>
-                {ouvert ? <ChevronDown className="h-4 w-4 text-nuit-600/60" /> : <ChevronRight className="h-4 w-4 text-nuit-600/60" />}
+                {ouvert ? <ChevronDown className="h-4 w-4 text-nuit-600/75" /> : <ChevronRight className="h-4 w-4 text-nuit-600/75" />}
                 <span className="flex-1 font-medium text-nuit-700">{nom}</span>
                 <span className={`pastille ${propre ? 'bg-or-50 text-or-600' : 'bg-nuit-50 text-nuit-600/70'}`}>{propre ? 'propre' : 'du commun'}</span>
               </button>

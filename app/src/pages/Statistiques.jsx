@@ -9,9 +9,9 @@ const euros = (n) => new Intl.NumberFormat('fr-FR', { style: 'currency', currenc
 
 function Ecart({ v, prec }) {
   const d = (v || 0) - (prec || 0)
-  if (!d) return <span className="inline-flex items-center gap-0.5 text-xs text-nuit-600/50"><Minus className="h-3 w-3" />comme l'an dernier</span>
+  if (!d) return <span className="inline-flex items-center gap-0.5 text-xs text-nuit-600/75"><Minus className="h-3 w-3" />comme l'an dernier</span>
   const I = d > 0 ? ArrowUpRight : ArrowDownRight
-  return <span className={`inline-flex items-center gap-0.5 text-xs ${d > 0 ? 'text-emerald-700' : 'text-nuit-600/70'}`}><I className="h-3 w-3" />{d > 0 ? '+' : ''}{d} <span className="text-nuit-600/50">({prec || 0} l'an dernier)</span></span>
+  return <span className={`inline-flex items-center gap-0.5 text-xs ${d > 0 ? 'text-emerald-700' : 'text-nuit-600/70'}`}><I className="h-3 w-3" />{d > 0 ? '+' : ''}{d} <span className="text-nuit-600/75">({prec || 0} l'an dernier)</span></span>
 }
 function Chiffre({ titre, v, prec, format = (x) => x }) {
   return (
@@ -61,7 +61,7 @@ export default function Statistiques() {
                       <div className="w-1/2 rounded-t bg-nuit-100" style={{ height: `${(d.sacrements_prec.par_mois[i] / maxMois) * 100}%` }} title={`${m} ${d.annee_prec} : ${d.sacrements_prec.par_mois[i]}`} />
                       <div className="w-1/2 rounded-t bg-nuit" style={{ height: `${(d.sacrements.par_mois[i] / maxMois) * 100}%` }} title={`${m} ${d.annee} : ${d.sacrements.par_mois[i]}`} />
                     </div>
-                    <span className="text-[10px] text-nuit-600/60">{m}</span>
+                    <span className="text-xs text-nuit-600/75">{m}</span>
                   </div>
                 ))}
               </div>

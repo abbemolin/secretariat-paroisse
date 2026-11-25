@@ -31,7 +31,7 @@ export default function Documents() {
         if (f.size > 20 * 1024 * 1024) { notifier(`${f.name} : trop volumineux (20 Mo max)`, 'erreur'); continue }
         await api('documents.envoyer', { dossierId: data.id, nom: f.name, type: f.type, base64: await fichierEnBase64(f) })
       }
-      notifier('Document(s) déposé(s)'); recharger()
+      notifier('Documents déposés'); recharger()
     } catch (e) { notifier(e.message, 'erreur') } finally { setEnvoi(false); input.current.value = '' }
   }
   async function telecharger(f) {
@@ -53,9 +53,9 @@ export default function Documents() {
       </div>
 
       <form onSubmit={chercher} className="relative mb-4">
-        <Search className="absolute left-3 top-2.5 h-4 w-4 text-nuit-600/50" />
+        <Search className="absolute left-3 top-2.5 h-4 w-4 text-nuit-600/75" />
         <input className="champ pl-9 pr-9" placeholder="Rechercher un document par nom (tout le Drive)" value={recherche} onChange={(e) => setRecherche(e.target.value)} />
-        {resultats && <button type="button" className="btn-icone absolute right-2 top-1.5 p-1" onClick={() => { setResultats(null); setRecherche('') }}><X className="h-4 w-4" /></button>}
+        {resultats && <button aria-label="Fermer" title="Fermer" type="button" className="btn-icone absolute right-2 top-1.5 p-1" onClick={() => { setResultats(null); setRecherche('') }}><X className="h-4 w-4" /></button>}
       </form>
 
       {!resultats && data && (
@@ -88,7 +88,7 @@ export default function Documents() {
             return (
               <div key={f.id} className="flex items-center gap-2 px-4 py-2.5 text-sm">
                 <I className="h-5 w-5 shrink-0 text-nuit-600/70" />
-                <div className="min-w-0 flex-1"><div className="truncate">{f.nom}</div><div className="text-xs text-nuit-600/60">{dateRelative(f.modifie)}{f.taille ? ` · ${taille(f.taille)}` : ''}{resultats && f.aRanger ? ' · à ranger' : ''}</div></div>
+                <div className="min-w-0 flex-1"><div className="truncate">{f.nom}</div><div className="text-xs text-nuit-600/75">{dateRelative(f.modifie)}{f.taille ? ` · ${taille(f.taille)}` : ''}{resultats && f.aRanger ? ' · à ranger' : ''}</div></div>
                 <button className="btn-icone p-1.5" title="Renommer" onClick={() => setRenommer(f)}><Pencil className="h-4 w-4" /></button>
                 <button className="btn-icone p-1.5" title="Déplacer / ranger" onClick={() => setDeplacer(f)}><MoveRight className="h-4 w-4" /></button>
                 <button className="btn-icone p-1.5" title="Télécharger" onClick={() => telecharger(f)}>{telech === f.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}</button>
@@ -99,7 +99,7 @@ export default function Documents() {
           {!fichiers.length && (resultats || !data?.dossiers.length) && <Vide icone={Folder} texte={resultats ? 'Aucun résultat.' : 'Dossier vide. Glissez des fichiers ici.'} />}
         </div>
       )}
-      <p className="mt-3 text-xs text-nuit-600/60">Les documents Google (Docs, Sheets) sont téléchargés en PDF. « Ouvrir dans Drive » demande d'être connecté au compte Google de la paroisse.</p>
+      <p className="mt-3 text-xs text-nuit-600/75">Les documents Google (Docs, Sheets) sont téléchargés en PDF. « Ouvrir dans Drive » demande d'être connecté au compte Google de la paroisse.</p>
 
       {nouveauDossier && <NomModale titre="Nouveau dossier" onFermer={() => setNouveauDossier(false)} onValider={async (nom) => { await api('documents.dossier', { parentId: data.id, nom }); setNouveauDossier(false); notifier('Dossier créé'); recharger() }} />}
       {renommer && <NomModale titre="Renommer" initial={renommer.nom} onFermer={() => setRenommer(null)} onValider={async (nom) => { await api('documents.renommer', { id: renommer.id, nom }); setRenommer(null); notifier('Renommé'); if (resultats) setResultats(null); else recharger() }} />}

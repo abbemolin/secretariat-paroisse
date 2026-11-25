@@ -11,6 +11,7 @@ const fmt = (o) => new Intl.DateTimeFormat('fr-FR', o)
 
 function bornes(vue, ref) {
   if (vue === 'jour') { const d = new Date(ref); d.setHours(0, 0, 0, 0); return [d, ajouterJours(d, 1)] }
+  if (vue === 'liste') { const d = new Date(ref); d.setHours(0, 0, 0, 0); return [d, ajouterJours(d, 21)] }   // 3 semaines à partir du jour choisi
   if (vue === 'semaine') { const d = lundi(ref); return [d, ajouterJours(d, 7)] }
   const premier = new Date(ref.getFullYear(), ref.getMonth(), 1)
   const debut = lundi(premier)
@@ -20,7 +21,9 @@ function bornes(vue, ref) {
 
 export default function Agenda() {
   const notifier = useNotif()
-  const [vue, setVue] = useState(() => (window.innerWidth < 640 ? 'jour' : 'semaine'))
+  // Vue retenue sur l'appareil ; « Liste » par défaut sur téléphone
+  const [vue, setVueBrute] = useState(() => { try { return localStorage.getItem('agenda.vue') || (window.innerWidth < 640 ? 'liste' : 'semaine') } catch { return 'semaine' } })
+  const setVue = (v) => { setVueBrute(v); try { localStorage.setItem('agenda.vue', v) } catch { /* ignore */ } }
   const [ref, setRef] = useState(() => new Date())
   const [edition, setEdition] = useState(null)
   const [debut, fin] = useMemo(() => bornes(vue, ref), [vue, ref])
@@ -29,19 +32,19 @@ export default function Agenda() {
   const duJour = (j) => liste.filter((e) => new Date(e.debut) < ajouterJours(j, 1) && new Date(e.fin) > j && !(e.journee && new Date(e.fin).getTime() === j.getTime()))
 
   function decaler(n) {
-    setRef((r) => vue === 'mois' ? new Date(r.getFullYear(), r.getMonth() + n, 1) : ajouterJours(r, n * (vue === 'semaine' ? 7 : 1)))
+    setRef((r) => vue === 'mois' ? new Date(r.getFullYear(), r.getMonth() + n, 1) : ajouterJours(r, n * (vue === 'semaine' ? 7 : vue === 'liste' ? 21 : 1)))
   }
   function nouveau(jour) {
     const d = new Date(jour || new Date()); d.setHours(jour ? 10 : new Date().getHours() + 1, 0, 0, 0)
     setEdition({ titre: '', lieu: '', description: '', journee: false, debut: d.toISOString(), fin: new Date(d.getTime() + 3600000).toISOString() })
   }
-  const titre = vue === 'jour' ? jourLong(ref) : vue === 'mois' ? fmt({ month: 'long', year: 'numeric' }).format(ref)
+  const titre = vue === 'jour' ? jourLong(ref) : vue === 'liste' ? `À partir du ${fmt({ day: 'numeric', month: 'long' }).format(debut)}` : vue === 'mois' ? fmt({ month: 'long', year: 'numeric' }).format(ref)
     : `${fmt({ day: 'numeric', month: 'short' }).format(debut)} – ${fmt({ day: 'numeric', month: 'short', year: 'numeric' }).format(ajouterJours(fin, -1))}`
 
   const Evt = ({ e, compact }) => (
-    <button onClick={() => setEdition(e)} className={`block w-full rounded-md border-l-4 px-2 text-left hover:brightness-95 ${compact ? 'py-0.5 text-[11px]' : 'py-1.5 text-xs'} ${e.dossier ? 'border-or bg-or-50' : 'border-nuit-600 bg-nuit-50'}`}>
+    <button onClick={() => setEdition(e)} className={`block w-full rounded-md border-l-4 px-2 text-left hover:brightness-95 ${compact ? 'py-0.5 text-xs' : 'py-1.5 text-xs'} ${e.dossier ? 'border-or bg-or-50' : 'border-nuit-600 bg-nuit-50'}`}>
       <span className="font-medium text-nuit-600">{e.journee ? '' : heure(e.debut) + ' '}</span>
-      <span className="font-medium text-nuit-800">{e.titre}</span>{e._enAttente && <span className="ml-1 text-[10px] italic text-nuit-600/70">(en attente d'envoi)</span>}
+      <span className="font-medium text-nuit-800">{e.titre}</span>{e._enAttente && <span className="ml-1 text-xs italic text-nuit-600/70">(en attente d'envoi)</span>}
       {!compact && e.lieu && <div className="truncate text-nuit-600/70"><MapPin className="mr-0.5 inline h-3 w-3" />{e.lieu}</div>}
     </button>
   )
@@ -54,15 +57,15 @@ export default function Agenda() {
       </div>
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="flex rounded-lg border border-nuit-100 bg-white">
-          <button className="btn-icone" onClick={() => decaler(-1)}><ChevronLeft className="h-4 w-4" /></button>
+          <button aria-label="Précédent" title="Précédent" className="btn-icone" onClick={() => decaler(-1)}><ChevronLeft className="h-4 w-4" /></button>
           <button className="px-2 text-sm" onClick={() => setRef(new Date())}>Aujourd'hui</button>
-          <button className="btn-icone" onClick={() => decaler(1)}><ChevronRight className="h-4 w-4" /></button>
+          <button aria-label="Suivant" title="Suivant" className="btn-icone" onClick={() => decaler(1)}><ChevronRight className="h-4 w-4" /></button>
         </div>
         <div className="flex rounded-lg border border-nuit-100 bg-white p-0.5 text-sm">
-          {['jour', 'semaine', 'mois'].map((v) => <button key={v} onClick={() => setVue(v)} className={`rounded-md px-3 py-1 capitalize ${vue === v ? 'bg-nuit text-white' : 'text-nuit-600'}`}>{v}</button>)}
+          {['liste', 'jour', 'semaine', 'mois'].map((v) => <button key={v} onClick={() => setVue(v)} aria-pressed={vue === v} className={`rounded-md px-3 py-1 capitalize ${vue === v ? 'bg-nuit text-white' : 'text-nuit-600'}`}>{v}</button>)}
         </div>
         <span className="font-titre text-xl font-semibold first-letter:uppercase">{titre}</span>
-        {evts.chargement && <Loader2 className="h-4 w-4 animate-spin text-nuit-600/50" />}
+        {evts.chargement && <Loader2 className="h-4 w-4 animate-spin text-nuit-600/75" />}
       </div>
 
       <Erreur erreur={evts.erreur} reessayer={evts.recharger} />
@@ -70,7 +73,7 @@ export default function Agenda() {
         <>
           {vue === 'jour' && (
             <div className="carte divide-y divide-nuit-50">
-              {!duJour(debut).length ? <p className="p-6 text-center text-sm text-nuit-600/60">Rien ce jour-là.</p> : duJour(debut).map((e) => (
+              {!duJour(debut).length ? <p className="p-6 text-center text-sm text-nuit-600/75">Rien ce jour-là.</p> : duJour(debut).map((e) => (
                 <button key={e.id + e.debut} onClick={() => setEdition(e)} className="flex w-full gap-4 px-4 py-3 text-left hover:bg-nuit-50/50">
                   <div className="w-24 shrink-0 text-sm font-medium text-nuit-600">{e.journee ? 'Journée' : `${heure(e.debut)} – ${heure(e.fin)}`}</div>
                   <div className="min-w-0 flex-1"><div className="font-medium">{e.titre}{e.recurrent && <Repeat className="ml-1 inline h-3 w-3 opacity-50" />}</div>
@@ -81,12 +84,34 @@ export default function Agenda() {
               <button onClick={() => nouveau(debut)} className="w-full py-2.5 text-sm text-or-600 hover:bg-nuit-50">+ Ajouter ce jour-là</button>
             </div>
           )}
+          {vue === 'liste' && (() => {
+            const jours = Array.from({ length: 21 }, (_, i) => ajouterJours(debut, i)).map((j) => [j, duJour(j)]).filter(([, l]) => l.length)
+            return !jours.length ? <div className="carte p-6 text-center text-sm text-nuit-600/75">Rien de prévu ces trois semaines.</div> : (
+              <div className="carte divide-y divide-nuit-50">
+                {jours.map(([j, l]) => {
+                  const auj = memeJour(j, new Date())
+                  return (
+                    <section key={j.toISOString()} className="flex gap-4 px-4 py-3">
+                      <button onClick={() => nouveau(j)} title="Ajouter ce jour-là" className={`w-24 shrink-0 text-left text-sm font-semibold first-letter:uppercase sm:w-32 ${auj ? 'text-or-600' : 'text-nuit'}`}>{auj ? "Aujourd'hui" : fmt({ weekday: 'long', day: 'numeric', month: 'short' }).format(j)}</button>
+                      <div className="min-w-0 flex-1 space-y-1.5">{l.map((e) => (
+                        <button key={e.id + e.debut} onClick={() => setEdition(e)} className="flex w-full items-start gap-3 rounded-md text-left hover:bg-nuit-50/60">
+                          <span className="w-12 shrink-0 text-sm text-nuit-600">{e.journee ? 'Journée' : heure(e.debut)}</span>
+                          <span className="min-w-0 flex-1"><span className="font-medium">{e.titre}</span>{e.recurrent && <Repeat className="ml-1 inline h-3 w-3 opacity-50" />}
+                            {e.lieu && <span className="block truncate text-xs text-nuit-600/80"><MapPin className="mr-0.5 inline h-3 w-3" />{e.lieu}</span>}</span>
+                          {e.dossier && <FolderHeart className="mt-0.5 h-4 w-4 shrink-0 text-or" />}
+                        </button>))}</div>
+                    </section>
+                  )
+                })}
+              </div>
+            )
+          })()}
           {vue === 'semaine' && (
             <div className="grid gap-3 lg:grid-cols-7">
               {Array.from({ length: 7 }, (_, i) => ajouterJours(debut, i)).map((j) => {
                 const l = duJour(j), auj = memeJour(j, new Date())
                 return (
-                  <section key={j.toISOString()} className={`carte flex flex-col p-3 lg:min-h-[300px] ${auj ? 'ring-2 ring-or/50' : ''} ${!l.length ? 'hidden lg:flex' : ''}`}>
+                  <section key={j.toISOString()} className={`carte flex flex-col p-3 lg:min-h-[180px] ${auj ? 'ring-2 ring-or/50' : ''} ${!l.length ? 'hidden lg:flex' : ''}`}>
                     <button onClick={() => nouveau(j)} className="group mb-2 flex items-baseline justify-between text-left">
                       <span className={`text-sm font-semibold capitalize ${auj ? 'text-or-600' : ''}`}><span className="lg:hidden">{jourLong(j)}</span><span className="hidden lg:inline">{fmt({ weekday: 'short' }).format(j)} {j.getDate()}</span></span>
                       <Plus className="h-3.5 w-3.5 text-nuit-600/30 group-hover:text-or" />
@@ -108,7 +133,7 @@ export default function Agenda() {
                   return (
                     <div key={j.toISOString()} className={`min-h-[64px] border-b border-r border-nuit-50 p-1 sm:min-h-[96px] ${autreMois ? 'bg-nuit-50/30 text-nuit-600/40' : ''}`}>
                       <button onClick={() => { setRef(j); setVue('jour') }} className={`mb-0.5 flex h-6 w-6 items-center justify-center rounded-full text-xs ${auj ? 'bg-or font-semibold text-white' : 'hover:bg-nuit-50'}`}>{j.getDate()}</button>
-                      <div className="hidden space-y-0.5 sm:block">{l.slice(0, 3).map((e) => <Evt key={e.id + e.debut} e={e} compact />)}{l.length > 3 && <div className="text-[10px] text-nuit-600/60">+{l.length - 3}</div>}</div>
+                      <div className="hidden space-y-0.5 sm:block">{l.slice(0, 3).map((e) => <Evt key={e.id + e.debut} e={e} compact />)}{l.length > 3 && <div className="text-xs text-nuit-600/75">+{l.length - 3}</div>}</div>
                       {l.length > 0 && <div className="flex gap-0.5 sm:hidden">{l.slice(0, 4).map((e) => <span key={e.id + e.debut} className={`h-1.5 w-1.5 rounded-full ${e.dossier ? 'bg-or' : 'bg-nuit-600'}`} />)}</div>}
                     </div>
                   )
@@ -176,7 +201,7 @@ export function EditionEvenement({ evenement, onFermer, onFait }) {
           </div>
           <div><label className="etiquette">Lieu</label><input className="champ" value={f.lieu} onChange={maj('lieu')} /></div>
           <div><label className="etiquette">Description (visible sur le site)</label><textarea className="champ min-h-[80px]" value={f.description} onChange={maj('description')} /></div>
-          <p className="flex items-center gap-1 text-xs text-nuit-600/60"><Globe className="h-3 w-3" />Cet agenda est public : n'y mettez pas d'informations personnelles.</p>
+          <p className="flex items-center gap-1 text-xs text-nuit-600/75"><Globe className="h-3 w-3" />Cet agenda est public : n'y mettez pas d'informations personnelles.</p>
           <Erreur erreur={erreur} />
         </div>
       )}

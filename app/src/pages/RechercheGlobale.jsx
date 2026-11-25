@@ -56,7 +56,7 @@ export function BoutonRecherche({ mobile }) {
     {mobile
       ? <button onClick={() => setOuvert(true)} className="rounded-lg p-2 hover:bg-white/10" aria-label="Rechercher"><Search className="h-6 w-6" /></button>
       : <button onClick={() => setOuvert(true)} className="mx-3 mb-2 flex w-[calc(100%-1.5rem)] items-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-left text-sm text-white/60 hover:bg-white/15">
-          <Search className="h-4 w-4" /><span className="flex-1">Rechercher…</span><kbd className="rounded bg-white/10 px-1.5 text-[10px]">{mac ? '⌘' : 'Ctrl'} K</kbd></button>}
+          <Search className="h-4 w-4" /><span className="flex-1">Rechercher…</span><kbd className="rounded bg-white/10 px-1.5 text-xs">{mac ? '⌘' : 'Ctrl'} K</kbd></button>}
     {ouvert && <Recherche onFermer={() => setOuvert(false)} />}
   </>
 }
@@ -99,18 +99,18 @@ function Recherche({ onFermer }) {
     <div className="fixed inset-0 z-[60] flex items-start justify-center bg-nuit/40 p-3 pt-[8vh] backdrop-blur-sm sm:pt-[12vh]" onMouseDown={(e) => { if (e.target === e.currentTarget) onFermer() }}>
       <div className="w-full max-w-xl overflow-hidden rounded-2xl bg-white text-nuit shadow-2xl animate-entree">
         <div className="flex items-center gap-3 border-b border-nuit-100 px-4">
-          {charge ? <Loader2 className="h-5 w-5 animate-spin text-or" /> : <Search className="h-5 w-5 text-nuit-600/50" />}
+          {charge ? <Loader2 className="h-5 w-5 animate-spin text-or" /> : <Search className="h-5 w-5 text-nuit-600/75" />}
           <input ref={champ} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={clavier} placeholder={liturgie ? 'Nom, intention, fête, passage (Mt 5, 3)…' : 'Nom, prénom, e-mail, téléphone…'} className="flex-1 border-0 bg-transparent py-4 text-base outline-none" />
-          <button onClick={onFermer} className="rounded border border-nuit-100 px-1.5 text-[11px] text-nuit-600/60">Échap</button>
+          <button onClick={onFermer} className="rounded border border-nuit-100 px-1.5 text-xs text-nuit-600/75">Échap</button>
         </div>
         <div className="max-h-[60vh] overflow-y-auto p-2">
-          {res === null ? <p className="px-3 py-6 text-center text-sm text-nuit-600/60">{[peut('dossiers') && 'Dossiers, Cor Unum, catéchisme, extraits, retraites', peut('intentions') && 'intentions de messe', peut('annonces') && 'annonces', liturgie && 'fêtes du calendrier, passages de la Bible'].filter(Boolean).join(' · ')}.</p>
-            : !res.length ? <p className="px-3 py-6 text-center text-sm text-nuit-600/60">{charge ? 'Recherche…' : 'Aucun résultat.'}</p>
+          {res === null ? <p className="px-3 py-6 text-center text-sm text-nuit-600/75">{[peut('dossiers') && 'Dossiers, Cor Unum, catéchisme, extraits, retraites', peut('intentions') && 'intentions de messe', peut('annonces') && 'annonces', liturgie && 'fêtes du calendrier, passages de la Bible'].filter(Boolean).join(' · ')}.</p>
+            : !res.length ? <p className="px-3 py-6 text-center text-sm text-nuit-600/75">{charge ? 'Recherche…' : 'Aucun résultat.'}</p>
             : res.map((g) => {
               const I = ICONES[g.cle] || Search
               return (
                 <div key={g.cle} className="mb-1">
-                  <div className="flex items-center gap-1.5 px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-or-600"><I className="h-3.5 w-3.5" />{g.titre}{g.total > g.items.length && <span className="font-normal normal-case text-nuit-600/50">· {g.items.length} sur {g.total}</span>}</div>
+                  <div className="flex items-center gap-1.5 px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wider text-or-600"><I className="h-3.5 w-3.5" />{g.titre}{g.total > g.items.length && <span className="font-normal normal-case text-nuit-600/75">· {g.items.length} sur {g.total}</span>}</div>
                   {g.items.map((x) => { n++; const k = n; return (
                     <button key={x.lien + k} id={'rg-' + k} onMouseEnter={() => setSel(k)} onClick={() => aller(x)}
                       className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left ${sel === k ? 'bg-or-50' : ''}`}>

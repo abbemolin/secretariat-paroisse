@@ -57,7 +57,7 @@ export const TYPES = {
 
   // Famille de la paroisse qui fait baptiser son enfant ailleurs : le curé signe l'accord (Form. B 15)
   bapteme_ailleurs: {
-    nom: 'Baptême dans une autre paroisse', pluriel: 'Baptêmes ailleurs', couleur: '#7d9bd9',
+    nom: 'Baptême dans une autre paroisse', court: 'Baptême ailleurs', pluriel: 'Baptêmes ailleurs', couleur: '#7d9bd9',
     etapes: [T('recue', 'Demande reçue'), T('formulaire', 'Formulaire rempli'), T('accord', 'Accord signé'), T('envoye', 'Accord envoyé à la famille')],
     sections: [
       { titre: 'Enfant', champs: [T('enfant_prenoms', 'Prénoms'), T('enfant_nom', 'Nom'), T('sexe', 'Garçon ou fille', 'choix', { choix: ['', 'Garçon', 'Fille'] }), T('enfant_naissance_date', 'Né(e) le', 'date'), T('enfant_naissance_lieu', 'À')] },
@@ -75,7 +75,7 @@ export const TYPES = {
 
   // Quelqu'un de la paroisse sera parrain ou marraine ailleurs : certificat d'aptitude (Courriers → modèle « aptitude »)
   parrainage: {
-    nom: 'Certificat parrain / marraine', pluriel: 'Certificats parrain/marraine', couleur: '#5a8f7b',
+    nom: 'Certificat parrain / marraine', court: 'Parrainage', pluriel: 'Certificats parrain/marraine', couleur: '#5a8f7b',
     etapes: [T('recue', 'Demande reçue'), T('verifiee', 'Vérifiée (baptême, confirmation, communion)'), T('certificat', 'Certificat signé'), T('envoye', 'Certificat envoyé')],
     sections: [
       { titre: 'Identité', champs: [T('prenoms', 'Prénoms'), T('nom', 'Nom'), T('naissance_date', 'Né(e) le', 'date'), T('naissance_lieu', 'À'),
@@ -97,7 +97,7 @@ export const TYPES = {
 
   // Lettre de recommandation (école catholique, emploi, vie religieuse, foyer étudiant…)
   recommandation: {
-    nom: 'Lettre de recommandation', pluriel: 'Lettres de recommandation', couleur: '#8a6d3b',
+    nom: 'Lettre de recommandation', court: 'Recommandation', pluriel: 'Lettres de recommandation', couleur: '#8a6d3b',
     etapes: [T('recue', 'Demande reçue'), T('rencontre', 'Rencontre', 'texte', { optionnel: () => true }), T('lettre', 'Lettre signée'), T('envoye', 'Lettre envoyée')],
     sections: [
       { titre: 'Demandeur', champs: [T('prenoms', 'Prénoms'), T('nom', 'Nom'), T('adresse', 'Adresse'), T('telephone', 'Téléphone', 'tel'), T('email', 'E-mail', 'email')] },
@@ -144,7 +144,7 @@ export const TYPES = {
   },
 
   confirmation_jeune: {
-    nom: 'Confirmation (jeunes)', pluriel: 'Confirmations jeunes', couleur: '#b5532f', collectif: true,
+    nom: 'Confirmation (jeunes)', court: 'Confirmation jeune', pluriel: 'Confirmations jeunes', couleur: '#b5532f', collectif: true,
     etapes: [
       T('inscription', 'Inscription reçue'), T('certificat', 'Certificat de baptême reçu'), T('lettre', "Lettre à l'évêque"),
       T('retraite', 'Retraite'), T('celebration', 'Confirmation'), T('registre', 'Inscription au registre'),
@@ -214,7 +214,7 @@ export const TYPES = {
   },
 
   catechumene: {
-    nom: 'Catéchumène adulte', pluriel: 'Catéchumènes', couleur: '#c17f3e', rencontres: true,
+    nom: 'Catéchumène adulte', court: 'Catéchumène', pluriel: 'Catéchumènes', couleur: '#c17f3e', rencontres: true,
     etapes: [
       T('accueil', 'Premier accueil'), T('accompagnateur', 'Accompagnateur désigné'), T('entree', 'Entrée en catéchuménat'),
       T('lettre', "Lettre à l'évêque"), T('appel', 'Appel décisif'), T('scrutins', 'Scrutins'),
@@ -244,7 +244,7 @@ export const TYPES = {
   },
 
   confirmand: {
-    nom: 'Confirmand adulte', pluriel: 'Confirmands', couleur: '#d1495b', rencontres: true,
+    nom: 'Confirmand adulte', court: 'Confirmand', pluriel: 'Confirmands', couleur: '#d1495b', rencontres: true,
     etapes: [
       T('accueil', 'Accueil'), T('parcours', 'Parcours de préparation'),
       T('profession_foi', 'Profession de foi (venant d\'une autre confession chrétienne)', 'texte', { optionnel: (i) => i?.autre_confession !== 'oui' }),

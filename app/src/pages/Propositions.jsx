@@ -28,7 +28,7 @@ export default function Propositions() {
   return (
     <>
       <EnTete titre="Propositions" sousTitre="Parcours et textes pour l'app des paroissiens"
-        actions={<button className="btn-principal" onClick={() => ouvrir(null)}><Plus className="h-4 w-4" />Nouvelle proposition</button>} />
+        actions={<button className="btn-or" onClick={() => ouvrir(null)}><Plus className="h-4 w-4" />Nouvelle proposition</button>} />
       <FonctionFermee cle="propositions" texte="Les propositions sont désactivées dans l'app : ni lecture ni notification." />
       <Erreur erreur={erreur} reessayer={recharger} />
       {chargement && !data ? <Chargement /> : !data?.length ? <Vide icone={Sparkles} texte="Aucune proposition pour le moment." /> : (

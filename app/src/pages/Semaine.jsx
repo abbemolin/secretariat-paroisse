@@ -233,7 +233,7 @@ export default function Semaine() {
                   </div>
                 ))}
                 {indicateur('note', jour.notes.length)}
-                {!jour.horaires.length && <div className="py-1 text-sm italic text-nuit-600/50">Aucun événement</div>}
+                {!jour.horaires.length && <div className="py-1 text-sm italic text-nuit-600/75">Aucun événement</div>}
                 {jour.horaires.map((ev, i) => (
                   <div key={'e' + i}>{indicateur('evt', i)}
                     <div data-glisse="evt" className={`flex items-center gap-1 py-0.5 text-sm ${ev.bold ? 'font-semibold text-nuit' : 'text-nuit-700'} ${glisse?.type === 'evt' && glisse.jour === j && glisse.idx === i ? 'opacity-30' : ''}`}>

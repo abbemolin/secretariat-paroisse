@@ -24,7 +24,7 @@ export default function VoirComme({ seulement, libelle = 'Voir comme…', classN
       <p className="mb-3 text-sm text-nuit-600">Un personnage fictif, avec des données inventées : vous voyez exactement les écrans de la personne. Rien n'est enregistré ni envoyé. S'ouvre dans un nouvel onglet.</p>
       <ul className="divide-y divide-nuit-100">
         {liste.map((a) => <li key={a.cle}><a href={a.url()} target="_blank" rel="noopener" className="flex items-center gap-3 py-2.5 hover:text-or-600" onClick={() => setOuvert(false)}>
-          <span className="flex-1"><span className="font-medium">{a.titre}</span><span className="block text-xs text-nuit-600/70">{a.texte}</span></span><ExternalLink className="h-4 w-4 text-nuit-600/50" /></a></li>)}
+          <span className="flex-1"><span className="font-medium">{a.titre}</span><span className="block text-xs text-nuit-600/70">{a.texte}</span></span><ExternalLink className="h-4 w-4 text-nuit-600/75" /></a></li>)}
       </ul>
     </Modale>}
   </>

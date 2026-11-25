@@ -5,7 +5,7 @@ import { api } from '../api.js'
 import { useApp } from '../App.jsx'
 import FonctionFermee from '../FonctionFermee.jsx'
 import { useSelection, BoutonSelection, Case, BarreSelection, useActionGroupee } from '../selection.jsx'
-import { Chargement, Erreur, EnTete, Modale, Vide, dateCourte, dateHeure, useCharger, useConfirmer, useNotif } from '../ui.jsx'
+import { Chargement, Erreur, EnTete, Modale, Vide, dateCourte, dateHeure, useCharger, useConfirmer, useNotif, nb } from '../ui.jsx'
 
 const COULEUR = {
   attente: 'bg-or-100 text-or-600', precisions: 'bg-or-50 text-or-600', invite: 'bg-nuit-50 text-nuit', actif: 'bg-green-50 text-green-800',
@@ -64,7 +64,7 @@ export default function Paroissiens() {
     setOccupe('migrer')
     try {
       const r = await api('paroissiens.migrer')
-      notifier(`${r.crees} compte(s) créé(s)` + (r.adresse_prise.length ? ` · adresse partagée : ${r.adresse_prise.join(', ')}` : '') + (r.sans_adresse.length ? ` · sans adresse : ${r.sans_adresse.join(', ')}` : ''))
+      notifier(nb(r.crees, 'compte créé', 'comptes créés') + (r.adresse_prise.length ? ` · adresse partagée : ${r.adresse_prise.join(', ')}` : '') + (r.sans_adresse.length ? ` · sans adresse : ${r.sans_adresse.join(', ')}` : ''))
       recharger()
     } catch (e) { notifier(e.message, 'erreur') } finally { setOccupe('') }
   }
@@ -79,7 +79,7 @@ export default function Paroissiens() {
       <FonctionFermee cle="comptes" texte="L'app des paroissiens est fermée : pas de connexion par adresse e-mail ni de demande d'accès." />
       <RappelRgpd />
       <div className="mb-4 flex gap-1 rounded-lg bg-nuit-50 p-1 text-sm">
-        {VUES.map(([k, l]) => <button key={k} onClick={() => setVue(k)} className={`flex-1 rounded-md px-3 py-1.5 ${vue === k ? 'bg-white font-semibold text-nuit shadow-sm' : 'text-nuit-600'}`}>{l}{k === 'demandes' && demandes.length > 0 && <span className="ml-1.5 rounded-full bg-or px-1.5 text-[11px] font-bold text-white">{demandes.length}</span>}</button>)}
+        {VUES.map(([k, l]) => <button key={k} onClick={() => setVue(k)} className={`flex-1 rounded-md px-3 py-1.5 ${vue === k ? 'bg-white font-semibold text-nuit shadow-sm' : 'text-nuit-600'}`}>{l}{k === 'demandes' && demandes.length > 0 && <span className="ml-1.5 rounded-full bg-or px-1.5 text-xs font-bold text-white">{demandes.length}</span>}</button>)}
       </div>
       <Erreur erreur={erreur} reessayer={recharger} />
       {chargement && !data ? <Chargement /> : vue === 'demandes' ? (
@@ -95,7 +95,7 @@ export default function Paroissiens() {
       ) : vue === 'comptes' ? (
         <>
           <div className="mb-3 flex flex-wrap gap-2">
-            <div className="relative min-w-[200px] flex-1"><Search className="absolute left-3 top-2.5 h-4 w-4 text-nuit-600/50" /><input className="champ pl-9" placeholder="Nom, adresse, téléphone…" value={filtre} onChange={(e) => setFiltre(e.target.value)} /></div>
+            <div className="relative min-w-[200px] flex-1"><Search className="absolute left-3 top-2.5 h-4 w-4 text-nuit-600/75" /><input className="champ pl-9" placeholder="Nom, adresse, téléphone…" value={filtre} onChange={(e) => setFiltre(e.target.value)} /></div>
             <select className="champ w-auto" value={statut} onChange={(e) => setStatut(e.target.value)}><option value="">Tous ({comptes.length})</option>{Object.entries(data?.statuts || {}).map(([k, l]) => <option key={k} value={k}>{l} ({comptes.filter((c) => c.statut === k).length})</option>)}</select>
           </div>
           {!liste.length ? <Vide icone={Users} texte="Aucun compte." /> : (
@@ -264,7 +264,7 @@ function Inviter({ onFait }) {
   async function inviter(payload, quoi) {
     if (!(await confirmer({ titre: 'Envoyer les invitations', texte: `${quoi} : chaque personne qui a une adresse reçoit un mail pour ouvrir son compte. Celles qui ont déjà un compte ne reçoivent rien.`, bouton: 'Envoyer' }))) return
     setOccupe(JSON.stringify(payload))
-    try { const r = await api('paroissiens.inviter', payload); setRapport(r); notifier(`${r.invites.length} invitation(s) envoyée(s)`); onFait() }
+    try { const r = await api('paroissiens.inviter', payload); setRapport(r); notifier(nb(r.invites.length, 'invitation envoyée', 'invitations envoyées')); onFait() }
     catch (e) { notifier(e.message, 'erreur') } finally { setOccupe('') }
   }
   return (
@@ -279,7 +279,7 @@ function Inviter({ onFait }) {
           </div>
           {(data?.equipes || []).map((e) => (
             <div key={e.id} className="flex items-center gap-3 px-4 py-3 text-sm">
-              <Users className="h-5 w-5 text-nuit-600/60" /><div className="flex-1"><div className="font-medium">{e.nom}</div><div className="text-xs text-nuit-600/70">{e.membres} membre(s){e.chefs.length ? ' · chef : ' + e.chefs.join(', ') : ''}</div></div>
+              <Users className="h-5 w-5 text-nuit-600/75" /><div className="flex-1"><div className="font-medium">{e.nom}</div><div className="text-xs text-nuit-600/70">{nb(e.membres, 'membre', 'membres')}{e.chefs.length ? ' · chef : ' + e.chefs.join(', ') : ''}</div></div>
               <button className="btn-clair" disabled={!!occupe} onClick={() => inviter({ equipe_id: e.id }, 'Fraternité ' + e.nom)}>{occupe === JSON.stringify({ equipe_id: e.id }) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Inviter</button>
             </div>
           ))}
@@ -421,7 +421,7 @@ function EffacementsRgpd() {
     try { setData(await api('paroissiens.rgpd', { op: o, ...extra })); if (msg) notifier(msg) } catch (e) { notifier(e.message, 'erreur') } finally { setOccupe('') }
   }
   async function effacer() {
-    if (!(await confirmer({ titre: 'Effacer définitivement', texte: `${coches.length} élément(s) seront effacés : fiches Cor Unum supprimées, fiches santé et contacts d'urgence vidés (les inscriptions aux retraites restent). Ce n'est pas réversible.`, bouton: 'Effacer', danger: true }))) return
+    if (!(await confirmer({ titre: 'Effacer définitivement', texte: `${nb(coches.length, 'élément sera effacé', 'éléments seront effacés')} : fiches Cor Unum supprimées, fiches santé et contacts d'urgence vidés (les inscriptions aux retraites restent). Ce n'est pas réversible.`, bouton: 'Effacer', danger: true }))) return
     op('effacer', { cles: coches.map((x) => x.cle) }, 'Effacé et noté au journal')
   }
   if (chargement && !data) return <Chargement />
@@ -435,7 +435,7 @@ function EffacementsRgpd() {
       </div>
       {!el.length ? (
         <div className="carte p-6 text-center text-sm text-nuit-600">
-          <Archive className="mx-auto mb-2 h-6 w-6 text-nuit-600/50" />Rien à effacer pour le moment.
+          <Archive className="mx-auto mb-2 h-6 w-6 text-nuit-600/75" />Rien à effacer pour le moment.
           {data?.preparee_le && <div className="mt-1 text-xs text-nuit-600/70">Liste vérifiée le {dateCourte(data.preparee_le)}.</div>}
           <button className="btn-clair mt-3" disabled={!!occupe} onClick={() => op('preparer', {}, 'Liste vérifiée')}>{occupe === 'preparer' ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}Vérifier maintenant</button>
         </div>
@@ -449,8 +449,8 @@ function EffacementsRgpd() {
                 <div className="min-w-0 flex-1">
                   <div className="font-medium">{x.nom}</div>
                   <div className="text-xs text-nuit-600/70">{x.type === 'cor'
-                    ? `Cor Unum ${x.annees.join(', ')} · ${x.ids.length} fiche(s) · dernière activité : ${dateCourte(x.derniere)}`
-                    : `Retraite du ${dateCourte(x.date)} · ${x.nb} inscription(s) avec fiche santé ou contact d'urgence`}</div>
+                    ? `Cor Unum ${x.annees.join(', ')} · ${nb(x.ids.length, 'fiche', 'fiches')} · dernière activité : ${dateCourte(x.derniere)}`
+                    : `Retraite du ${dateCourte(x.date)} · ${nb(x.nb, 'inscription', 'inscriptions')} avec fiche santé ou contact d'urgence`}</div>
                 </div>
                 <button className="btn-clair h-8 py-1 text-xs" disabled={!!occupe} onClick={(e) => { e.preventDefault(); op('garder', { cle: x.cle }, 'Gardée un an de plus') }}>Garder un an</button>
               </label>

@@ -64,7 +64,7 @@ export default function IntentionsCalendrier() {
         <button className="btn-icone" onClick={() => changerMois(-1)} aria-label="Mois précédent"><ChevronLeft className="h-5 w-5" /></button>
         <button className="btn-icone" onClick={() => changerMois(1)} aria-label="Mois suivant"><ChevronRight className="h-5 w-5" /></button>
         <button className="btn-clair py-1.5 text-sm" onClick={() => choisir(auj)}>Aujourd'hui</button>
-        <button className="btn-principal py-1.5" onClick={() => setFiche({ titre: 'Nouvelle intention', initiale: { date_messe: jourSel, google_event_id: 'libre' } })} aria-label="Ajouter une intention"><Plus className="h-4 w-4" /></button>
+        <button className="btn-or py-1.5" onClick={() => setFiche({ titre: 'Nouvelle intention', initiale: { date_messe: jourSel, google_event_id: 'libre' } })} aria-label="Ajouter une intention"><Plus className="h-4 w-4" /></button>
       </div>
 
       <div className="carte overflow-hidden">

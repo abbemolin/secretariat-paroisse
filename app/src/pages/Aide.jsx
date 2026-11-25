@@ -56,7 +56,7 @@ export default function Aide() {
   return (
     <>
       <EnTete titre="Aide" sousTitre="Comment faire, rubrique par rubrique" />
-      <div className="relative mb-4 max-w-xl"><Search className="absolute left-3 top-2.5 h-4 w-4 text-nuit-600/50" />
+      <div className="relative mb-4 max-w-xl"><Search className="absolute left-3 top-2.5 h-4 w-4 text-nuit-600/75" />
         <input className="champ pl-9" placeholder="Que voulez-vous faire ?" value={q} onChange={(e) => setQ(e.target.value)} /></div>
       <div className="space-y-5">
         {GUIDES.map(([rubrique, items]) => {
@@ -70,7 +70,7 @@ export default function Aide() {
                 return (
                   <div key={t}>
                     <button className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium hover:bg-nuit-50/50" onClick={() => setOuvert(o && !q ? null : k)}>
-                      <span className="flex-1">{t}</span><ChevronDown className={`h-4 w-4 text-nuit-600/60 transition ${o ? 'rotate-180' : ''}`} /></button>
+                      <span className="flex-1">{t}</span><ChevronDown className={`h-4 w-4 text-nuit-600/75 transition ${o ? 'rotate-180' : ''}`} /></button>
                     {o && <p className="px-4 pb-3 text-sm leading-relaxed text-nuit-600">{x}</p>}
                   </div>
                 )

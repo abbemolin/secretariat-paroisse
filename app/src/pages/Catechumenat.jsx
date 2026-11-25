@@ -23,12 +23,12 @@ export default function Catechumenat() {
         <div><h1 className="text-3xl font-semibold">Catéchuménat</h1><p className="text-sm text-nuit-600/80">{vue === 'personnes' ? 'Catéchumènes adultes en chemin et néophytes de l\'année' : 'Textes et calendrier de l\'app « La Croix glorieuse » (app.croix-glorieuse.org)'}</p></div>
         <div className="flex gap-2">
           {peut('utilisateurs') && <VoirComme seulement={['catechumene', 'neophyte', 'parrain']} libelle="Aperçu" />}
-          {vue === 'personnes' ? <Link className="btn-principal" to="/dossiers?type=catechumene&nouveau=1"><Plus className="h-4 w-4" />Nouveau catéchumène</Link> : vue === 'anniversaires' || vue === 'lettres' ? null : vue === 'textes' ? <button className="btn-principal" disabled={!data} onClick={() => setTexte({ titre: '', corps: '', cible: data.promotions[1]?.cle || 'tous', liens: [], fichiers: [] })}><Plus className="h-4 w-4" />Nouveau texte</button>
-            : <button className="btn-principal" disabled={!data} onClick={() => setEvt({ date: '', heure_debut: '', heure_fin: '', titre: '', lieu: '', cible: data.promotions[1]?.cle || 'tous', note: '' })}><Plus className="h-4 w-4" />Nouvelle date</button>}
+          {vue === 'personnes' ? <Link className="btn-or" to="/dossiers?type=catechumene&nouveau=1"><Plus className="h-4 w-4" />Nouveau catéchumène</Link> : vue === 'anniversaires' || vue === 'lettres' ? null : vue === 'textes' ? <button className="btn-or" disabled={!data} onClick={() => setTexte({ titre: '', corps: '', cible: data.promotions[1]?.cle || 'tous', liens: [], fichiers: [] })}><Plus className="h-4 w-4" />Nouveau texte</button>
+            : <button className="btn-or" disabled={!data} onClick={() => setEvt({ date: '', heure_debut: '', heure_fin: '', titre: '', lieu: '', cible: data.promotions[1]?.cle || 'tous', note: '' })}><Plus className="h-4 w-4" />Nouvelle date</button>}
           <Aide>Les catéchumènes et néophytes voient ces textes et ces dates dans leur espace personnel (lien envoyé depuis leur dossier). Un nouveau texte déclenche une notification sur leur téléphone.</Aide>
         </div>
       </div>
-      <div className="-mx-1 mb-4 flex gap-1.5 overflow-x-auto px-1">{[['personnes', 'Catéchumènes', Users], ['textes', 'Textes', BookOpen], ['calendrier', 'Calendrier', CalendarDays], ['lettres', 'Lettres à l\'évêque', Mailbox], ['anniversaires', 'Anniversaires de baptême', Cake]].map(([k, l, I]) => (
+      <div className="barre-onglets mb-4">{[['personnes', 'Catéchumènes', Users], ['textes', 'Textes', BookOpen], ['calendrier', 'Calendrier', CalendarDays], ['lettres', 'Lettres à l\'évêque', Mailbox], ['anniversaires', 'Anniversaires de baptême', Cake]].map(([k, l, I]) => (
         <button key={k} className={`pastille shrink-0 gap-1 border px-3 py-1.5 text-sm ${vue === k ? 'border-nuit bg-nuit text-white' : 'border-nuit-100 bg-white text-nuit-600'}`} onClick={() => setVue(k)}><I className="h-4 w-4" />{l}</button>))}</div>
       <Erreur erreur={erreur} />
       {vue === 'personnes' ? <ListeCatechumenes /> : vue === 'anniversaires' ? <Anniversaires /> : vue === 'lettres' ? <Lettres /> : !data ? <Chargement /> : vue === 'textes' ? (
@@ -59,7 +59,7 @@ export default function Catechumenat() {
       {texte && <EditionTexte t={texte} data={data} onFermer={() => setTexte(null)} onFait={(r) => { setData(r); setTexte(null) }} />}
       {evt && <EditionDate ev={evt} data={data} onFermer={() => setEvt(null)} onFait={(r) => { setData(r); setEvt(null) }} />}
       {lus && <Modale titre={`« ${lus.titre} » – lecture`} onFermer={() => setLus(null)} pied={<button className="btn-principal" onClick={() => setLus(null)}>Fermer</button>}>
-        <ul className="divide-y divide-nuit-100 text-sm">{lus.lus.map((x, i) => <li key={i} className="flex justify-between py-1.5"><span>{x.nom}</span>{x.lu ? <span className="text-emerald-700"><Check className="mr-1 inline h-3.5 w-3.5" />{dateCourte(x.lu)}</span> : <span className="text-nuit-600/50">pas encore lu</span>}</li>)}</ul>
+        <ul className="divide-y divide-nuit-100 text-sm">{lus.lus.map((x, i) => <li key={i} className="flex justify-between py-1.5"><span>{x.nom}</span>{x.lu ? <span className="text-emerald-700"><Check className="mr-1 inline h-3.5 w-3.5" />{dateCourte(x.lu)}</span> : <span className="text-nuit-600/75">pas encore lu</span>}</li>)}</ul>
         <p className="mt-2 text-xs text-nuit-600/70">Seules les personnes qui ont ouvert leur espace personnel peuvent lire les textes.</p>
       </Modale>}
     </>
@@ -118,9 +118,9 @@ function EditionTexte({ t, data, onFermer, onFait }) {
         <div>
           <label className="etiquette">Fichiers (PDF, images…)</label>
           {(t.fichiers || []).filter((f) => (v.garder || []).includes(f.id)).map((f) => (
-            <div key={f.id} className="flex items-center gap-2 text-sm"><Paperclip className="h-3.5 w-3.5 text-or" /><span className="flex-1">{f.nom}</span><button className="btn-icone p-1" onClick={() => maj('garder', v.garder.filter((x) => x !== f.id))}><X className="h-3.5 w-3.5" /></button></div>))}
+            <div key={f.id} className="flex items-center gap-2 text-sm"><Paperclip className="h-3.5 w-3.5 text-or" /><span className="flex-1">{f.nom}</span><button aria-label="Fermer" title="Fermer" className="btn-icone p-1" onClick={() => maj('garder', v.garder.filter((x) => x !== f.id))}><X className="h-3.5 w-3.5" /></button></div>))}
           {nouveaux.map((f, i) => (
-            <div key={i} className="flex items-center gap-2 text-sm"><Paperclip className="h-3.5 w-3.5 text-or" /><span className="flex-1">{f.nom}</span><button className="btn-icone p-1" onClick={() => setNouveaux((n) => n.filter((_, j) => j !== i))}><X className="h-3.5 w-3.5" /></button></div>))}
+            <div key={i} className="flex items-center gap-2 text-sm"><Paperclip className="h-3.5 w-3.5 text-or" /><span className="flex-1">{f.nom}</span><button aria-label="Fermer" title="Fermer" className="btn-icone p-1" onClick={() => setNouveaux((n) => n.filter((_, j) => j !== i))}><X className="h-3.5 w-3.5" /></button></div>))}
           <label className="btn-clair mt-1 inline-flex cursor-pointer py-1 text-xs"><Plus className="h-3.5 w-3.5" />Joindre un fichier<input type="file" multiple className="hidden" onChange={(ev) => { ajouterFichiers([...ev.target.files]); ev.target.value = '' }} /></label>
         </div>
         <div>
@@ -129,7 +129,7 @@ function EditionTexte({ t, data, onFermer, onFait }) {
             <div key={i} className="mb-1.5 flex gap-1.5">
               <input className="champ flex-1 py-1.5" placeholder="https://…" value={l.url} onChange={(ev) => maj('liens', v.liens.map((x, j) => (j === i ? { ...x, url: ev.target.value } : x)))} />
               <input className="champ w-48 py-1.5" placeholder="Libellé" value={l.libelle} onChange={(ev) => maj('liens', v.liens.map((x, j) => (j === i ? { ...x, libelle: ev.target.value } : x)))} />
-              <button className="btn-icone p-1 text-red-700" onClick={() => maj('liens', v.liens.filter((_, j) => j !== i))}><Trash2 className="h-3.5 w-3.5" /></button>
+              <button aria-label="Supprimer" title="Supprimer" className="btn-icone p-1 text-red-700" onClick={() => maj('liens', v.liens.filter((_, j) => j !== i))}><Trash2 className="h-3.5 w-3.5" /></button>
             </div>))}
           <button className="btn-clair py-1 text-xs" onClick={() => maj('liens', [...v.liens, { url: '', libelle: '' }])}><Link2 className="h-3.5 w-3.5" />Ajouter un lien</button>
         </div>
@@ -241,7 +241,7 @@ function Lettres() {
             <Link to={`/dossiers/${x.id}`} className="font-medium hover:underline">{x.nom}</Link>
             <span className="block text-xs text-nuit-600/70">{ETAT[x.statut]}{x.date ? ' · ' + dateCourte(x.date) : ''}</span></li>)}</ul>
         )}
-        <p className="mt-3 text-xs text-nuit-600/60">Valider, demander une correction ou confirmer la réception : dans le dossier, encadré « Espace personnel ».</p>
+        <p className="mt-3 text-xs text-nuit-600/75">Valider, demander une correction ou confirmer la réception : dans le dossier, encadré « Espace personnel ».</p>
       </section>
     </div>
   )
