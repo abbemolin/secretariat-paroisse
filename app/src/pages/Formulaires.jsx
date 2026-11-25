@@ -16,7 +16,7 @@ const FIN = "\n\nAvec l'assurance de nos prières à toutes vos intentions,"
 /** Texte proposé pour chaque formulaire (modifiable avant l'envoi). */
 function texteParDefaut(cle, { paroisse, vers, promo, rdv }) {
   const bouton = `\n[Bouton : ${B}]`
-  const cel = { premiere_communion: 'première communion', profession_foi: 'profession de foi' }[cle]
+  const cel = { premiere_communion: 'première communion', profession_foi: 'profession de foi', confirmation_jeune: 'confirmation' }[cle]
   if (cel) {
     const annee = anneeScolaireActuelle()
     const quand = promo?.date
@@ -183,7 +183,7 @@ function EnvoiModale({ f, onFermer, onEnvoye }) {
             <div><label className="etiquette">Nom (facultatif, pour le suivi)</label><input className="champ" value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Famille Martin" /></div>
           </div>
         )}
-        {f.cle === 'profession_foi' && vers === 'ecole' && ecole === 'Herrade de Landsberg' && <p className="rounded-lg bg-amber-50 p-2 text-xs text-amber-900">La profession de foi se fait en 3e : Herrade de Landsberg n'est pas proposée dans ce formulaire.</p>}
+        {['profession_foi', 'confirmation_jeune'].includes(f.cle) && vers === 'ecole' && ecole === 'Herrade de Landsberg' && <p className="rounded-lg bg-amber-50 p-2 text-xs text-amber-900">Herrade de Landsberg n'est pas proposée dans ce formulaire.</p>}
         <div><label className="etiquette">Objet</label><input className="champ" value={sujet} onChange={(e) => setSujet(e.target.value)} /></div>
         <div><label className="etiquette">Message — « [Bouton : …] » place le bouton à cet endroit</label>
           <textarea className="champ min-h-[200px] text-sm" value={texte ?? proposition} onChange={(e) => setTexte(e.target.value)} /></div>

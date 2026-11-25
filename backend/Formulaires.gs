@@ -12,6 +12,12 @@
  *  - accusé de réception par mail au choix (case cochée par défaut) ; le dossier créé s'ouvre au secrétariat ;
  *  - pas d'entrée dans le suivi des envois : le dossier garde la trace (« rempli au secrétariat avec … »).
  *  RGPD : le jeton (propriété « surplace_… ») ne contient ni nom ni adresse ; effacé 48 h après sa création.
+ *
+ * « Pièces envoyées plus tard » : lien personnel d'un dossier (page depot/?d=…) pour déposer les pièces demandées.
+ *  - créé par « Réclamer les documents » (bouton dans le mail) ou depuis le dossier (mail ou QR code) ;
+ *  - la page montre seulement les pièces demandées (reçue / à déposer) et le prénom ; valable jusqu'à ce que tout soit reçu ;
+ *  - chaque pièce est rangée dans le dossier (Drive), cochée « reçue », et l'équipe est prévenue.
+ *  RGPD : le lien se ferme quand tout est reçu, ou quand le dossier est clos ou annulé.
  */
 
 var FORMULAIRES_ENVOI = {
@@ -19,6 +25,7 @@ var FORMULAIRES_ENVOI = {
   mariage:            { nom: 'Demande de mariage', sorte: 'mariage', slug: 'demande-mariage' },
   premiere_communion: { nom: 'Inscription à la première communion', sorte: 'premiere_communion', slug: 'premiere-communion', ecole: true },
   profession_foi:     { nom: 'Inscription à la profession de foi', sorte: 'profession_foi', slug: 'profession-de-foi', ecole: true },
+  confirmation_jeune: { nom: 'Inscription à la confirmation (jeunes)', sorte: 'confirmation_jeune', slug: 'confirmation-jeunes', ecole: true },
   catechumene:        { nom: 'Baptême d\'un adulte', sorte: 'catechumene', slug: 'bapteme-adulte' },
   confirmand:         { nom: 'Confirmation d\'un adulte', sorte: 'confirmand', slug: 'confirmation-adulte' },
   accord_ailleurs:    { nom: 'Accord du curé – baptême dans une autre paroisse', sorte: 'bapteme', slug: 'accord-bapteme' },
@@ -197,6 +204,77 @@ function accuseSurPlace_(cle, mail) {
 /** Clé du formulaire d'envoi correspondant à une sorte de dossier du site (hors accords). */
 function cleFormulaireDeType_(type) {
   return Object.keys(FORMULAIRES_ENVOI).filter(function (k) { return !/^accord_/.test(k) && FORMULAIRES_ENVOI[k].sorte === type; })[0] || '';
+}
+
+// ─── Pièces envoyées plus tard (dépôt par lien personnel) ───
+
+var DEPOT_MAX = 10 * 1024 * 1024;
+function urlDepot_(jeton) { return baseFormulaires_() + 'depot/?d=' + jeton; }
+/** Prépare (ou complète) le lien de dépôt d'un dossier pour les pièces données [{ cle, libelle }]. À appeler hors verrou. */
+function preparerDepot_(id, docs, s) {
+  var liste = (docs || []).map(function (x) { return { cle: String(x.cle || '').slice(0, 40), libelle: String(x.libelle || x.label || '').slice(0, 120) }; })
+    .filter(function (x) { return /^[a-z0-9_]+$/i.test(x.cle) && x.libelle; });
+  if (!liste.length) throw erreur_('INVALIDE', 'Aucune pièce à demander.');
+  return verrou_(function () {
+    var d = trouverDossier_(id), don = json2_(d.donnees, {}), dep = don.depot || {}, recus = don.documents || {};
+    var garde = (dep.docs || []).filter(function (x) { return !(recus[x.cle] && recus[x.cle].recu); });
+    liste.forEach(function (x) { if (!garde.some(function (y) { return y.cle === x.cle; })) garde.push(x); });
+    don.depot = { jeton: dep.jeton || jeton_(), docs: garde, cree_le: dep.cree_le || maintenant_(), par: s.nom };
+    d.donnees = JSON.stringify(don);
+    ecrireLigne_('Dossiers', d);
+    return urlDepot_(don.depot.jeton);
+  });
+}
+/** Secrétariat : lien de dépôt d'un dossier (pour un mail ou un QR code). */
+function lienDepotRoute_(p, s) {
+  var url = preparerDepot_(p.id, p.docs, s);
+  verrou_(function () { var d = trouverDossier_(p.id); ajouterHistorique_(d, s.nom, 'Lien de dépôt des pièces préparé : ' + (p.docs || []).map(function (x) { return x.libelle || x.label; }).join(', ')); ecrireLigne_('Dossiers', d); });
+  return { lien: url };
+}
+function dossierParDepot_(j) {
+  if (!/^[a-f0-9]{32}$/.test(String(j || ''))) throw erreur_('LIEN', 'Ce lien n\'est pas valable.');
+  var d = lignes_('Dossiers').filter(function (x) { return String(x.donnees || '').indexOf(j) > -1 && (json2_(x.donnees, {}).depot || {}).jeton === j; })[0];
+  if (!d || d.etat !== 'ouvert') throw erreur_('LIEN', 'Ce lien n\'est plus valable. Contactez le secrétariat : ' + CONFIG.ALIAS + '.');
+  return d;
+}
+function etatDepot_(d) {
+  var don = json2_(d.donnees, {}), i = don.infos || {}, recus = don.documents || {};
+  var docs = ((don.depot || {}).docs || []).map(function (x) { return { cle: x.cle, libelle: x.libelle, recu: !!(recus[x.cle] && recus[x.cle].recu) }; });
+  var prenom = String(i.enfant_prenoms || i.prenoms || i.fiancee_prenoms || i.defunt_prenoms || '').split(/[\s,]+/)[0];
+  return { paroisse: reglages_().paroisse, sacrement: TYPES_DOSSIER[d.type].nom, prenom: prenom, docs: docs, complet: docs.length > 0 && docs.every(function (x) { return x.recu; }) };
+}
+/** Page publique depot/ : liste des pièces, et dépôt d'une pièce. */
+function actionDepotPublic_(action, p) {
+  compteurChef_('depot_' + String(p.d || '').slice(0, 32), 40, 3600, 'Trop d\'envois en peu de temps. Réessayez dans une heure.');
+  var d = dossierParDepot_(p.d);
+  if (action === 'public.depot') return etatDepot_(d);
+  var dep = json2_(d.donnees, {}).depot || {}, doc = (dep.docs || []).filter(function (x) { return x.cle === p.cle; })[0];
+  if (!doc) throw erreur_('INVALIDE', 'Cette pièce n\'est pas demandée.');
+  var f = p.fichier || {};
+  if (!f.base64) throw erreur_('INVALIDE', 'Aucun fichier.');
+  var octets = Utilities.base64Decode(String(f.base64));
+  if (octets.length > DEPOT_MAX) throw erreur_('INVALIDE', 'Le fichier est trop lourd (10 Mo maximum).');
+  var nomF = String(f.nom || 'piece').slice(0, 120), ext = ((nomF.match(/\.([a-z0-9]{2,5})$/i) || [])[1] || '').toLowerCase(), typeF = String(f.type || '').toLowerCase();
+  if (!/^(application\/pdf|image\/)/.test(typeF) && ['pdf', 'jpg', 'jpeg', 'png', 'heic', 'heif', 'webp'].indexOf(ext) === -1) throw erreur_('INVALIDE', 'Merci de déposer un PDF ou une photo.');
+  var fichier = dossierDriveDe_(d).createFile(Utilities.newBlob(octets, typeF || 'application/octet-stream', nomFichierDossier_(d, doc.libelle, ext || (typeF === 'application/pdf' ? 'pdf' : 'jpg'))));
+  var d2 = verrou_(function () {
+    var x = trouverDossier_(d.id);
+    enregistrerPiece_(x, fichier, doc.libelle + ' (déposé par la famille)', doc.cle, { nom: 'Dépôt en ligne', uid: '' }, false);
+    x = trouverDossier_(d.id);
+    var etat = etatDepot_(x);
+    if (etat.complet) {   // tout est reçu : le lien se ferme
+      var don = json2_(x.donnees, {}); delete don.depot; x.donnees = JSON.stringify(don);
+      ajouterHistorique_(x, 'Dépôt en ligne', 'Toutes les pièces demandées sont reçues : lien de dépôt fermé');
+      ecrireLigne_('Dossiers', x);
+    }
+    return { x: x, etat: etat };
+  });
+  lignes_('Utilisateurs').filter(estActif_).forEach(function (u) {
+    var sx = { role: u.role, acces: accesDe_(u) };
+    if (u.role === 'admin' || peutLire_(sx, 'dossiers', d.type)) notifier_(u.id, 'Pièce reçue : ' + doc.libelle, d2.x.nom, '#/dossiers/' + d.id);
+  });
+  journaliser_(null, 'Pièce déposée en ligne', TYPES_DOSSIER[d.type].nom + ' – ' + d2.x.nom + ' : ' + doc.libelle);
+  return d2.etat;
 }
 
 /** Entretien de nuit (RGPD) : envois de plus d'un an effacés ; liens « sur place » de plus de 48 h effacés. */

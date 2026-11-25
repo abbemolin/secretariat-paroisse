@@ -13,7 +13,8 @@ import Courriers from './Courriers.jsx'
 import { htmlVersPdf } from '../pdf.js'
 import { useActualisation } from '../actualisation.js'
 import { creerExtrait, PadSignature, chargerSceau } from './Extraits.jsx'
-import { PenLine, RefreshCw, HeartHandshake, Link2, Smartphone, Copy } from 'lucide-react'
+import { PenLine, RefreshCw, HeartHandshake, Link2, Smartphone, Copy, QrCode } from 'lucide-react'
+import qrcode from '../qrcode.js'
 
 const champsEditables = (d) => ({
   infos: d.infos, etapes: d.etapes, documents: d.documents, rencontres: d.rencontres,
@@ -36,6 +37,8 @@ export default function Dossier() {
   const [registre, setRegistre] = useState(false)
   const [courriers, setCourriers] = useState(false)
   const [mail, setMail] = useState(null)
+  const [depot, setDepot] = useState(null)   // { lien, qr } : QR code du dépôt des pièces
+  const [prepDepot, setPrepDepot] = useState(false)
   const [imprimer, setImprimer] = useState(null)
   const [formAccord, setFormAccord] = useState(false)
   const [envoiPiece, setEnvoiPiece] = useState(null)
@@ -121,6 +124,23 @@ export default function Dossier() {
   }
   const manquants = documentsManquants(d.type, Object.keys(b.documents).filter((k) => b.documents[k]?.recu), b.infos)
   const contexteMail = { documents_manquants: manquants.map((m) => '- ' + m.label).join('\n') }
+  // Pièces envoyées plus tard : lien personnel du dossier (page « Documents à déposer »)
+  async function lienDepot() {
+    setPrepDepot(true)
+    try { return (await api('dossiers.lienDepot', { id: d.id, docs: manquants.map((m) => ({ cle: m.cle, libelle: m.label })) })).lien }
+    catch (e) { notifier(e.message, 'erreur'); return '' } finally { setPrepDepot(false) }
+  }
+  async function reclamerParMail() {
+    const lien = await lienDepot()
+    if (lien) ouvrirMail({ reponse: 'document_manquant', contexte: contexteMail, boutons: [{ texte: 'Déposer mes documents', url: lien }] })
+  }
+  async function qrDepot() {
+    const lien = await lienDepot()
+    if (!lien) return
+    let qr = ''
+    try { const q = qrcode(0, 'M'); q.addData(lien); q.make(); qr = q.createDataURL(6, 4) } catch { /* lien affiché */ }
+    setDepot({ lien, qr })
+  }
 
   function mailActeBapteme() {
     const i = b.infos, prenom = i.prenoms || i.enfant_prenoms || ''
@@ -247,8 +267,11 @@ export default function Dossier() {
                   )
                 })}
               </ul>
-              {manquants.length > 0 && d.email && (
-                <button className="btn-clair mt-3 w-full text-xs" onClick={() => ouvrirMail({ reponse: 'document_manquant', contexte: contexteMail })}><Mail className="h-4 w-4" />Réclamer {manquants.length} document{manquants.length > 1 ? 's' : ''}</button>
+              {manquants.length > 0 && (
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button className="btn-clair text-xs" disabled={!d.email || prepDepot} title={d.email ? 'Mail avec un bouton « Déposer mes documents »' : 'Pas d\'adresse e-mail dans le dossier'} onClick={reclamerParMail}>{prepDepot ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}Réclamer {manquants.length} document{manquants.length > 1 ? 's' : ''}</button>
+                  <button className="btn-clair text-xs" disabled={prepDepot} title="QR code à scanner : la personne dépose les pièces depuis son téléphone" onClick={qrDepot}><QrCode className="h-4 w-4" />QR code de dépôt</button>
+                </div>
               )}
             </section>
           )}
@@ -339,6 +362,14 @@ export default function Dossier() {
         </div>
       </fieldset>
 
+      {depot && <Modale titre="Déposer les documents" onFermer={() => setDepot(null)} pied={<button className="btn-clair" onClick={() => setDepot(null)}>Fermer</button>}>
+        <div className="space-y-3 text-center">
+          {depot.qr ? <img src={depot.qr} alt="QR code du dépôt des documents" className="mx-auto h-56 w-56" style={{ imageRendering: 'pixelated' }} /> : <p className="break-all text-xs">{depot.lien}</p>}
+          <p className="text-sm text-nuit-600">La personne scanne ce code avec son téléphone et dépose chaque pièce (photo ou PDF) : <strong>{manquants.map((m) => m.label).join(', ')}</strong>.</p>
+          <p className="text-xs text-nuit-600/70">Le lien reste valable jusqu'à ce que tout soit reçu. Chaque pièce se range dans le dossier et se coche « reçue » ; vous êtes prévenu(e) à chaque dépôt.</p>
+          <button className="btn-clair mx-auto text-xs" onClick={() => { navigator.clipboard?.writeText(depot.lien); notifier('Lien copié') }}><Copy className="h-3.5 w-3.5" />Copier le lien</button>
+        </div>
+      </Modale>}
       {mail && <Redaction {...mail} onFermer={() => setMail(null)} onEnvoye={async () => { setMail(null); notifier('Message envoyé et rattaché au dossier'); const x = await api('dossiers.lire', { id: d.id }); setD(x); setB(champsEditables(x)) }} />}
       {formAccord && <FormulaireAccord d={d} infos={b.infos} paroisse={app.reglages.paroisse} onFermer={() => setFormAccord(false)} onEnvoye={(x) => { setFormAccord(false); setD(x); setB(champsEditables(x)); notifier('Formulaire envoyé par mail') }} />}
       {imprimer && <Imprimer modele={IMPRIMABLES[imprimer]} dossier={{ ...d, ...b }} reglages={{ ...app.reglages, cure_nom: app.utilisateurs.find((u) => u.role === 'cure')?.nom || '' }}

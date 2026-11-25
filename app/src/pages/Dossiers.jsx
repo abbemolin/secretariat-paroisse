@@ -132,9 +132,9 @@ export default function Dossiers() {
           } catch (e) { notifier(e.message, 'erreur') }
         }} />}
       {reclamer && <Redaction mode="nouveau" sujet={'Documents à fournir – {nom}'}
-        corps={"Bonjour,\n\nPour compléter le dossier de {nom}, il nous manque encore :\n{documents}\n\nMerci de nous les transmettre par retour de mail ou au secrétariat.\n\nAvec l'assurance de nos prières à toutes vos intentions,"}
+        corps={"Bonjour,\n\nPour compléter le dossier de {nom}, il nous manque encore :\n{documents}\n\nVous pouvez les déposer en ligne (photo ou PDF) avec le bouton ci-dessous, les transmettre par retour de mail ou les apporter au secrétariat.\n[Bouton : Déposer mes documents]\n\nAvec l'assurance de nos prières à toutes vos intentions,"}
         destinataires={`Un mail personnel à chaque famille (${reclamer.length}). {nom} et {documents} sont remplis pour chacune. Exemple – ${reclamer[0].nom} : ${reclamer[0].documents.join(', ')}.`}
-        envoiPersonnalise={({ sujet, corps, signature }) => api('dossiers.reclamer', { envois: reclamer.map((x) => ({ id: x.id, documents: x.documents })), sujet, corps, signature })}
+        envoiPersonnalise={({ sujet, corps, signature }) => api('dossiers.reclamer', { envois: reclamer.map((x) => ({ id: x.id, documents: x.documents, docs: x.docs })), sujet, corps, signature })}
         onFermer={() => setReclamer(null)} onEnvoye={(r) => { setReclamer(null); notifier(texteRapport(r, 'mail envoyé'), r.ignores?.length ? 'erreur' : undefined); s.quitter(); recharger() }} />}
       {envoiForm && <EnvoiFormulaire onFermer={() => setEnvoiForm(false)} />}
       {nouveau && <NouveauDossier typeInitial={type || 'bapteme'} onFermer={() => setNouveau(false)} onCree={(d) => nav(`/dossiers/${d.id}`)} />}
@@ -232,7 +232,8 @@ function Promotion({ type, annee, dossiers }) {
 
 const FORMULAIRES_ECOLES = {
   premiere_communion: { nom: 'Première communion', fichier: 'premiere_communion' },
-  profession_foi: { nom: 'Profession de foi', fichier: 'profession_foi' }
+  profession_foi: { nom: 'Profession de foi', fichier: 'profession_foi' },
+  confirmation_jeune: { nom: 'Confirmation', fichier: 'confirmation_jeune' }
 }
 const PREPARATIONS_CONNUES = ['Herrade de Landsberg', 'Saints Louis et Zélie Martin']
 
@@ -253,7 +254,7 @@ function EnvoiFormulaire({ onFermer }) {
 
   function rediger() {
     const base = location.href.split('#')[0].replace(/[?].*$/, '').replace(/[^/]*$/, '')
-    const slug = { premiere_communion: 'premiere-communion', profession_foi: 'profession-de-foi' }[type]
+    const slug = { premiere_communion: 'premiere-communion', profession_foi: 'profession-de-foi', confirmation_jeune: 'confirmation-jeunes' }[type]
     const site = String(reglages.url_formulaires || '').trim()
     let url = site ? `${site.replace(/\/?$/, '/')}${slug}/` : `${base}formulaires/${f.fichier}.html`
     if (vers === 'ecole' && choisie) url += PREPARATIONS_CONNUES.includes(choisie.nom) ? `?preparation=${encodeURIComponent(choisie.nom)}` : `?preparation=${encodeURIComponent('Autre école')}&ecole=${encodeURIComponent(choisie.nom)}`
@@ -291,7 +292,7 @@ function EnvoiFormulaire({ onFermer }) {
           : <div><label className="etiquette">École</label>
               <select className="champ" value={ecole} onChange={(e) => setEcole(e.target.value)}><option value="">Choisir…</option>{ecoles.map((x) => <option key={x.nom} value={x.nom}>{x.nom}{x.email ? '' : ' (pas d\'e-mail)'}</option>)}</select>
               <p className="mt-1 text-xs text-nuit-600/70">Les écoles et leurs adresses se règlent dans Réglages → Catéchisme. Le formulaire s'ouvrira avec l'école déjà choisie.</p></div>}
-        {type === 'profession_foi' && vers === 'ecole' && ecole === 'Herrade de Landsberg' && <p className="rounded-lg bg-amber-50 p-2 text-xs text-amber-900">La profession de foi se fait en 3e : Herrade de Landsberg n'est pas proposée dans ce formulaire.</p>}
+        {['profession_foi', 'confirmation_jeune'].includes(type) && vers === 'ecole' && ecole === 'Herrade de Landsberg' && <p className="rounded-lg bg-amber-50 p-2 text-xs text-amber-900">Herrade de Landsberg n'est pas proposée dans ce formulaire.</p>}
       </div>
     </Modale>
   )
@@ -447,7 +448,7 @@ function ActionsDossiers({ choisis, lancer, utilisateurs, ecrit, majLocale, rech
   }
   const annees = modifiables.every((d) => TYPES[d.type]?.collectif) ? choixAnneesScolaires() : modifiables.every((d) => ['catechumene', 'confirmand'].includes(d.type)) ? choixAnnees() : null
   const aReclamer = modifiables.filter((d) => d.etat === 'ouvert' && d.email && documentsManquants(d.type, d.documents, d).length)
-    .map((d) => ({ id: d.id, nom: d.nom, documents: documentsManquants(d.type, d.documents, d).map((x) => x.label) }))
+    .map((d) => { const m = documentsManquants(d.type, d.documents, d); return { id: d.id, nom: d.nom, documents: m.map((x) => x.label), docs: m.map((x) => ({ cle: x.cle, libelle: x.label })) } })
   return (
     <>
       {modifiables.length < choisis.length && <span className="text-xs text-nuit-600/70">{choisis.length - modifiables.length} en lecture seule</span>}
